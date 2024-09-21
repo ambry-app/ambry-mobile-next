@@ -27,7 +27,7 @@ const signInAsync = async (url: string, email: string, password: string) => {
   console.log("Signing in...", url, email, password);
   try {
     console.log("Trying...");
-    const response = await fetch(url, {
+    const response = await fetch(`${url}/gql`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -50,7 +50,10 @@ const signInAsync = async (url: string, email: string, password: string) => {
     });
     console.log("Response:", response);
     const json = await response.json();
-    console.log(json.data.createSession.token);
+    if (json.errors) {
+      console.error("Error signing in:", json.errors);
+      return false;
+    }
     return json.data.createSession.token;
   } catch (error) {
     console.error("Error signing in:", error);
@@ -62,7 +65,7 @@ const signOutAsync = async (url: string, token: string) => {
   console.log("Signing out...", url);
   try {
     console.log("Trying...");
-    const response = await fetch(url, {
+    const response = await fetch(`${url}/gql`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
