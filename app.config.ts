@@ -8,7 +8,7 @@ export default {
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "ambry",
-    userInterfaceStyle: "automatic",
+    userInterfaceStyle: "dark",
     splash: {
       resizeMode: "contain",
       backgroundColor: "#27272A",

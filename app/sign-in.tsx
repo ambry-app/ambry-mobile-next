@@ -1,4 +1,4 @@
-import { Button, ScrollView, Text, TextInput, View } from "react-native";
+import { Button, Text, TextInput, View } from "react-native";
 
 import { useCallback, useState } from "react";
 
@@ -61,7 +61,7 @@ export default function SignIn() {
   // )
 
   return (
-    <ScrollView className="p-8">
+    <View className="p-12">
       <View className="py-8 items-center">
         <Logo height="64px" />
         <Text className="text-lg font-semibold text-zinc-400">
@@ -108,6 +108,6 @@ export default function SignIn() {
           Invalid username or password
         </Text>
       )}
-    </ScrollView>
+    </View>
   );
 }
