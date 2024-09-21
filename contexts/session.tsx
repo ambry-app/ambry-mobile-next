@@ -2,21 +2,21 @@ import { createContext, useContext, type PropsWithChildren } from "react";
 import { useStorageState } from "../hooks/useStorageState";
 
 type Session = {
-  token: string;
+  token: string | null;
   email: string;
   url: string;
 };
 
 const AuthContext = createContext<{
   signIn: (url: string, email: string, password: string) => Promise<boolean>;
-  signOut: (url: string, token: string) => Promise<boolean>;
+  signOut: (session: Session) => Promise<boolean>;
   session?: Session | null;
   isLoading: boolean;
 }>({
   signIn: async (_url, _email, _password) => {
     return false;
   },
-  signOut: async (_url, _token) => {
+  signOut: async (_session) => {
     return false;
   },
   session: null,
@@ -24,9 +24,7 @@ const AuthContext = createContext<{
 });
 
 const signInAsync = async (url: string, email: string, password: string) => {
-  console.log("Signing in...", url, email, password);
   try {
-    console.log("Trying...");
     const response = await fetch(`${url}/gql`, {
       method: "POST",
       headers: {
@@ -48,7 +46,6 @@ const signInAsync = async (url: string, email: string, password: string) => {
         },
       }),
     });
-    console.log("Response:", response);
     const json = await response.json();
     if (json.errors) {
       console.error("Error signing in:", json.errors);
@@ -62,9 +59,7 @@ const signInAsync = async (url: string, email: string, password: string) => {
 };
 
 const signOutAsync = async (url: string, token: string) => {
-  console.log("Signing out...", url);
   try {
-    console.log("Trying...");
     const response = await fetch(`${url}/gql`, {
       method: "POST",
       headers: {
@@ -81,9 +76,7 @@ const signOutAsync = async (url: string, token: string) => {
           `,
       }),
     });
-    console.log("Response:", response);
     const json = await response.json();
-    console.log(json.data.deleteSession.deleted);
     return json.data.deleteSession.deleted;
   } catch (error) {
     console.error("Error signing in:", error);
@@ -104,11 +97,8 @@ export function useSession() {
 }
 
 export function SessionProvider({ children }: PropsWithChildren) {
-  const [[isLoading, session], setSession] = useStorageState("session");
-  console.log(session);
-
-  const sessionObject = session ? JSON.parse(session) : null;
-  console.log(sessionObject);
+  const [[isLoading, sessionJSON], setSession] = useStorageState("session");
+  const session = sessionJSON ? JSON.parse(sessionJSON) : null;
 
   return (
     <AuthContext.Provider
@@ -122,12 +112,13 @@ export function SessionProvider({ children }: PropsWithChildren) {
             return false;
           }
         },
-        signOut: async (url, token) => {
-          const response = await signOutAsync(url, token);
-          setSession(null);
+        signOut: async (session) => {
+          const response = await signOutAsync(session.url, session.token!);
+          session.token = null;
+          setSession(JSON.stringify(session));
           return response;
         },
-        session: sessionObject,
+        session,
         isLoading,
       }}
     >
