@@ -10,9 +10,8 @@ export default {
     scheme: "ambry",
     userInterfaceStyle: "automatic",
     splash: {
-      image: "./assets/images/splash.png",
       resizeMode: "contain",
-      backgroundColor: "#ffffff",
+      backgroundColor: "#27272A",
     },
     ios: {
       supportsTablet: true,
@@ -21,7 +20,7 @@ export default {
     android: {
       adaptiveIcon: {
         foregroundImage: "./assets/images/adaptive-icon.png",
-        backgroundColor: "#ffffff",
+        backgroundColor: IS_DEV ? "#f59e0b" : "#84cc16",
       },
       package: IS_DEV ? "com.ambry.dev" : "com.ambry",
     },
@@ -30,7 +29,7 @@ export default {
       output: "static",
       favicon: "./assets/images/favicon.png",
     },
-    plugins: ["expo-router"],
+    plugins: ["expo-router", "expo-secure-store"],
     experiments: {
       typedRoutes: true,
     },
