@@ -12,7 +12,7 @@ export default function SignIn() {
   // const knownHosts = useAmbryAPI(state => state.knownHosts)
   // const [showHostInput, setShowHostInput] = useState();
   const [email, setEmail] = useState("");
-  const [host, setHost] = useState("");
+  const [host, setHost] = useState("http://192.168.0.45:4000");
   const [password, setPassword] = useState("");
   const { signIn } = useSession();
 
@@ -61,10 +61,10 @@ export default function SignIn() {
   // )
 
   return (
-    <ScrollView className="p-4">
+    <ScrollView className="p-8">
       <View className="py-8 items-center">
-        <Logo height="64" />
-        <Text className="text-lg font-semibold text-gray-400">
+        <Logo height="64px" />
+        <Text className="text-lg font-semibold text-zinc-400">
           Personal Audiobook Streaming
         </Text>
       </View>
@@ -74,7 +74,7 @@ export default function SignIn() {
         value={host}
         autoCapitalize="none"
         onChangeText={setHost}
-        className="my-2 text-gray-200 bg-gray-800 rounded px-3 py-2"
+        className="my-2 text-zinc-200 bg-zinc-800 rounded px-3 py-2"
         placeholderTextColor={colors.zinc[500]}
       />
 
@@ -85,7 +85,7 @@ export default function SignIn() {
         onChangeText={setEmail}
         textContentType="emailAddress"
         keyboardType="email-address"
-        className="my-2 text-gray-200 bg-gray-800 rounded px-3 py-2"
+        className="my-2 text-zinc-200 bg-zinc-800 rounded px-3 py-2"
         placeholderTextColor={colors.zinc[500]}
       />
       <TextInput
@@ -93,7 +93,7 @@ export default function SignIn() {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
-        className="my-2 mb-4 text-gray-200 bg-gray-800 rounded px-3 py-2"
+        className="my-2 mb-4 text-zinc-200 bg-zinc-800 rounded px-3 py-2"
         placeholderTextColor={colors.zinc[500]}
       />
       <Button
