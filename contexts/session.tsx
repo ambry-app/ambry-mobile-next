@@ -1,5 +1,13 @@
-import { createContext, useContext, type PropsWithChildren } from "react";
-import { useStorageState } from "../hooks/useStorageState";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type PropsWithChildren,
+} from "react";
+
+import { initializeDb } from "@/database/clients";
+import { useStorageState } from "@/hooks/useStorageState";
 
 type Session = {
   token: string | null;
@@ -97,8 +105,28 @@ export function useSession() {
 }
 
 export function SessionProvider({ children }: PropsWithChildren) {
-  const [[isLoading, sessionJSON], setSession] = useStorageState("session");
-  const session = sessionJSON ? JSON.parse(sessionJSON) : null;
+  const [[isLoading, sessionJSON], setSessionJSON] = useStorageState("session");
+  const [session, setSession] = useState<Session | null>(null);
+  const [dbReady, setDbReady] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    if (sessionJSON) {
+      setSession(JSON.parse(sessionJSON));
+    }
+  }, [sessionJSON]);
+
+  useEffect(() => {
+    initializeDb().then(() => {
+      setDbReady(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isLoading && session && dbReady && !isReady) {
+      setIsReady(true);
+    }
+  }, [dbReady, isLoading, isReady, session]);
 
   return (
     <AuthContext.Provider
@@ -106,7 +134,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
         signIn: async (url: string, email: string, password: string) => {
           const token = await signInAsync(url, email, password);
           if (token) {
-            setSession(JSON.stringify({ token, email, url }));
+            setSessionJSON(JSON.stringify({ token, email, url }));
             return true;
           } else {
             return false;
@@ -115,11 +143,11 @@ export function SessionProvider({ children }: PropsWithChildren) {
         signOut: async (session) => {
           const response = await signOutAsync(session.url, session.token!);
           session.token = null;
-          setSession(JSON.stringify(session));
+          setSessionJSON(JSON.stringify(session));
           return response;
         },
         session,
-        isLoading,
+        isLoading: !isReady,
       }}
     >
       {children}

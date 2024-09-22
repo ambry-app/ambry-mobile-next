@@ -1,11 +1,16 @@
 import { Button, View } from "react-native";
-
 import colors from "tailwindcss/colors";
-import { useSession } from "../../contexts/session";
+
+import { useSession } from "@/contexts/session";
+
+import { extendedClient } from "@/database/clients";
 
 export default function Index() {
   const { session, signOut } = useSession();
-  console.log("Session:", session);
+  const books = extendedClient.book.useFindMany();
+
+  console.log(books);
+
   return (
     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
       <Button

@@ -1,8 +1,9 @@
 import { ThemeProvider } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import colors from "tailwindcss/colors";
-import { SessionProvider } from "../contexts/session";
-import "../global.css";
+
+import { SessionProvider } from "@/contexts/session";
+import "@/global.css";
 
 const Theme = {
   dark: true,

@@ -1,12 +1,11 @@
-import { Button, Text, TextInput, View } from "react-native";
-
+import { router } from "expo-router";
 import { useCallback, useState } from "react";
+import { Button, Text, TextInput, View } from "react-native";
+import colors from "tailwindcss/colors";
 
 import Logo from "@/assets/images/logo.svg";
 import LargeActivityIndicator from "@/components/LargeActivityIndicator";
 import { useSession } from "@/contexts/session";
-import { router } from "expo-router";
-import colors from "tailwindcss/colors";
 
 export default function SignIn() {
   const { session, signIn } = useSession();

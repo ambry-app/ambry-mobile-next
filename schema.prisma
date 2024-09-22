@@ -1,0 +1,99 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["reactNative"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./app.db"
+}
+
+// Your data model
+
+model Person {
+  id          Int        @id
+  name        String?
+  description String?
+  imagePath   String?
+  insertedAt  DateTime
+  updatedAt   DateTime
+  authors     Author[]
+  narrators   Narrator[]
+}
+
+model Author {
+  id          Int          @id
+  name        String?
+  person      Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
+  personId    Int
+  insertedAt  DateTime
+  updatedAt   DateTime
+  bookAuthors BookAuthor[]
+}
+
+model Narrator {
+  id         Int      @id
+  name       String?
+  person     Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  personId   Int
+  insertedAt DateTime
+  updatedAt  DateTime
+}
+
+model Book {
+  id              Int          @id
+  title           String?
+  published       DateTime?
+  publishedFormat String?
+  insertedAt      DateTime
+  updatedAt       DateTime
+  seriesBooks     SeriesBook[]
+  bookAuthors     BookAuthor[]
+  media           Media[]
+}
+
+model Series {
+  id          Int          @id
+  name        String?
+  insertedAt  DateTime
+  updatedAt   DateTime
+  seriesBooks SeriesBook[]
+}
+
+model SeriesBook {
+  id         Int    @id
+  book       Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  bookId     Int
+  series     Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  seriesId   Int
+  bookNumber String
+}
+
+model BookAuthor {
+  id       Int    @id
+  author   Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId Int
+  book     Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  bookId   Int
+}
+
+model Media {
+  id              Int       @id
+  book            Book      @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  bookId          Int
+  fullCast        Boolean
+  status          String
+  abridged        Boolean
+  mpdPath         String?
+  hlsPath         String?
+  mp4Path         String?
+  duration        String?
+  published       DateTime?
+  publishedFormat String?
+  notes           String?
+  imagePath       String?
+  description     String?
+  publisher       String?
+  insertedAt      DateTime
+  updatedAt       DateTime
+}
