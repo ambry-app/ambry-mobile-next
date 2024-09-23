@@ -10,8 +10,14 @@ datasource db {
 
 // Your data model
 
+model Server {
+  url      String    @id
+  lastSync DateTime?
+}
+
 model Person {
-  id          Int        @id
+  id          String
+  url         String
   name        String?
   description String?
   imagePath   String?
@@ -19,29 +25,38 @@ model Person {
   updatedAt   DateTime
   authors     Author[]
   narrators   Narrator[]
+
+  @@id([id, url])
 }
 
 model Author {
-  id          Int          @id
+  id          String
+  url         String
   name        String?
-  person      Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
-  personId    Int
+  person      Person       @relation(fields: [personId, url], references: [id, url], onDelete: Cascade)
+  personId    String
   insertedAt  DateTime
   updatedAt   DateTime
   bookAuthors BookAuthor[]
+
+  @@id([id, url])
 }
 
 model Narrator {
-  id         Int      @id
+  id         String
+  url        String
   name       String?
-  person     Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
-  personId   Int
+  person     Person   @relation(fields: [personId, url], references: [id, url], onDelete: Cascade)
+  personId   String
   insertedAt DateTime
   updatedAt  DateTime
+
+  @@id([id, url])
 }
 
 model Book {
-  id              Int          @id
+  id              String
+  url             String
   title           String?
   published       DateTime?
   publishedFormat String?
@@ -50,37 +65,49 @@ model Book {
   seriesBooks     SeriesBook[]
   bookAuthors     BookAuthor[]
   media           Media[]
+
+  @@id([id, url])
 }
 
 model Series {
-  id          Int          @id
+  id          String
+  url         String
   name        String?
   insertedAt  DateTime
   updatedAt   DateTime
   seriesBooks SeriesBook[]
+
+  @@id([id, url])
 }
 
 model SeriesBook {
-  id         Int    @id
-  book       Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  bookId     Int
-  series     Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  seriesId   Int
+  id         String
+  url        String
+  book       Book   @relation(fields: [bookId, url], references: [id, url], onDelete: Cascade)
+  bookId     String
+  series     Series @relation(fields: [seriesId, url], references: [id, url], onDelete: Cascade)
+  seriesId   String
   bookNumber String
+
+  @@id([id, url])
 }
 
 model BookAuthor {
-  id       Int    @id
-  author   Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  authorId Int
-  book     Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  bookId   Int
+  id       String
+  url      String
+  author   Author @relation(fields: [authorId, url], references: [id, url], onDelete: Cascade)
+  authorId String
+  book     Book   @relation(fields: [bookId, url], references: [id, url], onDelete: Cascade)
+  bookId   String
+
+  @@id([id, url])
 }
 
 model Media {
-  id              Int       @id
-  book            Book      @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  bookId          Int
+  id              String
+  url             String
+  book            Book      @relation(fields: [bookId, url], references: [id, url], onDelete: Cascade)
+  bookId          String
   fullCast        Boolean
   status          String
   abridged        Boolean
@@ -96,4 +123,6 @@ model Media {
   publisher       String?
   insertedAt      DateTime
   updatedAt       DateTime
+
+  @@id([id, url])
 }
