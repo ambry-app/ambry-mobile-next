@@ -114,8 +114,9 @@ export function SessionProvider({ children }: PropsWithChildren) {
     }
   }, [sessionJSON]);
 
+  // FIXME: not right
   useEffect(() => {
-    if (!isLoading && session && !isReady) {
+    if (!isLoading && !isReady) {
       setIsReady(true);
     }
   }, [isLoading, isReady, session]);
