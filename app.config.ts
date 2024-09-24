@@ -29,7 +29,7 @@ export default {
       output: "static",
       favicon: "./assets/images/favicon.png",
     },
-    plugins: ["expo-router", "expo-secure-store", "@prisma/react-native"],
+    plugins: ["expo-router", "expo-secure-store"],
     experiments: {
       typedRoutes: true,
     },

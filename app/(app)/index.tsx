@@ -3,13 +3,8 @@ import colors from "tailwindcss/colors";
 
 import { useSession } from "@/contexts/session";
 
-import { extendedClient } from "@/database/clients";
-
 export default function Index() {
   const { session, signOut } = useSession();
-  const books = extendedClient.book.useFindMany();
-
-  console.log(books);
 
   return (
     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>

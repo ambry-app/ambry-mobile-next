@@ -6,7 +6,6 @@ import {
   type PropsWithChildren,
 } from "react";
 
-import { initializeDb } from "@/database/clients";
 import { useStorageState } from "@/hooks/useStorageState";
 
 type Session = {
@@ -107,7 +106,6 @@ export function useSession() {
 export function SessionProvider({ children }: PropsWithChildren) {
   const [[isLoading, sessionJSON], setSessionJSON] = useStorageState("session");
   const [session, setSession] = useState<Session | null>(null);
-  const [dbReady, setDbReady] = useState(false);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -117,16 +115,10 @@ export function SessionProvider({ children }: PropsWithChildren) {
   }, [sessionJSON]);
 
   useEffect(() => {
-    initializeDb().then(() => {
-      setDbReady(true);
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!isLoading && session && dbReady && !isReady) {
+    if (!isLoading && session && !isReady) {
       setIsReady(true);
     }
-  }, [dbReady, isLoading, isReady, session]);
+  }, [isLoading, isReady, session]);
 
   return (
     <AuthContext.Provider
