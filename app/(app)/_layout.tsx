@@ -2,7 +2,7 @@ import { Redirect, Stack } from "expo-router";
 
 import LargeActivityIndicator from "@/components/LargeActivityIndicator";
 import { useSession } from "@/contexts/session";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 
 export default function AppLayout() {
   const { session, isLoading } = useSession();
@@ -11,6 +11,7 @@ export default function AppLayout() {
   if (isLoading) {
     return (
       <View className="flex h-full justify-center">
+        <Text className="text-zinc-400 mb-2">Loading session...</Text>
         <LargeActivityIndicator className="mt-4" />
       </View>
     );
