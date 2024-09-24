@@ -33,18 +33,16 @@ export default function Root() {
 
   if (error) {
     return (
-      <View className="flex h-full justify-center">
-        <Text className="text-red-500 mb-2">
-          Migration error: {error.message}
-        </Text>
+      <View className="bg-black flex h-full items-center justify-center">
+        <Text className="text-red-500 mb-2">Migration error: {"foo"}</Text>
       </View>
     );
   }
 
   if (!success) {
     return (
-      <View className="flex h-full justify-center">
-        <Text className="text-zinc-400 mb-2">Migrating database...</Text>
+      <View className="bg-black flex h-full items-center justify-center">
+        <Text className="text-zinc-100 mb-2">Migrating database...</Text>
         <LargeActivityIndicator className="mt-4" />
       </View>
     );

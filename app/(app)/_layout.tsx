@@ -10,8 +10,8 @@ export default function AppLayout() {
   // You can keep the splash screen open, or render a loading screen like we do here.
   if (isLoading) {
     return (
-      <View className="flex h-full justify-center">
-        <Text className="text-zinc-400 mb-2">Loading session...</Text>
+      <View className="flex h-full items-center justify-center">
+        <Text className="text-zinc-100 mb-2">Loading session...</Text>
         <LargeActivityIndicator className="mt-4" />
       </View>
     );
