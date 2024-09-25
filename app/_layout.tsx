@@ -1,19 +1,15 @@
 import { ThemeProvider } from "@react-navigation/native";
-import { drizzle } from "drizzle-orm/expo-sqlite";
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import { Stack } from "expo-router";
-import { openDatabaseSync } from "expo-sqlite/next";
 import { Text, View } from "react-native";
 import colors from "tailwindcss/colors";
 
 import LargeActivityIndicator from "@/components/LargeActivityIndicator";
 import { SessionProvider } from "@/contexts/session";
+import { db, expoDb } from "@/db/db";
 import migrations from "@/drizzle/migrations";
 import "@/global.css";
-
-const expoDb = openDatabaseSync("ambry.db");
-const db = drizzle(expoDb);
 
 const Theme = {
   dark: true,
@@ -34,7 +30,9 @@ export default function Root() {
   if (error) {
     return (
       <View className="bg-black flex h-full items-center justify-center">
-        <Text className="text-red-500 mb-2">Migration error: {"foo"}</Text>
+        <Text className="text-red-500 mb-2">
+          Migration error: {error.message}
+        </Text>
       </View>
     );
   }

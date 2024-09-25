@@ -2,7 +2,7 @@ CREATE TABLE `authors` (
 	`url` text NOT NULL,
 	`id` text NOT NULL,
 	`name` text NOT NULL,
-	`person_id` integer NOT NULL,
+	`person_id` text NOT NULL,
 	`inserted_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	PRIMARY KEY(`url`, `id`),
@@ -12,8 +12,8 @@ CREATE TABLE `authors` (
 CREATE TABLE `book_authors` (
 	`url` text NOT NULL,
 	`id` text NOT NULL,
-	`author_id` integer NOT NULL,
-	`book_id` integer NOT NULL,
+	`author_id` text NOT NULL,
+	`book_id` text NOT NULL,
 	PRIMARY KEY(`url`, `id`),
 	FOREIGN KEY (`url`,`author_id`) REFERENCES `authors`(`url`,`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`url`,`book_id`) REFERENCES `books`(`url`,`id`) ON UPDATE no action ON DELETE cascade
@@ -33,7 +33,7 @@ CREATE TABLE `books` (
 CREATE TABLE `media` (
 	`url` text NOT NULL,
 	`id` text NOT NULL,
-	`book_id` integer NOT NULL,
+	`book_id` text NOT NULL,
 	`chapters` text NOT NULL,
 	`full_cast` integer NOT NULL,
 	`abridged` integer NOT NULL,
@@ -65,7 +65,7 @@ CREATE TABLE `narrators` (
 	`url` text NOT NULL,
 	`id` text NOT NULL,
 	`name` text NOT NULL,
-	`person_id` integer NOT NULL,
+	`person_id` text NOT NULL,
 	`inserted_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	PRIMARY KEY(`url`, `id`),
@@ -95,8 +95,8 @@ CREATE TABLE `series` (
 CREATE TABLE `series_books` (
 	`url` text NOT NULL,
 	`id` text NOT NULL,
-	`book_id` integer NOT NULL,
-	`series_id` integer NOT NULL,
+	`book_id` text NOT NULL,
+	`series_id` text NOT NULL,
 	`book_number` text NOT NULL,
 	PRIMARY KEY(`url`, `id`),
 	FOREIGN KEY (`url`,`book_id`) REFERENCES `books`(`url`,`id`) ON UPDATE no action ON DELETE cascade,

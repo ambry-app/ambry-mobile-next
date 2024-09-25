@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "2da0c347-c682-45d6-b535-09d5fb894418",
+  "id": "59a5245f-b207-4eaa-be9f-9875e351f289",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "authors": {
@@ -30,7 +30,7 @@
         },
         "person_id": {
           "name": "person_id",
-          "type": "integer",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -98,14 +98,14 @@
         },
         "author_id": {
           "name": "author_id",
-          "type": "integer",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "book_id": {
           "name": "book_id",
-          "type": "integer",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -240,7 +240,7 @@
         },
         "book_id": {
           "name": "book_id",
-          "type": "integer",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -468,7 +468,7 @@
         },
         "person_id": {
           "name": "person_id",
-          "type": "integer",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -654,14 +654,14 @@
         },
         "book_id": {
           "name": "book_id",
-          "type": "integer",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "series_id": {
           "name": "series_id",
-          "type": "integer",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false

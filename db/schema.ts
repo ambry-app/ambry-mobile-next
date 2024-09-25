@@ -1,3 +1,4 @@
+import { relations } from "drizzle-orm";
 import {
   foreignKey,
   integer,
@@ -24,13 +25,18 @@ export const people = sqliteTable(
   },
 );
 
+export const peopleRelations = relations(people, ({ many }) => ({
+  authors: many(authors),
+  narrators: many(narrators),
+}));
+
 export const authors = sqliteTable(
   "authors",
   {
     url: text("url").notNull(),
     id: text("id").notNull(),
     name: text("name").notNull(),
-    personId: integer("person_id").notNull(),
+    personId: text("person_id").notNull(),
     insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
@@ -45,13 +51,21 @@ export const authors = sqliteTable(
   },
 );
 
+export const authorsRelations = relations(authors, ({ one, many }) => ({
+  person: one(people, {
+    fields: [authors.url, authors.personId],
+    references: [people.url, people.id],
+  }),
+  bookAuthors: many(bookAuthors),
+}));
+
 export const narrators = sqliteTable(
   "narrators",
   {
     url: text("url").notNull(),
     id: text("id").notNull(),
     name: text("name").notNull(),
-    personId: integer("person_id").notNull(),
+    personId: text("person_id").notNull(),
     insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
@@ -65,6 +79,13 @@ export const narrators = sqliteTable(
     };
   },
 );
+
+export const narratorsRelations = relations(narrators, ({ one }) => ({
+  person: one(people, {
+    fields: [narrators.url, narrators.personId],
+    references: [people.url, people.id],
+  }),
+}));
 
 export const books = sqliteTable(
   "books",
@@ -86,6 +107,11 @@ export const books = sqliteTable(
   },
 );
 
+export const booksRelations = relations(books, ({ many }) => ({
+  seriesBooks: many(seriesBooks),
+  bookAuthors: many(bookAuthors),
+}));
+
 export const series = sqliteTable(
   "series",
   {
@@ -102,13 +128,17 @@ export const series = sqliteTable(
   },
 );
 
+export const seriesRelations = relations(series, ({ many }) => ({
+  seriesBooks: many(seriesBooks),
+}));
+
 export const seriesBooks = sqliteTable(
   "series_books",
   {
     url: text("url").notNull(),
     id: text("id").notNull(),
-    bookId: integer("book_id").notNull(),
-    seriesId: integer("series_id").notNull(),
+    bookId: text("book_id").notNull(),
+    seriesId: text("series_id").notNull(),
     bookNumber: text("book_number").notNull(),
   },
   (table) => {
@@ -126,13 +156,24 @@ export const seriesBooks = sqliteTable(
   },
 );
 
+export const seriesBooksRelations = relations(seriesBooks, ({ one }) => ({
+  book: one(books, {
+    fields: [seriesBooks.url, seriesBooks.bookId],
+    references: [books.url, books.id],
+  }),
+  series: one(series, {
+    fields: [seriesBooks.url, seriesBooks.seriesId],
+    references: [series.url, series.id],
+  }),
+}));
+
 export const bookAuthors = sqliteTable(
   "book_authors",
   {
     url: text("url").notNull(),
     id: text("id").notNull(),
-    authorId: integer("author_id").notNull(),
-    bookId: integer("book_id").notNull(),
+    authorId: text("author_id").notNull(),
+    bookId: text("book_id").notNull(),
   },
   (table) => {
     return {
@@ -148,6 +189,17 @@ export const bookAuthors = sqliteTable(
     };
   },
 );
+
+export const bookAuthorsRelations = relations(bookAuthors, ({ one }) => ({
+  author: one(authors, {
+    fields: [bookAuthors.url, bookAuthors.authorId],
+    references: [authors.url, authors.id],
+  }),
+  book: one(books, {
+    fields: [bookAuthors.url, bookAuthors.bookId],
+    references: [books.url, books.id],
+  }),
+}));
 
 type Chapter = {
   time: number;
@@ -166,7 +218,7 @@ export const media = sqliteTable(
   {
     url: text("url").notNull(),
     id: text("id").notNull(),
-    bookId: integer("book_id").notNull(),
+    bookId: text("book_id").notNull(),
     chapters: text("chapters", { mode: "json" }).notNull().$type<Chapter[]>(),
     // supplementalFiles: text("supplemental_files", { mode: "json" }).$type<
     //   SupplementalFile[]
