@@ -80,11 +80,12 @@ export const narrators = sqliteTable(
   },
 );
 
-export const narratorsRelations = relations(narrators, ({ one }) => ({
+export const narratorsRelations = relations(narrators, ({ one, many }) => ({
   person: one(people, {
     fields: [narrators.url, narrators.personId],
     references: [people.url, people.id],
   }),
+  mediaNarrators: many(mediaNarrators),
 }));
 
 export const books = sqliteTable(
@@ -110,6 +111,7 @@ export const books = sqliteTable(
 export const booksRelations = relations(books, ({ many }) => ({
   seriesBooks: many(seriesBooks),
   bookAuthors: many(bookAuthors),
+  media: many(media),
 }));
 
 export const series = sqliteTable(
@@ -140,6 +142,8 @@ export const seriesBooks = sqliteTable(
     bookId: text("book_id").notNull(),
     seriesId: text("series_id").notNull(),
     bookNumber: text("book_number").notNull(),
+    insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
   (table) => {
     return {
@@ -174,6 +178,8 @@ export const bookAuthors = sqliteTable(
     id: text("id").notNull(),
     authorId: text("author_id").notNull(),
     bookId: text("book_id").notNull(),
+    insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
   (table) => {
     return {
@@ -218,15 +224,15 @@ export const media = sqliteTable(
   {
     url: text("url").notNull(),
     id: text("id").notNull(),
+    status: text("status", {
+      enum: ["pending", "processing", "error", "ready"],
+    }),
     bookId: text("book_id").notNull(),
     chapters: text("chapters", { mode: "json" }).notNull().$type<Chapter[]>(),
     // supplementalFiles: text("supplemental_files", { mode: "json" }).$type<
     //   SupplementalFile[]
     // >(),
     fullCast: integer("full_cast", { mode: "boolean" }).notNull(),
-    // status: text("status", {
-    //   enum: ["pending", "processing", "error", "ready"],
-    // }),
     abridged: integer("abridged", { mode: "boolean" }).notNull(),
     mpdPath: text("mpd_path"),
     hlsPath: text("hls_path"),
@@ -254,13 +260,23 @@ export const media = sqliteTable(
   },
 );
 
+export const mediaRelations = relations(media, ({ one, many }) => ({
+  book: one(books, {
+    fields: [media.url, media.bookId],
+    references: [books.url, books.id],
+  }),
+  mediaNarrators: many(mediaNarrators),
+}));
+
 export const mediaNarrators = sqliteTable(
   "media_narrators",
   {
     url: text("url").notNull(),
     id: text("id").notNull(),
-    mediaId: integer("media_id").notNull(),
-    narratorId: integer("narrator_id").notNull(),
+    mediaId: text("media_id").notNull(),
+    narratorId: text("narrator_id").notNull(),
+    insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
   (table) => {
     return {
@@ -276,6 +292,17 @@ export const mediaNarrators = sqliteTable(
     };
   },
 );
+
+export const mediaNarratorsRelations = relations(mediaNarrators, ({ one }) => ({
+  media: one(media, {
+    fields: [mediaNarrators.url, mediaNarrators.mediaId],
+    references: [media.url, media.id],
+  }),
+  narrator: one(narrators, {
+    fields: [mediaNarrators.url, mediaNarrators.narratorId],
+    references: [narrators.url, narrators.id],
+  }),
+}));
 
 export const servers = sqliteTable("servers", {
   url: text("url").primaryKey(),

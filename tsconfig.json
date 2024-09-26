@@ -4,7 +4,13 @@
     "strict": true,
     "paths": {
       "@/*": ["./*"]
-    }
+    },
+    "plugins": [
+      {
+        "name": "@0no-co/graphqlsp",
+        "schema": "./graphql/schema.graphql"
+      }
+    ]
   },
   "include": [
     "**/*.ts",

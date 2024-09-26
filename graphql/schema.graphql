@@ -1,0 +1,336 @@
+schema {
+  query: RootQueryType
+  mutation: RootMutationType
+}
+
+type Author implements Node {
+  authoredBooks(after: String, before: String, first: Int, last: Int): BookConnection
+  """The ID of an object"""
+  id: ID!
+  insertedAt: DateTime!
+  name: String!
+  person: Person!
+  updatedAt: DateTime!
+}
+
+type Book implements Node & SearchResult {
+  authors: [Author!]!
+  description: String @deprecated(reason: "description has been moved to `Media`")
+  """The ID of an object"""
+  id: ID!
+  imagePath: String @deprecated(reason: "imagePath has been moved to `Media`")
+  insertedAt: DateTime!
+  media: [Media!]!
+  published: Date!
+  publishedFormat: DateFormat!
+  seriesBooks: [SeriesBook!]!
+  title: String!
+  updatedAt: DateTime!
+}
+
+type BookAuthor implements Node {
+  author: Author!
+  book: Book!
+  """The ID of an object"""
+  id: ID!
+  insertedAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type BookConnection {
+  edges: [BookEdge]
+  pageInfo: PageInfo!
+}
+
+type BookEdge {
+  cursor: String
+  node: Book
+}
+
+type Chapter {
+  endTime: Float
+  id: ID!
+  startTime: Float!
+  title: String
+}
+
+input CreateSessionInput {
+  email: String!
+  password: String!
+}
+
+type CreateSessionPayload {
+  token: String!
+  user: User!
+}
+
+"""
+The `Date` scalar type represents a date. The Date appears in a JSON
+response as an ISO8601 formatted string, without a time component.
+"""
+scalar Date
+
+enum DateFormat {
+  FULL
+  YEAR
+  YEAR_MONTH
+}
+
+"""
+The `DateTime` scalar type represents a date and time in the UTC
+timezone. The DateTime appears in a JSON response as an ISO8601 formatted
+string, including UTC timezone ("Z"). The parsed date and time string will
+be converted to UTC if there is an offset.
+"""
+scalar DateTime
+
+"""
+The `Decimal` scalar type represents signed double-precision fractional
+values parsed by the `Decimal` library. The Decimal appears in a JSON
+response as a string to preserve precision.
+"""
+scalar Decimal
+
+type DeleteSessionPayload {
+  deleted: Boolean!
+}
+
+type Deletion implements Node {
+  deletedAt: DateTime!
+  """The ID of an object"""
+  id: ID!
+  recordId: ID!
+  type: DeletionType!
+}
+
+enum DeletionType {
+  AUTHOR
+  BOOK
+  BOOK_AUTHOR
+  MEDIA
+  MEDIA_NARRATOR
+  NARRATOR
+  PERSON
+  SERIES
+  SERIES_BOOK
+}
+
+input LoadPlayerStateInput {
+  mediaId: ID!
+}
+
+type LoadPlayerStatePayload {
+  playerState: PlayerState!
+}
+
+type Media implements Node {
+  abridged: Boolean!
+  book: Book!
+  chapters: [Chapter!]!
+  description: String
+  duration: Float
+  fullCast: Boolean!
+  hlsPath: String
+  """The ID of an object"""
+  id: ID!
+  imagePath: String
+  insertedAt: DateTime!
+  mp4Path: String
+  mpdPath: String
+  narrators: [Narrator!]!
+  playerState: PlayerState
+  published: Date
+  publishedFormat: DateFormat!
+  status: MediaProcessingStatus!
+  updatedAt: DateTime!
+}
+
+type MediaConnection {
+  edges: [MediaEdge]
+  pageInfo: PageInfo!
+}
+
+type MediaEdge {
+  cursor: String
+  node: Media
+}
+
+type MediaNarrator implements Node {
+  """The ID of an object"""
+  id: ID!
+  insertedAt: DateTime!
+  media: Media!
+  narrator: Narrator!
+  updatedAt: DateTime!
+}
+
+enum MediaProcessingStatus {
+  ERROR
+  PENDING
+  PROCESSING
+  READY
+}
+
+type Narrator implements Node {
+  """The ID of an object"""
+  id: ID!
+  insertedAt: DateTime!
+  name: String!
+  narratedMedia(after: String, before: String, first: Int, last: Int): MediaConnection
+  person: Person!
+  updatedAt: DateTime!
+}
+
+interface Node {
+  """The ID of the object."""
+  id: ID!
+}
+
+type PageInfo {
+  """When paginating forwards, the cursor to continue."""
+  endCursor: String
+  """When paginating forwards, are there more items?"""
+  hasNextPage: Boolean!
+  """When paginating backwards, are there more items?"""
+  hasPreviousPage: Boolean!
+  """When paginating backwards, the cursor to continue."""
+  startCursor: String
+}
+
+type Person implements Node & SearchResult {
+  authors: [Author!]!
+  description: String
+  """The ID of an object"""
+  id: ID!
+  imagePath: String
+  insertedAt: DateTime!
+  name: String!
+  narrators: [Narrator!]!
+  updatedAt: DateTime!
+}
+
+type PlayerState implements Node {
+  """The ID of an object"""
+  id: ID!
+  insertedAt: DateTime!
+  media: Media!
+  playbackRate: Float!
+  position: Float!
+  status: PlayerStateStatus!
+  updatedAt: DateTime!
+}
+
+type PlayerStateConnection {
+  edges: [PlayerStateEdge]
+  pageInfo: PageInfo!
+}
+
+type PlayerStateEdge {
+  cursor: String
+  node: PlayerState
+}
+
+enum PlayerStateStatus {
+  FINISHED
+  IN_PROGRESS
+  NOT_STARTED
+}
+
+type RootMutationType {
+  createSession(input: CreateSessionInput!): CreateSessionPayload
+  deleteSession: DeleteSessionPayload
+  """Initializes a new player state or returns an existing player state for a given Media."""
+  loadPlayerState(input: LoadPlayerStateInput!): LoadPlayerStatePayload
+  updatePlayerState(input: UpdatePlayerStateInput!): UpdatePlayerStatePayload
+}
+
+type RootQueryType {
+  authorsChangedSince(since: DateTime): [Author!]!
+  bookAuthorsChangedSince(since: DateTime): [BookAuthor!]!
+  books(after: String, before: String, first: Int, last: Int): BookConnection
+  booksChangedSince(since: DateTime): [Book!]!
+  deletionsSince(since: DateTime): [Deletion!]!
+  me: User
+  mediaChangedSince(since: DateTime): [Media!]!
+  mediaNarratorsChangedSince(since: DateTime): [MediaNarrator!]!
+  narratorsChangedSince(since: DateTime): [Narrator!]!
+  node(
+    """The ID of an object."""
+    id: ID!
+  ): Node
+  peopleChangedSince(since: DateTime): [Person!]!
+  playerStates(after: String, before: String, first: Int, last: Int): PlayerStateConnection
+  search(
+    after: String
+    before: String
+    first: Int
+    last: Int
+    """Must be at least 3 characters"""
+    query: String!
+  ): SearchResultConnection
+  seriesBooksChangedSince(since: DateTime): [SeriesBook!]!
+  seriesChangedSince(since: DateTime): [Series!]!
+  serverTime: DateTime!
+}
+
+interface SearchResult {
+  id: ID!
+}
+
+type SearchResultConnection {
+  edges: [SearchResultEdge]
+  pageInfo: PageInfo!
+}
+
+type SearchResultEdge {
+  cursor: String
+  node: SearchResult
+}
+
+type Series implements Node & SearchResult {
+  """The ID of an object"""
+  id: ID!
+  insertedAt: DateTime!
+  name: String!
+  seriesBooks(after: String, before: String, first: Int, last: Int): SeriesBookConnection
+  updatedAt: DateTime!
+}
+
+type SeriesBook implements Node {
+  book: Book!
+  bookNumber: Decimal!
+  """The ID of an object"""
+  id: ID!
+  insertedAt: DateTime!
+  series: Series!
+  updatedAt: DateTime!
+}
+
+type SeriesBookConnection {
+  edges: [SeriesBookEdge]
+  pageInfo: PageInfo!
+}
+
+type SeriesBookEdge {
+  cursor: String
+  node: SeriesBook
+}
+
+input UpdatePlayerStateInput {
+  mediaId: ID!
+  playbackRate: Float
+  position: Float
+}
+
+type UpdatePlayerStatePayload {
+  playerState: PlayerState!
+}
+
+type User {
+  admin: Boolean!
+  confirmedAt: DateTime
+  email: String!
+  insertedAt: DateTime!
+  loadedPlayerState: PlayerState
+  updatedAt: DateTime!
+}

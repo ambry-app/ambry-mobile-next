@@ -8,7 +8,7 @@ import {
 
 import { useStorageState } from "@/hooks/useStorageState";
 
-type Session = {
+export type Session = {
   token: string | null;
   email: string;
   url: string;
