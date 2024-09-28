@@ -164,6 +164,7 @@ export type Media = Node & {
   hlsPath?: Maybe<Scalars['String']['output']>;
   /** The ID of an object */
   id: Scalars['ID']['output'];
+  /** @deprecated use `thumbnails` instead */
   imagePath?: Maybe<Scalars['String']['output']>;
   insertedAt: Scalars['DateTime']['output'];
   mp4Path?: Maybe<Scalars['String']['output']>;
@@ -173,6 +174,7 @@ export type Media = Node & {
   published?: Maybe<Scalars['Date']['output']>;
   publishedFormat: DateFormat;
   status: MediaProcessingStatus;
+  thumbnails?: Maybe<Thumbnails>;
   updatedAt: Scalars['DateTime']['output'];
 };
 
@@ -247,10 +249,12 @@ export type Person = Node & SearchResult & {
   description?: Maybe<Scalars['String']['output']>;
   /** The ID of an object */
   id: Scalars['ID']['output'];
+  /** @deprecated use `thumbnails` instead */
   imagePath?: Maybe<Scalars['String']['output']>;
   insertedAt: Scalars['DateTime']['output'];
   name: Scalars['String']['output'];
   narrators: Array<Narrator>;
+  thumbnails?: Maybe<Thumbnails>;
   updatedAt: Scalars['DateTime']['output'];
 };
 
@@ -465,6 +469,17 @@ export type SeriesBookEdge = {
   node?: Maybe<SeriesBook>;
 };
 
+export type Thumbnails = {
+  __typename?: 'Thumbnails';
+  blurhash?: Maybe<Scalars['String']['output']>;
+  extraLarge: Scalars['String']['output'];
+  extraSmall: Scalars['String']['output'];
+  large: Scalars['String']['output'];
+  medium: Scalars['String']['output'];
+  small: Scalars['String']['output'];
+  thumbhash: Scalars['String']['output'];
+};
+
 export type UpdatePlayerStateInput = {
   mediaId: Scalars['ID']['input'];
   playbackRate?: InputMaybe<Scalars['Float']['input']>;
@@ -491,7 +506,7 @@ export type SyncQueryVariables = Exact<{
 }>;
 
 
-export type SyncQuery = { __typename?: 'RootQueryType', serverTime: any, peopleChangedSince: Array<{ __typename?: 'Person', id: string, name: string, description?: string | null, imagePath?: string | null, insertedAt: any, updatedAt: any }>, authorsChangedSince: Array<{ __typename?: 'Author', id: string, name: string, insertedAt: any, updatedAt: any, person: { __typename?: 'Person', id: string } }>, narratorsChangedSince: Array<{ __typename?: 'Narrator', id: string, name: string, insertedAt: any, updatedAt: any, person: { __typename?: 'Person', id: string } }>, booksChangedSince: Array<{ __typename?: 'Book', id: string, title: string, published: any, publishedFormat: DateFormat, insertedAt: any, updatedAt: any }>, bookAuthorsChangedSince: Array<{ __typename?: 'BookAuthor', id: string, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, author: { __typename?: 'Author', id: string } }>, seriesChangedSince: Array<{ __typename?: 'Series', id: string, name: string, insertedAt: any, updatedAt: any }>, seriesBooksChangedSince: Array<{ __typename?: 'SeriesBook', id: string, bookNumber: any, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, series: { __typename?: 'Series', id: string } }>, mediaChangedSince: Array<{ __typename?: 'Media', id: string, status: MediaProcessingStatus, description?: string | null, imagePath?: string | null, published?: any | null, publishedFormat: DateFormat, abridged: boolean, fullCast: boolean, mp4Path?: string | null, mpdPath?: string | null, hlsPath?: string | null, duration?: number | null, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string } }>, mediaNarratorsChangedSince: Array<{ __typename?: 'MediaNarrator', id: string, insertedAt: any, updatedAt: any, media: { __typename?: 'Media', id: string }, narrator: { __typename?: 'Narrator', id: string } }>, deletionsSince: Array<{ __typename?: 'Deletion', type: DeletionType, recordId: string }> };
+export type SyncQuery = { __typename?: 'RootQueryType', serverTime: any, peopleChangedSince: Array<{ __typename?: 'Person', id: string, name: string, description?: string | null, insertedAt: any, updatedAt: any, thumbnails?: { __typename?: 'Thumbnails', extraLarge: string, large: string, medium: string, small: string, extraSmall: string, thumbhash: string } | null }>, authorsChangedSince: Array<{ __typename?: 'Author', id: string, name: string, insertedAt: any, updatedAt: any, person: { __typename?: 'Person', id: string } }>, narratorsChangedSince: Array<{ __typename?: 'Narrator', id: string, name: string, insertedAt: any, updatedAt: any, person: { __typename?: 'Person', id: string } }>, booksChangedSince: Array<{ __typename?: 'Book', id: string, title: string, published: any, publishedFormat: DateFormat, insertedAt: any, updatedAt: any }>, bookAuthorsChangedSince: Array<{ __typename?: 'BookAuthor', id: string, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, author: { __typename?: 'Author', id: string } }>, seriesChangedSince: Array<{ __typename?: 'Series', id: string, name: string, insertedAt: any, updatedAt: any }>, seriesBooksChangedSince: Array<{ __typename?: 'SeriesBook', id: string, bookNumber: any, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, series: { __typename?: 'Series', id: string } }>, mediaChangedSince: Array<{ __typename?: 'Media', id: string, status: MediaProcessingStatus, description?: string | null, published?: any | null, publishedFormat: DateFormat, abridged: boolean, fullCast: boolean, mp4Path?: string | null, mpdPath?: string | null, hlsPath?: string | null, duration?: number | null, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, thumbnails?: { __typename?: 'Thumbnails', extraLarge: string, large: string, medium: string, small: string, extraSmall: string, thumbhash: string } | null }>, mediaNarratorsChangedSince: Array<{ __typename?: 'MediaNarrator', id: string, insertedAt: any, updatedAt: any, media: { __typename?: 'Media', id: string }, narrator: { __typename?: 'Narrator', id: string } }>, deletionsSince: Array<{ __typename?: 'Deletion', type: DeletionType, recordId: string }> };
 
 export class TypedDocumentString<TResult, TVariables>
   extends String
@@ -514,7 +529,14 @@ export const SyncDocument = new TypedDocumentString(`
     id
     name
     description
-    imagePath
+    thumbnails {
+      extraLarge
+      large
+      medium
+      small
+      extraSmall
+      thumbhash
+    }
     insertedAt
     updatedAt
   }
@@ -580,7 +602,14 @@ export const SyncDocument = new TypedDocumentString(`
     }
     status
     description
-    imagePath
+    thumbnails {
+      extraLarge
+      large
+      medium
+      small
+      extraSmall
+      thumbhash
+    }
     published
     publishedFormat
     abridged

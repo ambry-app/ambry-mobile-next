@@ -7,6 +7,30 @@ import {
   text,
 } from "drizzle-orm/sqlite-core";
 
+export type Thumbnails = {
+  extraLarge: string;
+  large: string;
+  medium: string;
+  small: string;
+  extraSmall: string;
+  thumbhash: string;
+};
+
+export type Chapter = {
+  time: number;
+  title: string;
+};
+
+export type Person = typeof people.$inferSelect;
+export type Author = typeof authors.$inferSelect;
+export type Narrator = typeof narrators.$inferSelect;
+export type Book = typeof books.$inferSelect;
+export type Series = typeof series.$inferSelect;
+export type SeriesBook = typeof seriesBooks.$inferSelect;
+export type BookAuthor = typeof bookAuthors.$inferSelect;
+export type Media = typeof media.$inferSelect;
+export type MediaNarrator = typeof mediaNarrators.$inferSelect;
+
 export const people = sqliteTable(
   "people",
   {
@@ -14,7 +38,7 @@ export const people = sqliteTable(
     id: text("id").notNull(),
     name: text("name").notNull(),
     description: text("description"),
-    imagePath: text("image_path"),
+    thumbnails: text("thumbnails", { mode: "json" }).$type<Thumbnails | null>(),
     insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
@@ -207,11 +231,6 @@ export const bookAuthorsRelations = relations(bookAuthors, ({ one }) => ({
   }),
 }));
 
-type Chapter = {
-  time: number;
-  title: string;
-};
-
 // type SupplementalFile = {
 //   filename: string;
 //   label: string;
@@ -243,7 +262,7 @@ export const media = sqliteTable(
       enum: ["full", "year_month", "year"],
     }),
     // notes: text("notes"),
-    imagePath: text("image_path"),
+    thumbnails: text("thumbnails", { mode: "json" }).$type<Thumbnails | null>(),
     description: text("description"),
     // publisher: text("publisher"),
     insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),

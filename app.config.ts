@@ -29,7 +29,18 @@ export default {
       output: "static",
       favicon: "./assets/images/favicon.png",
     },
-    plugins: ["expo-router", "expo-secure-store"],
+    plugins: [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          android: {
+            minSdkVersion: 24,
+          },
+        },
+      ],
+    ],
     experiments: {
       typedRoutes: true,
     },

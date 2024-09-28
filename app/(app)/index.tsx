@@ -1,33 +1,38 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
-import { Button, Text, View } from "react-native";
-import colors from "tailwindcss/colors";
 
+import Grid from "@/components/Grid";
+import { MediaTileMedia } from "@/components/Grid/MediaTile";
 import { useSession } from "@/contexts/session";
 import { db } from "@/db/db";
 import * as schema from "@/db/schema";
 import { sync } from "@/db/sync";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 
 export default function Index() {
-  const { session, signOut } = useSession();
+  const { session } = useSession();
   const { data: media } = useLiveQuery(
     db.query.media.findMany({
-      columns: { id: true },
+      columns: { id: true, thumbnails: true },
       where: eq(schema.media.url, session!.url),
+      orderBy: desc(schema.media.insertedAt),
       with: {
         book: {
-          columns: { id: true },
+          columns: { id: true, title: true },
           with: {
             bookAuthors: {
               columns: { id: true },
               with: {
                 author: {
-                  columns: { id: true },
+                  columns: { id: true, name: true },
                   with: { person: { columns: { id: true } } },
                 },
               },
+            },
+            seriesBooks: {
+              columns: { id: true, bookNumber: true },
+              with: { series: { columns: { id: true, name: true } } },
             },
           },
         },
@@ -38,7 +43,12 @@ export default function Index() {
   useFocusEffect(
     useCallback(() => {
       console.log("index focused!");
-      sync(session!.url, session!.token!);
+
+      try {
+        sync(session!.url, session!.token!);
+      } catch (error) {
+        console.error("sync error:", error);
+      }
 
       return () => {
         console.log("index unfocused");
@@ -46,21 +56,5 @@ export default function Index() {
     }, [session]),
   );
 
-  useEffect(() => {
-    console.log("media:", JSON.stringify(media[0], null, 2));
-  }, [media]);
-
-  return (
-    <View className="flex h-full items-center justify-center">
-      <Text className="text-zinc-100 mb-2">Audiobooks: {media.length}</Text>
-      <Button
-        title="Sign out"
-        color={colors.lime[500]}
-        onPress={() => {
-          // The `app/(app)/_layout.tsx` will redirect to the sign-in screen.
-          signOut(session!);
-        }}
-      />
-    </View>
-  );
+  return <Grid media={media as MediaTileMedia[]} />;
 }

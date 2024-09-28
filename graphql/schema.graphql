@@ -133,7 +133,7 @@ type Media implements Node {
   hlsPath: String
   """The ID of an object"""
   id: ID!
-  imagePath: String
+  imagePath: String @deprecated(reason: "use `thumbnails` instead")
   insertedAt: DateTime!
   mp4Path: String
   mpdPath: String
@@ -142,6 +142,7 @@ type Media implements Node {
   published: Date
   publishedFormat: DateFormat!
   status: MediaProcessingStatus!
+  thumbnails: Thumbnails
   updatedAt: DateTime!
 }
 
@@ -202,10 +203,11 @@ type Person implements Node & SearchResult {
   description: String
   """The ID of an object"""
   id: ID!
-  imagePath: String
+  imagePath: String @deprecated(reason: "use `thumbnails` instead")
   insertedAt: DateTime!
   name: String!
   narrators: [Narrator!]!
+  thumbnails: Thumbnails
   updatedAt: DateTime!
 }
 
@@ -314,6 +316,16 @@ type SeriesBookConnection {
 type SeriesBookEdge {
   cursor: String
   node: SeriesBook
+}
+
+type Thumbnails {
+  blurhash: String
+  extraLarge: String!
+  extraSmall: String!
+  large: String!
+  medium: String!
+  small: String!
+  thumbhash: String!
 }
 
 input UpdatePlayerStateInput {

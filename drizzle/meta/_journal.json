@@ -8,6 +8,20 @@
       "when": 1727333119113,
       "tag": "0000_left_daredevil",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1727471588256,
+      "tag": "0001_steep_blue_blade",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1727491636906,
+      "tag": "0002_boring_gunslinger",
+      "breakpoints": true
     }
   ]
 }

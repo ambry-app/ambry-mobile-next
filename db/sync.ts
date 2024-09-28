@@ -10,7 +10,14 @@ const syncQuery = graphql(`
       id
       name
       description
-      imagePath
+      thumbnails {
+        extraLarge
+        large
+        medium
+        small
+        extraSmall
+        thumbhash
+      }
       insertedAt
       updatedAt
     }
@@ -76,7 +83,14 @@ const syncQuery = graphql(`
       }
       status
       description
-      imagePath
+      thumbnails {
+        extraLarge
+        large
+        medium
+        small
+        extraSmall
+        thumbhash
+      }
       published
       publishedFormat
       abridged
@@ -140,7 +154,7 @@ export async function sync(url: string, token: string) {
       id: person.id,
       name: person.name,
       description: person.description,
-      imagePath: person.imagePath,
+      thumbnails: person.thumbnails,
       insertedAt: new Date(person.insertedAt),
       updatedAt: new Date(person.updatedAt),
     };
@@ -237,7 +251,7 @@ export async function sync(url: string, token: string) {
         | "year_month"
         | "year",
       description: media.description,
-      imagePath: media.imagePath,
+      thumbnails: media.thumbnails,
       abridged: media.abridged,
       fullCast: media.fullCast,
       chapters: [],
@@ -278,7 +292,7 @@ export async function sync(url: string, token: string) {
           set: {
             name: sql`excluded.name`,
             description: sql`excluded.description`,
-            imagePath: sql`excluded.image_path`,
+            thumbnails: sql`excluded.thumbnails`,
             updatedAt: sql`excluded.updated_at`,
           },
         });
@@ -374,7 +388,7 @@ export async function sync(url: string, token: string) {
             published: sql`excluded.published`,
             publishedFormat: sql`excluded.published_format`,
             description: sql`excluded.description`,
-            imagePath: sql`excluded.image_path`,
+            thumbnails: sql`excluded.thumbnails`,
             abridged: sql`excluded.abridged`,
             fullCast: sql`excluded.full_cast`,
             duration: sql`excluded.duration`,
