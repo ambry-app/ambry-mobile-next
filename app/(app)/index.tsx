@@ -11,34 +11,46 @@ import { db } from "@/db/db";
 import * as schema from "@/db/schema";
 import { sync } from "@/db/sync";
 
-export type MediaForIndex = {
+type Person = {
   id: string;
-  thumbnails: schema.Thumbnails | null;
-  book: {
-    id: string;
-    title: string;
-    bookAuthors: {
-      id: string;
-      author: {
-        id: string;
-        name: string;
-        person: {
-          id: string;
-        };
-      };
-    }[];
-    seriesBooks: {
-      id: string;
-      bookNumber: string;
-      series: {
-        id: string;
-        name: string;
-      };
-    }[];
-  };
 };
 
-async function listMediaForIndex(session: Session): Promise<MediaForIndex[]> {
+type Author = {
+  id: string;
+  name: string;
+  person: Person;
+};
+
+type BookAuthor = {
+  id: string;
+  author: Author;
+};
+
+type Series = {
+  id: string;
+  name: string;
+};
+
+type SeriesBook = {
+  id: string;
+  bookNumber: string;
+  series: Series;
+};
+
+type Book = {
+  id: string;
+  title: string;
+  bookAuthors: BookAuthor[];
+  seriesBooks: SeriesBook[];
+};
+
+export type Media = {
+  id: string;
+  thumbnails: schema.Thumbnails | null;
+  book: Book;
+};
+
+async function listMediaForIndex(session: Session): Promise<Media[]> {
   return db.query.media.findMany({
     columns: { id: true, thumbnails: true },
     where: eq(schema.media.url, session!.url),
@@ -68,7 +80,7 @@ async function listMediaForIndex(session: Session): Promise<MediaForIndex[]> {
 
 export default function Index() {
   const { session } = useSession();
-  const [media, setMedia] = useState<MediaForIndex[] | undefined>();
+  const [media, setMedia] = useState<Media[] | undefined>();
   const [error, setError] = useState(false);
 
   const loadMedia = useCallback(() => {

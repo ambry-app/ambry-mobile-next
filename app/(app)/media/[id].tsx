@@ -56,7 +56,7 @@ type MediaNarrator = {
   narrator: Narrator;
 };
 
-type MediaForDetails = {
+type Media = {
   id: string;
   description: string | null;
   thumbnails: schema.Thumbnails | null;
@@ -64,10 +64,10 @@ type MediaForDetails = {
   mediaNarrators: MediaNarrator[];
 };
 
-async function getMediaForDetails(
+async function getMedia(
   session: Session,
   mediaId: string,
-): Promise<MediaForDetails | undefined> {
+): Promise<Media | undefined> {
   return db.query.media.findFirst({
     columns: { id: true, thumbnails: true, description: true },
     where: and(
@@ -109,11 +109,11 @@ async function getMediaForDetails(
 export default function MediaDetails() {
   const { session } = useSession();
   const { id: mediaId } = useLocalSearchParams<{ id: string }>();
-  const [media, setMedia] = useState<MediaForDetails | undefined>();
+  const [media, setMedia] = useState<Media | undefined>();
   const [error, setError] = useState(false);
 
   const loadMedia = useCallback(() => {
-    getMediaForDetails(session!, mediaId)
+    getMedia(session!, mediaId)
       .then(setMedia)
       .catch((error) => {
         console.error("Failed to load media:", error);

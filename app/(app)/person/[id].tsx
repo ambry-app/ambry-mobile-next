@@ -1,75 +1,72 @@
 import { and, eq } from "drizzle-orm";
-import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { Image } from "expo-image";
-import { Link, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback } from "react";
+import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
+import Description from "@/components/Description";
 import LargeActivityIndicator from "@/components/LargeActivityIndicator";
 import ScreenCentered from "@/components/ScreenCentered";
-import { useSession } from "@/contexts/session";
+import { Session, useSession } from "@/contexts/session";
 import { db } from "@/db/db";
 import * as schema from "@/db/schema";
 import { Thumbnails } from "@/db/schema";
 import { sync } from "@/db/sync";
 
-function PersonImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
-  const { session } = useSession();
+type Person = {
+  id: string;
+  name: string;
+  thumbnails: Thumbnails | null;
+  description: string | null;
+};
 
-  if (!thumbnails) {
-    return (
-      <View className="mx-12 my-8 rounded-full bg-zinc-800 overflow-hidden">
-        <View className="w-full" style={{ aspectRatio: 1 / 1 }} />
-      </View>
-    );
-  }
-
-  const source = {
-    uri: `${session!.url}/${thumbnails.extraLarge}`,
-    headers: { Authorization: `Bearer ${session!.token}` },
-  };
-  const placeholder = { thumbhash: thumbnails.thumbhash };
-
-  return (
-    <View className="mx-12 my-8 rounded-full bg-zinc-800 overflow-hidden">
-      <Image
-        source={source}
-        className="w-full"
-        style={{ aspectRatio: 1 / 1 }}
-        placeholder={placeholder}
-        contentFit="cover"
-        transition={250}
-      />
-    </View>
-  );
+async function getPerson(
+  session: Session,
+  personId: string,
+): Promise<Person | undefined> {
+  return db.query.people.findFirst({
+    columns: { id: true, name: true, thumbnails: true, description: true },
+    where: and(
+      eq(schema.people.url, session!.url),
+      eq(schema.people.id, personId),
+    ),
+  });
 }
 
 export default function PersonDetails() {
   const { session } = useSession();
   const { id: personId } = useLocalSearchParams<{ id: string }>();
-  const { error, data: person } = useLiveQuery(
-    db.query.people.findFirst({
-      where: and(
-        eq(schema.people.url, session!.url),
-        eq(schema.people.id, personId),
-      ),
-    }),
-  );
+  const [person, setPerson] = useState<Person | undefined>();
+  const [error, setError] = useState(false);
+
+  const loadPerson = useCallback(() => {
+    getPerson(session!, personId)
+      .then(setPerson)
+      .catch((error) => {
+        console.error("Failed to load person:", error);
+        setError(true);
+      });
+  }, [session, personId]);
 
   useFocusEffect(
     useCallback(() => {
       console.log("person/[id] focused!");
 
-      try {
-        sync(session!.url, session!.token!);
-      } catch (error) {
-        console.error("sync error:", error);
-      }
+      // load what's in the DB right now
+      loadPerson();
+
+      // sync in background, then load again
+      // if network is down, we just ignore the error
+      sync(session!.url, session!.token!)
+        .then(loadPerson)
+        .catch((error) => {
+          console.error("sync error:", error);
+        });
 
       return () => {
         console.log("person/[id] unfocused");
       };
-    }, [session]),
+    }, [loadPerson, session]),
   );
 
   if (person === undefined) {
@@ -99,8 +96,42 @@ export default function PersonDetails() {
           <Text className="text-2xl text-zinc-100 font-bold text-center">
             {person.name}
           </Text>
+          {person.description && (
+            <Description description={person.description} />
+          )}
         </View>
       </ScrollView>
     </>
+  );
+}
+
+function PersonImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
+  const { session } = useSession();
+
+  if (!thumbnails) {
+    return (
+      <View className="mx-12 my-8 rounded-full bg-zinc-800 overflow-hidden">
+        <View className="w-full" style={{ aspectRatio: 1 / 1 }} />
+      </View>
+    );
+  }
+
+  const source = {
+    uri: `${session!.url}/${thumbnails.extraLarge}`,
+    headers: { Authorization: `Bearer ${session!.token}` },
+  };
+  const placeholder = { thumbhash: thumbnails.thumbhash };
+
+  return (
+    <View className="mx-12 my-8 rounded-full bg-zinc-800 overflow-hidden">
+      <Image
+        source={source}
+        className="w-full"
+        style={{ aspectRatio: 1 / 1 }}
+        placeholder={placeholder}
+        contentFit="cover"
+        transition={250}
+      />
+    </View>
   );
 }

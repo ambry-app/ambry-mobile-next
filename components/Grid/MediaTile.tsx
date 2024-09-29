@@ -2,7 +2,7 @@ import { Image } from "expo-image";
 import { Link } from "expo-router";
 import { Pressable, Text, TouchableOpacity, View } from "react-native";
 
-import { MediaForIndex } from "@/app/(app)";
+import { Media } from "@/app/(app)";
 import { useSession } from "@/contexts/session";
 import type { Thumbnails } from "@/db/schema";
 
@@ -31,7 +31,7 @@ function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
   );
 }
 
-export default function MediaTile({ media }: { media: MediaForIndex }) {
+export default function MediaTile({ media }: { media: Media }) {
   const basicAuthorsList = (
     <Text className="text-md text-zinc-400 leading-tight" numberOfLines={2}>
       {media.book.bookAuthors.map((bookAuthor, i) => [
