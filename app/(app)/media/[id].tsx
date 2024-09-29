@@ -12,42 +12,56 @@ import * as schema from "@/db/schema";
 import { Thumbnails } from "@/db/schema";
 import { sync } from "@/db/sync";
 
-export type MediaForDetails = {
+type Person = {
+  id: string;
+};
+
+type Author = {
+  id: string;
+  name: string;
+  person: Person;
+};
+
+type BookAuthor = {
+  id: string;
+  author: Author;
+};
+
+type Series = {
+  id: string;
+  name: string;
+};
+
+type SeriesBook = {
+  id: string;
+  bookNumber: string;
+  series: Series;
+};
+
+type Book = {
+  id: string;
+  title: string;
+  bookAuthors: BookAuthor[];
+  seriesBooks: SeriesBook[];
+};
+
+type Narrator = {
+  id: string;
+  name: string;
+  person: Person;
+};
+
+type MediaNarrator = {
+  id: string;
+  narrator: Narrator;
+};
+
+type MediaForDetails = {
   id: string;
   description: string | null;
   thumbnails: schema.Thumbnails | null;
-  book: {
-    id: string;
-    title: string;
-    bookAuthors: {
-      id: string;
-      author: {
-        id: string;
-        name: string;
-        person: {
-          id: string;
-        };
-      };
-    }[];
-    seriesBooks: {
-      id: string;
-      bookNumber: string;
-      series: {
-        id: string;
-        name: string;
-      };
-    }[];
-  };
-  mediaNarrators: {
-    id: string;
-    narrator: {
-      id: string;
-      name: string;
-      person: {
-        id: string;
-      };
-    };
-  }[];
+  book: Book;
+  mediaNarrators: MediaNarrator[];
 };
 
 async function getMediaForDetails(
@@ -196,18 +210,7 @@ function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
   );
 }
 
-function SeriesList({
-  seriesBooks,
-}: {
-  seriesBooks: {
-    id: string;
-    bookNumber: string;
-    series: {
-      id: string;
-      name: string;
-    };
-  }[];
-}) {
+function SeriesList({ seriesBooks }: { seriesBooks: SeriesBook[] }) {
   if (seriesBooks.length === 0) {
     return null;
   }
@@ -230,20 +233,7 @@ function SeriesList({
   );
 }
 
-function AuthorsList({
-  bookAuthors,
-}: {
-  bookAuthors: {
-    id: string;
-    author: {
-      id: string;
-      name: string;
-      person: {
-        id: string;
-      };
-    };
-  }[];
-}) {
+function AuthorsList({ bookAuthors }: { bookAuthors: BookAuthor[] }) {
   if (bookAuthors.length === 0) {
     return null;
   }
@@ -271,16 +261,7 @@ function AuthorsList({
 function NarratorsList({
   mediaNarrators,
 }: {
-  mediaNarrators: {
-    id: string;
-    narrator: {
-      id: string;
-      name: string;
-      person: {
-        id: string;
-      };
-    };
-  }[];
+  mediaNarrators: MediaNarrator[];
 }) {
   if (mediaNarrators.length === 0) {
     return null;
