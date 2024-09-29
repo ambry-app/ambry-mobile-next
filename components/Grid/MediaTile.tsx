@@ -1,29 +1,10 @@
+import { Image } from "expo-image";
+import { Link } from "expo-router";
 import { Pressable, Text, TouchableOpacity, View } from "react-native";
 
-import { Image } from "expo-image";
-
+import { LoadedMedia } from "@/app/(app)";
 import { useSession } from "@/contexts/session";
 import type { Thumbnails } from "@/db/schema";
-import { Link } from "expo-router";
-
-export type MediaTileMedia = {
-  id: string;
-  book: {
-    title: string;
-    bookAuthors: {
-      author: { id: string; name: string; person: { id: string } };
-    }[];
-    seriesBooks: {
-      series: { id: string; name: string };
-      bookNumber: string;
-    }[];
-  };
-  thumbnails: Thumbnails | null;
-};
-
-type MediaTileProps = {
-  media: MediaTileMedia;
-};
 
 function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
   const { session } = useSession();
@@ -50,7 +31,7 @@ function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
   );
 }
 
-export default function MediaTile({ media }: MediaTileProps) {
+export default function MediaTile({ media }: { media: LoadedMedia }) {
   const basicAuthorsList = (
     <Text className="text-md text-zinc-400 leading-tight" numberOfLines={2}>
       {media.book.bookAuthors.map((bookAuthor, i) => [

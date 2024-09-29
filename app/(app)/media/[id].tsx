@@ -5,6 +5,7 @@ import { Link, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback } from "react";
 import { ScrollView, Text, View } from "react-native";
 
+import Description from "@/components/Description";
 import LargeActivityIndicator from "@/components/LargeActivityIndicator";
 import ScreenCentered from "@/components/ScreenCentered";
 import { useSession } from "@/contexts/session";
@@ -245,6 +246,7 @@ export default function MediaDetails() {
             <AuthorsList bookAuthors={media.book.bookAuthors} />
             <NarratorsList mediaNarrators={media.mediaNarrators} />
           </View>
+          {media.description && <Description description={media.description} />}
         </View>
       </ScrollView>
     </>

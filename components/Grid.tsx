@@ -1,12 +1,9 @@
 import { FlatList } from "react-native";
+
+import { LoadedMedia } from "@/app/(app)";
 import MediaTile from "./Grid/MediaTile";
 
-// import PersonLink from "./Grid/PersonLink";
-// import SeriesLink from "./Grid/SeriesLink";
-
-import type { MediaTileMedia } from "./Grid/MediaTile";
-
-export default function Grid({ media }: { media: MediaTileMedia[] }) {
+export default function Grid({ media }: { media: LoadedMedia[] }) {
   return (
     <FlatList
       className="p-2"
