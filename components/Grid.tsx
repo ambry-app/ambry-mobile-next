@@ -1,9 +1,9 @@
 import { FlatList } from "react-native";
 
-import { LoadedMedia } from "@/app/(app)";
+import { MediaForIndex } from "@/app/(app)";
 import MediaTile from "./Grid/MediaTile";
 
-export default function Grid({ media }: { media: LoadedMedia[] }) {
+export default function Grid({ media }: { media: MediaForIndex[] }) {
   return (
     <FlatList
       className="p-2"

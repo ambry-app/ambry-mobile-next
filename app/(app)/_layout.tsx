@@ -29,12 +29,9 @@ export default function AppLayout() {
   return (
     <Stack>
       <Stack.Screen name="index" options={{ title: "Library" }} />
-      <Stack.Screen
-        name="media/[id]"
-        options={{ title: "Audiobook details" }}
-      />
-      <Stack.Screen name="person/[id]" options={{ title: "Person details" }} />
-      <Stack.Screen name="series/[id]" options={{ title: "Series details" }} />
+      <Stack.Screen name="media/[id]" options={{ title: "" }} />
+      <Stack.Screen name="person/[id]" options={{ title: "" }} />
+      <Stack.Screen name="series/[id]" options={{ title: "" }} />
     </Stack>
   );
 }

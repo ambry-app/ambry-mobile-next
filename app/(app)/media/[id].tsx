@@ -1,18 +1,169 @@
 import { and, eq } from "drizzle-orm";
-import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { Image } from "expo-image";
 import { Link, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
 import Description from "@/components/Description";
-import LargeActivityIndicator from "@/components/LargeActivityIndicator";
 import ScreenCentered from "@/components/ScreenCentered";
-import { useSession } from "@/contexts/session";
+import { Session, useSession } from "@/contexts/session";
 import { db } from "@/db/db";
 import * as schema from "@/db/schema";
 import { Thumbnails } from "@/db/schema";
 import { sync } from "@/db/sync";
+
+export type MediaForDetails = {
+  id: string;
+  description: string | null;
+  thumbnails: schema.Thumbnails | null;
+  book: {
+    id: string;
+    title: string;
+    bookAuthors: {
+      id: string;
+      author: {
+        id: string;
+        name: string;
+        person: {
+          id: string;
+        };
+      };
+    }[];
+    seriesBooks: {
+      id: string;
+      bookNumber: string;
+      series: {
+        id: string;
+        name: string;
+      };
+    }[];
+  };
+  mediaNarrators: {
+    id: string;
+    narrator: {
+      id: string;
+      name: string;
+      person: {
+        id: string;
+      };
+    };
+  }[];
+};
+
+async function getMediaForDetails(
+  session: Session,
+  mediaId: string,
+): Promise<MediaForDetails | undefined> {
+  return db.query.media.findFirst({
+    columns: { id: true, thumbnails: true, description: true },
+    where: and(
+      eq(schema.media.url, session!.url),
+      eq(schema.media.id, mediaId),
+    ),
+    with: {
+      mediaNarrators: {
+        columns: { id: true },
+        with: {
+          narrator: {
+            columns: { id: true, name: true },
+            with: { person: { columns: { id: true } } },
+          },
+        },
+      },
+      book: {
+        columns: { id: true, title: true },
+        with: {
+          bookAuthors: {
+            columns: { id: true },
+            with: {
+              author: {
+                columns: { id: true, name: true },
+                with: { person: { columns: { id: true } } },
+              },
+            },
+          },
+          seriesBooks: {
+            columns: { id: true, bookNumber: true },
+            with: { series: { columns: { id: true, name: true } } },
+          },
+        },
+      },
+    },
+  });
+}
+
+export default function MediaDetails() {
+  const { session } = useSession();
+  const { id: mediaId } = useLocalSearchParams<{ id: string }>();
+  const [media, setMedia] = useState<MediaForDetails | undefined>();
+  const [error, setError] = useState(false);
+
+  const loadMedia = useCallback(() => {
+    getMediaForDetails(session!, mediaId)
+      .then(setMedia)
+      .catch((error) => {
+        console.error("Failed to load media:", error);
+        setError(true);
+      });
+  }, [session, mediaId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      console.log("media/[id] focused!");
+
+      // load what's in the DB right now
+      loadMedia();
+
+      // sync in background, then load again
+      // if network is down, we just ignore the error
+      sync(session!.url, session!.token!)
+        .then(loadMedia)
+        .catch((error) => {
+          console.error("sync error:", error);
+        });
+
+      return () => {
+        console.log("media/[id] unfocused");
+      };
+    }, [loadMedia, session]),
+  );
+
+  if (media === undefined) {
+    return null;
+  }
+
+  if (error) {
+    console.error("Failed to load media:", error);
+
+    return (
+      <ScreenCentered>
+        <Text className="text-red-500">Failed to load audiobook!</Text>
+      </ScreenCentered>
+    );
+  }
+
+  return (
+    <>
+      <Stack.Screen options={{ title: media.book.title }} />
+      <ScrollView>
+        <View className="p-4 flex gap-4">
+          <MediaImage thumbnails={media.thumbnails} />
+          <View>
+            <Text className="text-2xl text-zinc-100 font-bold">
+              {media.book.title}
+            </Text>
+            <SeriesList seriesBooks={media.book.seriesBooks} />
+          </View>
+          <View className="flex gap-1">
+            <AuthorsList bookAuthors={media.book.bookAuthors} />
+            <NarratorsList mediaNarrators={media.mediaNarrators} />
+          </View>
+          {media.description && <Description description={media.description} />}
+        </View>
+      </ScrollView>
+    </>
+  );
+}
 
 function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
   const { session } = useSession();
@@ -152,103 +303,5 @@ function NarratorsList({
         </Link>,
       ])}
     </Text>
-  );
-}
-
-export default function MediaDetails() {
-  const { session } = useSession();
-  const { id: mediaId } = useLocalSearchParams<{ id: string }>();
-  const { error, data: media } = useLiveQuery(
-    db.query.media.findFirst({
-      where: and(
-        eq(schema.media.url, session!.url),
-        eq(schema.media.id, mediaId),
-      ),
-      with: {
-        mediaNarrators: {
-          columns: { id: true },
-          with: {
-            narrator: {
-              columns: { id: true, name: true },
-              with: { person: { columns: { id: true } } },
-            },
-          },
-        },
-        book: {
-          columns: { id: true, title: true },
-          with: {
-            bookAuthors: {
-              columns: { id: true },
-              with: {
-                author: {
-                  columns: { id: true, name: true },
-                  with: { person: { columns: { id: true } } },
-                },
-              },
-            },
-            seriesBooks: {
-              columns: { id: true, bookNumber: true },
-              with: { series: { columns: { id: true, name: true } } },
-            },
-          },
-        },
-      },
-    }),
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      console.log("media/[id] focused!");
-
-      try {
-        sync(session!.url, session!.token!);
-      } catch (error) {
-        console.error("sync error:", error);
-      }
-
-      return () => {
-        console.log("media/[id] unfocused");
-      };
-    }, [session]),
-  );
-
-  if (media === undefined) {
-    return (
-      <ScreenCentered>
-        <LargeActivityIndicator />
-      </ScreenCentered>
-    );
-  }
-
-  if (error) {
-    console.error("Failed to load media:", error);
-
-    return (
-      <ScreenCentered>
-        <Text className="text-red-500">Failed to load audiobook!</Text>
-      </ScreenCentered>
-    );
-  }
-
-  return (
-    <>
-      <Stack.Screen options={{ title: media.book.title }} />
-      <ScrollView>
-        <View className="p-4 flex gap-4">
-          <MediaImage thumbnails={media.thumbnails} />
-          <View>
-            <Text className="text-2xl text-zinc-100 font-bold">
-              {media.book.title}
-            </Text>
-            <SeriesList seriesBooks={media.book.seriesBooks} />
-          </View>
-          <View className="flex gap-1">
-            <AuthorsList bookAuthors={media.book.bookAuthors} />
-            <NarratorsList mediaNarrators={media.mediaNarrators} />
-          </View>
-          {media.description && <Description description={media.description} />}
-        </View>
-      </ScrollView>
-    </>
   );
 }

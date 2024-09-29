@@ -11,9 +11,9 @@ import { db } from "@/db/db";
 import * as schema from "@/db/schema";
 import { sync } from "@/db/sync";
 
-export type LoadedMedia = {
-  thumbnails: schema.Thumbnails | null;
+export type MediaForIndex = {
   id: string;
+  thumbnails: schema.Thumbnails | null;
   book: {
     id: string;
     title: string;
@@ -38,7 +38,7 @@ export type LoadedMedia = {
   };
 };
 
-async function listMedia(session: Session): Promise<LoadedMedia[]> {
+async function listMediaForIndex(session: Session): Promise<MediaForIndex[]> {
   return db.query.media.findMany({
     columns: { id: true, thumbnails: true },
     where: eq(schema.media.url, session!.url),
@@ -68,11 +68,11 @@ async function listMedia(session: Session): Promise<LoadedMedia[]> {
 
 export default function Index() {
   const { session } = useSession();
-  const [media, setMedia] = useState<LoadedMedia[] | undefined>();
+  const [media, setMedia] = useState<MediaForIndex[] | undefined>();
   const [error, setError] = useState(false);
 
   const loadMedia = useCallback(() => {
-    listMedia(session!)
+    listMediaForIndex(session!)
       .then(setMedia)
       .catch((error) => {
         console.error("Failed to load media:", error);
