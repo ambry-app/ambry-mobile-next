@@ -1,8 +1,8 @@
 import { Redirect, Stack } from "expo-router";
+import { Text, View } from "react-native";
 
 import LargeActivityIndicator from "@/components/LargeActivityIndicator";
 import { useSession } from "@/contexts/session";
-import { Text, View } from "react-native";
 
 export default function AppLayout() {
   const { session, isLoading } = useSession();
@@ -26,5 +26,15 @@ export default function AppLayout() {
   }
 
   // This layout can be deferred because it's not the root layout.
-  return <Stack />;
+  return (
+    <Stack>
+      <Stack.Screen name="index" options={{ title: "Library" }} />
+      <Stack.Screen
+        name="media/[id]"
+        options={{ title: "Audiobook details" }}
+      />
+      <Stack.Screen name="person/[id]" options={{ title: "Person details" }} />
+      <Stack.Screen name="series/[id]" options={{ title: "Series details" }} />
+    </Stack>
+  );
 }

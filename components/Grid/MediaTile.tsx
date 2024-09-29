@@ -4,6 +4,7 @@ import { Image } from "expo-image";
 
 import { useSession } from "@/contexts/session";
 import type { Thumbnails } from "@/db/schema";
+import { Link } from "expo-router";
 
 export type MediaTileMedia = {
   id: string;
@@ -17,23 +18,18 @@ export type MediaTileMedia = {
       bookNumber: string;
     }[];
   };
-  thumbnails: Thumbnails;
+  thumbnails: Thumbnails | null;
 };
 
 type MediaTileProps = {
   media: MediaTileMedia;
 };
 
-function MediaImage({ thumbnails }: { thumbnails: Thumbnails }) {
+function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
   const { session } = useSession();
 
   if (!thumbnails) {
-    return (
-      <View
-        className="rounded-lg w-full bg-zinc-800"
-        style={{ aspectRatio: 1 / 1 }}
-      />
-    );
+    return <View className="w-full" style={{ aspectRatio: 1 / 1 }} />;
   }
 
   const source = {
@@ -45,7 +41,7 @@ function MediaImage({ thumbnails }: { thumbnails: Thumbnails }) {
   return (
     <Image
       source={source}
-      className="rounded-lg w-full bg-zinc-800"
+      className="w-full"
       style={{ aspectRatio: 1 / 1 }}
       placeholder={placeholder}
       contentFit="cover"
@@ -55,8 +51,6 @@ function MediaImage({ thumbnails }: { thumbnails: Thumbnails }) {
 }
 
 export default function MediaTile({ media }: MediaTileProps) {
-  // const navigation = useNavigation();
-
   const basicAuthorsList = (
     <Text className="text-md text-zinc-400 leading-tight" numberOfLines={2}>
       {media.book.bookAuthors.map((bookAuthor, i) => [
@@ -69,27 +63,37 @@ export default function MediaTile({ media }: MediaTileProps) {
   return (
     <View className="p-2 w-1/2 mb-2">
       <View className="rounded-lg bg-zinc-800 mb-3 overflow-hidden">
-        <Pressable
-          onPress={() =>
-            console.log("Navigate -> Media", { mediaId: media.id })
-          }
+        <Link
+          href={{
+            pathname: "/media/[id]",
+            params: { id: media.id },
+          }}
+          asChild
         >
-          <View>
-            <MediaImage thumbnails={media.thumbnails} />
-          </View>
-        </Pressable>
+          <Pressable>
+            <View>
+              <MediaImage thumbnails={media.thumbnails} />
+            </View>
+          </Pressable>
+        </Link>
       </View>
-      <TouchableOpacity
-        onPress={() => console.log("Navigate -> Media", { mediaId: media.id })}
+      <Link
+        href={{
+          pathname: "/media/[id]",
+          params: { id: media.id },
+        }}
+        asChild
       >
-        <Text
-          className="text-lg leading-5 font-medium text-zinc-100 mb-1"
-          numberOfLines={2}
-        >
-          {media.book.title}
-        </Text>
-        {basicAuthorsList}
-      </TouchableOpacity>
+        <TouchableOpacity>
+          <Text
+            className="text-lg leading-5 font-medium text-zinc-100 mb-1"
+            numberOfLines={2}
+          >
+            {media.book.title}
+          </Text>
+          {basicAuthorsList}
+        </TouchableOpacity>
+      </Link>
     </View>
   );
 }

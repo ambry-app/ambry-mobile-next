@@ -1,18 +1,20 @@
+import { desc, eq } from "drizzle-orm";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { useFocusEffect } from "expo-router";
+import { useCallback } from "react";
+import { Text } from "react-native";
 
 import Grid from "@/components/Grid";
 import { MediaTileMedia } from "@/components/Grid/MediaTile";
+import ScreenCentered from "@/components/ScreenCentered";
 import { useSession } from "@/contexts/session";
 import { db } from "@/db/db";
 import * as schema from "@/db/schema";
 import { sync } from "@/db/sync";
-import { desc, eq } from "drizzle-orm";
-import { useFocusEffect } from "expo-router";
-import { useCallback } from "react";
 
 export default function Index() {
   const { session } = useSession();
-  const { data: media } = useLiveQuery(
+  const { error, data: media } = useLiveQuery(
     db.query.media.findMany({
       columns: { id: true, thumbnails: true },
       where: eq(schema.media.url, session!.url),
@@ -55,6 +57,16 @@ export default function Index() {
       };
     }, [session]),
   );
+
+  if (error) {
+    console.error("Failed to load media:", error);
+
+    return (
+      <ScreenCentered>
+        <Text className="text-red-500">Failed to load audiobooks!</Text>
+      </ScreenCentered>
+    );
+  }
 
   return <Grid media={media as MediaTileMedia[]} />;
 }

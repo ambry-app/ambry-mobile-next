@@ -6,7 +6,7 @@ import colors from "tailwindcss/colors";
 export default function LargeActivityIndicator({
   className,
 }: {
-  className: string;
+  className?: string;
 }) {
   return (
     <ActivityIndicator

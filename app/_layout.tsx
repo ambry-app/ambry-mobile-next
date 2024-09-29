@@ -30,9 +30,7 @@ export default function Root() {
   if (error) {
     return (
       <View className="bg-black flex h-full items-center justify-center">
-        <Text className="text-red-500 mb-2">
-          Migration error: {error.message}
-        </Text>
+        <Text className="text-red-500">Migration error: {error.message}</Text>
       </View>
     );
   }

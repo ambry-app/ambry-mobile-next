@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { useCallback, useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
 import colors from "tailwindcss/colors";
@@ -44,6 +44,11 @@ export default function SignIn() {
       console.error("Sign in failed");
     }
   }, [email, host, password, signIn]);
+
+  if (session?.token) {
+    // Redirect back to library if already signed in
+    return <Redirect href="/" />;
+  }
 
   return (
     <View className="p-12">
