@@ -17,4 +17,4 @@ config.resolver = {
   sourceExts: [...resolver.sourceExts, "svg", "sql"],
 };
 
-module.exports = withNativeWind(config, { input: "./global.css" });
+module.exports = withNativeWind(config, { input: "./assets/global.css" });

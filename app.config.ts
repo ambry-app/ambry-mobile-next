@@ -16,6 +16,9 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: IS_DEV ? "com.ambry.dev" : "com.ambry",
+      infoPlist: {
+        UIBackgroundModes: ["audio"],
+      },
     },
     android: {
       adaptiveIcon: {
