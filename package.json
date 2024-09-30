@@ -1,6 +1,6 @@
 {
   "name": "ambry",
-  "main": "expo-router/entry",
+  "main": "./entry.js",
   "version": "1.0.0",
   "scripts": {
     "start": "APP_VARIANT=dev expo start",

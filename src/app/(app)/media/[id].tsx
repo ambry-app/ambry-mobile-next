@@ -2,7 +2,12 @@ import { and, eq } from "drizzle-orm";
 import { Image } from "expo-image";
 import { Link, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Button, ScrollView, Text, View } from "react-native";
+import TrackPlayer, {
+  Capability,
+  PitchAlgorithm,
+  TrackType,
+} from "react-native-track-player";
 
 import Description from "@/src/components/Description";
 import ScreenCentered from "@/src/components/ScreenCentered";
@@ -61,6 +66,7 @@ type Media = {
   description: string | null;
   thumbnails: schema.Thumbnails | null;
   mpdPath: string | null;
+  duration: string | null;
   book: Book;
   mediaNarrators: MediaNarrator[];
 };
@@ -70,7 +76,13 @@ async function getMedia(
   mediaId: string,
 ): Promise<Media | undefined> {
   return db.query.media.findFirst({
-    columns: { id: true, thumbnails: true, description: true, mpdPath: true },
+    columns: {
+      id: true,
+      thumbnails: true,
+      description: true,
+      mpdPath: true,
+      duration: true,
+    },
     where: and(
       eq(schema.media.url, session!.url),
       eq(schema.media.id, mediaId),
@@ -105,6 +117,50 @@ async function getMedia(
       },
     },
   });
+}
+
+// TODO: put this somewhere better
+async function playAsync(media: Media, session: Session) {
+  console.log("play", `${session!.url}${media.mpdPath}`);
+  await TrackPlayer.setupPlayer();
+
+  await TrackPlayer.updateOptions({
+    android: {
+      alwaysPauseOnInterruption: true,
+    },
+    capabilities: [
+      Capability.Play,
+      Capability.Pause,
+      Capability.JumpForward,
+      Capability.JumpBackward,
+      Capability.Stop,
+    ],
+    compactCapabilities: [
+      Capability.Play,
+      Capability.Pause,
+      Capability.JumpBackward,
+      Capability.JumpForward,
+    ],
+    forwardJumpInterval: 10,
+    backwardJumpInterval: 10,
+  });
+
+  await TrackPlayer.add({
+    url: `${session!.url}${media.mpdPath}`,
+    type: TrackType.Dash,
+    pitchAlgorithm: PitchAlgorithm.Voice,
+    // FIXME:
+    duration: parseFloat(media.duration!),
+    title: media.book.title,
+    artist: media.book.bookAuthors
+      .map((bookAuthor) => bookAuthor.author.name)
+      .join(", "),
+    // FIXME:
+    artwork: `${session!.url}/${media.thumbnails!.extraLarge}`,
+    description: media.id,
+    headers: { Authorization: `Bearer ${session!.token}` },
+  });
+  await TrackPlayer.play();
 }
 
 export default function MediaDetails() {
@@ -143,6 +199,20 @@ export default function MediaDetails() {
     }, [loadMedia, session]),
   );
 
+  const play = useCallback(() => {
+    if (media === undefined) {
+      return;
+    }
+
+    playAsync(media, session!)
+      .then(() => {
+        console.log("playback started");
+      })
+      .catch((error) => {
+        console.error("playback error:", error);
+      });
+  }, [media, session]);
+
   if (media === undefined) {
     return null;
   }
@@ -173,6 +243,7 @@ export default function MediaDetails() {
             <AuthorsList bookAuthors={media.book.bookAuthors} />
             <NarratorsList mediaNarrators={media.mediaNarrators} />
           </View>
+          <Button title="Play" onPress={play} />
           {media.description && <Description description={media.description} />}
         </View>
       </ScrollView>
