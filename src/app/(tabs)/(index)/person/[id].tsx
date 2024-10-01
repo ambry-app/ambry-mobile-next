@@ -56,7 +56,7 @@ export default function PersonDetails() {
 
       // sync in background, then load again
       // if network is down, we just ignore the error
-      sync(session!.url, session!.token!)
+      sync(session!)
         .then(loadPerson)
         .catch((error) => {
           console.error("sync error:", error);

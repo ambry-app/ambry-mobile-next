@@ -29,7 +29,7 @@ export default function SeriesDetails() {
       console.log("series/[id] focused!");
 
       try {
-        sync(session!.url, session!.token!);
+        sync(session!);
       } catch (error) {
         console.error("sync error:", error);
       }

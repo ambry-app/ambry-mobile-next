@@ -2,7 +2,7 @@
 
 import m0000 from "./0000_left_daredevil.sql";
 import m0001 from "./0001_steep_blue_blade.sql";
-import m0002 from "./0002_boring_gunslinger.sql";
+import m0002 from "./0002_sparkling_daredevil.sql";
 import journal from "./meta/_journal.json";
 
 export default {

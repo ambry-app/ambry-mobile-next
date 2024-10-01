@@ -262,6 +262,7 @@ type RootQueryType {
   ): Node
   peopleChangedSince(since: DateTime): [Person!]!
   playerStates(after: String, before: String, first: Int, last: Int): PlayerStateConnection
+  playerStatesChangedSince(since: DateTime): [PlayerState!]!
   search(
     after: String
     before: String

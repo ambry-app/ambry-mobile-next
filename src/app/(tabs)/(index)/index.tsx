@@ -100,7 +100,7 @@ export default function Index() {
 
       // sync in background, then load again
       // if network is down, we just ignore the error
-      sync(session!.url, session!.token!)
+      sync(session!)
         .then(loadMedia)
         .catch((error) => {
           console.error("sync error:", error);

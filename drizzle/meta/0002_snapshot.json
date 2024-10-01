@@ -1,8 +1,8 @@
 {
-  "id": "0177ca8e-f77c-494d-a4c3-9d675913f686",
-  "prevId": "53b6aed9-d3aa-4bf4-84d7-bade2e4e7e67",
   "version": "6",
   "dialect": "sqlite",
+  "id": "d8164f6a-015e-474f-bc83-8bf273aa4f22",
+  "prevId": "53b6aed9-d3aa-4bf4-84d7-bade2e4e7e67",
   "tables": {
     "authors": {
       "name": "authors",
@@ -55,17 +55,17 @@
         "authors_url_person_id_people_url_id_fk": {
           "name": "authors_url_person_id_people_url_id_fk",
           "tableFrom": "authors",
+          "tableTo": "people",
           "columnsFrom": [
             "url",
             "person_id"
           ],
-          "tableTo": "people",
           "columnsTo": [
             "url",
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -130,32 +130,32 @@
         "book_authors_url_author_id_authors_url_id_fk": {
           "name": "book_authors_url_author_id_authors_url_id_fk",
           "tableFrom": "book_authors",
+          "tableTo": "authors",
           "columnsFrom": [
             "url",
             "author_id"
           ],
-          "tableTo": "authors",
           "columnsTo": [
             "url",
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "book_authors_url_book_id_books_url_id_fk": {
           "name": "book_authors_url_book_id_books_url_id_fk",
           "tableFrom": "book_authors",
+          "tableTo": "books",
           "columnsFrom": [
             "url",
             "book_id"
           ],
-          "tableTo": "books",
           "columnsTo": [
             "url",
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -363,17 +363,17 @@
         "media_url_book_id_books_url_id_fk": {
           "name": "media_url_book_id_books_url_id_fk",
           "tableFrom": "media",
+          "tableTo": "books",
           "columnsFrom": [
             "url",
             "book_id"
           ],
-          "tableTo": "books",
           "columnsTo": [
             "url",
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -438,32 +438,32 @@
         "media_narrators_url_media_id_media_url_id_fk": {
           "name": "media_narrators_url_media_id_media_url_id_fk",
           "tableFrom": "media_narrators",
+          "tableTo": "media",
           "columnsFrom": [
             "url",
             "media_id"
           ],
-          "tableTo": "media",
           "columnsTo": [
             "url",
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "media_narrators_url_narrator_id_narrators_url_id_fk": {
           "name": "media_narrators_url_narrator_id_narrators_url_id_fk",
           "tableFrom": "media_narrators",
+          "tableTo": "narrators",
           "columnsFrom": [
             "url",
             "narrator_id"
           ],
-          "tableTo": "narrators",
           "columnsTo": [
             "url",
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -528,17 +528,17 @@
         "narrators_url_person_id_people_url_id_fk": {
           "name": "narrators_url_person_id_people_url_id_fk",
           "tableFrom": "narrators",
+          "tableTo": "people",
           "columnsFrom": [
             "url",
             "person_id"
           ],
-          "tableTo": "people",
           "columnsTo": [
             "url",
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -614,6 +614,102 @@
             "id"
           ],
           "name": "people_url_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "player_states": {
+      "name": "player_states",
+      "columns": {
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "media_id": {
+          "name": "media_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_email": {
+          "name": "user_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "playback_rate": {
+          "name": "playback_rate",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "inserted_at": {
+          "name": "inserted_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "player_states_url_media_id_media_url_id_fk": {
+          "name": "player_states_url_media_id_media_url_id_fk",
+          "tableFrom": "player_states",
+          "tableTo": "media",
+          "columnsFrom": [
+            "url",
+            "media_id"
+          ],
+          "columnsTo": [
+            "url",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "player_states_url_id_pk": {
+          "columns": [
+            "url",
+            "id"
+          ],
+          "name": "player_states_url_id_pk"
         }
       },
       "uniqueConstraints": {}
@@ -728,32 +824,32 @@
         "series_books_url_book_id_books_url_id_fk": {
           "name": "series_books_url_book_id_books_url_id_fk",
           "tableFrom": "series_books",
+          "tableTo": "books",
           "columnsFrom": [
             "url",
             "book_id"
           ],
-          "tableTo": "books",
           "columnsTo": [
             "url",
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "series_books_url_series_id_series_url_id_fk": {
           "name": "series_books_url_series_id_series_url_id_fk",
           "tableFrom": "series_books",
+          "tableTo": "series",
           "columnsFrom": [
             "url",
             "series_id"
           ],
-          "tableTo": "series",
           "columnsTo": [
             "url",
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -793,9 +889,9 @@
   },
   "enums": {},
   "_meta": {
-    "columns": {},
     "schemas": {},
-    "tables": {}
+    "tables": {},
+    "columns": {}
   },
   "internal": {
     "indexes": {}

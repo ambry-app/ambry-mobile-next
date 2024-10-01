@@ -1,3 +1,4 @@
+import { Session } from "@/src/contexts/session";
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { graphql } from "@/src/graphql/client";
@@ -115,6 +116,17 @@ const syncQuery = graphql(`
       insertedAt
       updatedAt
     }
+    playerStatesChangedSince(since: $since) {
+      id
+      media {
+        id
+      }
+      status
+      playbackRate
+      position
+      insertedAt
+      updatedAt
+    }
     deletionsSince(since: $since) {
       type
       recordId
@@ -135,22 +147,22 @@ const deletionsTables = {
   PERSON: schema.people,
 };
 
-export async function sync(url: string, token: string) {
+export async function sync(session: Session) {
   console.log("syncing...");
 
   const server = await db.query.servers.findFirst({
-    where: eq(schema.servers.url, url),
+    where: eq(schema.servers.url, session.url),
   });
 
   const lastSync = server?.lastSync;
 
-  const response = await execute(url, token, syncQuery, {
+  const response = await execute(session.url, session.token!, syncQuery, {
     since: lastSync,
   });
 
   const peopleValues = response.peopleChangedSince.map((person) => {
     return {
-      url: url,
+      url: session.url,
       id: person.id,
       name: person.name,
       description: person.description,
@@ -162,7 +174,7 @@ export async function sync(url: string, token: string) {
 
   const authorValues = response.authorsChangedSince.map((author) => {
     return {
-      url: url,
+      url: session.url,
       id: author.id,
       personId: author.person.id,
       name: author.name,
@@ -173,7 +185,7 @@ export async function sync(url: string, token: string) {
 
   const narratorValues = response.narratorsChangedSince.map((narrator) => {
     return {
-      url: url,
+      url: session.url,
       id: narrator.id,
       personId: narrator.person.id,
       name: narrator.name,
@@ -184,7 +196,7 @@ export async function sync(url: string, token: string) {
 
   const booksValues = response.booksChangedSince.map((book) => {
     return {
-      url: url,
+      url: session.url,
       id: book.id,
       title: book.title,
       published: new Date(book.published),
@@ -200,7 +212,7 @@ export async function sync(url: string, token: string) {
   const bookAuthorsValues = response.bookAuthorsChangedSince.map(
     (bookAuthor) => {
       return {
-        url: url,
+        url: session.url,
         id: bookAuthor.id,
         bookId: bookAuthor.book.id,
         authorId: bookAuthor.author.id,
@@ -212,7 +224,7 @@ export async function sync(url: string, token: string) {
 
   const seriesValues = response.seriesChangedSince.map((series) => {
     return {
-      url: url,
+      url: session.url,
       id: series.id,
       name: series.name,
       insertedAt: new Date(series.insertedAt),
@@ -223,7 +235,7 @@ export async function sync(url: string, token: string) {
   const seriesBooksValues = response.seriesBooksChangedSince.map(
     (seriesBook) => {
       return {
-        url: url,
+        url: session.url,
         id: seriesBook.id,
         bookId: seriesBook.book.id,
         seriesId: seriesBook.series.id,
@@ -236,7 +248,7 @@ export async function sync(url: string, token: string) {
 
   const mediaValues = response.mediaChangedSince.map((media) => {
     return {
-      url: url,
+      url: session.url,
       id: media.id,
       status: media.status.toLowerCase() as
         | "pending"
@@ -266,12 +278,31 @@ export async function sync(url: string, token: string) {
   const mediaNarratorsValues = response.mediaNarratorsChangedSince.map(
     (mediaNarrator) => {
       return {
-        url: url,
+        url: session.url,
         id: mediaNarrator.id,
         mediaId: mediaNarrator.media.id,
         narratorId: mediaNarrator.narrator.id,
         insertedAt: new Date(mediaNarrator.insertedAt),
         updatedAt: new Date(mediaNarrator.updatedAt),
+      };
+    },
+  );
+
+  const playerStatesValues = response.playerStatesChangedSince.map(
+    (playerState) => {
+      return {
+        url: session.url,
+        id: playerState.id,
+        userEmail: session.email,
+        mediaId: playerState.media.id,
+        status: playerState.status.toLowerCase() as
+          | "not_started"
+          | "in_progress"
+          | "finished",
+        playbackRate: playerState.playbackRate,
+        position: playerState.position,
+        insertedAt: new Date(playerState.insertedAt),
+        updatedAt: new Date(playerState.updatedAt),
       };
     },
   );
@@ -412,6 +443,21 @@ export async function sync(url: string, token: string) {
         });
     }
 
+    if (playerStatesValues.length !== 0) {
+      await tx
+        .insert(schema.playerStates)
+        .values(playerStatesValues)
+        .onConflictDoUpdate({
+          target: [schema.playerStates.url, schema.playerStates.id],
+          set: {
+            status: sql`excluded.status`,
+            playbackRate: sql`excluded.playback_rate`,
+            position: sql`excluded.position`,
+            updatedAt: sql`excluded.updated_at`,
+          },
+        });
+    }
+
     for (const [deletionType, table] of Object.entries(deletionsTables)) {
       if (deletionIds[deletionType]) {
         await tx
@@ -422,7 +468,7 @@ export async function sync(url: string, token: string) {
 
     await tx
       .insert(schema.servers)
-      .values({ url: url, lastSync: new Date(response.serverTime) })
+      .values({ url: session.url, lastSync: new Date(response.serverTime) })
       .onConflictDoUpdate({
         target: [schema.servers.url],
         set: {
