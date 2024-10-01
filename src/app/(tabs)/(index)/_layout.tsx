@@ -1,8 +1,7 @@
-import { Redirect, Stack } from "expo-router";
-import { Text, View } from "react-native";
-
 import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
 import { useSession } from "@/src/contexts/session";
+import { Redirect, Stack } from "expo-router";
+import { Text, View } from "react-native";
 
 export default function AppLayout() {
   const { session, isLoading } = useSession();

@@ -1,10 +1,3 @@
-import { and, eq } from "drizzle-orm";
-import { useLiveQuery } from "drizzle-orm/expo-sqlite";
-import { Image } from "expo-image";
-import { Link, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback } from "react";
-import { ScrollView, Text, View } from "react-native";
-
 import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
 import ScreenCentered from "@/src/components/ScreenCentered";
 import { useSession } from "@/src/contexts/session";
@@ -12,6 +5,12 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Thumbnails } from "@/src/db/schema";
 import { sync } from "@/src/db/sync";
+import { and, eq } from "drizzle-orm";
+import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { Image } from "expo-image";
+import { Link, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback } from "react";
+import { ScrollView, Text, View } from "react-native";
 
 export default function SeriesDetails() {
   const { session } = useSession();

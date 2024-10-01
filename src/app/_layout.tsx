@@ -1,15 +1,17 @@
-import { ThemeProvider } from "@react-navigation/native";
-import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
-import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
-import { Stack } from "expo-router";
-import { Text, View } from "react-native";
-import colors from "tailwindcss/colors";
-
 import "@/assets/global.css";
 import migrations from "@/drizzle/migrations";
 import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
 import { SessionProvider } from "@/src/contexts/session";
 import { db, expoDb } from "@/src/db/db";
+import { ThemeProvider } from "@react-navigation/native";
+import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
+import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
+import * as NavigationBar from "expo-navigation-bar";
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
+import { Text, View } from "react-native";
+import colors from "tailwindcss/colors";
 
 const Theme = {
   dark: true,
@@ -26,6 +28,10 @@ const Theme = {
 export default function Root() {
   const { success, error } = useMigrations(db, migrations);
   useDrizzleStudio(expoDb);
+
+  useEffect(() => {
+    NavigationBar.setBackgroundColorAsync(colors.zinc[900]);
+  }, []);
 
   if (error) {
     return (
@@ -48,9 +54,10 @@ export default function Root() {
     <SessionProvider>
       <ThemeProvider value={Theme}>
         <Stack>
-          <Stack.Screen name="(app)" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="sign-in" options={{ title: "Sign In" }} />
         </Stack>
+        <StatusBar style="auto" backgroundColor={colors.zinc[900]} />
       </ThemeProvider>
     </SessionProvider>
   );

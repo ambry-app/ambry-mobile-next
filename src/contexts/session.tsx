@@ -1,3 +1,4 @@
+import { useStorageState } from "@/src/hooks/useStorageState";
 import {
   createContext,
   useContext,
@@ -5,8 +6,6 @@ import {
   useState,
   type PropsWithChildren,
 } from "react";
-
-import { useStorageState } from "@/src/hooks/useStorageState";
 
 export type Session = {
   token: string | null;

@@ -1,9 +1,3 @@
-import { and, eq } from "drizzle-orm";
-import { Image } from "expo-image";
-import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
-
 import Description from "@/src/components/Description";
 import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
 import ScreenCentered from "@/src/components/ScreenCentered";
@@ -12,6 +6,11 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Thumbnails } from "@/src/db/schema";
 import { sync } from "@/src/db/sync";
+import { and, eq } from "drizzle-orm";
+import { Image } from "expo-image";
+import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useState } from "react";
+import { ScrollView, Text, View } from "react-native";
 
 type Person = {
   id: string;

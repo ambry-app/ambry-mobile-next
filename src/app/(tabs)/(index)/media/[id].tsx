@@ -1,3 +1,10 @@
+import Description from "@/src/components/Description";
+import ScreenCentered from "@/src/components/ScreenCentered";
+import { Session, useSession } from "@/src/contexts/session";
+import { db } from "@/src/db/db";
+import * as schema from "@/src/db/schema";
+import { Thumbnails } from "@/src/db/schema";
+import { sync } from "@/src/db/sync";
 import { and, eq } from "drizzle-orm";
 import { Image } from "expo-image";
 import { Link, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -8,14 +15,6 @@ import TrackPlayer, {
   PitchAlgorithm,
   TrackType,
 } from "react-native-track-player";
-
-import Description from "@/src/components/Description";
-import ScreenCentered from "@/src/components/ScreenCentered";
-import { Session, useSession } from "@/src/contexts/session";
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Thumbnails } from "@/src/db/schema";
-import { sync } from "@/src/db/sync";
 
 type Person = {
   id: string;

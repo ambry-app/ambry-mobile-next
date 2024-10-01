@@ -1,6 +1,5 @@
+import { Media } from "@/src/app/(tabs)/(index)";
 import { FlatList } from "react-native";
-
-import { Media } from "@/src/app/(app)";
 import MediaTile from "./Grid/MediaTile";
 
 export default function Grid({ media }: { media: Media[] }) {

@@ -1,11 +1,10 @@
+import Logo from "@/assets/images/logo.svg";
+import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
+import { useSession } from "@/src/contexts/session";
 import { Redirect, router } from "expo-router";
 import { useCallback, useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
 import colors from "tailwindcss/colors";
-
-import Logo from "@/assets/images/logo.svg";
-import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
-import { useSession } from "@/src/contexts/session";
 
 export default function SignIn() {
   const { session, signIn } = useSession();

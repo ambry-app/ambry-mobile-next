@@ -1,9 +1,8 @@
-import { eq, inArray, sql } from "drizzle-orm";
-
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { graphql } from "@/src/graphql/client";
 import { execute } from "@/src/graphql/client/execute";
+import { eq, inArray, sql } from "drizzle-orm";
 
 const syncQuery = graphql(`
   query Sync($since: DateTime) {

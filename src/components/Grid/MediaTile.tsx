@@ -1,10 +1,9 @@
+import { Media } from "@/src/app/(tabs)/(index)";
+import { useSession } from "@/src/contexts/session";
+import type { Thumbnails } from "@/src/db/schema";
 import { Image } from "expo-image";
 import { Link } from "expo-router";
 import { Pressable, Text, TouchableOpacity, View } from "react-native";
-
-import { Media } from "@/src/app/(app)";
-import { useSession } from "@/src/contexts/session";
-import type { Thumbnails } from "@/src/db/schema";
 
 function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
   const { session } = useSession();

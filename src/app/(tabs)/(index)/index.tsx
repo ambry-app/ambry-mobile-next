@@ -1,8 +1,3 @@
-import { desc, eq } from "drizzle-orm";
-import { useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
-import { Text } from "react-native";
-
 import Grid from "@/src/components/Grid";
 import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
 import ScreenCentered from "@/src/components/ScreenCentered";
@@ -10,6 +5,10 @@ import { Session, useSession } from "@/src/contexts/session";
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { sync } from "@/src/db/sync";
+import { desc, eq } from "drizzle-orm";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
+import { Text } from "react-native";
 
 type Person = {
   id: string;
