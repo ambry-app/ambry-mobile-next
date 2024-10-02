@@ -1,20 +1,15 @@
 import Description from "@/src/components/Description";
 import ScreenCentered from "@/src/components/ScreenCentered";
-import { Session, useSession } from "@/src/contexts/session";
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Thumbnails } from "@/src/db/schema";
 import { sync } from "@/src/db/sync";
+import { Session, useSessionStore } from "@/src/stores/session";
 import { and, eq } from "drizzle-orm";
 import { Image } from "expo-image";
 import { Link, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
-import { Button, ScrollView, Text, View } from "react-native";
-import TrackPlayer, {
-  Capability,
-  PitchAlgorithm,
-  TrackType,
-} from "react-native-track-player";
+import { ScrollView, Text, View } from "react-native";
 
 type Person = {
   id: string;
@@ -118,52 +113,8 @@ async function getMedia(
   });
 }
 
-// TODO: put this somewhere better
-async function playAsync(media: Media, session: Session) {
-  console.log("play", `${session!.url}${media.mpdPath}`);
-  await TrackPlayer.setupPlayer();
-
-  await TrackPlayer.updateOptions({
-    android: {
-      alwaysPauseOnInterruption: true,
-    },
-    capabilities: [
-      Capability.Play,
-      Capability.Pause,
-      Capability.JumpForward,
-      Capability.JumpBackward,
-      Capability.Stop,
-    ],
-    compactCapabilities: [
-      Capability.Play,
-      Capability.Pause,
-      Capability.JumpBackward,
-      Capability.JumpForward,
-    ],
-    forwardJumpInterval: 10,
-    backwardJumpInterval: 10,
-  });
-
-  await TrackPlayer.add({
-    url: `${session!.url}${media.mpdPath}`,
-    type: TrackType.Dash,
-    pitchAlgorithm: PitchAlgorithm.Voice,
-    // FIXME:
-    duration: parseFloat(media.duration!),
-    title: media.book.title,
-    artist: media.book.bookAuthors
-      .map((bookAuthor) => bookAuthor.author.name)
-      .join(", "),
-    // FIXME:
-    artwork: `${session!.url}/${media.thumbnails!.extraLarge}`,
-    description: media.id,
-    headers: { Authorization: `Bearer ${session!.token}` },
-  });
-  await TrackPlayer.play();
-}
-
 export default function MediaDetails() {
-  const { session } = useSession();
+  const session = useSessionStore((state) => state.session);
   const { id: mediaId } = useLocalSearchParams<{ id: string }>();
   const [media, setMedia] = useState<Media | undefined>();
   const [error, setError] = useState(false);
@@ -198,20 +149,6 @@ export default function MediaDetails() {
     }, [loadMedia, session]),
   );
 
-  const play = useCallback(() => {
-    if (media === undefined) {
-      return;
-    }
-
-    playAsync(media, session!)
-      .then(() => {
-        console.log("playback started");
-      })
-      .catch((error) => {
-        console.error("playback error:", error);
-      });
-  }, [media, session]);
-
   if (media === undefined) {
     return null;
   }
@@ -242,7 +179,6 @@ export default function MediaDetails() {
             <AuthorsList bookAuthors={media.book.bookAuthors} />
             <NarratorsList mediaNarrators={media.mediaNarrators} />
           </View>
-          <Button title="Play" onPress={play} />
           {media.description && <Description description={media.description} />}
         </View>
       </ScrollView>
@@ -251,7 +187,7 @@ export default function MediaDetails() {
 }
 
 function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
-  const { session } = useSession();
+  const session = useSessionStore((state) => state.session);
 
   if (!thumbnails) {
     return (

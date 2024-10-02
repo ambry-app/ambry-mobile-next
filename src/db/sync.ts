@@ -1,8 +1,8 @@
-import { Session } from "@/src/contexts/session";
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { graphql } from "@/src/graphql/client";
-import { execute } from "@/src/graphql/client/execute";
+import { executeAuthenticated } from "@/src/graphql/client/execute";
+import { Session } from "@/src/stores/session";
 import { eq, inArray, sql } from "drizzle-orm";
 
 const syncQuery = graphql(`
@@ -156,9 +156,23 @@ export async function sync(session: Session) {
 
   const lastSync = server?.lastSync;
 
-  const response = await execute(session.url, session.token!, syncQuery, {
-    since: lastSync,
-  });
+  if (lastSync) {
+    const now = Date.now();
+    const lastSyncTime = lastSync.getTime();
+    if (now - lastSyncTime < 60 * 1000) {
+      console.log("synced less than a minute ago, skipping sync");
+      return;
+    }
+  }
+
+  const response = await executeAuthenticated(
+    session.url,
+    session.token,
+    syncQuery,
+    {
+      since: lastSync,
+    },
+  );
 
   const peopleValues = response.peopleChangedSince.map((person) => {
     return {
@@ -468,9 +482,13 @@ export async function sync(session: Session) {
 
     await tx
       .insert(schema.servers)
-      .values({ url: session.url, lastSync: new Date(response.serverTime) })
+      .values({
+        url: session.url,
+        userEmail: session.email,
+        lastSync: new Date(response.serverTime),
+      })
       .onConflictDoUpdate({
-        target: [schema.servers.url],
+        target: [schema.servers.url, schema.servers.userEmail],
         set: {
           lastSync: sql`excluded.last_sync`,
         },

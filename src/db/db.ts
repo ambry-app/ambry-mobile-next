@@ -4,4 +4,6 @@ import * as schema from "./schema";
 
 export const expoDb = openDatabaseSync("ambry.db");
 expoDb.execSync("PRAGMA journal_mode = WAL;");
-export const db = drizzle(expoDb, { schema, logger: true });
+
+// export const db = drizzle(expoDb, { schema, logger: true });
+export const db = drizzle(expoDb, { schema });

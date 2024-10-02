@@ -1,17 +1,20 @@
 import "@/assets/global.css";
 import migrations from "@/drizzle/migrations";
 import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
-import { SessionProvider } from "@/src/contexts/session";
 import { db, expoDb } from "@/src/db/db";
+import { sync } from "@/src/db/sync";
+import { useSessionStore } from "@/src/stores/session";
 import { ThemeProvider } from "@react-navigation/native";
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import * as NavigationBar from "expo-navigation-bar";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import colors from "tailwindcss/colors";
+import { useShallow } from "zustand/react/shallow";
+import { useTrackPlayerStore } from "../stores/trackPlayer";
 
 const Theme = {
   dark: true,
@@ -25,40 +28,97 @@ const Theme = {
   },
 };
 
-export default function Root() {
-  const { success, error } = useMigrations(db, migrations);
+export default function App() {
   useDrizzleStudio(expoDb);
 
   useEffect(() => {
     NavigationBar.setBackgroundColorAsync(colors.zinc[900]);
-  }, []);
+  });
 
-  if (error) {
+  return (
+    <ThemeProvider value={Theme}>
+      <Root />
+      <StatusBar style="auto" backgroundColor={colors.zinc[900]} />
+    </ThemeProvider>
+  );
+}
+
+function Root() {
+  const [initialSyncComplete, setInitialSyncComplete] = useState(false);
+  const { success: migrateSuccess, error: migrateError } = useMigrations(
+    db,
+    migrations,
+  );
+  const session = useSessionStore((state) => state.session);
+
+  const [trackPlayerSetup, trackPlayerError, setupTrackPlayer, initTrack] =
+    useTrackPlayerStore(
+      useShallow((state) => [
+        state.setup,
+        state.setupError,
+        state.setupTrackPlayer,
+        state.initTrack,
+      ]),
+    );
+
+  useEffect(() => {
+    setupTrackPlayer();
+  }, [setupTrackPlayer]);
+
+  useEffect(() => {
+    if (migrateSuccess && session?.token) {
+      console.log("Initial app load sync...");
+      sync(session)
+        .then(() => {
+          console.log("Initial app load sync complete");
+          setInitialSyncComplete(true);
+        })
+        .catch((error) => {
+          console.error("Initial app load sync error", error);
+          setInitialSyncComplete(true);
+        });
+    }
+  }, [migrateSuccess, session]);
+
+  useEffect(() => {
+    if (initialSyncComplete && trackPlayerSetup && session) {
+      console.log("Initial track load...");
+      initTrack(session);
+    }
+  }, [initialSyncComplete, trackPlayerSetup, session, initTrack]);
+
+  if (migrateError) {
     return (
       <View className="bg-black flex h-full items-center justify-center">
-        <Text className="text-red-500">Migration error: {error.message}</Text>
+        <Text className="text-red-500">
+          Migration error: {migrateError.message}
+        </Text>
       </View>
     );
   }
 
-  if (!success) {
+  if (trackPlayerError) {
     return (
       <View className="bg-black flex h-full items-center justify-center">
-        <Text className="text-zinc-100 mb-2">Migrating database...</Text>
-        <LargeActivityIndicator className="mt-4" />
+        <Text className="text-red-500">
+          TrackPlayer error: {trackPlayerError.toString()}
+        </Text>
+      </View>
+    );
+  }
+
+  if (!(migrateSuccess && trackPlayerSetup && initialSyncComplete)) {
+    return (
+      <View className="bg-black flex h-full items-center justify-center">
+        <LargeActivityIndicator />
       </View>
     );
   }
 
   return (
-    <SessionProvider>
-      <ThemeProvider value={Theme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="sign-in" options={{ title: "Sign In" }} />
-        </Stack>
-        <StatusBar style="auto" backgroundColor={colors.zinc[900]} />
-      </ThemeProvider>
-    </SessionProvider>
+    <Stack>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="sign-in" options={{ title: "Sign In" }} />
+    </Stack>
   );
 }

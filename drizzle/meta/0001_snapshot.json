@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "53b6aed9-d3aa-4bf4-84d7-bade2e4e7e67",
-  "prevId": "2f0bf690-f257-4dfe-a650-85e4de5712f8",
+  "id": "b2160f8c-9fda-4f44-88ef-0692d97e7cbc",
+  "prevId": "f5714137-475e-498d-a1b2-3d811b2e16ab",
   "tables": {
     "authors": {
       "name": "authors",
@@ -231,6 +231,96 @@
             "id"
           ],
           "name": "books_url_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "local_player_states": {
+      "name": "local_player_states",
+      "columns": {
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "media_id": {
+          "name": "media_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_email": {
+          "name": "user_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "playback_rate": {
+          "name": "playback_rate",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "inserted_at": {
+          "name": "inserted_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "local_player_states_url_media_id_media_url_id_fk": {
+          "name": "local_player_states_url_media_id_media_url_id_fk",
+          "tableFrom": "local_player_states",
+          "tableTo": "media",
+          "columnsFrom": [
+            "url",
+            "media_id"
+          ],
+          "columnsTo": [
+            "url",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "local_player_states_url_media_id_user_email_pk": {
+          "columns": [
+            "url",
+            "media_id",
+            "user_email"
+          ],
+          "name": "local_player_states_url_media_id_user_email_pk"
         }
       },
       "uniqueConstraints": {}
@@ -618,6 +708,102 @@
       },
       "uniqueConstraints": {}
     },
+    "player_states": {
+      "name": "player_states",
+      "columns": {
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "media_id": {
+          "name": "media_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_email": {
+          "name": "user_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "playback_rate": {
+          "name": "playback_rate",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "inserted_at": {
+          "name": "inserted_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "player_states_url_media_id_media_url_id_fk": {
+          "name": "player_states_url_media_id_media_url_id_fk",
+          "tableFrom": "player_states",
+          "tableTo": "media",
+          "columnsFrom": [
+            "url",
+            "media_id"
+          ],
+          "columnsTo": [
+            "url",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "player_states_url_id_pk": {
+          "columns": [
+            "url",
+            "id"
+          ],
+          "name": "player_states_url_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
     "series": {
       "name": "series",
       "columns": {
@@ -773,7 +959,14 @@
         "url": {
           "name": "url",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_email": {
+          "name": "user_email",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -787,7 +980,15 @@
       },
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "servers_url_user_email_pk": {
+          "columns": [
+            "url",
+            "user_email"
+          ],
+          "name": "servers_url_user_email_pk"
+        }
+      },
       "uniqueConstraints": {}
     }
   },

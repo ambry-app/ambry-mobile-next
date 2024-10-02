@@ -1,4 +1,4 @@
-import { Media } from "@/src/app/(tabs)/(index)";
+import { Media } from "@/src/app/(tabs)/(library)";
 import { FlatList } from "react-native";
 import MediaTile from "./Grid/MediaTile";
 

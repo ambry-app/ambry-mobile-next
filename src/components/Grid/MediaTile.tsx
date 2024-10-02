@@ -1,12 +1,12 @@
-import { Media } from "@/src/app/(tabs)/(index)";
-import { useSession } from "@/src/contexts/session";
+import { Media } from "@/src/app/(tabs)/(library)";
 import type { Thumbnails } from "@/src/db/schema";
+import { useSessionStore } from "@/src/stores/session";
 import { Image } from "expo-image";
 import { Link } from "expo-router";
 import { Pressable, Text, TouchableOpacity, View } from "react-native";
 
 function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
-  const { session } = useSession();
+  const session = useSessionStore((state) => state.session);
 
   if (!thumbnails) {
     return <View className="w-full" style={{ aspectRatio: 1 / 1 }} />;

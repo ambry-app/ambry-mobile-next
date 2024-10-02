@@ -1,3 +1,4 @@
+import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { Tabs } from "expo-router";
 import { View } from "react-native";
@@ -7,8 +8,8 @@ const tabBarHeight = 49;
 const playerHeight = 64;
 
 export default function TabLayout() {
-  // TODO: this will be dynamic based on current player state
-  const playerVisible = false;
+  const mediaId = useTrackPlayerStore((state) => state.mediaId);
+  const playerVisible = !!mediaId;
 
   return (
     <>
@@ -24,22 +25,21 @@ export default function TabLayout() {
         }}
       >
         <Tabs.Screen
-          name="shelf"
-          options={{
-            headerShown: false,
-            title: "Shelf",
-            tabBarIcon: ({ color }) => (
-              <FontAwesome6 size={24} name="book-bookmark" color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="(index)"
+          name="(library)"
           options={{
             headerShown: false,
             title: "Library",
             tabBarIcon: ({ color }) => (
               <FontAwesome6 size={24} name="book-open" color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="shelf"
+          options={{
+            title: "Shelf",
+            tabBarIcon: ({ color }) => (
+              <FontAwesome6 size={24} name="book-bookmark" color={color} />
             ),
           }}
         />

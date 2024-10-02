@@ -1,11 +1,11 @@
 import Description from "@/src/components/Description";
 import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
 import ScreenCentered from "@/src/components/ScreenCentered";
-import { Session, useSession } from "@/src/contexts/session";
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Thumbnails } from "@/src/db/schema";
 import { sync } from "@/src/db/sync";
+import { Session, useSessionStore } from "@/src/stores/session";
 import { and, eq } from "drizzle-orm";
 import { Image } from "expo-image";
 import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -33,7 +33,7 @@ async function getPerson(
 }
 
 export default function PersonDetails() {
-  const { session } = useSession();
+  const session = useSessionStore((state) => state.session);
   const { id: personId } = useLocalSearchParams<{ id: string }>();
   const [person, setPerson] = useState<Person | undefined>();
   const [error, setError] = useState(false);
@@ -105,7 +105,7 @@ export default function PersonDetails() {
 }
 
 function PersonImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
-  const { session } = useSession();
+  const session = useSessionStore((state) => state.session);
 
   if (!thumbnails) {
     return (

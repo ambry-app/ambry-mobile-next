@@ -46,7 +46,7 @@ CREATE TABLE `media` (
 	`duration` text,
 	`published` integer,
 	`published_format` text,
-	`image_path` text,
+	`thumbnails` text,
 	`description` text,
 	`inserted_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
@@ -82,10 +82,24 @@ CREATE TABLE `people` (
 	`id` text NOT NULL,
 	`name` text NOT NULL,
 	`description` text,
-	`image_path` text,
+	`thumbnails` text,
 	`inserted_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	PRIMARY KEY(`url`, `id`)
+);
+--> statement-breakpoint
+CREATE TABLE `player_states` (
+	`url` text NOT NULL,
+	`id` text NOT NULL,
+	`media_id` text NOT NULL,
+	`user_email` text NOT NULL,
+	`playback_rate` real NOT NULL,
+	`position` real NOT NULL,
+	`status` text NOT NULL,
+	`inserted_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	PRIMARY KEY(`url`, `id`),
+	FOREIGN KEY (`url`,`media_id`) REFERENCES `media`(`url`,`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `series` (
@@ -111,6 +125,8 @@ CREATE TABLE `series_books` (
 );
 --> statement-breakpoint
 CREATE TABLE `servers` (
-	`url` text PRIMARY KEY NOT NULL,
-	`last_sync` integer
+	`url` text NOT NULL,
+	`user_email` text NOT NULL,
+	`last_sync` integer,
+	PRIMARY KEY(`url`, `user_email`)
 );

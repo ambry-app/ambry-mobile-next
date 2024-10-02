@@ -1,10 +1,10 @@
 import Grid from "@/src/components/Grid";
 import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
 import ScreenCentered from "@/src/components/ScreenCentered";
-import { Session, useSession } from "@/src/contexts/session";
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { sync } from "@/src/db/sync";
+import { Session, useSessionStore } from "@/src/stores/session";
 import { desc, eq } from "drizzle-orm";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
@@ -78,7 +78,7 @@ async function listMediaForIndex(session: Session): Promise<Media[]> {
 }
 
 export default function Index() {
-  const { session } = useSession();
+  const session = useSessionStore((state) => state.session);
   const [media, setMedia] = useState<Media[] | undefined>();
   const [error, setError] = useState(false);
 

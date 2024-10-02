@@ -325,10 +325,19 @@ export const mediaNarratorsRelations = relations(mediaNarrators, ({ one }) => ({
   }),
 }));
 
-export const servers = sqliteTable("servers", {
-  url: text("url").primaryKey(),
-  lastSync: integer("last_sync", { mode: "timestamp" }),
-});
+export const servers = sqliteTable(
+  "servers",
+  {
+    url: text("url").notNull(),
+    userEmail: text("user_email").notNull(),
+    lastSync: integer("last_sync", { mode: "timestamp" }),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.url, table.userEmail] }),
+    };
+  },
+);
 
 export const playerStates = sqliteTable(
   "player_states",
@@ -362,3 +371,38 @@ export const playerStatesRelations = relations(playerStates, ({ one }) => ({
     references: [media.url, media.id],
   }),
 }));
+
+export const localPlayerStates = sqliteTable(
+  "local_player_states",
+  {
+    url: text("url").notNull(),
+    mediaId: text("media_id").notNull(),
+    userEmail: text("user_email").notNull(),
+    playbackRate: real("playback_rate").notNull(),
+    position: real("position").notNull(),
+    status: text("status", {
+      enum: ["not_started", "in_progress", "finished"],
+    }).notNull(),
+    insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.url, table.mediaId, table.userEmail] }),
+      media: foreignKey({
+        columns: [table.url, table.mediaId],
+        foreignColumns: [media.url, media.id],
+      }).onDelete("cascade"),
+    };
+  },
+);
+
+export const localPlayerStatesRelations = relations(
+  localPlayerStates,
+  ({ one }) => ({
+    media: one(media, {
+      fields: [localPlayerStates.url, localPlayerStates.mediaId],
+      references: [media.url, media.id],
+    }),
+  }),
+);

@@ -1,48 +1,46 @@
 import Logo from "@/assets/images/logo.svg";
 import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
-import { useSession } from "@/src/contexts/session";
-import { Redirect, router } from "expo-router";
+import { useSessionStore } from "@/src/stores/session";
+import { Redirect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
 import colors from "tailwindcss/colors";
 
 export default function SignIn() {
-  const { session, signIn } = useSession();
+  const { session, error, isLoading, signIn, clearError } = useSessionStore(
+    (state) => state,
+  );
   const [email, setEmail] = useState(session?.email || "");
   const [host, setHost] = useState(session?.url || "");
   const [password, setPassword] = useState("");
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const setEmailAndClearError = useCallback(
+    (email: string) => {
+      setEmail(email);
+      clearError();
+    },
+    [clearError],
+  );
 
-  const setEmailAndClearError = useCallback((email: string) => {
-    setEmail(email);
-    setError(false);
-  }, []);
+  const setHostAndClearError = useCallback(
+    (host: string) => {
+      setHost(host);
+      clearError();
+    },
+    [clearError],
+  );
 
-  const setHostAndClearError = useCallback((host: string) => {
-    setHost(host);
-    setError(false);
-  }, []);
+  const setPasswordAndClearError = useCallback(
+    (password: string) => {
+      setPassword(password);
+      clearError();
+    },
+    [clearError],
+  );
 
-  const setPasswordAndClearError = useCallback((password: string) => {
-    setPassword(password);
-    setError(false);
-  }, []);
-
-  const login = useCallback(async () => {
-    setLoading(true);
-    setError(false);
-    const token = await signIn(host, email, password);
-    if (token) {
-      setLoading(false);
-      router.replace("/");
-    } else {
-      setLoading(false);
-      setError(true);
-      console.error("Sign in failed");
-    }
-  }, [email, host, password, signIn]);
+  const signInCallback = useCallback(() => {
+    signIn(host, email, password);
+  }, [host, email, password, signIn]);
 
   if (session?.token) {
     // Redirect back to library if already signed in
@@ -88,10 +86,10 @@ export default function SignIn() {
       <Button
         title="Sign in"
         color={colors.lime[500]}
-        onPress={login}
-        disabled={loading}
+        onPress={signInCallback}
+        disabled={isLoading}
       />
-      {loading && <LargeActivityIndicator className="mt-4" />}
+      {isLoading && <LargeActivityIndicator className="mt-4" />}
       {error && (
         <Text className="mt-4 text-red-500 text-center">
           Invalid host, username, or password
