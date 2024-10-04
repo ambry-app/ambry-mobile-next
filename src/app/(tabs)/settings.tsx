@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 export default function Tab() {
   return (
     <View style={styles.container}>
-      <Text>Tab Settings</Text>
+      <Text className="text-zinc-100">Tab Settings</Text>
     </View>
   );
 }

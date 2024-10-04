@@ -70,7 +70,12 @@ function Root() {
   }, [setupTrackPlayer]);
 
   useEffect(() => {
-    if (migrateSuccess && session?.token) {
+    if (!session || !session.token) {
+      setInitialSyncComplete(true);
+      return;
+    }
+
+    if (migrateSuccess) {
       console.log("Initial app load sync...");
       syncDown(session)
         .then(() => {

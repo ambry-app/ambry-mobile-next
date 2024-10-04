@@ -3,11 +3,7 @@
   "main": "./entry.js",
   "version": "1.0.0",
   "scripts": {
-    "start": "APP_VARIANT=dev expo start",
-    "dev": "APP_VARIANT=dev npx expo start",
-    "android": "APP_VARIANT=dev expo run:android",
-    "ios": "APP_VARIANT=dev expo run:ios",
-    "web": "APP_VARIANT=dev expo start --web",
+    "start": "APP_VARIANT=development npx expo start",
     "test": "jest --watchAll",
     "lint": "expo lint",
     "update": "npm install expo@latest && npx expo install --fix"
@@ -35,7 +31,7 @@
     "expo-status-bar": "~1.12.1",
     "expo-system-ui": "~3.0.7",
     "expo-web-browser": "~13.0.3",
-    "expo": "~51.0.34",
+    "expo": "^51.0.36",
     "nativewind": "^4.0.1",
     "react-dom": "18.2.0",
     "react-native-gesture-handler": "~2.16.1",
