@@ -15,6 +15,13 @@
       "when": 1727832075534,
       "tag": "0001_loud_madame_web",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1727999135396,
+      "tag": "0002_productive_newton_destine",
+      "breakpoints": true
     }
   ]
 }

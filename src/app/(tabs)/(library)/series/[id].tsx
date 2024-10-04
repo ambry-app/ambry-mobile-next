@@ -1,43 +1,46 @@
 import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
 import ScreenCentered from "@/src/components/ScreenCentered";
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Thumbnails } from "@/src/db/schema";
-import { sync } from "@/src/db/sync";
+import { SeriesForDetails, getSeriesForDetails } from "@/src/db/library";
+import { syncDown } from "@/src/db/sync";
 import { useSessionStore } from "@/src/stores/session";
-import { and, eq } from "drizzle-orm";
-import { useLiveQuery } from "drizzle-orm/expo-sqlite";
-import { Image } from "expo-image";
-import { Link, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useState } from "react";
+import { ScrollView, Text } from "react-native";
 
 export default function SeriesDetails() {
   const session = useSessionStore((state) => state.session);
   const { id: seriesId } = useLocalSearchParams<{ id: string }>();
-  const { error, data: series } = useLiveQuery(
-    db.query.series.findFirst({
-      where: and(
-        eq(schema.series.url, session!.url),
-        eq(schema.series.id, seriesId),
-      ),
-    }),
-  );
+  const [series, setSeries] = useState<SeriesForDetails | undefined>();
+  const [error, setError] = useState(false);
+
+  const loadSeries = useCallback(() => {
+    getSeriesForDetails(session!, seriesId)
+      .then(setSeries)
+      .catch((error) => {
+        console.error("Failed to load series:", error);
+        setError(true);
+      });
+  }, [session, seriesId]);
 
   useFocusEffect(
     useCallback(() => {
       console.log("series/[id] focused!");
 
-      try {
-        sync(session!);
-      } catch (error) {
-        console.error("sync error:", error);
-      }
+      // load what's in the DB right now
+      loadSeries();
+
+      // sync in background, then load again
+      // if network is down, we just ignore the error
+      syncDown(session!)
+        .then(loadSeries)
+        .catch((error) => {
+          console.error("sync error:", error);
+        });
 
       return () => {
         console.log("series/[id] unfocused");
       };
-    }, [session]),
+    }, [loadSeries, session]),
   );
 
   if (series === undefined) {

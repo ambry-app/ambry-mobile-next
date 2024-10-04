@@ -1,126 +1,30 @@
 import Description from "@/src/components/Description";
 import ScreenCentered from "@/src/components/ScreenCentered";
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
+import {
+  BookAuthor,
+  MediaForDetails,
+  MediaNarrator,
+  SeriesBook,
+  getMediaForDetails,
+} from "@/src/db/library";
 import { Thumbnails } from "@/src/db/schema";
-import { sync } from "@/src/db/sync";
-import { Session, useSessionStore } from "@/src/stores/session";
-import { and, eq } from "drizzle-orm";
+import { syncDown } from "@/src/db/sync";
+import { useSessionStore } from "@/src/stores/session";
+import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
 import { Image } from "expo-image";
 import { Link, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
-
-type Person = {
-  id: string;
-};
-
-type Author = {
-  id: string;
-  name: string;
-  person: Person;
-};
-
-type BookAuthor = {
-  id: string;
-  author: Author;
-};
-
-type Series = {
-  id: string;
-  name: string;
-};
-
-type SeriesBook = {
-  id: string;
-  bookNumber: string;
-  series: Series;
-};
-
-type Book = {
-  id: string;
-  title: string;
-  bookAuthors: BookAuthor[];
-  seriesBooks: SeriesBook[];
-};
-
-type Narrator = {
-  id: string;
-  name: string;
-  person: Person;
-};
-
-type MediaNarrator = {
-  id: string;
-  narrator: Narrator;
-};
-
-type Media = {
-  id: string;
-  description: string | null;
-  thumbnails: schema.Thumbnails | null;
-  mpdPath: string | null;
-  duration: string | null;
-  book: Book;
-  mediaNarrators: MediaNarrator[];
-};
-
-async function getMedia(
-  session: Session,
-  mediaId: string,
-): Promise<Media | undefined> {
-  return db.query.media.findFirst({
-    columns: {
-      id: true,
-      thumbnails: true,
-      description: true,
-      mpdPath: true,
-      duration: true,
-    },
-    where: and(
-      eq(schema.media.url, session!.url),
-      eq(schema.media.id, mediaId),
-    ),
-    with: {
-      mediaNarrators: {
-        columns: { id: true },
-        with: {
-          narrator: {
-            columns: { id: true, name: true },
-            with: { person: { columns: { id: true } } },
-          },
-        },
-      },
-      book: {
-        columns: { id: true, title: true },
-        with: {
-          bookAuthors: {
-            columns: { id: true },
-            with: {
-              author: {
-                columns: { id: true, name: true },
-                with: { person: { columns: { id: true } } },
-              },
-            },
-          },
-          seriesBooks: {
-            columns: { id: true, bookNumber: true },
-            with: { series: { columns: { id: true, name: true } } },
-          },
-        },
-      },
-    },
-  });
-}
+import { Button, ScrollView, Text, View } from "react-native";
 
 export default function MediaDetails() {
   const session = useSessionStore((state) => state.session);
+  const loadMediaIntoPlayer = useTrackPlayerStore((state) => state.loadMedia);
   const { id: mediaId } = useLocalSearchParams<{ id: string }>();
-  const [media, setMedia] = useState<Media | undefined>();
+  const [media, setMedia] = useState<MediaForDetails | undefined>();
   const [error, setError] = useState(false);
 
   const loadMedia = useCallback(() => {
-    getMedia(session!, mediaId)
+    getMediaForDetails(session!, mediaId)
       .then(setMedia)
       .catch((error) => {
         console.error("Failed to load media:", error);
@@ -137,7 +41,7 @@ export default function MediaDetails() {
 
       // sync in background, then load again
       // if network is down, we just ignore the error
-      sync(session!)
+      syncDown(session!)
         .then(loadMedia)
         .catch((error) => {
           console.error("sync error:", error);
@@ -148,6 +52,10 @@ export default function MediaDetails() {
       };
     }, [loadMedia, session]),
   );
+
+  const loadMediaIntoPlayerCallback = useCallback(() => {
+    loadMediaIntoPlayer(session!, mediaId);
+  }, [loadMediaIntoPlayer, mediaId, session]);
 
   if (media === undefined) {
     return null;
@@ -179,6 +87,7 @@ export default function MediaDetails() {
             <AuthorsList bookAuthors={media.book.bookAuthors} />
             <NarratorsList mediaNarrators={media.mediaNarrators} />
           </View>
+          <Button title="Load Me!" onPress={loadMediaIntoPlayerCallback} />
           {media.description && <Description description={media.description} />}
         </View>
       </ScrollView>

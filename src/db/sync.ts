@@ -1,139 +1,8 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
-import { graphql } from "@/src/graphql/client";
-import { executeAuthenticated } from "@/src/graphql/client/execute";
+import { getChangesSince, updatePlayerState } from "@/src/graphql/api";
 import { Session } from "@/src/stores/session";
-import { eq, inArray, sql } from "drizzle-orm";
-
-const syncQuery = graphql(`
-  query Sync($since: DateTime) {
-    peopleChangedSince(since: $since) {
-      id
-      name
-      description
-      thumbnails {
-        extraLarge
-        large
-        medium
-        small
-        extraSmall
-        thumbhash
-      }
-      insertedAt
-      updatedAt
-    }
-    authorsChangedSince(since: $since) {
-      id
-      person {
-        id
-      }
-      name
-      insertedAt
-      updatedAt
-    }
-    narratorsChangedSince(since: $since) {
-      id
-      person {
-        id
-      }
-      name
-      insertedAt
-      updatedAt
-    }
-    booksChangedSince(since: $since) {
-      id
-      title
-      published
-      publishedFormat
-      insertedAt
-      updatedAt
-    }
-    bookAuthorsChangedSince(since: $since) {
-      id
-      book {
-        id
-      }
-      author {
-        id
-      }
-      insertedAt
-      updatedAt
-    }
-    seriesChangedSince(since: $since) {
-      id
-      name
-      insertedAt
-      updatedAt
-    }
-    seriesBooksChangedSince(since: $since) {
-      id
-      book {
-        id
-      }
-      series {
-        id
-      }
-      bookNumber
-      insertedAt
-      updatedAt
-    }
-    mediaChangedSince(since: $since) {
-      id
-      book {
-        id
-      }
-      status
-      description
-      thumbnails {
-        extraLarge
-        large
-        medium
-        small
-        extraSmall
-        thumbhash
-      }
-      published
-      publishedFormat
-      abridged
-      fullCast
-      mp4Path
-      mpdPath
-      hlsPath
-      duration
-      # TODO:
-      # chapters
-      insertedAt
-      updatedAt
-    }
-    mediaNarratorsChangedSince(since: $since) {
-      id
-      media {
-        id
-      }
-      narrator {
-        id
-      }
-      insertedAt
-      updatedAt
-    }
-    playerStatesChangedSince(since: $since) {
-      id
-      media {
-        id
-      }
-      status
-      playbackRate
-      position
-      insertedAt
-      updatedAt
-    }
-    deletionsSince(since: $since) {
-      type
-      recordId
-    }
-    serverTime
-  }
-`);
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
 
 const deletionsTables = {
   MEDIA_NARRATOR: schema.mediaNarrators,
@@ -147,34 +16,29 @@ const deletionsTables = {
   PERSON: schema.people,
 };
 
-export async function sync(session: Session) {
-  console.log("syncing...");
+export async function syncDown(session: Session) {
+  console.log("down syncing...");
 
   const server = await db.query.servers.findFirst({
     where: eq(schema.servers.url, session.url),
   });
 
-  const lastSync = server?.lastSync;
+  const lastSync = server?.lastDownSync;
 
   if (lastSync) {
+    // WARNING: treating server-time and client-time as the same
+    // but it's ok because this is just a debounce
     const now = Date.now();
     const lastSyncTime = lastSync.getTime();
     if (now - lastSyncTime < 60 * 1000) {
-      console.log("synced less than a minute ago, skipping sync");
+      console.log("down synced less than a minute ago, skipping sync");
       return;
     }
   }
 
-  const response = await executeAuthenticated(
-    session.url,
-    session.token,
-    syncQuery,
-    {
-      since: lastSync,
-    },
-  );
+  const allChanges = await getChangesSince(session, lastSync);
 
-  const peopleValues = response.peopleChangedSince.map((person) => {
+  const peopleValues = allChanges.peopleChangedSince.map((person) => {
     return {
       url: session.url,
       id: person.id,
@@ -186,7 +50,7 @@ export async function sync(session: Session) {
     };
   });
 
-  const authorValues = response.authorsChangedSince.map((author) => {
+  const authorValues = allChanges.authorsChangedSince.map((author) => {
     return {
       url: session.url,
       id: author.id,
@@ -197,7 +61,7 @@ export async function sync(session: Session) {
     };
   });
 
-  const narratorValues = response.narratorsChangedSince.map((narrator) => {
+  const narratorValues = allChanges.narratorsChangedSince.map((narrator) => {
     return {
       url: session.url,
       id: narrator.id,
@@ -208,7 +72,7 @@ export async function sync(session: Session) {
     };
   });
 
-  const booksValues = response.booksChangedSince.map((book) => {
+  const booksValues = allChanges.booksChangedSince.map((book) => {
     return {
       url: session.url,
       id: book.id,
@@ -223,7 +87,7 @@ export async function sync(session: Session) {
     };
   });
 
-  const bookAuthorsValues = response.bookAuthorsChangedSince.map(
+  const bookAuthorsValues = allChanges.bookAuthorsChangedSince.map(
     (bookAuthor) => {
       return {
         url: session.url,
@@ -236,7 +100,7 @@ export async function sync(session: Session) {
     },
   );
 
-  const seriesValues = response.seriesChangedSince.map((series) => {
+  const seriesValues = allChanges.seriesChangedSince.map((series) => {
     return {
       url: session.url,
       id: series.id,
@@ -246,7 +110,7 @@ export async function sync(session: Session) {
     };
   });
 
-  const seriesBooksValues = response.seriesBooksChangedSince.map(
+  const seriesBooksValues = allChanges.seriesBooksChangedSince.map(
     (seriesBook) => {
       return {
         url: session.url,
@@ -260,7 +124,7 @@ export async function sync(session: Session) {
     },
   );
 
-  const mediaValues = response.mediaChangedSince.map((media) => {
+  const mediaValues = allChanges.mediaChangedSince.map((media) => {
     return {
       url: session.url,
       id: media.id,
@@ -289,7 +153,7 @@ export async function sync(session: Session) {
     };
   });
 
-  const mediaNarratorsValues = response.mediaNarratorsChangedSince.map(
+  const mediaNarratorsValues = allChanges.mediaNarratorsChangedSince.map(
     (mediaNarrator) => {
       return {
         url: session.url,
@@ -302,7 +166,7 @@ export async function sync(session: Session) {
     },
   );
 
-  const playerStatesValues = response.playerStatesChangedSince.map(
+  const playerStatesValues = allChanges.playerStatesChangedSince.map(
     (playerState) => {
       return {
         url: session.url,
@@ -322,7 +186,7 @@ export async function sync(session: Session) {
   );
 
   const deletionIds = groupBy(
-    response.deletionsSince,
+    allChanges.deletionsSince,
     (deletion) => deletion.type as string,
     (deletion) => deletion.recordId,
   );
@@ -485,17 +349,80 @@ export async function sync(session: Session) {
       .values({
         url: session.url,
         userEmail: session.email,
-        lastSync: new Date(response.serverTime),
+        lastDownSync: new Date(allChanges.serverTime),
       })
       .onConflictDoUpdate({
         target: [schema.servers.url, schema.servers.userEmail],
         set: {
-          lastSync: sql`excluded.last_sync`,
+          lastDownSync: sql`excluded.last_down_sync`,
         },
       });
-
-    console.log("sync complete");
   });
+
+  console.log("down sync complete");
+}
+
+export async function syncUp(session: Session) {
+  console.log("up syncing...");
+
+  const server = await db.query.servers.findFirst({
+    where: eq(schema.servers.url, session.url),
+  });
+
+  const lastSync = server?.lastUpSync;
+
+  if (lastSync) {
+    const now = Date.now();
+    const lastSyncTime = lastSync.getTime();
+    if (now - lastSyncTime < 60 * 1000) {
+      console.log("up synced less than a minute ago, skipping sync");
+      return;
+    }
+  }
+
+  const now = new Date();
+
+  const changedPlayerStates = await db.query.localPlayerStates.findMany({
+    columns: { mediaId: true, playbackRate: true, position: true },
+    where: and(
+      eq(schema.localPlayerStates.url, session.url),
+      eq(schema.localPlayerStates.userEmail, session.email),
+      gte(schema.localPlayerStates.updatedAt, lastSync || new Date(0)),
+    ),
+  });
+
+  console.log("syncing", changedPlayerStates.length, "player states");
+
+  for (const playerState of changedPlayerStates) {
+    await updatePlayerState(
+      session,
+      playerState.mediaId,
+      playerState.position,
+      playerState.playbackRate,
+    );
+  }
+
+  console.log("server request(s) complete");
+
+  console.log("values", {
+    url: session.url,
+    userEmail: session.email,
+    lastUpSync: now,
+  });
+
+  await db
+    .insert(schema.servers)
+    .values({
+      url: session.url,
+      userEmail: session.email,
+      lastUpSync: now,
+    })
+    .onConflictDoUpdate({
+      target: [schema.servers.url, schema.servers.userEmail],
+      set: {
+        lastUpSync: sql`excluded.last_up_sync`,
+      },
+    });
 }
 
 const groupBy = <T, K extends keyof any, V>(

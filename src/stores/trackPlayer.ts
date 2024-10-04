@@ -1,13 +1,19 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { and, desc, eq } from "drizzle-orm";
+import {
+  LocalPlayerState,
+  createInitialPlayerState,
+  createPlayerState,
+  getLocalPlayerState,
+  getMostRecentInProgressLocalMedia,
+  getMostRecentInProgressSyncedMedia,
+  getSyncedPlayerState,
+  updatePlayerState,
+} from "@/src/db/playerStates";
 import TrackPlayer, {
   AndroidAudioContentType,
   Capability,
   IOSCategory,
   IOSCategoryMode,
   PitchAlgorithm,
-  Track,
   TrackType,
 } from "react-native-track-player";
 import { create } from "zustand";
@@ -21,7 +27,15 @@ interface TrackPlayerState {
   position: number;
   playbackRate: number;
   setupTrackPlayer: () => Promise<void>;
-  initTrack: (session: Session) => Promise<void>;
+  loadMostRecentMedia: (session: Session) => Promise<void>;
+  loadMedia: (session: Session, mediaId: string) => Promise<void>;
+}
+
+interface TrackLoadResult {
+  mediaId: string;
+  duration: number;
+  position: number;
+  playbackRate: number;
 }
 
 export const useTrackPlayerStore = create<TrackPlayerState>()((set, get) => ({
@@ -37,43 +51,70 @@ export const useTrackPlayerStore = create<TrackPlayerState>()((set, get) => ({
     }
 
     try {
-      const response = await setupTrackPlayerAsync();
+      const response = await setupTrackPlayer();
 
       if (response === true) {
         set({ setup: true });
       } else {
-        set({ setup: true, mediaId: response.description });
+        set({
+          setup: true,
+          mediaId: response.mediaId,
+          duration: response.duration,
+          position: response.position,
+          playbackRate: response.playbackRate,
+        });
       }
     } catch (error) {
       set({ setupError: error });
     }
   },
-  initTrack: async (session: Session) => {
-    const result = await loadMostRecentPlayerStateIntoPlayer(session);
-    if (result) {
+  loadMostRecentMedia: async (session: Session) => {
+    const track = await loadMostRecentMedia(session);
+
+    if (track) {
       set({
-        mediaId: result.mediaId,
-        duration: result.duration,
-        position: result.position,
-        playbackRate: result.playbackRate,
+        mediaId: track.mediaId,
+        duration: track.duration,
+        position: track.position,
+        playbackRate: track.playbackRate,
       });
     }
   },
+  loadMedia: async (session: Session, mediaId: string) => {
+    const track = await loadMedia(session, mediaId);
+
+    set({
+      mediaId: track.mediaId,
+      duration: track.duration,
+      position: track.position,
+      playbackRate: track.playbackRate,
+    });
+  },
 }));
 
-async function setupTrackPlayerAsync(): Promise<Track | true> {
+async function setupTrackPlayer(): Promise<TrackLoadResult | true> {
   try {
+    // just checking to see if it's already initialized
     const track = await TrackPlayer.getTrack(0);
-    console.log("[TrackPlayer] already set up");
-    return track || true;
+
+    if (track) {
+      const mediaId = track.description!;
+      const progress = await TrackPlayer.getProgress();
+      const position = progress.position;
+      const duration = progress.duration;
+      const playbackRate = await TrackPlayer.getRate();
+      return { mediaId, position, duration, playbackRate };
+    }
   } catch (error) {
-    console.log("[TrackPlayer] not set up yet", error);
+    console.debug("[TrackPlayer] player not yet set up", error);
+    // it's ok, we'll set it up now
   }
 
   await TrackPlayer.setupPlayer({
     androidAudioContentType: AndroidAudioContentType.Speech,
     iosCategory: IOSCategory.Playback,
     iosCategoryMode: IOSCategoryMode.SpokenAudio,
+    autoHandleInterruptions: true,
   });
 
   await TrackPlayer.updateOptions({
@@ -95,93 +136,23 @@ async function setupTrackPlayerAsync(): Promise<Track | true> {
     ],
     forwardJumpInterval: 10,
     backwardJumpInterval: 10,
+    progressUpdateEventInterval: 5,
   });
 
   console.log("[TrackPlayer] setup succeeded");
   return true;
 }
 
-// situations when wanting to load a media:
-//
-// - neither a synced playerState nor a local playerState exists
-//   - create a new local playerState
-// - a synced playerState exists but no local playerState exists
-//   - create a new local playerState by copying the synced playerState
-// - a local playerState exists but no synced playerState exists
-//   - use it as is
-// - both a synced playerState and a local playerState exist
-//   - compare the two playerStates updatedAt
-//     - if the synced playerState is newer
-//       - update the local playerState by copying the synced playerState
-//     - if the local playerState is newer
-//       - use it as is
-
-interface TrackLoadResult {
-  mediaId: string | null;
-  duration: number;
-  position: number;
-  playbackRate: number;
-}
-
-async function loadMostRecentPlayerStateIntoPlayer(
+/**
+ * Loads the given PlayerState into the player.
+ */
+async function loadPlayerState(
   session: Session,
-): Promise<TrackLoadResult | null> {
-  console.log("Loading most recent player state into player...");
+  playerState: LocalPlayerState,
+): Promise<TrackLoadResult> {
+  console.log("Loading player state into player...");
 
-  const track = await TrackPlayer.getActiveTrack();
-  if (track) {
-    console.log("TrackPlayer track already loaded, skipping");
-    const mediaId = track.description || null;
-    const progress = await TrackPlayer.getProgress();
-    const position = progress.position;
-    const duration = progress.duration;
-    const playbackRate = await TrackPlayer.getRate();
-    return { mediaId, position, duration, playbackRate };
-  }
-
-  const playerState = await db.query.playerStates.findFirst({
-    where: and(
-      eq(schema.playerStates.url, session.url),
-      eq(schema.playerStates.userEmail, session.email),
-      eq(schema.playerStates.status, "in_progress"),
-    ),
-    orderBy: desc(schema.playerStates.updatedAt),
-    with: {
-      media: {
-        columns: {
-          id: true,
-          thumbnails: true,
-          mpdPath: true,
-          hlsPath: true,
-          duration: true,
-        },
-        with: {
-          book: {
-            columns: { id: true, title: true },
-            with: {
-              bookAuthors: {
-                columns: { id: true },
-                with: {
-                  author: {
-                    columns: { id: true, name: true },
-                    with: { person: { columns: { id: true } } },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-
-  if (!playerState) {
-    console.log("No most recent player state found");
-    return null;
-  }
-
-  console.log("Most recent player state:", playerState);
-
+  await TrackPlayer.reset();
   await TrackPlayer.add({
     // FIXME: iOS use HLS
     url: `${session.url}${playerState.media.mpdPath}`,
@@ -210,4 +181,98 @@ async function loadMostRecentPlayerStateIntoPlayer(
     position: playerState.position,
     playbackRate: playerState.playbackRate,
   };
+}
+
+async function loadMedia(
+  session: Session,
+  mediaId: string,
+): Promise<TrackLoadResult> {
+  const syncedPlayerState = await getSyncedPlayerState(session, mediaId);
+  const localPlayerState = await getLocalPlayerState(session, mediaId);
+
+  if (!syncedPlayerState && !localPlayerState) {
+    // neither a synced playerState nor a local playerState exists
+    // create a new local playerState and load it into the player
+    const newLocalPlayerState = await createInitialPlayerState(
+      session,
+      mediaId,
+    );
+
+    return loadPlayerState(session, newLocalPlayerState!);
+  }
+
+  if (syncedPlayerState && !localPlayerState) {
+    // a synced playerState exists but no local playerState exists
+    // create a new local playerState by copying the synced playerState
+    const newLocalPlayerState = await createPlayerState(
+      session,
+      mediaId,
+      syncedPlayerState.playbackRate,
+      syncedPlayerState.position,
+      syncedPlayerState.status,
+    );
+
+    return loadPlayerState(session, newLocalPlayerState!);
+  }
+
+  if (!syncedPlayerState && localPlayerState) {
+    // a local playerState exists but no synced playerState exists
+    // use it as is (we haven't had a chance to sync it to the server yet)
+    return loadPlayerState(session, localPlayerState);
+  }
+
+  // both a synced playerState and a local playerState exist
+
+  if (localPlayerState!.updatedAt >= syncedPlayerState!.updatedAt) {
+    // the local playerState is newer
+    // use it as is (the server is out of date)
+    return loadPlayerState(session, localPlayerState!);
+  }
+
+  // the synced playerState is newer
+  // update the local playerState by copying the synced playerState
+  const updatedLocalPlayerState = await updatePlayerState(session, mediaId, {
+    playbackRate: syncedPlayerState!.playbackRate,
+    position: syncedPlayerState!.position,
+    status: syncedPlayerState!.status,
+  });
+
+  return loadPlayerState(session, updatedLocalPlayerState!);
+}
+
+async function loadMostRecentMedia(
+  session: Session,
+): Promise<TrackLoadResult | null> {
+  const track = await TrackPlayer.getTrack(0);
+
+  if (track) {
+    const mediaId = track.description!;
+    const progress = await TrackPlayer.getProgress();
+    const position = progress.position;
+    const duration = progress.duration;
+    const playbackRate = await TrackPlayer.getRate();
+    return { mediaId, position, duration, playbackRate };
+  }
+
+  const mostRecentSyncedMedia =
+    await getMostRecentInProgressSyncedMedia(session);
+  const mostRecentLocalMedia = await getMostRecentInProgressLocalMedia(session);
+
+  if (!mostRecentSyncedMedia && !mostRecentLocalMedia) {
+    return null;
+  }
+
+  if (mostRecentSyncedMedia && !mostRecentLocalMedia) {
+    return loadMedia(session, mostRecentSyncedMedia.mediaId);
+  }
+
+  if (!mostRecentSyncedMedia && mostRecentLocalMedia) {
+    return loadMedia(session, mostRecentLocalMedia.mediaId);
+  }
+
+  if (mostRecentLocalMedia!.updatedAt >= mostRecentSyncedMedia!.updatedAt) {
+    return loadMedia(session, mostRecentLocalMedia!.mediaId);
+  } else {
+    return loadMedia(session, mostRecentSyncedMedia!.mediaId);
+  }
 }

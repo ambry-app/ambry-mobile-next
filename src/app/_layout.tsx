@@ -2,7 +2,7 @@ import "@/assets/global.css";
 import migrations from "@/drizzle/migrations";
 import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
 import { db, expoDb } from "@/src/db/db";
-import { sync } from "@/src/db/sync";
+import { syncDown } from "@/src/db/sync";
 import { useSessionStore } from "@/src/stores/session";
 import { ThemeProvider } from "@react-navigation/native";
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
@@ -51,15 +51,19 @@ function Root() {
   );
   const session = useSessionStore((state) => state.session);
 
-  const [trackPlayerSetup, trackPlayerError, setupTrackPlayer, initTrack] =
-    useTrackPlayerStore(
-      useShallow((state) => [
-        state.setup,
-        state.setupError,
-        state.setupTrackPlayer,
-        state.initTrack,
-      ]),
-    );
+  const [
+    trackPlayerSetup,
+    trackPlayerError,
+    setupTrackPlayer,
+    loadMostRecentMedia,
+  ] = useTrackPlayerStore(
+    useShallow((state) => [
+      state.setup,
+      state.setupError,
+      state.setupTrackPlayer,
+      state.loadMostRecentMedia,
+    ]),
+  );
 
   useEffect(() => {
     setupTrackPlayer();
@@ -68,7 +72,7 @@ function Root() {
   useEffect(() => {
     if (migrateSuccess && session?.token) {
       console.log("Initial app load sync...");
-      sync(session)
+      syncDown(session)
         .then(() => {
           console.log("Initial app load sync complete");
           setInitialSyncComplete(true);
@@ -83,9 +87,9 @@ function Root() {
   useEffect(() => {
     if (initialSyncComplete && trackPlayerSetup && session) {
       console.log("Initial track load...");
-      initTrack(session);
+      loadMostRecentMedia(session);
     }
-  }, [initialSyncComplete, trackPlayerSetup, session, initTrack]);
+  }, [initialSyncComplete, trackPlayerSetup, session, loadMostRecentMedia]);
 
   if (migrateError) {
     return (

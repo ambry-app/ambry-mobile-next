@@ -325,20 +325,6 @@ export const mediaNarratorsRelations = relations(mediaNarrators, ({ one }) => ({
   }),
 }));
 
-export const servers = sqliteTable(
-  "servers",
-  {
-    url: text("url").notNull(),
-    userEmail: text("user_email").notNull(),
-    lastSync: integer("last_sync", { mode: "timestamp" }),
-  },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.url, table.userEmail] }),
-    };
-  },
-);
-
 export const playerStates = sqliteTable(
   "player_states",
   {
@@ -405,4 +391,19 @@ export const localPlayerStatesRelations = relations(
       references: [media.url, media.id],
     }),
   }),
+);
+
+export const servers = sqliteTable(
+  "servers",
+  {
+    url: text("url").notNull(),
+    userEmail: text("user_email").notNull(),
+    lastDownSync: integer("last_down_sync", { mode: "timestamp" }),
+    lastUpSync: integer("last_up_sync", { mode: "timestamp" }),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.url, table.userEmail] }),
+    };
+  },
 );

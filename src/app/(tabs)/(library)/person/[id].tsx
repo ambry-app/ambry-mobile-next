@@ -1,45 +1,23 @@
 import Description from "@/src/components/Description";
 import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
 import ScreenCentered from "@/src/components/ScreenCentered";
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
+import { PersonForDetails, getPersonForDetails } from "@/src/db/library";
 import { Thumbnails } from "@/src/db/schema";
-import { sync } from "@/src/db/sync";
-import { Session, useSessionStore } from "@/src/stores/session";
-import { and, eq } from "drizzle-orm";
+import { syncDown } from "@/src/db/sync";
+import { useSessionStore } from "@/src/stores/session";
 import { Image } from "expo-image";
 import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
-type Person = {
-  id: string;
-  name: string;
-  thumbnails: Thumbnails | null;
-  description: string | null;
-};
-
-async function getPerson(
-  session: Session,
-  personId: string,
-): Promise<Person | undefined> {
-  return db.query.people.findFirst({
-    columns: { id: true, name: true, thumbnails: true, description: true },
-    where: and(
-      eq(schema.people.url, session!.url),
-      eq(schema.people.id, personId),
-    ),
-  });
-}
-
 export default function PersonDetails() {
   const session = useSessionStore((state) => state.session);
   const { id: personId } = useLocalSearchParams<{ id: string }>();
-  const [person, setPerson] = useState<Person | undefined>();
+  const [person, setPerson] = useState<PersonForDetails | undefined>();
   const [error, setError] = useState(false);
 
   const loadPerson = useCallback(() => {
-    getPerson(session!, personId)
+    getPersonForDetails(session!, personId)
       .then(setPerson)
       .catch((error) => {
         console.error("Failed to load person:", error);
@@ -56,7 +34,7 @@ export default function PersonDetails() {
 
       // sync in background, then load again
       // if network is down, we just ignore the error
-      sync(session!)
+      syncDown(session!)
         .then(loadPerson)
         .catch((error) => {
           console.error("sync error:", error);
