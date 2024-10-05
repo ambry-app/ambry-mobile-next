@@ -4,6 +4,8 @@
   "version": "1.0.0",
   "scripts": {
     "start": "APP_VARIANT=development npx expo start",
+    "android": "APP_VARIANT=development expo run:android",
+    "ios": "APP_VARIANT=development expo run:ios",
     "test": "jest --watchAll",
     "lint": "expo lint",
     "update": "npm install expo@latest && npx expo install --fix"

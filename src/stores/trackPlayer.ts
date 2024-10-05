@@ -69,6 +69,8 @@ export const useTrackPlayerStore = create<TrackPlayerState>()((set, get) => ({
     }
   },
   loadMostRecentMedia: async (session: Session) => {
+    if (!get().setup) return;
+
     const track = await loadMostRecentMedia(session);
 
     if (track) {
