@@ -7,9 +7,12 @@ import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import * as NavigationBar from "expo-navigation-bar";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
 import { View } from "react-native";
 import colors from "tailwindcss/colors";
+
+SystemUI.setBackgroundColorAsync("black");
 
 const Theme = {
   dark: true,
@@ -48,7 +51,7 @@ function Root() {
       <Stack.Screen name="sign-in" options={{ title: "Sign In" }} />
     </Stack>
   ) : (
-    <View className="bg-black flex h-full items-center justify-center">
+    <View className="flex h-full items-center justify-center">
       <LargeActivityIndicator />
     </View>
   );

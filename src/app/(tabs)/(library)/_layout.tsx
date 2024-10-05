@@ -20,7 +20,7 @@ export default function AppLayout() {
       <Stack.Screen name="series/[id]" options={{ title: "" }} />
     </Stack>
   ) : (
-    <View className="bg-black flex h-full items-center justify-center">
+    <View className="flex h-full items-center justify-center">
       <LargeActivityIndicator />
     </View>
   );
