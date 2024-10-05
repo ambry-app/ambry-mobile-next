@@ -2,7 +2,7 @@ import Logo from "@/assets/images/logo.svg";
 import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
 import { useSessionStore } from "@/src/stores/session";
 import { Redirect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
 import colors from "tailwindcss/colors";
 
@@ -13,34 +13,6 @@ export default function SignIn() {
   const [email, setEmail] = useState(session?.email || "");
   const [host, setHost] = useState(session?.url || "");
   const [password, setPassword] = useState("");
-
-  const setEmailAndClearError = useCallback(
-    (email: string) => {
-      setEmail(email);
-      clearError();
-    },
-    [clearError],
-  );
-
-  const setHostAndClearError = useCallback(
-    (host: string) => {
-      setHost(host);
-      clearError();
-    },
-    [clearError],
-  );
-
-  const setPasswordAndClearError = useCallback(
-    (password: string) => {
-      setPassword(password);
-      clearError();
-    },
-    [clearError],
-  );
-
-  const signInCallback = useCallback(() => {
-    signIn(host, email, password);
-  }, [host, email, password, signIn]);
 
   if (session?.token) {
     // Redirect back to library if already signed in
@@ -60,7 +32,10 @@ export default function SignIn() {
         placeholder="Host"
         value={host}
         autoCapitalize="none"
-        onChangeText={setHostAndClearError}
+        onChangeText={(host: string) => {
+          setHost(host);
+          clearError();
+        }}
         className="my-2 text-zinc-200 bg-zinc-800 rounded px-4 py-4 border-2 focus:border-zinc-700"
         placeholderTextColor={colors.zinc[500]}
       />
@@ -69,7 +44,10 @@ export default function SignIn() {
         placeholder="Email"
         value={email}
         autoCapitalize="none"
-        onChangeText={setEmailAndClearError}
+        onChangeText={(email: string) => {
+          setEmail(email);
+          clearError();
+        }}
         textContentType="emailAddress"
         keyboardType="email-address"
         className="my-2 text-zinc-200 bg-zinc-800 rounded px-4 py-4 border-2 focus:border-zinc-700"
@@ -78,7 +56,10 @@ export default function SignIn() {
       <TextInput
         placeholder="Password"
         value={password}
-        onChangeText={setPasswordAndClearError}
+        onChangeText={(password: string) => {
+          setPassword(password);
+          clearError();
+        }}
         secureTextEntry
         className="my-2 mb-10 text-zinc-200 bg-zinc-800 rounded px-4 py-4 border-2 focus:border-zinc-700"
         placeholderTextColor={colors.zinc[500]}
@@ -86,7 +67,9 @@ export default function SignIn() {
       <Button
         title="Sign in"
         color={colors.lime[500]}
-        onPress={signInCallback}
+        onPress={() => {
+          signIn(host, email, password);
+        }}
         disabled={isLoading}
       />
       {isLoading && <LargeActivityIndicator className="mt-4" />}

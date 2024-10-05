@@ -1,9 +1,12 @@
-import { StyleSheet, Text, View } from "react-native";
+import { useSessionStore } from "@/src/stores/session";
+import { Button, StyleSheet, View } from "react-native";
+import colors from "tailwindcss/colors";
 
 export default function Tab() {
+  const signOut = useSessionStore((state) => state.signOut);
   return (
     <View style={styles.container}>
-      <Text className="text-zinc-100">Tab Settings</Text>
+      <Button title="Sign out" onPress={signOut} color={colors.lime[500]} />
     </View>
   );
 }
