@@ -1,4 +1,4 @@
-import { Media } from "@/src/app/(tabs)/(library)";
+import { BookAuthor, MediaForIndex } from "@/src/db/library";
 import type { Thumbnails } from "@/src/db/schema";
 import { useSessionStore } from "@/src/stores/session";
 import { Image } from "expo-image";
@@ -30,16 +30,18 @@ function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
   );
 }
 
-export default function MediaTile({ media }: { media: Media }) {
-  const basicAuthorsList = (
+function AuthorList({ bookAuthors }: { bookAuthors: BookAuthor[] }) {
+  return (
     <Text className="text-md text-zinc-400 leading-tight" numberOfLines={2}>
-      {media.book.bookAuthors.map((bookAuthor, i) => [
+      {bookAuthors.map((bookAuthor, i) => [
         i > 0 && ", ",
         <Text key={i}>{bookAuthor.author.name}</Text>,
       ])}
     </Text>
   );
+}
 
+export default function MediaTile({ media }: { media: MediaForIndex }) {
   return (
     <View className="p-2 w-1/2 mb-2">
       <View className="rounded-lg bg-zinc-800 mb-3 overflow-hidden">
@@ -71,7 +73,7 @@ export default function MediaTile({ media }: { media: Media }) {
           >
             {media.book.title}
           </Text>
-          {basicAuthorsList}
+          <AuthorList bookAuthors={media.book.bookAuthors} />
         </TouchableOpacity>
       </Link>
     </View>

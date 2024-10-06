@@ -2,7 +2,7 @@ import { useSessionStore } from "@/src/stores/session";
 import { Button, StyleSheet, View } from "react-native";
 import colors from "tailwindcss/colors";
 
-export default function Tab() {
+export default function SettingsScreen() {
   const signOut = useSessionStore((state) => state.signOut);
   return (
     <View style={styles.container}>

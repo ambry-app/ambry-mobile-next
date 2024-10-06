@@ -10,7 +10,7 @@ export default function AppLayout() {
 
   return (
     <Stack>
-      <Stack.Screen name="index" options={{ title: "Library" }} />
+      <Stack.Screen name="library" options={{ title: "Library" }} />
       <Stack.Screen name="media/[id]" options={{ title: "" }} />
       <Stack.Screen name="person/[id]" options={{ title: "" }} />
       <Stack.Screen name="series/[id]" options={{ title: "" }} />
