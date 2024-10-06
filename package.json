@@ -51,7 +51,7 @@
     "zustand": "^5.0.0-rc.2"
   },
   "devDependencies": {
-    "@0no-co/graphqlsp": "^1.12.14",
+    "@0no-co/graphqlsp": "^1.12.16",
     "@babel/core": "^7.20.0",
     "@graphql-codegen/cli": "^5.0.2",
     "@graphql-codegen/schema-ast": "^4.1.0",
