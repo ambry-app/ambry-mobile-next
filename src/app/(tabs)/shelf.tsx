@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
-export default function Tab() {
+export default function ShelfScreen() {
   return (
     <View style={styles.container}>
       <Text className="text-zinc-100">Tab Shelf</Text>

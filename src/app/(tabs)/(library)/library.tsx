@@ -8,7 +8,7 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Text } from "react-native";
 
-export default function Index() {
+export default function LibraryScreen() {
   const session = useSessionStore((state) => state.session);
   const [media, setMedia] = useState<MediaForIndex[] | undefined>();
   const [error, setError] = useState(false);
