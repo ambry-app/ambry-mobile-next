@@ -9,7 +9,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 import colors from "tailwindcss/colors";
 
 SystemUI.setBackgroundColorAsync("black");
@@ -43,7 +43,18 @@ export default function App() {
 }
 
 function Root() {
-  const { isReady } = useAppBoot();
+  const { isReady, migrateError } = useAppBoot();
+
+  if (migrateError) {
+    return (
+      <View className="flex h-full items-center justify-center">
+        <Text className="text-zinc-100">
+          The app failed to initialize in an irrecoverable way. Please delete
+          the app's data and start fresh.
+        </Text>
+      </View>
+    );
+  }
 
   return isReady ? (
     <Stack>

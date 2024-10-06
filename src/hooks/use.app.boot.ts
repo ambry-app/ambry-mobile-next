@@ -38,7 +38,7 @@ const useAppBoot = () => {
     session,
   ]);
 
-  return { isReady };
+  return { isReady, migrateError };
 };
 
 export { useAppBoot };
