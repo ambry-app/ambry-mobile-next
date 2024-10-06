@@ -22,5 +22,7 @@ jobs:
         with:
           node-version-file: .tool-versions
           cache: npm
+      - name: Install dependencies
+        run: npm install
       - name: Run eslint
         run: npx expo lint
