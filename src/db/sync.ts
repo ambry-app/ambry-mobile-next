@@ -38,6 +38,8 @@ export async function syncDown(session: Session) {
 
   const allChanges = await getChangesSince(session, lastSync);
 
+  if (!allChanges) return;
+
   const peopleValues = allChanges.peopleChangedSince.map((person) => {
     return {
       url: session.url,

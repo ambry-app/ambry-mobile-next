@@ -14,7 +14,9 @@ export default function LibraryScreen() {
   const [error, setError] = useState(false);
 
   const loadMedia = useCallback(() => {
-    listMediaForIndex(session!)
+    if (!session) return;
+
+    listMediaForIndex(session)
       .then(setMedia)
       .catch((error) => {
         console.error("Failed to load media:", error);
@@ -25,13 +27,14 @@ export default function LibraryScreen() {
   useFocusEffect(
     useCallback(() => {
       console.log("index focused!");
+      if (!session) return;
 
       // load what's in the DB right now
       loadMedia();
 
       // sync in background, then load again
       // if network is down, we just ignore the error
-      syncDown(session!)
+      syncDown(session)
         .then(loadMedia)
         .catch((error) => {
           console.error("sync error:", error);

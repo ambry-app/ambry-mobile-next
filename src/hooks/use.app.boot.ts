@@ -17,18 +17,18 @@ const useAppBoot = () => {
   const loadMostRecentMedia = useTrackPlayerStore((_) => _.loadMostRecentMedia);
 
   useEffect(() => {
-    if (!session?.token) return setIsReady(true);
+    if (!session) return setIsReady(true);
     if (!migrateSuccess) return;
     if (migrateError)
-      return console.error("[AppInit] migration error", migrateError);
+      return console.error("[AppBoot] migration error", migrateError);
 
-    console.log("[AppInit] starting...");
+    console.log("[AppBoot] starting...");
     syncDown(session)
-      .then(() => console.log("[AppInit] db sync complete"))
+      .then(() => console.log("[AppBoot] db sync complete"))
       .then(() => setupTrackPlayer())
       .then(() => loadMostRecentMedia(session))
-      .then(() => console.log("[AppInit] trackPlayer setup complete"))
-      .catch((e) => console.error("[AppInit] error", e))
+      .then(() => console.log("[AppBoot] trackPlayer setup complete"))
+      .catch((e) => console.error("[AppBoot] error", e))
       .finally(() => setIsReady(true));
   }, [
     loadMostRecentMedia,
