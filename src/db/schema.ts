@@ -286,7 +286,7 @@ export const mediaRelations = relations(media, ({ one, many }) => ({
     references: [books.url, books.id],
   }),
   mediaNarrators: many(mediaNarrators),
-  playerStates: many(playerStates),
+  download: one(downloads),
 }));
 
 export const mediaNarrators = sqliteTable(
@@ -407,3 +407,34 @@ export const servers = sqliteTable(
     };
   },
 );
+
+export const downloads = sqliteTable(
+  "downloads",
+  {
+    url: text("url").notNull(),
+    mediaId: text("media_id").notNull(),
+    // when the download was initiated, not when it was completed
+    downloadedAt: integer("downloaded_at", { mode: "timestamp" }).notNull(),
+    filePath: text("file_path").notNull(),
+    downloadResumableSnapshot: text("download_resumable_snapshot"),
+    status: text("status", {
+      enum: ["pending", "error", "ready"],
+    }).notNull(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.url, table.mediaId] }),
+      media: foreignKey({
+        columns: [table.url, table.mediaId],
+        foreignColumns: [media.url, media.id],
+      }).onDelete("cascade"),
+    };
+  },
+);
+
+export const downloadsRelations = relations(downloads, ({ one }) => ({
+  media: one(media, {
+    fields: [downloads.url, downloads.mediaId],
+    references: [media.url, media.id],
+  }),
+}));

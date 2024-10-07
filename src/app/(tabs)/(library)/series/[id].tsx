@@ -14,7 +14,9 @@ export default function SeriesDetails() {
   const [error, setError] = useState(false);
 
   const loadSeries = useCallback(() => {
-    getSeriesForDetails(session!, seriesId)
+    if (!session) return;
+
+    getSeriesForDetails(session, seriesId)
       .then(setSeries)
       .catch((error) => {
         console.error("Failed to load series:", error);
@@ -25,13 +27,14 @@ export default function SeriesDetails() {
   useFocusEffect(
     useCallback(() => {
       console.log("series/[id] focused!");
+      if (!session) return;
 
       // load what's in the DB right now
       loadSeries();
 
       // sync in background, then load again
       // if network is down, we just ignore the error
-      syncDown(session!)
+      syncDown(session)
         .then(loadSeries)
         .catch((error) => {
           console.error("sync error:", error);

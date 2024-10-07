@@ -57,7 +57,7 @@ export type MediaForDetails = {
   id: string;
   description: string | null;
   thumbnails: schema.Thumbnails | null;
-  mpdPath: string | null;
+  mp4Path: string | null;
   duration: string | null;
   book: Book;
   mediaNarrators: MediaNarrator[];
@@ -81,7 +81,7 @@ export async function listMediaForIndex(
   return db.query.media.findMany({
     columns: { id: true, thumbnails: true },
     where: and(
-      eq(schema.media.url, session!.url),
+      eq(schema.media.url, session.url),
       eq(schema.media.status, "ready"),
     ),
     orderBy: desc(schema.media.insertedAt),
@@ -117,13 +117,10 @@ export async function getMediaForDetails(
       id: true,
       thumbnails: true,
       description: true,
-      mpdPath: true,
+      mp4Path: true,
       duration: true,
     },
-    where: and(
-      eq(schema.media.url, session!.url),
-      eq(schema.media.id, mediaId),
-    ),
+    where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
     with: {
       mediaNarrators: {
         columns: { id: true },
@@ -163,7 +160,7 @@ export async function getPersonForDetails(
   return db.query.people.findFirst({
     columns: { id: true, name: true, thumbnails: true, description: true },
     where: and(
-      eq(schema.people.url, session!.url),
+      eq(schema.people.url, session.url),
       eq(schema.people.id, personId),
     ),
   });
@@ -176,7 +173,7 @@ export async function getSeriesForDetails(
   return db.query.series.findFirst({
     columns: { id: true, name: true },
     where: and(
-      eq(schema.series.url, session!.url),
+      eq(schema.series.url, session.url),
       eq(schema.series.id, seriesId),
     ),
   });

@@ -17,7 +17,9 @@ export default function PersonDetails() {
   const [error, setError] = useState(false);
 
   const loadPerson = useCallback(() => {
-    getPersonForDetails(session!, personId)
+    if (!session) return;
+
+    getPersonForDetails(session, personId)
       .then(setPerson)
       .catch((error) => {
         console.error("Failed to load person:", error);
@@ -28,13 +30,14 @@ export default function PersonDetails() {
   useFocusEffect(
     useCallback(() => {
       console.log("person/[id] focused!");
+      if (!session) return;
 
       // load what's in the DB right now
       loadPerson();
 
       // sync in background, then load again
       // if network is down, we just ignore the error
-      syncDown(session!)
+      syncDown(session)
         .then(loadPerson)
         .catch((error) => {
           console.error("sync error:", error);
@@ -84,6 +87,7 @@ export default function PersonDetails() {
 
 function PersonImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
   const session = useSessionStore((state) => state.session);
+  if (!session) return null;
 
   if (!thumbnails) {
     return (
@@ -94,8 +98,8 @@ function PersonImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
   }
 
   const source = {
-    uri: `${session!.url}/${thumbnails.extraLarge}`,
-    headers: { Authorization: `Bearer ${session!.token}` },
+    uri: `${session.url}/${thumbnails.extraLarge}`,
+    headers: { Authorization: `Bearer ${session.token}` },
   };
   const placeholder = { thumbhash: thumbnails.thumbhash };
 

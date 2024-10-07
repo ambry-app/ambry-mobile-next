@@ -9,10 +9,17 @@ import {
 } from "@/src/db/library";
 import { Thumbnails } from "@/src/db/schema";
 import { syncDown } from "@/src/db/sync";
+import { useDownloadsStore } from "@/src/stores/downloads";
 import { useSessionStore } from "@/src/stores/session";
 import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
 import { Image } from "expo-image";
-import { Link, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
+import {
+  Link,
+  Stack,
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
+} from "expo-router";
 import { useCallback, useState } from "react";
 import { Button, ScrollView, Text, View } from "react-native";
 
@@ -24,7 +31,9 @@ export default function MediaDetails() {
   const [error, setError] = useState(false);
 
   const loadMedia = useCallback(() => {
-    getMediaForDetails(session!, mediaId)
+    if (!session) return;
+
+    getMediaForDetails(session, mediaId)
       .then(setMedia)
       .catch((error) => {
         console.error("Failed to load media:", error);
@@ -35,13 +44,14 @@ export default function MediaDetails() {
   useFocusEffect(
     useCallback(() => {
       console.log("media/[id] focused!");
+      if (!session) return;
 
       // load what's in the DB right now
       loadMedia();
 
       // sync in background, then load again
       // if network is down, we just ignore the error
-      syncDown(session!)
+      syncDown(session)
         .then(loadMedia)
         .catch((error) => {
           console.error("sync error:", error);
@@ -54,10 +64,15 @@ export default function MediaDetails() {
   );
 
   const loadMediaIntoPlayerCallback = useCallback(() => {
-    loadMediaIntoPlayer(session!, mediaId);
+    if (!session) return;
+    loadMediaIntoPlayer(session, mediaId);
   }, [loadMediaIntoPlayer, mediaId, session]);
 
-  if (media === undefined) {
+  const { startDownload } = useDownloadsStore();
+
+  const router = useRouter();
+
+  if (!media || !session) {
     return null;
   }
 
@@ -88,6 +103,14 @@ export default function MediaDetails() {
             <NarratorsList mediaNarrators={media.mediaNarrators} />
           </View>
           <Button title="Load Me!" onPress={loadMediaIntoPlayerCallback} />
+          <Button
+            title="Download!"
+            onPress={() => {
+              if (!media.mp4Path) return;
+              startDownload(session, mediaId, media.mp4Path);
+              router.navigate("/downloads");
+            }}
+          />
           {media.description && <Description description={media.description} />}
         </View>
       </ScrollView>
@@ -98,6 +121,10 @@ export default function MediaDetails() {
 function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
   const session = useSessionStore((state) => state.session);
 
+  if (!session) {
+    return null;
+  }
+
   if (!thumbnails) {
     return (
       <View className="rounded-2xl bg-zinc-800 overflow-hidden">
@@ -107,8 +134,8 @@ function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
   }
 
   const source = {
-    uri: `${session!.url}/${thumbnails.extraLarge}`,
-    headers: { Authorization: `Bearer ${session!.token}` },
+    uri: `${session.url}/${thumbnails.extraLarge}`,
+    headers: { Authorization: `Bearer ${session.token}` },
   };
   const placeholder = { thumbhash: thumbnails.thumbhash };
 

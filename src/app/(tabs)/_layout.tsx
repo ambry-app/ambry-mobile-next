@@ -13,16 +13,14 @@ function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
   const session = useSessionStore((state) => state.session);
 
   if (!thumbnails || !session) {
-    return <View className="w-14 h-14 rounded-sm bg-zinc-800" />;
+    return <View className="w-14 h-14 rounded-sm bg-zinc-700" />;
   }
 
   const source = {
     uri: `${session.url}/${thumbnails.small}`,
-    headers: { Authorization: `Bearer ${session!.token}` },
+    headers: { Authorization: `Bearer ${session.token}` },
   };
   const placeholder = { thumbhash: thumbnails.thumbhash };
-
-  console.log("source", source);
 
   return (
     <Image
@@ -62,7 +60,7 @@ function FloatingPlayer() {
       asChild
     >
       <Pressable className="flex flex-row p-4 h-full items-center gap-4 border-t-[0.25px] border-zinc-600">
-        <MediaImage thumbnails={media.thumbnails || null} />
+        <MediaImage thumbnails={media.thumbnails} />
         <View className="flex-1">
           <Text className="text-zinc-100" numberOfLines={1}>
             {media.book.title}

@@ -9,7 +9,9 @@ async function updatePlayerStateFromTrackPlayer() {
   const session = useSessionStore.getState().session;
   const mediaId = useTrackPlayerStore.getState().mediaId;
 
-  updatePlayerState(session!, mediaId!, {
+  if (!session || !mediaId) return;
+
+  updatePlayerState(session, mediaId, {
     position: progress.position,
   });
 }
@@ -60,11 +62,13 @@ export const PlaybackService = async function () {
       const session = useSessionStore.getState().session;
       const mediaId = useTrackPlayerStore.getState().mediaId;
 
-      await updatePlayerState(session!, mediaId!, {
+      if (!session || !mediaId) return;
+
+      await updatePlayerState(session, mediaId, {
         position: data.position,
       });
 
-      await syncUp(session!);
+      await syncUp(session);
     },
   );
 };

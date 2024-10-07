@@ -128,7 +128,6 @@ async function setupTrackPlayer(): Promise<TrackLoadResult | true> {
       Capability.Pause,
       Capability.JumpForward,
       Capability.JumpBackward,
-      Capability.Stop,
     ],
     compactCapabilities: [
       Capability.Play,
@@ -168,7 +167,7 @@ async function loadPlayerState(
       .map((bookAuthor) => bookAuthor.author.name)
       .join(", "),
     artwork: playerState.media.thumbnails
-      ? `${session.url}/${playerState.media.thumbnails!.extraLarge}`
+      ? `${session.url}/${playerState.media.thumbnails.extraLarge}`
       : undefined,
     description: playerState.media.id,
     headers: { Authorization: `Bearer ${session.token}` },
@@ -200,7 +199,7 @@ async function loadMedia(
       mediaId,
     );
 
-    return loadPlayerState(session, newLocalPlayerState!);
+    return loadPlayerState(session, newLocalPlayerState);
   }
 
   if (syncedPlayerState && !localPlayerState) {
@@ -214,7 +213,7 @@ async function loadMedia(
       syncedPlayerState.status,
     );
 
-    return loadPlayerState(session, newLocalPlayerState!);
+    return loadPlayerState(session, newLocalPlayerState);
   }
 
   if (!syncedPlayerState && localPlayerState) {
@@ -224,22 +223,23 @@ async function loadMedia(
   }
 
   // both a synced playerState and a local playerState exist
+  if (!localPlayerState || !syncedPlayerState) throw new Error("Impossible");
 
-  if (localPlayerState!.updatedAt >= syncedPlayerState!.updatedAt) {
+  if (localPlayerState.updatedAt >= syncedPlayerState.updatedAt) {
     // the local playerState is newer
     // use it as is (the server is out of date)
-    return loadPlayerState(session, localPlayerState!);
+    return loadPlayerState(session, localPlayerState);
   }
 
   // the synced playerState is newer
   // update the local playerState by copying the synced playerState
   const updatedLocalPlayerState = await updatePlayerState(session, mediaId, {
-    playbackRate: syncedPlayerState!.playbackRate,
-    position: syncedPlayerState!.position,
-    status: syncedPlayerState!.status,
+    playbackRate: syncedPlayerState.playbackRate,
+    position: syncedPlayerState.position,
+    status: syncedPlayerState.status,
   });
 
-  return loadPlayerState(session, updatedLocalPlayerState!);
+  return loadPlayerState(session, updatedLocalPlayerState);
 }
 
 async function loadMostRecentMedia(
@@ -272,9 +272,12 @@ async function loadMostRecentMedia(
     return loadMedia(session, mostRecentLocalMedia.mediaId);
   }
 
-  if (mostRecentLocalMedia!.updatedAt >= mostRecentSyncedMedia!.updatedAt) {
-    return loadMedia(session, mostRecentLocalMedia!.mediaId);
+  if (!mostRecentSyncedMedia || !mostRecentLocalMedia)
+    throw new Error("Impossible");
+
+  if (mostRecentLocalMedia.updatedAt >= mostRecentSyncedMedia.updatedAt) {
+    return loadMedia(session, mostRecentLocalMedia.mediaId);
   } else {
-    return loadMedia(session, mostRecentSyncedMedia!.mediaId);
+    return loadMedia(session, mostRecentSyncedMedia.mediaId);
   }
 }

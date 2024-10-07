@@ -8,13 +8,15 @@ import { Pressable, Text, TouchableOpacity, View } from "react-native";
 function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
   const session = useSessionStore((state) => state.session);
 
+  if (!session) return null;
+
   if (!thumbnails) {
     return <View className="w-full" style={{ aspectRatio: 1 / 1 }} />;
   }
 
   const source = {
-    uri: `${session!.url}/${thumbnails.large}`,
-    headers: { Authorization: `Bearer ${session!.token}` },
+    uri: `${session.url}/${thumbnails.large}`,
+    headers: { Authorization: `Bearer ${session.token}` },
   };
   const placeholder = { thumbhash: thumbnails.thumbhash };
 
