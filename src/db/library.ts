@@ -53,6 +53,10 @@ export type MediaForIndex = {
   book: Book;
 };
 
+export type Download = {
+  status: string;
+};
+
 export type MediaForDetails = {
   id: string;
   description: string | null;
@@ -61,6 +65,7 @@ export type MediaForDetails = {
   duration: string | null;
   book: Book;
   mediaNarrators: MediaNarrator[];
+  download: Download | null;
 };
 
 export type PersonForDetails = {
@@ -122,6 +127,9 @@ export async function getMediaForDetails(
     },
     where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
     with: {
+      download: {
+        columns: { status: true },
+      },
       mediaNarrators: {
         columns: { id: true },
         with: {

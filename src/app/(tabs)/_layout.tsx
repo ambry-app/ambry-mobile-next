@@ -1,4 +1,4 @@
-import { BookAuthor } from "@/src/db/library";
+import { BookAuthor, MediaNarrator } from "@/src/db/library";
 import { Thumbnails } from "@/src/db/schema";
 import { useMediaDetails } from "@/src/hooks/use.media.details";
 import { useSessionStore } from "@/src/stores/session";
@@ -6,6 +6,7 @@ import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { Image } from "expo-image";
 import { Link, Tabs } from "expo-router";
+import { useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
 
@@ -35,7 +36,7 @@ function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
 
 function AuthorList({ bookAuthors }: { bookAuthors: BookAuthor[] }) {
   return (
-    <Text className="text-sm text-zinc-400 leading-tight" numberOfLines={1}>
+    <Text className="text-sm text-zinc-300 leading-tight" numberOfLines={1}>
       {bookAuthors.map((bookAuthor, i) => [
         i > 0 && ", ",
         <Text key={i}>{bookAuthor.author.name}</Text>,
@@ -44,9 +45,28 @@ function AuthorList({ bookAuthors }: { bookAuthors: BookAuthor[] }) {
   );
 }
 
+function NarratorList({ mediaNarrators }: { mediaNarrators: MediaNarrator[] }) {
+  return (
+    <Text className="text-xs text-zinc-400 leading-tight" numberOfLines={1}>
+      Narrated by{" "}
+      {mediaNarrators.map((mediaNarrator, i) => [
+        i > 0 && ", ",
+        <Text key={i}>{mediaNarrator.narrator.name}</Text>,
+      ])}
+    </Text>
+  );
+}
+
 function FloatingPlayer() {
   const mediaId = useTrackPlayerStore((state) => state.mediaId);
   const { media } = useMediaDetails(mediaId);
+
+  // useEffect(() => {
+  //   const timer = setInterval(() => {
+  //     console.log("tick");
+  //   }, 1000);
+  //   return () => clearInterval(timer);
+  // });
 
   if (!media) {
     return null;
@@ -66,10 +86,17 @@ function FloatingPlayer() {
             {media.book.title}
           </Text>
           <AuthorList bookAuthors={media.book.bookAuthors} />
+          <NarratorList mediaNarrators={media.mediaNarrators} />
         </View>
         <View className="pr-2">
           {/* TODO: play or pause depending on state */}
-          <FontAwesome6 size={24} name="play" color={colors.zinc[100]} />
+          <Pressable
+            onPress={() => {
+              console.log("lol?");
+            }}
+          >
+            <FontAwesome6 size={24} name="play" color={colors.zinc[100]} />
+          </Pressable>
         </View>
         {/* TODO: progress bar at bottom */}
       </Pressable>

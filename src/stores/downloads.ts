@@ -9,14 +9,12 @@ import { create } from "zustand";
 import { Session } from "./session";
 
 interface Download {
-  mediaId: string;
   progress: number;
 }
 
 interface DownloadsState {
   downloads: Record<string, Download | undefined>;
   startDownload: (session: Session, mediaId: string, uri: string) => void;
-  // updateProgress: (mediaId: string, progress: number) => void;
   removeDownload: (session: Session, mediaId: string) => void;
 }
 
@@ -37,7 +35,6 @@ export const useDownloadsStore = create<DownloadsState>((set) => ({
         downloads: {
           ...state.downloads,
           [mediaId]: {
-            mediaId,
             progress,
           },
         },
@@ -55,11 +52,9 @@ export const useDownloadsStore = create<DownloadsState>((set) => ({
       const result = await downloadResumable.downloadAsync();
 
       if (result) {
-        // download succeeded
         console.log("Download succeeded");
         await updateDownloadStatus(session, mediaId, "ready");
       } else {
-        // download was canceled
         console.log("Download was canceled");
         // TODO: do we delete from db here?
       }
