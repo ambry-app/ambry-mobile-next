@@ -36,6 +36,7 @@ export type Media = {
 };
 
 export type Download = {
+  filePath: string;
   status: "pending" | "ready" | "error";
   thumbnails: schema.DownloadedThumbnails | null;
   media: Media;
@@ -52,7 +53,7 @@ export function useLiveDownloadsList(
 ): LiveDownloadsList {
   return useLiveQuery(
     db.query.downloads.findMany({
-      columns: { status: true, thumbnails: true },
+      columns: { status: true, thumbnails: true, filePath: true },
       where: eq(schema.downloads.url, session?.url || ""),
       orderBy: desc(schema.downloads.downloadedAt),
       with: {

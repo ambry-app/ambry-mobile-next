@@ -18,6 +18,8 @@ import {
   View,
 } from "react-native";
 import colors from "tailwindcss/colors";
+import * as FileSystem from "expo-file-system";
+import { useEffect, useState } from "react";
 
 export default function DownloadsScreen() {
   const session = useSessionStore((state) => state.session);
@@ -70,6 +72,7 @@ function DownloadRow({ download }: { download: Download }) {
           </Text>
           <AuthorList bookAuthors={download.media.book.bookAuthors} />
           <NarratorList mediaNarrators={download.media.mediaNarrators} />
+          <FileSize download={download} />
         </View>
         <View className="pr-2">
           {download.status === "ready" && (
@@ -161,4 +164,53 @@ function MediaImage({
       transition={250}
     />
   );
+}
+
+function FileSize({ download }: { download: Download }) {
+  const [size, setSize] = useState<string | null>(null);
+  const [isMissing, setIsMissing] = useState(false);
+
+  useEffect(() => {
+    (async function () {
+      const info = await FileSystem.getInfoAsync(download.filePath);
+      if (!info.exists) {
+        setIsMissing(true);
+      }
+      if (info.exists && !info.isDirectory) {
+        setSize(formatBytes(info.size));
+      }
+    })();
+  }, []);
+
+  if (!size) return null;
+  if (isMissing)
+    return (
+      <Text className="text-xs text-red-500 leading-tight">
+        file is missing!
+      </Text>
+    );
+
+  return <Text className="text-xs text-zinc-400 leading-tight">{size}</Text>;
+}
+
+function formatBytes(bytes: number, decimals = 2) {
+  if (!+bytes) return "0 Bytes";
+
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = [
+    "Bytes",
+    "KiB",
+    "MiB",
+    "GiB",
+    "TiB",
+    "PiB",
+    "EiB",
+    "ZiB",
+    "YiB",
+  ];
+
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }
