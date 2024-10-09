@@ -4,7 +4,7 @@ import {
   useLiveDownloadsList,
   type Download,
 } from "@/src/db/downloads";
-import { Thumbnails } from "@/src/db/schema";
+import { DownloadedThumbnails } from "@/src/db/schema";
 import { useDownloadsStore } from "@/src/stores/downloads";
 import { useSessionStore } from "@/src/stores/session";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
@@ -63,7 +63,7 @@ function DownloadRow({ download }: { download: Download }) {
   return (
     <View>
       <View className="p-4 flex flex-row items-center gap-4 border-b-[0.25px] border-zinc-600">
-        <MediaImage thumbnails={download.media.thumbnails} />
+        <MediaImage thumbnails={download.thumbnails} />
         <View className="flex-1">
           <Text className="text-zinc-100" numberOfLines={1}>
             {download.media.book.title}
@@ -100,7 +100,7 @@ function DownloadRow({ download }: { download: Download }) {
           )}
         </View>
       </View>
-      {progress && (
+      {progress !== undefined && (
         <View
           className="absolute h-1 bg-lime-400 left-0 bottom-0"
           style={{ width: `${progress * 100}%` }}
@@ -133,16 +133,22 @@ function NarratorList({ mediaNarrators }: { mediaNarrators: MediaNarrator[] }) {
   );
 }
 
-function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
-  const session = useSessionStore((state) => state.session);
-
-  if (!thumbnails || !session) {
-    return <View className="w-14 h-14 rounded-sm bg-zinc-700" />;
+function MediaImage({
+  thumbnails,
+}: {
+  thumbnails: DownloadedThumbnails | null;
+}) {
+  if (!thumbnails) {
+    return (
+      <View
+        style={{ height: 56, width: 56, borderRadius: 3 }}
+        className="bg-zinc-700"
+      />
+    );
   }
 
   const source = {
-    uri: `${session.url}/${thumbnails.small}`,
-    headers: { Authorization: `Bearer ${session.token}` },
+    uri: thumbnails.small,
   };
   const placeholder = { thumbhash: thumbnails.thumbhash };
 

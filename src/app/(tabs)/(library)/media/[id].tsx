@@ -109,7 +109,12 @@ export default function MediaDetails() {
               title="Download!"
               onPress={() => {
                 if (!media.mp4Path) return;
-                startDownload(session, mediaId, media.mp4Path);
+                startDownload(
+                  session,
+                  mediaId,
+                  media.mp4Path,
+                  media.thumbnails,
+                );
                 router.navigate("/downloads");
               }}
             />

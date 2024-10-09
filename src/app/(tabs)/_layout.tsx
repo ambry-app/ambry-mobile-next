@@ -6,15 +6,20 @@ import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { Image } from "expo-image";
 import { Link, Tabs } from "expo-router";
-import { useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
 
+// TODO: if this is a download, use downloaded thumbnails instead
 function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
   const session = useSessionStore((state) => state.session);
 
   if (!thumbnails || !session) {
-    return <View className="w-14 h-14 rounded-sm bg-zinc-700" />;
+    return (
+      <View
+        style={{ height: 56, width: 56, borderRadius: 3 }}
+        className="bg-zinc-700"
+      />
+    );
   }
 
   const source = {

@@ -27,6 +27,7 @@ type Book = {
 export type Download = {
   status: string;
   filePath: string;
+  thumbnails: schema.DownloadedThumbnails | null;
 };
 
 type Media = {
@@ -76,7 +77,7 @@ export async function getSyncedPlayerState(
         },
         with: {
           download: {
-            columns: { status: true, filePath: true },
+            columns: { status: true, filePath: true, thumbnails: true },
           },
           book: {
             columns: { id: true, title: true },
@@ -120,7 +121,7 @@ export async function getLocalPlayerState(
         },
         with: {
           download: {
-            columns: { status: true, filePath: true },
+            columns: { status: true, filePath: true, thumbnails: true },
           },
           book: {
             columns: { id: true, title: true },

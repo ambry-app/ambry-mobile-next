@@ -159,11 +159,16 @@ async function loadPlayerState(
     await TrackPlayer.add({
       url: playerState.media.download.filePath,
       pitchAlgorithm: PitchAlgorithm.Voice,
+      duration: playerState.media.duration
+        ? parseFloat(playerState.media.duration)
+        : undefined,
       title: playerState.media.book.title,
       artist: playerState.media.book.bookAuthors
         .map((bookAuthor) => bookAuthor.author.name)
         .join(", "),
-      // TODO: download the thumbnails
+      artwork: playerState.media.download.thumbnails
+        ? `${session.url}/${playerState.media.download.thumbnails.extraLarge}`
+        : undefined,
       description: playerState.media.id,
     });
   } else {
