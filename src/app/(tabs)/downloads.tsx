@@ -4,7 +4,7 @@ import {
   useLiveDownloadsList,
   type Download,
 } from "@/src/db/downloads";
-import { Thumbnails } from "@/src/db/schema";
+import { DownloadedThumbnails } from "@/src/db/schema";
 import { useDownloadsStore } from "@/src/stores/downloads";
 import { useSessionStore } from "@/src/stores/session";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
@@ -18,6 +18,8 @@ import {
   View,
 } from "react-native";
 import colors from "tailwindcss/colors";
+import * as FileSystem from "expo-file-system";
+import { useEffect, useState } from "react";
 
 export default function DownloadsScreen() {
   const session = useSessionStore((state) => state.session);
@@ -63,13 +65,14 @@ function DownloadRow({ download }: { download: Download }) {
   return (
     <View>
       <View className="p-4 flex flex-row items-center gap-4 border-b-[0.25px] border-zinc-600">
-        <MediaImage thumbnails={download.media.thumbnails} />
+        <MediaImage thumbnails={download.thumbnails} />
         <View className="flex-1">
           <Text className="text-zinc-100" numberOfLines={1}>
             {download.media.book.title}
           </Text>
           <AuthorList bookAuthors={download.media.book.bookAuthors} />
           <NarratorList mediaNarrators={download.media.mediaNarrators} />
+          <FileSize download={download} />
         </View>
         <View className="pr-2">
           {download.status === "ready" && (
@@ -100,7 +103,7 @@ function DownloadRow({ download }: { download: Download }) {
           )}
         </View>
       </View>
-      {progress && (
+      {progress !== undefined && (
         <View
           className="absolute h-1 bg-lime-400 left-0 bottom-0"
           style={{ width: `${progress * 100}%` }}
@@ -133,16 +136,22 @@ function NarratorList({ mediaNarrators }: { mediaNarrators: MediaNarrator[] }) {
   );
 }
 
-function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
-  const session = useSessionStore((state) => state.session);
-
-  if (!thumbnails || !session) {
-    return <View className="w-14 h-14 rounded-sm bg-zinc-700" />;
+function MediaImage({
+  thumbnails,
+}: {
+  thumbnails: DownloadedThumbnails | null;
+}) {
+  if (!thumbnails) {
+    return (
+      <View
+        style={{ height: 56, width: 56, borderRadius: 3 }}
+        className="bg-zinc-700"
+      />
+    );
   }
 
   const source = {
-    uri: `${session.url}/${thumbnails.small}`,
-    headers: { Authorization: `Bearer ${session.token}` },
+    uri: thumbnails.small,
   };
   const placeholder = { thumbhash: thumbnails.thumbhash };
 
@@ -155,4 +164,53 @@ function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
       transition={250}
     />
   );
+}
+
+function FileSize({ download }: { download: Download }) {
+  const [size, setSize] = useState<string | null>(null);
+  const [isMissing, setIsMissing] = useState(false);
+
+  useEffect(() => {
+    (async function () {
+      const info = await FileSystem.getInfoAsync(download.filePath);
+      if (!info.exists) {
+        setIsMissing(true);
+      }
+      if (info.exists && !info.isDirectory) {
+        setSize(formatBytes(info.size));
+      }
+    })();
+  }, []);
+
+  if (!size) return null;
+  if (isMissing)
+    return (
+      <Text className="text-xs text-red-500 leading-tight">
+        file is missing!
+      </Text>
+    );
+
+  return <Text className="text-xs text-zinc-400 leading-tight">{size}</Text>;
+}
+
+function formatBytes(bytes: number, decimals = 2) {
+  if (!+bytes) return "0 Bytes";
+
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = [
+    "Bytes",
+    "KiB",
+    "MiB",
+    "GiB",
+    "TiB",
+    "PiB",
+    "EiB",
+    "ZiB",
+    "YiB",
+  ];
+
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }

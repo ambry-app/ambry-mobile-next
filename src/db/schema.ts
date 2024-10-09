@@ -17,6 +17,15 @@ export type Thumbnails = {
   thumbhash: string;
 };
 
+export type DownloadedThumbnails = {
+  extraLarge: string;
+  large: string;
+  medium: string;
+  small: string;
+  extraSmall: string;
+  thumbhash: string;
+};
+
 export type Chapter = {
   time: number;
   title: string;
@@ -416,6 +425,9 @@ export const downloads = sqliteTable(
     // when the download was initiated, not when it was completed
     downloadedAt: integer("downloaded_at", { mode: "timestamp" }).notNull(),
     filePath: text("file_path").notNull(),
+    thumbnails: text("thumbnails", {
+      mode: "json",
+    }).$type<DownloadedThumbnails | null>(),
     downloadResumableSnapshot: text("download_resumable_snapshot"),
     status: text("status", {
       enum: ["pending", "error", "ready"],

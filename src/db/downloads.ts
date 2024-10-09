@@ -36,7 +36,9 @@ export type Media = {
 };
 
 export type Download = {
+  filePath: string;
   status: "pending" | "ready" | "error";
+  thumbnails: schema.DownloadedThumbnails | null;
   media: Media;
 };
 
@@ -51,7 +53,7 @@ export function useLiveDownloadsList(
 ): LiveDownloadsList {
   return useLiveQuery(
     db.query.downloads.findMany({
-      columns: { status: true },
+      columns: { status: true, thumbnails: true, filePath: true },
       where: eq(schema.downloads.url, session?.url || ""),
       orderBy: desc(schema.downloads.downloadedAt),
       with: {
@@ -117,15 +119,19 @@ export async function createDownload(
   });
 }
 
-export async function updateDownloadStatus(
+export async function updateDownload(
   session: Session,
   mediaId: string,
-  status: "error" | "ready",
+  attributes: {
+    filePath?: string;
+    thumbnails?: schema.DownloadedThumbnails | null;
+    status?: "error" | "ready";
+  },
 ): Promise<void> {
   await db
     .update(schema.downloads)
     .set({
-      status,
+      ...attributes,
     })
     .where(
       and(
