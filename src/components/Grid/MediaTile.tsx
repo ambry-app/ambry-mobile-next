@@ -46,7 +46,7 @@ function AuthorList({ bookAuthors }: { bookAuthors: BookAuthor[] }) {
 export default function MediaTile({ media }: { media: MediaForIndex }) {
   return (
     <View className="p-2 w-1/2 mb-2">
-      <View className="rounded-lg bg-zinc-800 mb-3 overflow-hidden">
+      <View className="rounded-lg bg-zinc-900 mb-3 overflow-hidden">
         <Link
           href={{
             pathname: "/media/[id]",

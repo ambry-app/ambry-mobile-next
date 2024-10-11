@@ -170,7 +170,7 @@ export default function TabLayout() {
       </Tabs>
       {playerVisible && (
         <View
-          className="absolute bg-zinc-800"
+          className="absolute bg-zinc-900"
           style={{
             left: 0,
             right: 0,

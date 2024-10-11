@@ -144,7 +144,7 @@ function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
 
   if (!thumbnails) {
     return (
-      <View className="rounded-2xl bg-zinc-800 overflow-hidden">
+      <View className="rounded-2xl bg-zinc-900 overflow-hidden">
         <View className="w-full" style={{ aspectRatio: 1 / 1 }} />
       </View>
     );
@@ -157,7 +157,7 @@ function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
   const placeholder = { thumbhash: thumbnails.thumbhash };
 
   return (
-    <View className="rounded-2xl bg-zinc-800 overflow-hidden">
+    <View className="rounded-2xl bg-zinc-900 overflow-hidden">
       <Image
         source={source}
         className="w-full"

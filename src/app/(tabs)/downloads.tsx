@@ -74,8 +74,8 @@ function DownloadRow({ download }: { download: Download }) {
           <NarratorList mediaNarrators={download.media.mediaNarrators} />
           <FileSize download={download} />
         </View>
-        <View className="pr-2">
-          {download.status === "ready" && (
+        <View>
+          {/* {download.status === "ready" && (
             <Pressable
               onPress={() => removeDownload(session, download.media.id)}
             >
@@ -92,7 +92,7 @@ function DownloadRow({ download }: { download: Download }) {
                 color={colors.red[500]}
               />
             </Pressable>
-          )}
+          )} */}
 
           {downloadProgress && (
             <ActivityIndicator
@@ -101,6 +101,18 @@ function DownloadRow({ download }: { download: Download }) {
               color={colors.zinc[200]}
             />
           )}
+        </View>
+        <View>
+          <Pressable
+            className="w-12 h-12 flex items-center justify-center"
+            onPress={() => console.log("open context menu")}
+          >
+            <FontAwesome6
+              size={16}
+              name="ellipsis-vertical"
+              color={colors.zinc[100]}
+            />
+          </Pressable>
         </View>
       </View>
       {progress !== undefined && (
