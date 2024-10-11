@@ -1,20 +1,17 @@
 import {
   createDownload,
   deleteDownload,
-  getDownloadFilePath,
+  getDownload,
   updateDownload,
 } from "@/src/db/downloads";
 import * as FileSystem from "expo-file-system";
 import { create } from "zustand";
 import { Session } from "./session";
-import { DownloadedThumbnails, Thumbnails } from "../db/schema";
-
-interface Download {
-  progress: number;
-}
+import { DownloadedThumbnails, Thumbnails, media } from "../db/schema";
 
 interface DownloadsState {
-  downloads: Record<string, Download | undefined>;
+  downloadProgresses: Record<string, number | undefined>;
+  downloadResumables: Record<string, FileSystem.DownloadResumable | undefined>;
   startDownload: (
     session: Session,
     mediaId: string,
@@ -22,10 +19,12 @@ interface DownloadsState {
     thumbnails: Thumbnails | null,
   ) => void;
   removeDownload: (session: Session, mediaId: string) => void;
+  cancelDownload: (session: Session, mediaId: string) => void;
 }
 
-export const useDownloadsStore = create<DownloadsState>((set) => ({
-  downloads: {},
+export const useDownloadsStore = create<DownloadsState>((set, get) => ({
+  downloadProgresses: {},
+  downloadResumables: {},
   startDownload: async (
     session: Session,
     mediaId: string,
@@ -33,11 +32,9 @@ export const useDownloadsStore = create<DownloadsState>((set) => ({
     thumbnails: Thumbnails | null,
   ) => {
     set((state) => ({
-      downloads: {
-        ...state.downloads,
-        [mediaId]: {
-          progress: 0,
-        },
+      downloadProgresses: {
+        ...state.downloadProgresses,
+        [mediaId]: 0,
       },
     }));
 
@@ -62,11 +59,9 @@ export const useDownloadsStore = create<DownloadsState>((set) => ({
         downloadProgress.totalBytesWritten /
         downloadProgress.totalBytesExpectedToWrite;
       set((state) => ({
-        downloads: {
-          ...state.downloads,
-          [mediaId]: {
-            progress,
-          },
+        downloadProgresses: {
+          ...state.downloadProgresses,
+          [mediaId]: progress,
         },
       }));
     };
@@ -77,6 +72,13 @@ export const useDownloadsStore = create<DownloadsState>((set) => ({
       { headers: { Authorization: `Bearer ${session.token}` } },
       progressCallback,
     );
+
+    set((state) => ({
+      downloadResumables: {
+        ...state.downloadResumables,
+        [mediaId]: downloadResumable,
+      },
+    }));
 
     try {
       const result = await downloadResumable.downloadAsync();
@@ -93,15 +95,32 @@ export const useDownloadsStore = create<DownloadsState>((set) => ({
       await updateDownload(session, mediaId, { status: "error" });
     } finally {
       set((state) => {
-        const { [mediaId]: _, ...downloads } = state.downloads;
-        return { downloads };
+        const { [mediaId]: _dp, ...downloadProgresses } =
+          state.downloadProgresses;
+        const { [mediaId]: _dr, ...downloadResumables } =
+          state.downloadResumables;
+        return { downloadProgresses, downloadResumables };
       });
     }
   },
   removeDownload: async (session: Session, mediaId: string) => {
-    const filePath = await getDownloadFilePath(session, mediaId);
-    if (filePath) FileSystem.deleteAsync(filePath);
+    const download = await getDownload(session, mediaId);
+    if (download) await FileSystem.deleteAsync(download.filePath);
+    if (download?.thumbnails) {
+      await FileSystem.deleteAsync(download.thumbnails.extraSmall);
+      await FileSystem.deleteAsync(download.thumbnails.small);
+      await FileSystem.deleteAsync(download.thumbnails.medium);
+      await FileSystem.deleteAsync(download.thumbnails.large);
+      await FileSystem.deleteAsync(download.thumbnails.extraLarge);
+    }
     await deleteDownload(session, mediaId);
+  },
+  cancelDownload: async (session: Session, mediaId: string) => {
+    const downloadResumable = get().downloadResumables[mediaId];
+    if (downloadResumable) {
+      await downloadResumable.cancelAsync();
+    }
+    get().removeDownload(session, mediaId);
   },
 }));
 

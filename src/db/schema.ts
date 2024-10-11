@@ -40,6 +40,7 @@ export type SeriesBook = typeof seriesBooks.$inferSelect;
 export type BookAuthor = typeof bookAuthors.$inferSelect;
 export type Media = typeof media.$inferSelect;
 export type MediaNarrator = typeof mediaNarrators.$inferSelect;
+export type Download = typeof downloads.$inferSelect;
 
 export const people = sqliteTable(
   "people",

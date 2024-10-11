@@ -88,19 +88,16 @@ export function useLiveDownloadsList(
   );
 }
 
-export async function getDownloadFilePath(
+export async function getDownload(
   session: Session,
   mediaId: string,
-): Promise<string | undefined> {
-  const download = await db.query.downloads.findFirst({
-    columns: { filePath: true },
+): Promise<schema.Download | undefined> {
+  return db.query.downloads.findFirst({
     where: and(
       eq(schema.downloads.url, session.url),
       eq(schema.downloads.mediaId, mediaId),
     ),
   });
-
-  return download?.filePath;
 }
 
 export async function createDownload(

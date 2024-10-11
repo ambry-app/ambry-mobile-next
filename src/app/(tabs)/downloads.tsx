@@ -13,6 +13,7 @@ import { Link } from "expo-router";
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   Pressable,
   Text,
   View,
@@ -54,11 +55,15 @@ export default function DownloadsScreen() {
 
 function DownloadRow({ download }: { download: Download }) {
   const session = useSessionStore((state) => state.session);
-  const downloadProgress = useDownloadsStore(
-    (state) => state.downloads[download.media.id],
+  const progress = useDownloadsStore(
+    (state) => state.downloadProgresses[download.media.id],
   );
-  const progress = downloadProgress?.progress;
+  const downloadResumable = useDownloadsStore(
+    (state) => state.downloadResumables[download.media.id],
+  );
   const removeDownload = useDownloadsStore((state) => state.removeDownload);
+  const cancelDownload = useDownloadsStore((state) => state.cancelDownload);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
   if (!session) return null;
 
@@ -72,29 +77,10 @@ function DownloadRow({ download }: { download: Download }) {
           </Text>
           <AuthorList bookAuthors={download.media.book.bookAuthors} />
           <NarratorList mediaNarrators={download.media.mediaNarrators} />
-          <FileSize download={download} />
+          {download.status === "ready" && <FileSize download={download} />}
         </View>
         <View>
-          {/* {download.status === "ready" && (
-            <Pressable
-              onPress={() => removeDownload(session, download.media.id)}
-            >
-              <FontAwesome6 size={24} name="trash" color={colors.zinc[100]} />
-            </Pressable>
-          )}
-          {download.status === "error" && (
-            <Pressable
-              onPress={() => removeDownload(session, download.media.id)}
-            >
-              <FontAwesome6
-                size={24}
-                name="circle-exclamation"
-                color={colors.red[500]}
-              />
-            </Pressable>
-          )} */}
-
-          {downloadProgress && (
+          {progress !== undefined && (
             <ActivityIndicator
               animating={true}
               size={24}
@@ -105,7 +91,7 @@ function DownloadRow({ download }: { download: Download }) {
         <View>
           <Pressable
             className="w-12 h-12 flex items-center justify-center"
-            onPress={() => console.log("open context menu")}
+            onPress={() => setIsModalVisible(true)}
           >
             <FontAwesome6
               size={16}
@@ -120,6 +106,59 @@ function DownloadRow({ download }: { download: Download }) {
           className="absolute h-1 bg-lime-400 left-0 bottom-0"
           style={{ width: `${progress * 100}%` }}
         />
+      )}
+      {isModalVisible && (
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={isModalVisible}
+          statusBarTranslucent={true}
+        >
+          <Pressable onPress={() => setIsModalVisible(false)}>
+            <View className="bg-black/75 w-full h-full">
+              <View className="bg-zinc-900 rounded-lg absolute top-1/2 left-4 right-4">
+                {download.status === "ready" && (
+                  <Pressable
+                    onPress={() => {
+                      setIsModalVisible(false);
+                      removeDownload(session, download.media.id);
+                    }}
+                  >
+                    <View className="flex flex-row gap-6 items-center px-6">
+                      <FontAwesome6
+                        size={20}
+                        name="trash"
+                        color={colors.zinc[100]}
+                      />
+                      <Text className="text-zinc-100 p-6 rounded-lg">
+                        Delete downloaded files
+                      </Text>
+                    </View>
+                  </Pressable>
+                )}
+                {downloadResumable !== undefined && (
+                  <Pressable
+                    onPress={() => {
+                      setIsModalVisible(false);
+                      cancelDownload(session, download.media.id);
+                    }}
+                  >
+                    <View className="flex flex-row gap-6 items-center px-6">
+                      <FontAwesome6
+                        size={20}
+                        name="xmark"
+                        color={colors.zinc[100]}
+                      />
+                      <Text className="text-zinc-100 p-6 rounded-lg">
+                        Cancel download
+                      </Text>
+                    </View>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
       )}
     </View>
   );
