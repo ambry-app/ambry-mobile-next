@@ -17,9 +17,9 @@ interface DownloadsState {
     mediaId: string,
     uri: string,
     thumbnails: Thumbnails | null,
-  ) => void;
-  removeDownload: (session: Session, mediaId: string) => void;
-  cancelDownload: (session: Session, mediaId: string) => void;
+  ) => Promise<void>;
+  removeDownload: (session: Session, mediaId: string) => Promise<void>;
+  cancelDownload: (session: Session, mediaId: string) => Promise<void>;
 }
 
 export const useDownloadsStore = create<DownloadsState>((set, get) => ({
@@ -105,20 +105,24 @@ export const useDownloadsStore = create<DownloadsState>((set, get) => ({
   },
   removeDownload: async (session: Session, mediaId: string) => {
     const download = await getDownload(session, mediaId);
-    if (download) await FileSystem.deleteAsync(download.filePath);
+    if (download) await tryDelete(download.filePath);
     if (download?.thumbnails) {
-      await FileSystem.deleteAsync(download.thumbnails.extraSmall);
-      await FileSystem.deleteAsync(download.thumbnails.small);
-      await FileSystem.deleteAsync(download.thumbnails.medium);
-      await FileSystem.deleteAsync(download.thumbnails.large);
-      await FileSystem.deleteAsync(download.thumbnails.extraLarge);
+      await tryDelete(download.thumbnails.extraSmall);
+      await tryDelete(download.thumbnails.small);
+      await tryDelete(download.thumbnails.medium);
+      await tryDelete(download.thumbnails.large);
+      await tryDelete(download.thumbnails.extraLarge);
     }
     await deleteDownload(session, mediaId);
   },
   cancelDownload: async (session: Session, mediaId: string) => {
     const downloadResumable = get().downloadResumables[mediaId];
     if (downloadResumable) {
-      await downloadResumable.cancelAsync();
+      try {
+        await downloadResumable.cancelAsync();
+      } catch (e) {
+        console.error("Error canceling download resumable:", e);
+      }
     }
     get().removeDownload(session, mediaId);
   },
@@ -170,7 +174,15 @@ async function downloadThumbnails(
     ),
   ]);
 
-  console.log("done!");
+  console.log("done downloading thumbnails!");
 
   return downloadedThumbnails;
+}
+
+async function tryDelete(path: string): Promise<void> {
+  try {
+    await FileSystem.deleteAsync(path);
+  } catch (e) {
+    console.error("Failed to delete file:", e);
+  }
 }

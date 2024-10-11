@@ -55,6 +55,7 @@ export type MediaForIndex = {
 
 export type Download = {
   status: string;
+  thumbnails: schema.DownloadedThumbnails | null;
 };
 
 export type MediaForDetails = {
@@ -128,7 +129,7 @@ export async function getMediaForDetails(
     where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
     with: {
       download: {
-        columns: { status: true },
+        columns: { status: true, thumbnails: true },
       },
       mediaNarrators: {
         columns: { id: true },

@@ -4,11 +4,9 @@ import {
   useLiveDownloadsList,
   type Download,
 } from "@/src/db/downloads";
-import { DownloadedThumbnails } from "@/src/db/schema";
 import { useDownloadsStore } from "@/src/stores/downloads";
 import { useSessionStore } from "@/src/stores/session";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import { Image } from "expo-image";
 import { Link } from "expo-router";
 import {
   ActivityIndicator,
@@ -21,6 +19,7 @@ import {
 import colors from "tailwindcss/colors";
 import * as FileSystem from "expo-file-system";
 import { useEffect, useState } from "react";
+import MediaImage from "@/src/components/MediaImage";
 
 export default function DownloadsScreen() {
   const session = useSessionStore((state) => state.session);
@@ -70,7 +69,12 @@ function DownloadRow({ download }: { download: Download }) {
   return (
     <View>
       <View className="p-4 flex flex-row items-center gap-4 border-b-[0.25px] border-zinc-600">
-        <MediaImage thumbnails={download.thumbnails} />
+        <MediaImage
+          downloadedThumbnails={download.thumbnails}
+          thumbnails={download.media.thumbnails}
+          size="small"
+          className="w-16 h-16 rounded-md"
+        />
         <View className="flex-1">
           <Text className="text-zinc-100" numberOfLines={1}>
             {download.media.book.title}
@@ -78,6 +82,15 @@ function DownloadRow({ download }: { download: Download }) {
           <AuthorList bookAuthors={download.media.book.bookAuthors} />
           <NarratorList mediaNarrators={download.media.mediaNarrators} />
           {download.status === "ready" && <FileSize download={download} />}
+        </View>
+        <View>
+          {download.status === "error" && (
+            <FontAwesome6
+              size={24}
+              name="circle-exclamation"
+              color={colors.red[400]}
+            />
+          )}
         </View>
         <View>
           {progress !== undefined && (
@@ -115,8 +128,8 @@ function DownloadRow({ download }: { download: Download }) {
           statusBarTranslucent={true}
         >
           <Pressable onPress={() => setIsModalVisible(false)}>
-            <View className="bg-black/75 w-full h-full">
-              <View className="bg-zinc-900 rounded-lg absolute top-1/2 left-4 right-4">
+            <View className="bg-black/80 w-full h-full">
+              <View className="bg-zinc-800 rounded-lg absolute bottom-12 left-4 right-4">
                 {download.status === "ready" && (
                   <Pressable
                     onPress={() => {
@@ -136,7 +149,7 @@ function DownloadRow({ download }: { download: Download }) {
                     </View>
                   </Pressable>
                 )}
-                {downloadResumable !== undefined && (
+                {download.status !== "ready" && (
                   <Pressable
                     onPress={() => {
                       setIsModalVisible(false);
@@ -184,36 +197,6 @@ function NarratorList({ mediaNarrators }: { mediaNarrators: MediaNarrator[] }) {
         <Text key={i}>{mediaNarrator.narrator.name}</Text>,
       ])}
     </Text>
-  );
-}
-
-function MediaImage({
-  thumbnails,
-}: {
-  thumbnails: DownloadedThumbnails | null;
-}) {
-  if (!thumbnails) {
-    return (
-      <View
-        style={{ height: 56, width: 56, borderRadius: 3 }}
-        className="bg-zinc-700"
-      />
-    );
-  }
-
-  const source = {
-    uri: thumbnails.small,
-  };
-  const placeholder = { thumbhash: thumbnails.thumbhash };
-
-  return (
-    <Image
-      source={source}
-      style={{ height: 56, width: 56, borderRadius: 3 }}
-      placeholder={placeholder}
-      contentFit="cover"
-      transition={250}
-    />
   );
 }
 

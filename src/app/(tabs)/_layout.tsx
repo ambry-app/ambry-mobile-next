@@ -1,43 +1,11 @@
+import MediaImage from "@/src/components/MediaImage";
 import { BookAuthor, MediaNarrator } from "@/src/db/library";
-import { Thumbnails } from "@/src/db/schema";
 import { useMediaDetails } from "@/src/hooks/use.media.details";
-import { useSessionStore } from "@/src/stores/session";
 import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import { Image } from "expo-image";
 import { Link, Tabs } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
-
-// TODO: if this is a download, use downloaded thumbnails instead
-function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
-  const session = useSessionStore((state) => state.session);
-
-  if (!thumbnails || !session) {
-    return (
-      <View
-        style={{ height: 56, width: 56, borderRadius: 3 }}
-        className="bg-zinc-700"
-      />
-    );
-  }
-
-  const source = {
-    uri: `${session.url}/${thumbnails.small}`,
-    headers: { Authorization: `Bearer ${session.token}` },
-  };
-  const placeholder = { thumbhash: thumbnails.thumbhash };
-
-  return (
-    <Image
-      source={source}
-      style={{ height: 56, width: 56, borderRadius: 3 }}
-      placeholder={placeholder}
-      contentFit="cover"
-      transition={250}
-    />
-  );
-}
 
 function AuthorList({ bookAuthors }: { bookAuthors: BookAuthor[] }) {
   return (
@@ -85,7 +53,12 @@ function FloatingPlayer() {
       asChild
     >
       <Pressable className="flex flex-row p-4 h-full items-center gap-4 border-t-[0.25px] border-zinc-600">
-        <MediaImage thumbnails={media.thumbnails} />
+        <MediaImage
+          downloadedThumbnails={media.download?.thumbnails}
+          thumbnails={media.thumbnails}
+          size="small"
+          className="w-16 h-16 rounded-md"
+        />
         <View className="flex-1">
           <Text className="text-zinc-100" numberOfLines={1}>
             {media.book.title}
