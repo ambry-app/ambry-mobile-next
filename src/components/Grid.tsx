@@ -1,6 +1,6 @@
 import { MediaForIndex } from "@/src/db/library";
 import { FlatList } from "react-native";
-import MediaTile from "./Grid/MediaTile";
+import MediaTile from "./MediaTile";
 
 export default function Grid({ media }: { media: MediaForIndex[] }) {
   return (

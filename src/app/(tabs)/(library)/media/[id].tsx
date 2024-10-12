@@ -1,18 +1,12 @@
 import Description from "@/src/components/Description";
+import MediaImage from "@/src/components/MediaImage";
+import NamesList from "@/src/components/NamesList";
 import ScreenCentered from "@/src/components/ScreenCentered";
-import {
-  BookAuthor,
-  MediaForDetails,
-  MediaNarrator,
-  SeriesBook,
-  getMediaForDetails,
-} from "@/src/db/library";
-import { Thumbnails } from "@/src/db/schema";
+import { MediaForDetails, getMediaForDetails } from "@/src/db/library";
 import { syncDown } from "@/src/db/sync";
 import { useDownloadsStore } from "@/src/stores/downloads";
 import { useSessionStore } from "@/src/stores/session";
 import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
-import { Image } from "expo-image";
 import {
   Link,
   Stack,
@@ -86,16 +80,33 @@ export default function MediaDetails() {
       <Stack.Screen options={{ title: media.book.title }} />
       <ScrollView>
         <View className="p-4 flex gap-4">
-          <MediaImage thumbnails={media.thumbnails} />
+          <MediaImage
+            thumbnails={media.thumbnails}
+            downloadedThumbnails={media.download?.thumbnails}
+            size="extraLarge"
+            className="w-full rounded-xl aspect-square"
+          />
           <View>
-            <Text className="text-2xl text-zinc-100 font-bold">
+            <Text className="text-2xl text-zinc-100 font-bold leading-tight">
               {media.book.title}
             </Text>
-            <SeriesList seriesBooks={media.book.seriesBooks} />
-          </View>
-          <View className="flex gap-1">
-            <AuthorsList bookAuthors={media.book.bookAuthors} />
-            <NarratorsList mediaNarrators={media.mediaNarrators} />
+            {media.book.seriesBooks.length !== 0 && (
+              <NamesList
+                names={media.book.seriesBooks.map(
+                  (sb) => `${sb.series.name} #${sb.bookNumber}`,
+                )}
+                className="text-lg text-zinc-100 leading-tight"
+              />
+            )}
+            <NamesList
+              names={media.book.bookAuthors.map((ba) => ba.author.name)}
+              className="text-lg text-zinc-300 leading-tight"
+            />
+            <NamesList
+              prefix="Narrated by"
+              names={media.mediaNarrators.map((mn) => mn.narrator.name)}
+              className="text-zinc-400 leading-tight"
+            />
           </View>
           <Button
             title="Load Me!"
@@ -132,117 +143,5 @@ export default function MediaDetails() {
         </View>
       </ScrollView>
     </>
-  );
-}
-
-function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
-  const session = useSessionStore((state) => state.session);
-
-  if (!session) {
-    return null;
-  }
-
-  if (!thumbnails) {
-    return (
-      <View className="rounded-2xl bg-zinc-900 overflow-hidden">
-        <View className="w-full" style={{ aspectRatio: 1 / 1 }} />
-      </View>
-    );
-  }
-
-  const source = {
-    uri: `${session.url}/${thumbnails.extraLarge}`,
-    headers: { Authorization: `Bearer ${session.token}` },
-  };
-  const placeholder = { thumbhash: thumbnails.thumbhash };
-
-  return (
-    <View className="rounded-2xl bg-zinc-900 overflow-hidden">
-      <Image
-        source={source}
-        className="w-full"
-        style={{ aspectRatio: 1 / 1 }}
-        placeholder={placeholder}
-        contentFit="cover"
-        transition={250}
-      />
-    </View>
-  );
-}
-
-function SeriesList({ seriesBooks }: { seriesBooks: SeriesBook[] }) {
-  if (seriesBooks.length === 0) {
-    return null;
-  }
-
-  return (
-    <Text className="text-zinc-500 leading-tight">
-      {seriesBooks.map((seriesBook, i) => [
-        i > 0 && ", ",
-        <Link
-          key={i}
-          href={{
-            pathname: "/series/[id]",
-            params: { id: seriesBook.series.id },
-          }}
-        >
-          {seriesBook.series.name} #{seriesBook.bookNumber}
-        </Link>,
-      ])}
-    </Text>
-  );
-}
-
-function AuthorsList({ bookAuthors }: { bookAuthors: BookAuthor[] }) {
-  if (bookAuthors.length === 0) {
-    return null;
-  }
-
-  return (
-    <Text className="text-lg text-zinc-400 leading-tight">
-      Written by&nbsp;
-      {bookAuthors.map((bookAuthor, i) => [
-        i > 0 && ", ",
-        <Link
-          key={i}
-          href={{
-            pathname: "/person/[id]",
-            params: { id: bookAuthor.author.person.id },
-          }}
-          className="text-zinc-200"
-        >
-          {bookAuthor.author.name}
-        </Link>,
-      ])}
-    </Text>
-  );
-}
-
-function NarratorsList({
-  mediaNarrators,
-}: {
-  mediaNarrators: MediaNarrator[];
-}) {
-  if (mediaNarrators.length === 0) {
-    return null;
-  }
-
-  return (
-    <Text className="text-lg text-zinc-400 leading-tight">
-      Narrated by&nbsp;
-      {mediaNarrators.map((mediaNarrator, i) => [
-        i > 0 && ", ",
-        <Link
-          key={i}
-          href={{
-            pathname: "/person/[id]",
-            params: { id: mediaNarrator.narrator.person.id },
-          }}
-          className="text-zinc-200"
-        >
-          {mediaNarrator.narrator.name}
-        </Link>,
-      ])}
-    </Text>
   );
 }
