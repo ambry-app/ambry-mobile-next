@@ -4,10 +4,10 @@ import {
   getDownload,
   updateDownload,
 } from "@/src/db/downloads";
+import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 import * as FileSystem from "expo-file-system";
 import { create } from "zustand";
 import { Session } from "./session";
-import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 
 interface DownloadsState {
   downloadProgresses: Record<string, number | undefined>;

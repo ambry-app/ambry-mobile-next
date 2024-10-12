@@ -51,6 +51,7 @@ export type MediaForIndex = {
   id: string;
   thumbnails: schema.Thumbnails | null;
   book: Book;
+  mediaNarrators: MediaNarrator[];
 };
 
 export type Download = {
@@ -92,6 +93,15 @@ export async function listMediaForIndex(
     ),
     orderBy: desc(schema.media.insertedAt),
     with: {
+      mediaNarrators: {
+        columns: { id: true },
+        with: {
+          narrator: {
+            columns: { id: true, name: true },
+            with: { person: { columns: { id: true } } },
+          },
+        },
+      },
       book: {
         columns: { id: true, title: true },
         with: {

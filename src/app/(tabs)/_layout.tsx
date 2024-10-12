@@ -1,5 +1,5 @@
 import MediaImage from "@/src/components/MediaImage";
-import { BookAuthor, MediaNarrator } from "@/src/db/library";
+import NamesList from "@/src/components/NamesList";
 import { useMediaDetails } from "@/src/hooks/use.media.details";
 import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
@@ -7,39 +7,9 @@ import { Link, Tabs } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
 
-function AuthorList({ bookAuthors }: { bookAuthors: BookAuthor[] }) {
-  return (
-    <Text className="text-sm text-zinc-300 leading-tight" numberOfLines={1}>
-      {bookAuthors.map((bookAuthor, i) => [
-        i > 0 && ", ",
-        <Text key={i}>{bookAuthor.author.name}</Text>,
-      ])}
-    </Text>
-  );
-}
-
-function NarratorList({ mediaNarrators }: { mediaNarrators: MediaNarrator[] }) {
-  return (
-    <Text className="text-xs text-zinc-400 leading-tight" numberOfLines={1}>
-      Narrated by{" "}
-      {mediaNarrators.map((mediaNarrator, i) => [
-        i > 0 && ", ",
-        <Text key={i}>{mediaNarrator.narrator.name}</Text>,
-      ])}
-    </Text>
-  );
-}
-
 function FloatingPlayer() {
   const mediaId = useTrackPlayerStore((state) => state.mediaId);
   const { media } = useMediaDetails(mediaId);
-
-  // useEffect(() => {
-  //   const timer = setInterval(() => {
-  //     console.log("tick");
-  //   }, 1000);
-  //   return () => clearInterval(timer);
-  // });
 
   if (!media) {
     return null;
@@ -60,11 +30,20 @@ function FloatingPlayer() {
           className="w-16 h-16 rounded-md"
         />
         <View className="flex-1">
-          <Text className="text-zinc-100" numberOfLines={1}>
+          <Text className="text-zinc-100 font-medium" numberOfLines={1}>
             {media.book.title}
           </Text>
-          <AuthorList bookAuthors={media.book.bookAuthors} />
-          <NarratorList mediaNarrators={media.mediaNarrators} />
+          <NamesList
+            names={media.book.bookAuthors.map((ba) => ba.author.name)}
+            className="text-sm text-zinc-300 leading-tight"
+            numberOfLines={1}
+          />
+          <NamesList
+            prefix="Narrated by"
+            names={media.mediaNarrators.map((mn) => mn.narrator.name)}
+            className="text-xs text-zinc-400 leading-tight"
+            numberOfLines={1}
+          />
         </View>
         <View className="pr-2">
           {/* TODO: play or pause depending on state */}

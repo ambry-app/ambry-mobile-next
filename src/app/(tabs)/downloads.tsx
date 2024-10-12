@@ -1,13 +1,12 @@
-import {
-  BookAuthor,
-  MediaNarrator,
-  useLiveDownloadsList,
-  type Download,
-} from "@/src/db/downloads";
+import MediaImage from "@/src/components/MediaImage";
+import NamesList from "@/src/components/NamesList";
+import { useLiveDownloadsList, type Download } from "@/src/db/downloads";
 import { useDownloadsStore } from "@/src/stores/downloads";
 import { useSessionStore } from "@/src/stores/session";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+import * as FileSystem from "expo-file-system";
 import { Link } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -17,9 +16,6 @@ import {
   View,
 } from "react-native";
 import colors from "tailwindcss/colors";
-import * as FileSystem from "expo-file-system";
-import { useEffect, useState } from "react";
-import MediaImage from "@/src/components/MediaImage";
 
 export default function DownloadsScreen() {
   const session = useSessionStore((state) => state.session);
@@ -73,11 +69,20 @@ function DownloadRow({ download }: { download: Download }) {
           className="w-16 h-16 rounded-md"
         />
         <View className="flex-1">
-          <Text className="text-zinc-100" numberOfLines={1}>
+          <Text className="text-zinc-100 font-medium" numberOfLines={1}>
             {download.media.book.title}
           </Text>
-          <AuthorList bookAuthors={download.media.book.bookAuthors} />
-          <NarratorList mediaNarrators={download.media.mediaNarrators} />
+          <NamesList
+            names={download.media.book.bookAuthors.map((ba) => ba.author.name)}
+            className="text-sm text-zinc-300 leading-tight"
+            numberOfLines={1}
+          />
+          <NamesList
+            prefix="Narrated by"
+            names={download.media.mediaNarrators.map((mn) => mn.narrator.name)}
+            className="text-xs text-zinc-400 leading-tight"
+            numberOfLines={1}
+          />
           {download.status === "ready" && <FileSize download={download} />}
         </View>
         <View>
@@ -171,29 +176,6 @@ function DownloadRow({ download }: { download: Download }) {
         </Modal>
       )}
     </View>
-  );
-}
-
-function AuthorList({ bookAuthors }: { bookAuthors: BookAuthor[] }) {
-  return (
-    <Text className="text-sm text-zinc-300 leading-tight" numberOfLines={1}>
-      {bookAuthors.map((bookAuthor, i) => [
-        i > 0 && ", ",
-        <Text key={i}>{bookAuthor.author.name}</Text>,
-      ])}
-    </Text>
-  );
-}
-
-function NarratorList({ mediaNarrators }: { mediaNarrators: MediaNarrator[] }) {
-  return (
-    <Text className="text-xs text-zinc-400 leading-tight" numberOfLines={1}>
-      Narrated by{" "}
-      {mediaNarrators.map((mediaNarrator, i) => [
-        i > 0 && ", ",
-        <Text key={i}>{mediaNarrator.narrator.name}</Text>,
-      ])}
-    </Text>
   );
 }
 
