@@ -7,7 +7,7 @@ import {
 import * as FileSystem from "expo-file-system";
 import { create } from "zustand";
 import { Session } from "./session";
-import { DownloadedThumbnails, Thumbnails, media } from "../db/schema";
+import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 
 interface DownloadsState {
   downloadProgresses: Record<string, number | undefined>;

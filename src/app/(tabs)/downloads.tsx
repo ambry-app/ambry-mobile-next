@@ -57,9 +57,6 @@ function DownloadRow({ download }: { download: Download }) {
   const progress = useDownloadsStore(
     (state) => state.downloadProgresses[download.media.id],
   );
-  const downloadResumable = useDownloadsStore(
-    (state) => state.downloadResumables[download.media.id],
-  );
   const removeDownload = useDownloadsStore((state) => state.removeDownload);
   const cancelDownload = useDownloadsStore((state) => state.cancelDownload);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -214,7 +211,7 @@ function FileSize({ download }: { download: Download }) {
         setSize(formatBytes(info.size));
       }
     })();
-  }, []);
+  }, [download.filePath]);
 
   if (!size) return null;
   if (isMissing)
