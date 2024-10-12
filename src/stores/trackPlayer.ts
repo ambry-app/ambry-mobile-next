@@ -154,24 +154,44 @@ async function loadPlayerState(
   console.log("Loading player state into player...");
 
   await TrackPlayer.reset();
-  await TrackPlayer.add({
-    // FIXME: iOS use HLS
-    url: `${session.url}${playerState.media.mpdPath}`,
-    type: TrackType.Dash,
-    pitchAlgorithm: PitchAlgorithm.Voice,
-    duration: playerState.media.duration
-      ? parseFloat(playerState.media.duration)
-      : undefined,
-    title: playerState.media.book.title,
-    artist: playerState.media.book.bookAuthors
-      .map((bookAuthor) => bookAuthor.author.name)
-      .join(", "),
-    artwork: playerState.media.thumbnails
-      ? `${session.url}/${playerState.media.thumbnails.extraLarge}`
-      : undefined,
-    description: playerState.media.id,
-    headers: { Authorization: `Bearer ${session.token}` },
-  });
+  if (playerState.media.download?.status === "ready") {
+    // the media is downloaded, load the local file
+    await TrackPlayer.add({
+      url: playerState.media.download.filePath,
+      pitchAlgorithm: PitchAlgorithm.Voice,
+      duration: playerState.media.duration
+        ? parseFloat(playerState.media.duration)
+        : undefined,
+      title: playerState.media.book.title,
+      artist: playerState.media.book.bookAuthors
+        .map((bookAuthor) => bookAuthor.author.name)
+        .join(", "),
+      artwork: playerState.media.download.thumbnails
+        ? `${session.url}/${playerState.media.download.thumbnails.extraLarge}`
+        : undefined,
+      description: playerState.media.id,
+    });
+  } else {
+    // the media is not downloaded, load the stream
+    await TrackPlayer.add({
+      // FIXME: iOS use HLS
+      url: `${session.url}${playerState.media.mpdPath}`,
+      type: TrackType.Dash,
+      pitchAlgorithm: PitchAlgorithm.Voice,
+      duration: playerState.media.duration
+        ? parseFloat(playerState.media.duration)
+        : undefined,
+      title: playerState.media.book.title,
+      artist: playerState.media.book.bookAuthors
+        .map((bookAuthor) => bookAuthor.author.name)
+        .join(", "),
+      artwork: playerState.media.thumbnails
+        ? `${session.url}/${playerState.media.thumbnails.extraLarge}`
+        : undefined,
+      description: playerState.media.id,
+      headers: { Authorization: `Bearer ${session.token}` },
+    });
+  }
 
   await TrackPlayer.seekTo(playerState.position);
   await TrackPlayer.setRate(playerState.playbackRate);

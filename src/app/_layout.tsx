@@ -18,7 +18,7 @@ const Theme = {
   colors: {
     primary: colors.lime[400],
     background: colors.black,
-    card: colors.zinc[800],
+    card: colors.zinc[900],
     text: colors.zinc[100],
     border: colors.zinc[600],
     notification: colors.red[400],
@@ -27,7 +27,7 @@ const Theme = {
 
 export default function App() {
   useEffect(() => {
-    NavigationBar.setBackgroundColorAsync(colors.zinc[800]);
+    NavigationBar.setBackgroundColorAsync(colors.zinc[900]);
   });
 
   return (

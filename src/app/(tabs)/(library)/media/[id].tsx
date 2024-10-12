@@ -63,11 +63,6 @@ export default function MediaDetails() {
     }, [loadMedia, session]),
   );
 
-  const loadMediaIntoPlayerCallback = useCallback(() => {
-    if (!session) return;
-    loadMediaIntoPlayer(session, mediaId);
-  }, [loadMediaIntoPlayer, mediaId, session]);
-
   const { startDownload } = useDownloadsStore();
 
   const router = useRouter();
@@ -102,15 +97,37 @@ export default function MediaDetails() {
             <AuthorsList bookAuthors={media.book.bookAuthors} />
             <NarratorsList mediaNarrators={media.mediaNarrators} />
           </View>
-          <Button title="Load Me!" onPress={loadMediaIntoPlayerCallback} />
           <Button
-            title="Download!"
+            title="Load Me!"
             onPress={() => {
-              if (!media.mp4Path) return;
-              startDownload(session, mediaId, media.mp4Path);
-              router.navigate("/downloads");
+              if (!session) return;
+              loadMediaIntoPlayer(session, mediaId);
             }}
           />
+          {!media.download && (
+            <Button
+              title="Download!"
+              onPress={() => {
+                if (!media.mp4Path) return;
+                startDownload(
+                  session,
+                  mediaId,
+                  media.mp4Path,
+                  media.thumbnails,
+                );
+                router.navigate("/downloads");
+              }}
+            />
+          )}
+          {media.download && (
+            <Text className="text-lg text-zinc-100">
+              You have this audiobook downloaded. Go to{" "}
+              <Link href="/downloads" className="text-lime-400">
+                downloads
+              </Link>{" "}
+              to manage downloaded files.
+            </Text>
+          )}
           {media.description && <Description description={media.description} />}
         </View>
       </ScrollView>
@@ -127,7 +144,7 @@ function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
 
   if (!thumbnails) {
     return (
-      <View className="rounded-2xl bg-zinc-800 overflow-hidden">
+      <View className="rounded-2xl bg-zinc-900 overflow-hidden">
         <View className="w-full" style={{ aspectRatio: 1 / 1 }} />
       </View>
     );
@@ -140,7 +157,7 @@ function MediaImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
   const placeholder = { thumbhash: thumbnails.thumbhash };
 
   return (
-    <View className="rounded-2xl bg-zinc-800 overflow-hidden">
+    <View className="rounded-2xl bg-zinc-900 overflow-hidden">
       <Image
         source={source}
         className="w-full"

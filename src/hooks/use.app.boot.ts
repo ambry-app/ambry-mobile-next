@@ -22,6 +22,7 @@ const useAppBoot = () => {
     if (migrateError)
       return console.error("[AppBoot] migration error", migrateError);
 
+    // TODO: allow sync to fail but continue on to setting up track player
     console.log("[AppBoot] starting...");
     syncDown(session)
       .then(() => console.log("[AppBoot] db sync complete"))

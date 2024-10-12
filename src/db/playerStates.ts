@@ -24,6 +24,12 @@ type Book = {
   bookAuthors: BookAuthor[];
 };
 
+export type Download = {
+  status: string;
+  filePath: string;
+  thumbnails: schema.DownloadedThumbnails | null;
+};
+
 type Media = {
   id: string;
   thumbnails: schema.Thumbnails | null;
@@ -31,6 +37,7 @@ type Media = {
   hlsPath: string | null;
   duration: string | null;
   book: Book;
+  download: Download | null;
 };
 
 interface PlayerState {
@@ -69,6 +76,9 @@ export async function getSyncedPlayerState(
           duration: true,
         },
         with: {
+          download: {
+            columns: { status: true, filePath: true, thumbnails: true },
+          },
           book: {
             columns: { id: true, title: true },
             with: {
@@ -110,6 +120,9 @@ export async function getLocalPlayerState(
           duration: true,
         },
         with: {
+          download: {
+            columns: { status: true, filePath: true, thumbnails: true },
+          },
           book: {
             columns: { id: true, title: true },
             with: {
