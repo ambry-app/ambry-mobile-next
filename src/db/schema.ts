@@ -27,8 +27,17 @@ export type DownloadedThumbnails = {
 };
 
 export type Chapter = {
-  time: number;
-  title: string;
+  id: string;
+  title?: string | null;
+  startTime: number;
+  endTime?: number | null;
+};
+
+type SupplementalFile = {
+  filename: string;
+  label?: string | null;
+  mime: string;
+  path: string;
 };
 
 export type Person = typeof people.$inferSelect;
@@ -242,13 +251,6 @@ export const bookAuthorsRelations = relations(bookAuthors, ({ one }) => ({
   }),
 }));
 
-// type SupplementalFile = {
-//   filename: string;
-//   label: string;
-//   mime: string;
-//   path: string;
-// };
-
 export const media = sqliteTable(
   "media",
   {
@@ -259,9 +261,9 @@ export const media = sqliteTable(
     }),
     bookId: text("book_id").notNull(),
     chapters: text("chapters", { mode: "json" }).notNull().$type<Chapter[]>(),
-    // supplementalFiles: text("supplemental_files", { mode: "json" }).$type<
-    //   SupplementalFile[]
-    // >(),
+    supplementalFiles: text("supplemental_files", { mode: "json" })
+      .notNull()
+      .$type<SupplementalFile[]>(),
     fullCast: integer("full_cast", { mode: "boolean" }).notNull(),
     abridged: integer("abridged", { mode: "boolean" }).notNull(),
     mpdPath: text("mpd_path"),
@@ -271,11 +273,11 @@ export const media = sqliteTable(
     published: integer("published", { mode: "timestamp" }),
     publishedFormat: text("published_format", {
       enum: ["full", "year_month", "year"],
-    }),
-    // notes: text("notes"),
+    }).notNull(),
+    notes: text("notes"),
     thumbnails: text("thumbnails", { mode: "json" }).$type<Thumbnails | null>(),
     description: text("description"),
-    // publisher: text("publisher"),
+    publisher: text("publisher"),
     insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },

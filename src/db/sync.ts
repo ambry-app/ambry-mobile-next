@@ -142,11 +142,14 @@ export async function syncDown(session: Session) {
         | "full"
         | "year_month"
         | "year",
+      publisher: media.publisher,
+      notes: media.notes,
       description: media.description,
       thumbnails: media.thumbnails,
       abridged: media.abridged,
       fullCast: media.fullCast,
-      chapters: [],
+      chapters: media.chapters,
+      supplementalFiles: media.supplementalFiles,
       mp4Path: media.mp4Path,
       mpdPath: media.mpdPath,
       hlsPath: media.hlsPath,

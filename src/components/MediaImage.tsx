@@ -26,7 +26,7 @@ export default function MediaImage({
           style={{ width: "100%", height: "100%" }}
           placeholder={{ thumbhash: downloadedThumbnails.thumbhash }}
           contentFit="cover"
-          transition={250}
+          transition={0}
         />
       </View>
     );
@@ -43,7 +43,7 @@ export default function MediaImage({
           style={{ width: "100%", height: "100%" }}
           placeholder={{ thumbhash: thumbnails.thumbhash }}
           contentFit="cover"
-          transition={250}
+          transition={0}
         />
       </View>
     );

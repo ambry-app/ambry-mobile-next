@@ -170,10 +170,13 @@ export type Media = Node & {
   mp4Path?: Maybe<Scalars['String']['output']>;
   mpdPath?: Maybe<Scalars['String']['output']>;
   narrators: Array<Narrator>;
+  notes?: Maybe<Scalars['String']['output']>;
   playerState?: Maybe<PlayerState>;
   published?: Maybe<Scalars['Date']['output']>;
   publishedFormat: DateFormat;
+  publisher?: Maybe<Scalars['String']['output']>;
   status: MediaProcessingStatus;
+  supplementalFiles: Array<SupplementalFile>;
   thumbnails?: Maybe<Thumbnails>;
   updatedAt: Scalars['DateTime']['output'];
 };
@@ -475,6 +478,14 @@ export type SeriesBookEdge = {
   node?: Maybe<SeriesBook>;
 };
 
+export type SupplementalFile = {
+  __typename?: 'SupplementalFile';
+  filename: Scalars['String']['output'];
+  label?: Maybe<Scalars['String']['output']>;
+  mime: Scalars['String']['output'];
+  path: Scalars['String']['output'];
+};
+
 export type Thumbnails = {
   __typename?: 'Thumbnails';
   blurhash?: Maybe<Scalars['String']['output']>;
@@ -512,7 +523,7 @@ export type AllChangesSinceQueryVariables = Exact<{
 }>;
 
 
-export type AllChangesSinceQuery = { __typename?: 'RootQueryType', serverTime: any, peopleChangedSince: Array<{ __typename?: 'Person', id: string, name: string, description?: string | null, insertedAt: any, updatedAt: any, thumbnails?: { __typename?: 'Thumbnails', extraLarge: string, large: string, medium: string, small: string, extraSmall: string, thumbhash: string } | null }>, authorsChangedSince: Array<{ __typename?: 'Author', id: string, name: string, insertedAt: any, updatedAt: any, person: { __typename?: 'Person', id: string } }>, narratorsChangedSince: Array<{ __typename?: 'Narrator', id: string, name: string, insertedAt: any, updatedAt: any, person: { __typename?: 'Person', id: string } }>, booksChangedSince: Array<{ __typename?: 'Book', id: string, title: string, published: any, publishedFormat: DateFormat, insertedAt: any, updatedAt: any }>, bookAuthorsChangedSince: Array<{ __typename?: 'BookAuthor', id: string, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, author: { __typename?: 'Author', id: string } }>, seriesChangedSince: Array<{ __typename?: 'Series', id: string, name: string, insertedAt: any, updatedAt: any }>, seriesBooksChangedSince: Array<{ __typename?: 'SeriesBook', id: string, bookNumber: any, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, series: { __typename?: 'Series', id: string } }>, mediaChangedSince: Array<{ __typename?: 'Media', id: string, status: MediaProcessingStatus, description?: string | null, published?: any | null, publishedFormat: DateFormat, abridged: boolean, fullCast: boolean, mp4Path?: string | null, mpdPath?: string | null, hlsPath?: string | null, duration?: number | null, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, thumbnails?: { __typename?: 'Thumbnails', extraLarge: string, large: string, medium: string, small: string, extraSmall: string, thumbhash: string } | null }>, mediaNarratorsChangedSince: Array<{ __typename?: 'MediaNarrator', id: string, insertedAt: any, updatedAt: any, media: { __typename?: 'Media', id: string }, narrator: { __typename?: 'Narrator', id: string } }>, playerStatesChangedSince: Array<{ __typename?: 'PlayerState', id: string, status: PlayerStateStatus, playbackRate: number, position: number, insertedAt: any, updatedAt: any, media: { __typename?: 'Media', id: string } }>, deletionsSince: Array<{ __typename?: 'Deletion', type: DeletionType, recordId: string }> };
+export type AllChangesSinceQuery = { __typename?: 'RootQueryType', serverTime: any, peopleChangedSince: Array<{ __typename?: 'Person', id: string, name: string, description?: string | null, insertedAt: any, updatedAt: any, thumbnails?: { __typename?: 'Thumbnails', extraLarge: string, large: string, medium: string, small: string, extraSmall: string, thumbhash: string } | null }>, authorsChangedSince: Array<{ __typename?: 'Author', id: string, name: string, insertedAt: any, updatedAt: any, person: { __typename?: 'Person', id: string } }>, narratorsChangedSince: Array<{ __typename?: 'Narrator', id: string, name: string, insertedAt: any, updatedAt: any, person: { __typename?: 'Person', id: string } }>, booksChangedSince: Array<{ __typename?: 'Book', id: string, title: string, published: any, publishedFormat: DateFormat, insertedAt: any, updatedAt: any }>, bookAuthorsChangedSince: Array<{ __typename?: 'BookAuthor', id: string, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, author: { __typename?: 'Author', id: string } }>, seriesChangedSince: Array<{ __typename?: 'Series', id: string, name: string, insertedAt: any, updatedAt: any }>, seriesBooksChangedSince: Array<{ __typename?: 'SeriesBook', id: string, bookNumber: any, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, series: { __typename?: 'Series', id: string } }>, mediaChangedSince: Array<{ __typename?: 'Media', id: string, status: MediaProcessingStatus, description?: string | null, published?: any | null, publishedFormat: DateFormat, publisher?: string | null, notes?: string | null, abridged: boolean, fullCast: boolean, mp4Path?: string | null, mpdPath?: string | null, hlsPath?: string | null, duration?: number | null, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, thumbnails?: { __typename?: 'Thumbnails', extraLarge: string, large: string, medium: string, small: string, extraSmall: string, thumbhash: string } | null, chapters: Array<{ __typename?: 'Chapter', id: string, title?: string | null, startTime: number, endTime?: number | null }>, supplementalFiles: Array<{ __typename?: 'SupplementalFile', filename: string, label?: string | null, mime: string, path: string }> }>, mediaNarratorsChangedSince: Array<{ __typename?: 'MediaNarrator', id: string, insertedAt: any, updatedAt: any, media: { __typename?: 'Media', id: string }, narrator: { __typename?: 'Narrator', id: string } }>, playerStatesChangedSince: Array<{ __typename?: 'PlayerState', id: string, status: PlayerStateStatus, playbackRate: number, position: number, insertedAt: any, updatedAt: any, media: { __typename?: 'Media', id: string } }>, deletionsSince: Array<{ __typename?: 'Deletion', type: DeletionType, recordId: string }> };
 
 export type UpdatePlayerStateMutationVariables = Exact<{
   input: UpdatePlayerStateInput;
@@ -637,12 +648,26 @@ export const AllChangesSinceDocument = new TypedDocumentString(`
     }
     published
     publishedFormat
+    publisher
+    notes
     abridged
     fullCast
     mp4Path
     mpdPath
     hlsPath
     duration
+    chapters {
+      id
+      title
+      startTime
+      endTime
+    }
+    supplementalFiles {
+      filename
+      label
+      mime
+      path
+    }
     insertedAt
     updatedAt
   }

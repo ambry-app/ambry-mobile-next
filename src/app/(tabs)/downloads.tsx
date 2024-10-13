@@ -66,7 +66,7 @@ function DownloadRow({ download }: { download: Download }) {
           downloadedThumbnails={download.thumbnails}
           thumbnails={download.media.thumbnails}
           size="small"
-          className="w-16 h-16 rounded-md"
+          className="w-20 h-20 rounded-md"
         />
         <View className="flex-1">
           <Text className="text-zinc-100 font-medium" numberOfLines={1}>
