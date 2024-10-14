@@ -137,7 +137,7 @@ export async function syncDown(session: Session) {
         | "ready",
       bookId: media.book.id,
       duration: media.duration ? media.duration.toString() : null,
-      published: new Date(media.published),
+      published: media.published ? new Date(media.published) : null,
       publishedFormat: media.publishedFormat.toLowerCase() as
         | "full"
         | "year_month"
