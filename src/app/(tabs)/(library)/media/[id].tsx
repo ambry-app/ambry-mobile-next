@@ -2,6 +2,7 @@ import Description from "@/src/components/Description";
 import NamesList from "@/src/components/NamesList";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
 import { db } from "@/src/db/db";
+import { listBooksByAuthor } from "@/src/db/library";
 import * as schema from "@/src/db/schema";
 import { Thumbnails } from "@/src/db/schema";
 import { syncDown } from "@/src/db/sync";
@@ -9,7 +10,7 @@ import { useDownloadsStore } from "@/src/stores/downloads";
 import { Session, useSessionStore } from "@/src/stores/session";
 import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import {
   Link,
@@ -18,7 +19,7 @@ import {
   useLocalSearchParams,
   useRouter,
 } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -36,8 +37,9 @@ import colors from "tailwindcss/colors";
 // [x] 4. author(s) and narrator(s)
 // [x] 5?. other editions
 // [x] 6?. other books in series
-// [ ] 6a?. link to series screen
-// [ ] 7?. other books by author
+// [x] 6a?. link to series screen
+// [x] 7?. other books by author(s)
+// [x] 8?. other books by narrator(s)
 
 export default function MediaDetails() {
   const session = useSessionStore((state) => state.session);
@@ -66,6 +68,8 @@ export default function MediaDetails() {
         <AuthorsAndNarrators mediaId={mediaId} session={session} />
         <OtherEditions mediaId={mediaId} session={session} />
         <OtherBooksInAllSeries mediaId={mediaId} session={session} />
+        <OtherBooksByAllAuthors mediaId={mediaId} session={session} />
+        <OtherMediaByAllNarrators mediaId={mediaId} session={session} />
       </View>
     </ScrollView>
   );
@@ -142,7 +146,7 @@ function Header({ mediaId, session }: { mediaId: string; session: Session }) {
           className="text-lg text-zinc-300 leading-tight"
         />
         <NamesList
-          prefix="Narrated by"
+          prefix="Read by"
           names={media.mediaNarrators.map((mn) => mn.narrator.name)}
           className="text-zinc-400 leading-tight"
         />
@@ -413,7 +417,10 @@ function AuthorsAndNarrators({
 
   return (
     <View>
-      <Text className="text-2xl font-bold text-zinc-100 mb-2">
+      <Text
+        className="text-2xl font-medium text-zinc-100 mb-2"
+        numberOfLines={1}
+      >
         Author{media.book.bookAuthors.length > 1 && "s"} & Narrator
         {media.mediaNarrators.length > 1 && "s"}
       </Text>
@@ -475,14 +482,14 @@ function PersonTile({
       asChild
     >
       <Pressable>
-        <View className="flex items-center w-44 mr-4">
+        <View className="flex items-center w-48 mr-4">
           <ThumbnailImage
             thumbnails={thumbnails}
             size="large"
-            className="w-44 rounded-full aspect-square"
+            className="w-48 rounded-full aspect-square"
           />
           <Text
-            className="text-lg text-zinc-100 font-semibold text-center"
+            className="text-lg text-zinc-100 font-medium text-center"
             numberOfLines={1}
           >
             {name}
@@ -515,7 +522,7 @@ function OtherEditions({
       ),
       with: {
         book: {
-          columns: {},
+          columns: { id: true },
           with: {
             media: {
               columns: {
@@ -528,7 +535,6 @@ function OtherEditions({
               orderBy: desc(schema.media.published),
               where: ne(schema.media.id, mediaId),
               with: {
-                // TODO: we could also include downloads for offline images
                 mediaNarrators: {
                   columns: {},
                   with: {
@@ -545,14 +551,37 @@ function OtherEditions({
     }),
   );
 
+  const router = useRouter();
+
   if (!media) return null;
   if (media.book.media.length === 0) return null;
 
   return (
     <View>
-      <Text className="text-2xl font-bold text-zinc-100 mb-2">
-        Other Editions
-      </Text>
+      <Pressable
+        onPress={() => {
+          router.push({
+            pathname: "/book/[id]",
+            params: { id: media.book.id },
+          });
+        }}
+      >
+        <View className="flex flex-row items-center mb-2 justify-between">
+          <Text
+            className="text-2xl font-medium text-zinc-100"
+            numberOfLines={1}
+          >
+            Other Editions
+          </Text>
+          <View className="mr-6">
+            <FontAwesome6
+              name="chevron-right"
+              size={16}
+              color={colors.zinc[100]}
+            />
+          </View>
+        </View>
+      </Pressable>
       <FlatList
         className="p-2"
         data={[...media.book.media]}
@@ -593,14 +622,14 @@ function EditionTile({
         });
       }}
     >
-      <View className="flex w-44 mr-4">
+      <View className="flex w-48 mr-4">
         <ThumbnailImage
           thumbnails={media.thumbnails}
           size="large"
-          className="w-44 rounded-lg aspect-square"
+          className="w-48 rounded-lg aspect-square"
         />
         <NamesList
-          prefix="Narrated by"
+          prefix="Read by"
           names={media.mediaNarrators.map((mn) => mn.narrator.name)}
           className="text-zinc-100"
           numberOfLines={1}
@@ -678,7 +707,7 @@ function OtherBooksInSeries({
 }) {
   const { data: series } = useLiveQuery(
     db.query.series.findFirst({
-      columns: { name: true },
+      columns: { id: true, name: true },
       where: and(
         eq(schema.series.url, session.url),
         eq(schema.series.id, seriesId),
@@ -686,24 +715,14 @@ function OtherBooksInSeries({
       with: {
         seriesBooks: {
           columns: { id: true, bookNumber: true },
+          orderBy: sql`CAST(book_number AS FLOAT)`,
+          limit: 10,
           with: {
             book: {
               columns: { id: true, title: true },
               with: {
-                bookAuthors: {
-                  columns: {},
-                  with: { author: { columns: { name: true } } },
-                },
                 media: {
                   columns: { id: true, thumbnails: true },
-                  with: {
-                    mediaNarrators: {
-                      columns: {},
-                      with: {
-                        narrator: { columns: { name: true } },
-                      },
-                    },
-                  },
                 },
               },
             },
@@ -713,17 +732,36 @@ function OtherBooksInSeries({
     }),
   );
 
-  if (!series) return null;
+  const router = useRouter();
 
-  series.seriesBooks.sort(
-    (a, b) => parseFloat(a.bookNumber) - parseFloat(b.bookNumber),
-  );
+  if (!series) return null;
 
   return (
     <View>
-      <Text className="text-2xl font-bold text-zinc-100 mb-2">
-        {series.name}
-      </Text>
+      <Pressable
+        onPress={() => {
+          router.push({
+            pathname: "/series/[id]",
+            params: { id: series.id },
+          });
+        }}
+      >
+        <View className="flex flex-row items-center mb-2 justify-between">
+          <Text
+            className="text-2xl font-medium text-zinc-100"
+            numberOfLines={1}
+          >
+            {series.name}
+          </Text>
+          <View className="mr-6">
+            <FontAwesome6
+              name="chevron-right"
+              size={16}
+              color={colors.zinc[100]}
+            />
+          </View>
+        </View>
+      </Pressable>
       <FlatList
         className="p-2"
         data={series.seriesBooks}
@@ -747,21 +785,213 @@ function SeriesBookTile({
     book: {
       id: string;
       title: string;
-      bookAuthors: {
-        author: {
-          name: string;
-        };
-      }[];
       media: {
         id: string;
         thumbnails: schema.Thumbnails | null;
-        mediaNarrators: {
-          narrator: {
-            name: string;
-          };
-        }[];
       }[];
     };
+  };
+}) {
+  // TODO: render an image stack
+  // FIXME: crash when there are no media
+  const router = useRouter();
+
+  return (
+    <Pressable
+      onPress={() => {
+        if (seriesBook.book.media.length === 1) {
+          router.push({
+            pathname: "/media/[id]",
+            params: { id: seriesBook.book.media[0].id },
+          });
+        } else {
+          router.push({
+            pathname: "/book/[id]",
+            params: { id: seriesBook.book.id },
+          });
+        }
+      }}
+    >
+      <View className="flex w-48 mr-4 gap-1">
+        <Text className="text-lg text-zinc-100 font-medium" numberOfLines={1}>
+          Book {seriesBook.bookNumber}
+        </Text>
+        <ThumbnailImage
+          thumbnails={seriesBook.book.media[0].thumbnails}
+          size="large"
+          className="w-48 rounded-lg aspect-square"
+        />
+        <View>
+          <Text
+            className="text-lg leading-tight font-medium text-zinc-100"
+            numberOfLines={2}
+          >
+            {seriesBook.book.title}
+          </Text>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+function OtherBooksByAllAuthors({
+  mediaId,
+  session,
+}: {
+  mediaId: string;
+  session: Session;
+}) {
+  const { data: media } = useLiveQuery(
+    db.query.media.findFirst({
+      columns: {},
+      where: and(
+        eq(schema.media.url, session.url),
+        eq(schema.media.id, mediaId),
+      ),
+      with: {
+        book: {
+          columns: { id: true },
+          with: {
+            bookAuthors: {
+              columns: {},
+              with: {
+                author: {
+                  columns: { id: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+  );
+
+  if (!media) return null;
+
+  const authorIds = media.book.bookAuthors.map((ba) => ba.author.id);
+
+  if (authorIds.length === 0) return null;
+
+  return (
+    <>
+      {authorIds.map((authorId) => (
+        <OtherBooksByAuthor
+          key={authorId}
+          authorId={authorId}
+          session={session}
+          without={media.book.id}
+        />
+      ))}
+    </>
+  );
+}
+
+function OtherBooksByAuthor({
+  authorId,
+  session,
+  without,
+}: {
+  authorId: string;
+  session: Session;
+  without: string;
+}) {
+  // TODO: rewrite as a join so we can sort by book published date
+  const { data: author } = useLiveQuery(
+    db.query.authors.findFirst({
+      columns: { id: true, name: true },
+      where: and(
+        eq(schema.authors.url, session.url),
+        eq(schema.authors.id, authorId),
+      ),
+      with: {
+        person: {
+          columns: { id: true, name: true },
+        },
+        bookAuthors: {
+          columns: {},
+          limit: 10,
+          with: {
+            book: {
+              columns: { id: true, title: true },
+              with: {
+                media: {
+                  columns: { id: true, thumbnails: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+  );
+
+  const router = useRouter();
+
+  useEffect(() => {
+    listBooksByAuthor(session, authorId, { excludeBookIds: [without] }).then(
+      (result) => {
+        console.log(result);
+      },
+    );
+  });
+
+  if (!author) return null;
+
+  const books = author.bookAuthors.flatMap((ba) =>
+    ba.book.id === without ? [] : [ba.book],
+  );
+
+  if (books.length === 0) return null;
+
+  return (
+    <View>
+      <Pressable
+        onPress={() => {
+          router.push({
+            pathname: "/person/[id]",
+            params: { id: author.person.id },
+          });
+        }}
+      >
+        <View className="flex flex-row items-center mb-2 justify-between">
+          <Text
+            className="text-2xl font-medium text-zinc-100"
+            numberOfLines={1}
+          >
+            More by {author.name}
+          </Text>
+          <View className="mr-6">
+            <FontAwesome6
+              name="chevron-right"
+              size={16}
+              color={colors.zinc[100]}
+            />
+          </View>
+        </View>
+      </Pressable>
+      <FlatList
+        className="p-2"
+        data={books}
+        keyExtractor={(item) => item.id}
+        horizontal={true}
+        renderItem={({ item }) => {
+          return <BookTile book={item} />;
+        }}
+      />
+    </View>
+  );
+}
+
+function BookTile({
+  book,
+}: {
+  book: {
+    id: string;
+    title: string;
+    media: {
+      id: string;
+      thumbnails: schema.Thumbnails | null;
+    }[];
   };
 }) {
   // TODO: image stack?
@@ -770,35 +1000,175 @@ function SeriesBookTile({
   return (
     <Pressable
       onPress={() => {
-        router.push({
-          pathname: "/media/[id]",
-          params: { id: seriesBook.book.media[0].id },
-        });
+        if (book.media.length === 1) {
+          router.push({
+            pathname: "/media/[id]",
+            params: { id: book.media[0].id },
+          });
+        } else {
+          router.push({
+            pathname: "/book/[id]",
+            params: { id: book.id },
+          });
+        }
       }}
     >
-      <View className="flex w-44 mr-4 gap-1">
-        <Text className="text-lg text-zinc-100 font-semibold" numberOfLines={1}>
-          Book {seriesBook.bookNumber}
-        </Text>
+      <View className="flex w-48 mr-4 gap-1">
         <ThumbnailImage
-          thumbnails={seriesBook.book.media[0].thumbnails}
+          thumbnails={book.media[0].thumbnails}
           size="large"
-          className="w-44 rounded-lg aspect-square"
+          className="w-48 rounded-lg aspect-square"
         />
         <View>
           <Text
             className="text-lg leading-tight font-medium text-zinc-100"
-            numberOfLines={1}
+            numberOfLines={2}
           >
-            {seriesBook.book.title}
+            {book.title}
           </Text>
-          <NamesList
-            names={seriesBook.book.bookAuthors.map((ba) => ba.author.name)}
-            className="text-zinc-300 leading-tight"
-            numberOfLines={1}
-          />
         </View>
       </View>
     </Pressable>
+  );
+}
+
+function OtherMediaByAllNarrators({
+  mediaId,
+  session,
+}: {
+  mediaId: string;
+  session: Session;
+}) {
+  const { data: media } = useLiveQuery(
+    db.query.media.findFirst({
+      columns: {},
+      where: and(
+        eq(schema.media.url, session.url),
+        eq(schema.media.id, mediaId),
+      ),
+      with: {
+        mediaNarrators: {
+          columns: {},
+          with: {
+            narrator: {
+              columns: { id: true },
+            },
+          },
+        },
+      },
+    }),
+  );
+
+  if (!media) return null;
+
+  const narratorIds = media.mediaNarrators.map((mn) => mn.narrator.id);
+
+  if (narratorIds.length === 0) return null;
+
+  return (
+    <>
+      {narratorIds.map((narratorId) => (
+        <OtherMediaByNarrator
+          key={narratorId}
+          narratorId={narratorId}
+          session={session}
+          without={mediaId}
+        />
+      ))}
+    </>
+  );
+}
+
+function OtherMediaByNarrator({
+  narratorId,
+  session,
+  without,
+}: {
+  narratorId: string;
+  session: Session;
+  without: string;
+}) {
+  // TODO: rewrite as a join so we can sort by media published date
+  const { data: narrator } = useLiveQuery(
+    db.query.narrators.findFirst({
+      columns: { id: true, name: true },
+      where: and(
+        eq(schema.narrators.url, session.url),
+        eq(schema.narrators.id, narratorId),
+      ),
+      with: {
+        person: {
+          columns: { id: true, name: true },
+        },
+        mediaNarrators: {
+          columns: {},
+          limit: 10,
+          with: {
+            media: {
+              columns: { id: true },
+              with: {
+                book: {
+                  columns: { id: true, title: true },
+                  with: {
+                    media: {
+                      columns: { id: true, thumbnails: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+  );
+
+  const router = useRouter();
+
+  if (!narrator) return null;
+
+  const books = narrator.mediaNarrators.flatMap((mn) =>
+    mn.media.id === without ? [] : [mn.media.book],
+  );
+
+  if (books.length === 0) return null;
+
+  // TODO: we want authors on these tiles
+  return (
+    <View>
+      <Pressable
+        onPress={() => {
+          router.push({
+            pathname: "/person/[id]",
+            params: { id: narrator.person.id },
+          });
+        }}
+      >
+        <View className="flex flex-row items-center mb-2 justify-between">
+          <Text
+            className="text-2xl font-medium text-zinc-100"
+            numberOfLines={1}
+          >
+            More read by {narrator.name}
+          </Text>
+          <View className="mr-6">
+            <FontAwesome6
+              name="chevron-right"
+              size={16}
+              color={colors.zinc[100]}
+            />
+          </View>
+        </View>
+      </Pressable>
+      <FlatList
+        className="p-2"
+        data={books}
+        keyExtractor={(item) => item.id}
+        horizontal={true}
+        renderItem={({ item }) => {
+          return <BookTile book={item} />;
+        }}
+      />
+    </View>
   );
 }

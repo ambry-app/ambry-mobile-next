@@ -78,7 +78,7 @@ function DownloadRow({ download }: { download: Download }) {
             numberOfLines={1}
           />
           <NamesList
-            prefix="Narrated by"
+            prefix="Read by"
             names={download.media.mediaNarrators.map((mn) => mn.narrator.name)}
             className="text-xs text-zinc-400 leading-tight"
             numberOfLines={1}

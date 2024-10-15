@@ -44,7 +44,7 @@ export default function MediaTile({ media }: { media: MediaForIndex }) {
             numberOfLines={1}
           />
           <NamesList
-            prefix="Narrated by"
+            prefix="Read by"
             names={media.mediaNarrators.map((mn) => mn.narrator.name)}
             className="text-sm text-zinc-400 leading-tight"
             numberOfLines={1}
