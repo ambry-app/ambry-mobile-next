@@ -167,7 +167,7 @@ async function loadPlayerState(
         .map((bookAuthor) => bookAuthor.author.name)
         .join(", "),
       artwork: playerState.media.download.thumbnails
-        ? `${session.url}/${playerState.media.download.thumbnails.extraLarge}`
+        ? playerState.media.download.thumbnails.extraLarge
         : undefined,
       description: playerState.media.id,
     });

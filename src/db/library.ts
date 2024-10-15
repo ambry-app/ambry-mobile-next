@@ -68,6 +68,10 @@ export type MediaForDetails = {
   book: Book;
   mediaNarrators: MediaNarrator[];
   download: Download | null;
+  published: Date | null;
+  publishedFormat: "full" | "year_month" | "year";
+  publisher: string | null;
+  notes: string | null;
 };
 
 export type PersonForDetails = {
@@ -135,6 +139,10 @@ export async function getMediaForDetails(
       description: true,
       mp4Path: true,
       duration: true,
+      published: true,
+      publishedFormat: true,
+      publisher: true,
+      notes: true,
     },
     where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
     with: {

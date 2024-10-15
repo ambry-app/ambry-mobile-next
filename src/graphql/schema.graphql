@@ -138,10 +138,13 @@ type Media implements Node {
   mp4Path: String
   mpdPath: String
   narrators: [Narrator!]!
+  notes: String
   playerState: PlayerState
   published: Date
   publishedFormat: DateFormat!
+  publisher: String
   status: MediaProcessingStatus!
+  supplementalFiles: [SupplementalFile!]!
   thumbnails: Thumbnails
   updatedAt: DateTime!
 }
@@ -317,6 +320,13 @@ type SeriesBookConnection {
 type SeriesBookEdge {
   cursor: String
   node: SeriesBook
+}
+
+type SupplementalFile {
+  filename: String!
+  label: String
+  mime: String!
+  path: String!
 }
 
 type Thumbnails {

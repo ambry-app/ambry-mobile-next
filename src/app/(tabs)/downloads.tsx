@@ -1,5 +1,5 @@
-import MediaImage from "@/src/components/MediaImage";
 import NamesList from "@/src/components/NamesList";
+import ThumbnailImage from "@/src/components/ThumbnailImage";
 import { useLiveDownloadsList, type Download } from "@/src/db/downloads";
 import { useDownloadsStore } from "@/src/stores/downloads";
 import { useSessionStore } from "@/src/stores/session";
@@ -62,11 +62,11 @@ function DownloadRow({ download }: { download: Download }) {
   return (
     <View>
       <View className="p-4 flex flex-row items-center gap-4 border-b-[0.25px] border-zinc-600">
-        <MediaImage
+        <ThumbnailImage
           downloadedThumbnails={download.thumbnails}
           thumbnails={download.media.thumbnails}
           size="small"
-          className="w-16 h-16 rounded-md"
+          className="w-20 h-20 rounded-md"
         />
         <View className="flex-1">
           <Text className="text-zinc-100 font-medium" numberOfLines={1}>
