@@ -92,7 +92,7 @@ export const authors = sqliteTable(
         columns: [table.url, table.personId],
         foreignColumns: [people.url, people.id],
       }).onDelete("cascade"),
-      personIndex: index("person_index").on(table.url, table.personId),
+      personIndex: index("authors_person_index").on(table.url, table.personId),
     };
   },
 );
@@ -122,7 +122,10 @@ export const narrators = sqliteTable(
         columns: [table.url, table.personId],
         foreignColumns: [people.url, people.id],
       }).onDelete("cascade"),
-      personIndex: index("person_index").on(table.url, table.personId),
+      personIndex: index("narrators_person_index").on(
+        table.url,
+        table.personId,
+      ),
     };
   },
 );
@@ -151,7 +154,7 @@ export const books = sqliteTable(
   (table) => {
     return {
       pk: primaryKey({ columns: [table.url, table.id] }),
-      publishedIndex: index("published_index").on(table.published),
+      publishedIndex: index("books_published_index").on(table.published),
     };
   },
 );
@@ -204,8 +207,11 @@ export const seriesBooks = sqliteTable(
         columns: [table.url, table.seriesId],
         foreignColumns: [series.url, series.id],
       }).onDelete("cascade"),
-      bookIndex: index("book_index").on(table.url, table.bookId),
-      seriesIndex: index("series_index").on(table.url, table.seriesId),
+      bookIndex: index("series_books_book_index").on(table.url, table.bookId),
+      seriesIndex: index("series_books_series_index").on(
+        table.url,
+        table.seriesId,
+      ),
     };
   },
 );
@@ -242,8 +248,11 @@ export const bookAuthors = sqliteTable(
         columns: [table.url, table.bookId],
         foreignColumns: [books.url, books.id],
       }).onDelete("cascade"),
-      authorIndex: index("author_index").on(table.url, table.authorId),
-      bookIndex: index("book_index").on(table.url, table.bookId),
+      authorIndex: index("book_authors_author_index").on(
+        table.url,
+        table.authorId,
+      ),
+      bookIndex: index("book_authors_book_index").on(table.url, table.bookId),
     };
   },
 );
@@ -296,10 +305,10 @@ export const media = sqliteTable(
         columns: [table.url, table.bookId],
         foreignColumns: [books.url, books.id],
       }).onDelete("cascade"),
-      bookIndex: index("book_index").on(table.url, table.bookId),
-      statusIndex: index("status_index").on(table.status),
-      insertedAtIndex: index("inserted_at_index").on(table.insertedAt),
-      publishedIndex: index("published_index").on(table.published),
+      bookIndex: index("media_book_index").on(table.url, table.bookId),
+      statusIndex: index("media_status_index").on(table.status),
+      insertedAtIndex: index("media_inserted_at_index").on(table.insertedAt),
+      publishedIndex: index("media_published_index").on(table.published),
     };
   },
 );
@@ -334,8 +343,14 @@ export const mediaNarrators = sqliteTable(
         columns: [table.url, table.narratorId],
         foreignColumns: [narrators.url, narrators.id],
       }).onDelete("cascade"),
-      mediaIndex: index("media_index").on(table.url, table.mediaId),
-      narratorIndex: index("narrator_index").on(table.url, table.narratorId),
+      mediaIndex: index("media_narrators_media_index").on(
+        table.url,
+        table.mediaId,
+      ),
+      narratorIndex: index("media_narrators_narrator_index").on(
+        table.url,
+        table.narratorId,
+      ),
     };
   },
 );
@@ -373,10 +388,15 @@ export const playerStates = sqliteTable(
         columns: [table.url, table.mediaId],
         foreignColumns: [media.url, media.id],
       }).onDelete("cascade"),
-      emailIndex: index("email_index").on(table.userEmail),
-      statusIndex: index("status_index").on(table.status),
-      mediaIndex: index("media_index").on(table.url, table.mediaId),
-      updatedAtIndex: index("updated_at_index").on(table.updatedAt),
+      emailIndex: index("player_states_email_index").on(table.userEmail),
+      statusIndex: index("player_states_status_index").on(table.status),
+      mediaIndex: index("player_states_media_index").on(
+        table.url,
+        table.mediaId,
+      ),
+      updatedAtIndex: index("player_states_updated_at_index").on(
+        table.updatedAt,
+      ),
     };
   },
 );
@@ -409,7 +429,10 @@ export const localPlayerStates = sqliteTable(
         columns: [table.url, table.mediaId],
         foreignColumns: [media.url, media.id],
       }).onDelete("cascade"),
-      mediaIndex: index("media_index").on(table.url, table.mediaId),
+      mediaIndex: index("local_player_states_media_index").on(
+        table.url,
+        table.mediaId,
+      ),
     };
   },
 );
@@ -462,8 +485,10 @@ export const downloads = sqliteTable(
         columns: [table.url, table.mediaId],
         foreignColumns: [media.url, media.id],
       }).onDelete("cascade"),
-      // mediaIndex: index("media_index").on(table.url, table.mediaId),
-      // downloadedAtIndex: index("downloaded_at_index").on(table.downloadedAt),
+      mediaIndex: index("downloads_media_index").on(table.url, table.mediaId),
+      downloadedAtIndex: index("downloads_downloaded_at_index").on(
+        table.downloadedAt,
+      ),
     };
   },
 );

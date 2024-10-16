@@ -17,10 +17,10 @@ const useAppBoot = () => {
   const loadMostRecentMedia = useTrackPlayerStore((_) => _.loadMostRecentMedia);
 
   useEffect(() => {
-    if (!session) return setIsReady(true);
-    if (!migrateSuccess) return;
     if (migrateError)
       return console.error("[AppBoot] migration error", migrateError);
+    if (!migrateSuccess) return;
+    if (!session) return setIsReady(true);
 
     // TODO: allow sync to fail but continue on to setting up track player
     console.log("[AppBoot] starting...");

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6d0908da-c8e1-4338-bc3b-efc345224733",
+  "id": "d50ac96f-6e17-42d5-baf4-fe98293cba27",
   "prevId": "56e9ce3d-9a35-4e86-add1-406053e662f2",
   "tables": {
     "authors": {
@@ -51,8 +51,8 @@
         }
       },
       "indexes": {
-        "person_index": {
-          "name": "person_index",
+        "authors_person_index": {
+          "name": "authors_person_index",
           "columns": [
             "url",
             "person_id"
@@ -136,16 +136,16 @@
         }
       },
       "indexes": {
-        "author_index": {
-          "name": "author_index",
+        "book_authors_author_index": {
+          "name": "book_authors_author_index",
           "columns": [
             "url",
             "author_id"
           ],
           "isUnique": false
         },
-        "book_index": {
-          "name": "book_index",
+        "book_authors_book_index": {
+          "name": "book_authors_book_index",
           "columns": [
             "url",
             "book_id"
@@ -251,8 +251,8 @@
         }
       },
       "indexes": {
-        "published_index": {
-          "name": "published_index",
+        "books_published_index": {
+          "name": "books_published_index",
           "columns": [
             "published"
           ],
@@ -325,7 +325,23 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "downloads_media_index": {
+          "name": "downloads_media_index",
+          "columns": [
+            "url",
+            "media_id"
+          ],
+          "isUnique": false
+        },
+        "downloads_downloaded_at_index": {
+          "name": "downloads_downloaded_at_index",
+          "columns": [
+            "downloaded_at"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "downloads_url_media_id_media_url_id_fk": {
           "name": "downloads_url_media_id_media_url_id_fk",
@@ -416,8 +432,8 @@
         }
       },
       "indexes": {
-        "media_index": {
-          "name": "media_index",
+        "local_player_states_media_index": {
+          "name": "local_player_states_media_index",
           "columns": [
             "url",
             "media_id"
@@ -600,30 +616,30 @@
         }
       },
       "indexes": {
-        "book_index": {
-          "name": "book_index",
+        "media_book_index": {
+          "name": "media_book_index",
           "columns": [
             "url",
             "book_id"
           ],
           "isUnique": false
         },
-        "status_index": {
-          "name": "status_index",
+        "media_status_index": {
+          "name": "media_status_index",
           "columns": [
             "status"
           ],
           "isUnique": false
         },
-        "inserted_at_index": {
-          "name": "inserted_at_index",
+        "media_inserted_at_index": {
+          "name": "media_inserted_at_index",
           "columns": [
             "inserted_at"
           ],
           "isUnique": false
         },
-        "published_index": {
-          "name": "published_index",
+        "media_published_index": {
+          "name": "media_published_index",
           "columns": [
             "published"
           ],
@@ -706,16 +722,16 @@
         }
       },
       "indexes": {
-        "media_index": {
-          "name": "media_index",
+        "media_narrators_media_index": {
+          "name": "media_narrators_media_index",
           "columns": [
             "url",
             "media_id"
           ],
           "isUnique": false
         },
-        "narrator_index": {
-          "name": "narrator_index",
+        "media_narrators_narrator_index": {
+          "name": "media_narrators_narrator_index",
           "columns": [
             "url",
             "narrator_id"
@@ -814,8 +830,8 @@
         }
       },
       "indexes": {
-        "person_index": {
-          "name": "person_index",
+        "narrators_person_index": {
+          "name": "narrators_person_index",
           "columns": [
             "url",
             "person_id"
@@ -987,30 +1003,30 @@
         }
       },
       "indexes": {
-        "email_index": {
-          "name": "email_index",
+        "player_states_email_index": {
+          "name": "player_states_email_index",
           "columns": [
             "user_email"
           ],
           "isUnique": false
         },
-        "status_index": {
-          "name": "status_index",
+        "player_states_status_index": {
+          "name": "player_states_status_index",
           "columns": [
             "status"
           ],
           "isUnique": false
         },
-        "media_index": {
-          "name": "media_index",
+        "player_states_media_index": {
+          "name": "player_states_media_index",
           "columns": [
             "url",
             "media_id"
           ],
           "isUnique": false
         },
-        "updated_at_index": {
-          "name": "updated_at_index",
+        "player_states_updated_at_index": {
+          "name": "player_states_updated_at_index",
           "columns": [
             "updated_at"
           ],
@@ -1153,16 +1169,16 @@
         }
       },
       "indexes": {
-        "book_index": {
-          "name": "book_index",
+        "series_books_book_index": {
+          "name": "series_books_book_index",
           "columns": [
             "url",
             "book_id"
           ],
           "isUnique": false
         },
-        "series_index": {
-          "name": "series_index",
+        "series_books_series_index": {
+          "name": "series_books_series_index",
           "columns": [
             "url",
             "series_id"
