@@ -62,8 +62,8 @@ export async function getSyncedPlayerState(
   return db.query.playerStates.findFirst({
     where: and(
       eq(schema.playerStates.url, session.url),
-      eq(schema.playerStates.userEmail, session.email),
       eq(schema.playerStates.mediaId, mediaId),
+      eq(schema.playerStates.userEmail, session.email),
     ),
     orderBy: desc(schema.playerStates.updatedAt),
     with: {
@@ -106,8 +106,8 @@ export async function getLocalPlayerState(
   return db.query.localPlayerStates.findFirst({
     where: and(
       eq(schema.localPlayerStates.url, session.url),
-      eq(schema.localPlayerStates.userEmail, session.email),
       eq(schema.localPlayerStates.mediaId, mediaId),
+      eq(schema.localPlayerStates.userEmail, session.email),
     ),
     orderBy: desc(schema.localPlayerStates.updatedAt),
     with: {
