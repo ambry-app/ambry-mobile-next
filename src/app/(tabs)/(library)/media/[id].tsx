@@ -28,17 +28,6 @@ import {
 } from "react-native";
 import colors from "tailwindcss/colors";
 
-// sections:
-// [x] 1. image, title, series, authors, narrators
-// [x] 2. action bar
-// [x] 3. description + publishing info + notes
-// [x] 4. author(s) and narrator(s)
-// [x] 5?. other editions
-// [x] 6?. other books in series
-// [x] 6a?. link to series screen
-// [x] 7?. other books by author(s)
-// [x] 8?. other books by narrator(s)
-
 export default function MediaDetails() {
   const session = useSessionStore((state) => state.session);
   const { id: mediaId } = useLocalSearchParams<{ id: string }>();
@@ -265,6 +254,8 @@ function MediaDetailsFlatList({
               />
             );
           default:
+            // can't happen
+            console.error("unknown section type:", item);
             return null;
         }
       }}
@@ -610,7 +601,26 @@ function AuthorsAndNarrators({
     }),
   );
 
-  // TODO: if an author is a narrator, combine them into one tile
+  const [authorSet, setAuthorSet] = useState<Set<string>>(new Set<string>());
+  const [narratorSet, setNarratorSet] = useState<Set<string>>(
+    new Set<string>(),
+  );
+
+  useEffect(() => {
+    if (!media) return;
+
+    const newAuthorSet = new Set<string>();
+    for (const ba of media.book.bookAuthors) {
+      newAuthorSet.add(ba.author.person.id);
+    }
+    setAuthorSet(newAuthorSet);
+
+    const newNarratorSet = new Set<string>();
+    for (const mn of media.mediaNarrators) {
+      newNarratorSet.add(mn.narrator.person.id);
+    }
+    setNarratorSet(newNarratorSet);
+  }, [media]);
 
   if (!media) return null;
 
@@ -629,18 +639,25 @@ function AuthorsAndNarrators({
         keyExtractor={(item) => item.id}
         horizontal={true}
         renderItem={({ item }) => {
-          if ("author" in item)
+          if ("author" in item) {
+            const label = narratorSet.has(item.author.person.id)
+              ? "Author & Narrator"
+              : "Author";
             return (
               <PersonTile
-                label="Author"
+                label={label}
                 personId={item.author.person.id}
                 name={item.author.name}
                 realName={item.author.person.name}
                 thumbnails={item.author.person.thumbnails}
               />
             );
+          }
 
-          if ("narrator" in item)
+          if ("narrator" in item) {
+            // skip if this person is also an author, as they were already rendered
+            if (authorSet.has(item.narrator.person.id)) return null;
+
             return (
               <PersonTile
                 label="Narrator"
@@ -650,8 +667,10 @@ function AuthorsAndNarrators({
                 thumbnails={item.narrator.person.thumbnails}
               />
             );
+          }
 
           // can't happen:
+          console.error("unknown item:", item);
           return null;
         }}
       />
