@@ -48,13 +48,11 @@ export type LiveDownloadsList = {
   readonly updatedAt: Date | undefined;
 };
 
-export function useLiveDownloadsList(
-  session: Session | null,
-): LiveDownloadsList {
+export function useLiveDownloadsList(session: Session): LiveDownloadsList {
   return useLiveQuery(
     db.query.downloads.findMany({
       columns: { status: true, thumbnails: true, filePath: true },
-      where: eq(schema.downloads.url, session?.url || ""),
+      where: eq(schema.downloads.url, session.url),
       orderBy: desc(schema.downloads.downloadedAt),
       with: {
         media: {

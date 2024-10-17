@@ -2,7 +2,7 @@ import NamesList from "@/src/components/NamesList";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
 import { useLiveDownloadsList, type Download } from "@/src/db/downloads";
 import { useDownloadsStore } from "@/src/stores/downloads";
-import { useSessionStore } from "@/src/stores/session";
+import { Session, useSessionStore } from "@/src/stores/session";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import * as FileSystem from "expo-file-system";
 import { Link } from "expo-router";
@@ -19,6 +19,13 @@ import colors from "tailwindcss/colors";
 
 export default function DownloadsScreen() {
   const session = useSessionStore((state) => state.session);
+
+  if (!session) return null;
+
+  return <DownloadsList session={session} />;
+}
+
+function DownloadsList({ session }: { session: Session }) {
   const { data } = useLiveDownloadsList(session);
 
   if (data.length === 0) {
@@ -43,21 +50,26 @@ export default function DownloadsScreen() {
       className=""
       data={data}
       keyExtractor={(download) => download.media.id}
-      renderItem={({ item }) => <DownloadRow download={item} />}
+      renderItem={({ item }) => (
+        <DownloadRow session={session} download={item} />
+      )}
     />
   );
 }
 
-function DownloadRow({ download }: { download: Download }) {
-  const session = useSessionStore((state) => state.session);
+function DownloadRow({
+  session,
+  download,
+}: {
+  session: Session;
+  download: Download;
+}) {
   const progress = useDownloadsStore(
     (state) => state.downloadProgresses[download.media.id],
   );
   const removeDownload = useDownloadsStore((state) => state.removeDownload);
   const cancelDownload = useDownloadsStore((state) => state.cancelDownload);
   const [isModalVisible, setIsModalVisible] = useState(false);
-
-  if (!session) return null;
 
   return (
     <View>
@@ -131,7 +143,7 @@ function DownloadRow({ download }: { download: Download }) {
         >
           <Pressable onPress={() => setIsModalVisible(false)}>
             <View className="bg-black/80 w-full h-full">
-              <View className="bg-zinc-800 rounded-lg absolute bottom-12 left-4 right-4">
+              <View className="bg-zinc-800 rounded-lg absolute top-1/2 left-4 right-4">
                 {download.status === "ready" && (
                   <Pressable
                     onPress={() => {

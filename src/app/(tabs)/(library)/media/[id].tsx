@@ -5,6 +5,7 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Thumbnails } from "@/src/db/schema";
 import { syncDown } from "@/src/db/sync";
+import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
 import { useDownloadsStore } from "@/src/stores/downloads";
 import { Session, useSessionStore } from "@/src/stores/session";
 import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
@@ -268,6 +269,7 @@ function Header({ mediaId, session }: { mediaId: string; session: Session }) {
     db.query.media.findFirst({
       columns: {
         thumbnails: true,
+        duration: true,
       },
       where: and(
         eq(schema.media.url, session.url),
@@ -339,8 +341,27 @@ function Header({ mediaId, session }: { mediaId: string; session: Session }) {
           className="text-zinc-400 leading-tight"
         />
       </View>
+      {media.duration && (
+        <View>
+          <Text className=" text-zinc-500 leading-tight italic">
+            {durationDisplay(media.duration)}
+          </Text>
+        </View>
+      )}
     </View>
   );
+}
+
+export function durationDisplay(input: string): string {
+  const total = Number(input);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+
+  if (hours === 0) {
+    return `${minutes} minutes`;
+  } else {
+    return `${hours} hours and ${minutes} minutes`;
+  }
 }
 
 function ActionBar({
@@ -357,7 +378,7 @@ function ActionBar({
   const { startDownload } = useDownloadsStore();
   const router = useRouter();
 
-  const { data: media } = useLiveQuery(
+  const { data: media } = useLiveTablesQuery(
     db.query.media.findFirst({
       columns: {
         id: true,
@@ -374,63 +395,12 @@ function ActionBar({
         },
       },
     }),
+    ["media", "downloads"],
   );
 
   if (!media) return null;
 
-  if (media.download?.status !== "ready") {
-    return (
-      <View className="gap-2 mt-8">
-        <View className="flex flex-row bg-zinc-900 rounded-xl items-center">
-          <Pressable
-            className="grow border-r border-zinc-800 p-4"
-            onPress={() => {
-              loadMediaIntoPlayer(session, media.id);
-              router.navigate("/");
-            }}
-          >
-            <View className="flex items-center justify-end">
-              <View>
-                <FontAwesome6
-                  name="play-circle"
-                  size={32}
-                  color={colors.zinc[100]}
-                />
-              </View>
-              <View>
-                <Text className="text-lg text-zinc-100">Stream</Text>
-              </View>
-            </View>
-          </Pressable>
-          <Pressable
-            className="grow p-4"
-            onPress={() => {
-              if (!media.mp4Path) return;
-              startDownload(session, media.id, media.mp4Path, media.thumbnails);
-              router.navigate("/downloads");
-            }}
-          >
-            <View className="flex items-center justify-end">
-              <View>
-                <FontAwesome6
-                  name="download"
-                  size={32}
-                  color={colors.zinc[100]}
-                />
-              </View>
-              <View>
-                <Text className="text-lg text-zinc-100">Download</Text>
-              </View>
-            </View>
-          </Pressable>
-        </View>
-        <Text className="text-zinc-500 text-sm leading-tight">
-          Playing this audiobook will stream it and require an internet
-          connection and may use your data plan.
-        </Text>
-      </View>
-    );
-  } else if (progress) {
+  if (progress) {
     return (
       <View className="flex flex-row bg-zinc-900 rounded-xl items-center mt-8">
         <Pressable
@@ -448,10 +418,10 @@ function ActionBar({
         </Pressable>
       </View>
     );
-  } else {
+  } else if (media.download && media.download.status !== "error") {
     return (
-      <>
-        <View className="flex flex-row bg-zinc-900 rounded-xl items-center mt-8">
+      <View className="gap-2 mt-8">
+        <View className="flex flex-row bg-zinc-900 rounded-xl items-center">
           <Pressable
             className="grow p-4"
             onPress={() => {
@@ -460,7 +430,7 @@ function ActionBar({
             }}
           >
             <View className="flex items-center justify-end">
-              <View>
+              <View className="mb-2">
                 <FontAwesome6
                   name="play-circle"
                   size={32}
@@ -468,7 +438,7 @@ function ActionBar({
                 />
               </View>
               <View>
-                <Text className="text-lg text-zinc-100">Play</Text>
+                <Text className="text-lg text-zinc-100 leading-none">Play</Text>
               </View>
             </View>
           </Pressable>
@@ -477,7 +447,63 @@ function ActionBar({
           You have this audiobook downloaded, it will play from your device and
           not require an internet connection.
         </Text>
-      </>
+      </View>
+    );
+  } else {
+    return (
+      <View className="gap-2 mt-8">
+        <View className="flex flex-row bg-zinc-900 rounded-xl items-center">
+          <Pressable
+            className="grow border-r border-zinc-800 p-4"
+            onPress={() => {
+              loadMediaIntoPlayer(session, media.id);
+              router.navigate("/");
+            }}
+          >
+            <View className="flex items-center justify-end">
+              <View className="mb-2">
+                <FontAwesome6
+                  name="play-circle"
+                  size={32}
+                  color={colors.zinc[100]}
+                />
+              </View>
+              <View>
+                <Text className="text-lg text-zinc-100 leading-none">
+                  Stream
+                </Text>
+              </View>
+            </View>
+          </Pressable>
+          <Pressable
+            className="grow p-4"
+            onPress={() => {
+              if (!media.mp4Path) return;
+              startDownload(session, media.id, media.mp4Path, media.thumbnails);
+              router.navigate("/downloads");
+            }}
+          >
+            <View className="flex items-center justify-end">
+              <View className="mb-2">
+                <FontAwesome6
+                  name="download"
+                  size={32}
+                  color={colors.zinc[100]}
+                />
+              </View>
+              <View>
+                <Text className="text-lg text-zinc-100 leading-none">
+                  Download
+                </Text>
+              </View>
+            </View>
+          </Pressable>
+        </View>
+        <Text className="text-zinc-500 text-sm leading-tight">
+          Playing this audiobook will stream it and require an internet
+          connection and may use your data plan.
+        </Text>
+      </View>
     );
   }
 }

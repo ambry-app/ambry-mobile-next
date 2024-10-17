@@ -88,7 +88,6 @@ export const useDownloadsStore = create<DownloadsState>((set, get) => ({
         await updateDownload(session, mediaId, { status: "ready" });
       } else {
         console.log("Download was canceled");
-        // TODO: do we delete from db here?
       }
     } catch (error) {
       console.error("Download failed:", error);
