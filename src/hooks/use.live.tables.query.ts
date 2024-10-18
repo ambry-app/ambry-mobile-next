@@ -25,7 +25,6 @@ export const useLiveTablesQuery = <
     let listener: ReturnType<typeof addDatabaseChangeListener> | undefined;
 
     const handleData = (data: any) => {
-      console.log("[useLiveTablesQuery] data", data);
       setData(data);
       setUpdatedAt(new Date());
     };
@@ -34,7 +33,6 @@ export const useLiveTablesQuery = <
 
     listener = addDatabaseChangeListener(({ tableName }) => {
       if (tables.includes(tableName)) {
-        console.log("[useLiveTablesQuery] table changed", tableName);
         query.then(handleData).catch(setError);
       }
     });

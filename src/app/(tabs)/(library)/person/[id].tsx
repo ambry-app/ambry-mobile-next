@@ -104,7 +104,7 @@ function PersonImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
   const placeholder = { thumbhash: thumbnails.thumbhash };
 
   return (
-    <View className="mx-12 my-8 rounded-full bg-zinc-900 overflow-hidden">
+    <View className="mx-12 my-8 rounded-full bg-zinc-800 overflow-hidden">
       <Image
         source={source}
         className="w-full"

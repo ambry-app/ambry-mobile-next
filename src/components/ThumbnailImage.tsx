@@ -3,7 +3,7 @@ import { useSessionStore } from "@/src/stores/session";
 import { Image } from "expo-image";
 import { View } from "react-native";
 
-export default function MediaImage({
+export default function ThumbnailImage({
   downloadedThumbnails,
   thumbnails,
   size,
@@ -50,6 +50,6 @@ export default function MediaImage({
   }
 
   return (
-    <View className={(className || "") + " overflow-hidden bg-zinc-700"} />
+    <View className={(className || "") + " overflow-hidden bg-zinc-900"} />
   );
 }

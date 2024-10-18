@@ -1,4 +1,5 @@
 import Description from "@/src/components/Description";
+import MultiThumbnailImage from "@/src/components/MultiThumbnailImage";
 import NamesList from "@/src/components/NamesList";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
 import { db } from "@/src/db/db";
@@ -268,6 +269,8 @@ function Header({ mediaId, session }: { mediaId: string; session: Session }) {
   const { data: media } = useLiveQuery(
     db.query.media.findFirst({
       columns: {
+        fullCast: true,
+        abridged: true,
         thumbnails: true,
         duration: true,
       },
@@ -335,16 +338,25 @@ function Header({ mediaId, session }: { mediaId: string; session: Session }) {
           names={media.book.bookAuthors.map((ba) => ba.author.name)}
           className="text-lg text-zinc-300 leading-tight"
         />
-        <NamesList
-          prefix="Read by"
-          names={media.mediaNarrators.map((mn) => mn.narrator.name)}
-          className="text-zinc-400 leading-tight"
-        />
+        {media.mediaNarrators.length > 0 && (
+          <NamesList
+            prefix={
+              media.fullCast ? "Read by a full cast including" : "Read by"
+            }
+            names={media.mediaNarrators.map((mn) => mn.narrator.name)}
+            className="text-zinc-400 leading-tight"
+          />
+        )}
+        {media.mediaNarrators.length === 0 && media.fullCast && (
+          <Text className="text-zinc-400 leading-tight">
+            Read by a full cast
+          </Text>
+        )}
       </View>
       {media.duration && (
         <View>
           <Text className=" text-zinc-500 leading-tight italic">
-            {durationDisplay(media.duration)}
+            {durationDisplay(media.duration)} {media.abridged && "(abridged)"}
           </Text>
         </View>
       )}
@@ -726,24 +738,26 @@ function PersonTile({
       asChild
     >
       <Pressable>
-        <View className="flex items-center w-48 mr-4">
+        <View className="flex items-center w-48 mr-4 gap-1">
           <ThumbnailImage
             thumbnails={thumbnails}
             size="large"
             className="w-48 rounded-full aspect-square"
           />
-          <Text
-            className="text-lg text-zinc-100 font-medium text-center"
-            numberOfLines={1}
-          >
-            {name}
-          </Text>
-          {realName !== name && (
-            <Text className="text-zinc-300 text-center" numberOfLines={1}>
-              ({realName})
+          <View>
+            <Text
+              className="text-lg text-zinc-100 font-medium text-center"
+              numberOfLines={1}
+            >
+              {name}
             </Text>
-          )}
-          <Text className="text-sm text-zinc-400 text-center">{label}</Text>
+            {realName !== name && (
+              <Text className="text-zinc-300 text-center" numberOfLines={1}>
+                ({realName})
+              </Text>
+            )}
+            <Text className="text-sm text-zinc-400 text-center">{label}</Text>
+          </View>
         </View>
       </Pressable>
     </Link>
@@ -866,35 +880,37 @@ function EditionTile({
         });
       }}
     >
-      <View className="flex w-48 mr-4">
+      <View className="flex w-48 mr-4 gap-1">
         <ThumbnailImage
           thumbnails={media.thumbnails}
           size="large"
           className="w-48 rounded-lg aspect-square"
         />
-        <NamesList
-          prefix="Read by"
-          names={media.mediaNarrators.map((mn) => mn.narrator.name)}
-          className="text-zinc-100"
-          numberOfLines={1}
-        />
-        {media.published && (
-          <Text
-            className="text-sm text-zinc-400 leading-tight"
+        <View>
+          <NamesList
+            prefix="Read by"
+            names={media.mediaNarrators.map((mn) => mn.narrator.name)}
+            className="text-zinc-100"
             numberOfLines={1}
-          >
-            Published{" "}
-            {formatPublished(media.published, media.publishedFormat, "short")}
-          </Text>
-        )}
-        {media.publisher && (
-          <Text
-            className="text-sm text-zinc-400 leading-tight"
-            numberOfLines={1}
-          >
-            by {media.publisher}
-          </Text>
-        )}
+          />
+          {media.published && (
+            <Text
+              className="text-sm text-zinc-400 leading-tight"
+              numberOfLines={1}
+            >
+              Published{" "}
+              {formatPublished(media.published, media.publishedFormat, "short")}
+            </Text>
+          )}
+          {media.publisher && (
+            <Text
+              className="text-sm text-zinc-400 leading-tight"
+              numberOfLines={1}
+            >
+              by {media.publisher}
+            </Text>
+          )}
+        </View>
       </View>
     </Pressable>
   );
@@ -925,6 +941,11 @@ function OtherBooksInSeries({
               with: {
                 media: {
                   columns: { id: true, thumbnails: true },
+                  with: {
+                    download: {
+                      columns: { thumbnails: true },
+                    },
+                  },
                 },
               },
             },
@@ -990,6 +1011,9 @@ function SeriesBookTile({
       media: {
         id: string;
         thumbnails: schema.Thumbnails | null;
+        download: {
+          thumbnails: schema.DownloadedThumbnails | null;
+        } | null;
       }[];
     };
   };
@@ -1019,8 +1043,11 @@ function SeriesBookTile({
         <Text className="text-lg text-zinc-100 font-medium" numberOfLines={1}>
           Book {seriesBook.bookNumber}
         </Text>
-        <ThumbnailImage
-          thumbnails={seriesBook.book.media[0].thumbnails}
+        <MultiThumbnailImage
+          thumbnailPairs={seriesBook.book.media.map((m) => ({
+            thumbnails: m.thumbnails,
+            downloadedThumbnails: m.download?.thumbnails || null,
+          }))}
           size="large"
           className="w-48 rounded-lg aspect-square"
         />
