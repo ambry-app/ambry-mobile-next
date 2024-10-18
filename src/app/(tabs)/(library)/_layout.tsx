@@ -14,6 +14,7 @@ export default function AppLayout() {
       <Stack.Screen name="media/[id]" options={{ title: "" }} />
       <Stack.Screen name="person/[id]" options={{ title: "" }} />
       <Stack.Screen name="series/[id]" options={{ title: "" }} />
+      <Stack.Screen name="book/[id]" options={{ title: "" }} />
     </Stack>
   );
 }

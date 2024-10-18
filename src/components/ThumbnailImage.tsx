@@ -3,7 +3,7 @@ import { useSessionStore } from "@/src/stores/session";
 import { Image } from "expo-image";
 import { View } from "react-native";
 
-export default function MediaImage({
+export default function ThumbnailImage({
   downloadedThumbnails,
   thumbnails,
   size,
@@ -26,7 +26,7 @@ export default function MediaImage({
           style={{ width: "100%", height: "100%" }}
           placeholder={{ thumbhash: downloadedThumbnails.thumbhash }}
           contentFit="cover"
-          transition={250}
+          transition={0}
         />
       </View>
     );
@@ -43,13 +43,13 @@ export default function MediaImage({
           style={{ width: "100%", height: "100%" }}
           placeholder={{ thumbhash: thumbnails.thumbhash }}
           contentFit="cover"
-          transition={250}
+          transition={0}
         />
       </View>
     );
   }
 
   return (
-    <View className={(className || "") + " overflow-hidden bg-zinc-700"} />
+    <View className={(className || "") + " overflow-hidden bg-zinc-900"} />
   );
 }

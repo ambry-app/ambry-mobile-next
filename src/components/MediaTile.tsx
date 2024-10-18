@@ -1,8 +1,8 @@
 import { MediaForIndex } from "@/src/db/library";
 import { Link } from "expo-router";
 import { Pressable, Text, TouchableOpacity, View } from "react-native";
-import MediaImage from "./MediaImage";
 import NamesList from "./NamesList";
+import ThumbnailImage from "./ThumbnailImage";
 
 export default function MediaTile({ media }: { media: MediaForIndex }) {
   return (
@@ -16,7 +16,7 @@ export default function MediaTile({ media }: { media: MediaForIndex }) {
           asChild
         >
           <Pressable>
-            <MediaImage
+            <ThumbnailImage
               thumbnails={media.thumbnails}
               size="large"
               className="w-full rounded-lg aspect-square"
@@ -44,7 +44,7 @@ export default function MediaTile({ media }: { media: MediaForIndex }) {
             numberOfLines={1}
           />
           <NamesList
-            prefix="Narrated by"
+            prefix="Read by"
             names={media.mediaNarrators.map((mn) => mn.narrator.name)}
             className="text-sm text-zinc-400 leading-tight"
             numberOfLines={1}

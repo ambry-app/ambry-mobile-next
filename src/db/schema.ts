@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm";
 import {
   foreignKey,
+  index,
   integer,
   primaryKey,
   real,
@@ -27,8 +28,17 @@ export type DownloadedThumbnails = {
 };
 
 export type Chapter = {
-  time: number;
-  title: string;
+  id: string;
+  title?: string | null;
+  startTime: number;
+  endTime?: number | null;
+};
+
+type SupplementalFile = {
+  filename: string;
+  label?: string | null;
+  mime: string;
+  path: string;
 };
 
 export type Person = typeof people.$inferSelect;
@@ -82,6 +92,7 @@ export const authors = sqliteTable(
         columns: [table.url, table.personId],
         foreignColumns: [people.url, people.id],
       }).onDelete("cascade"),
+      personIndex: index("authors_person_index").on(table.url, table.personId),
     };
   },
 );
@@ -111,6 +122,10 @@ export const narrators = sqliteTable(
         columns: [table.url, table.personId],
         foreignColumns: [people.url, people.id],
       }).onDelete("cascade"),
+      personIndex: index("narrators_person_index").on(
+        table.url,
+        table.personId,
+      ),
     };
   },
 );
@@ -139,6 +154,7 @@ export const books = sqliteTable(
   (table) => {
     return {
       pk: primaryKey({ columns: [table.url, table.id] }),
+      publishedIndex: index("books_published_index").on(table.published),
     };
   },
 );
@@ -191,6 +207,11 @@ export const seriesBooks = sqliteTable(
         columns: [table.url, table.seriesId],
         foreignColumns: [series.url, series.id],
       }).onDelete("cascade"),
+      bookIndex: index("series_books_book_index").on(table.url, table.bookId),
+      seriesIndex: index("series_books_series_index").on(
+        table.url,
+        table.seriesId,
+      ),
     };
   },
 );
@@ -227,6 +248,11 @@ export const bookAuthors = sqliteTable(
         columns: [table.url, table.bookId],
         foreignColumns: [books.url, books.id],
       }).onDelete("cascade"),
+      authorIndex: index("book_authors_author_index").on(
+        table.url,
+        table.authorId,
+      ),
+      bookIndex: index("book_authors_book_index").on(table.url, table.bookId),
     };
   },
 );
@@ -242,13 +268,6 @@ export const bookAuthorsRelations = relations(bookAuthors, ({ one }) => ({
   }),
 }));
 
-// type SupplementalFile = {
-//   filename: string;
-//   label: string;
-//   mime: string;
-//   path: string;
-// };
-
 export const media = sqliteTable(
   "media",
   {
@@ -259,9 +278,9 @@ export const media = sqliteTable(
     }),
     bookId: text("book_id").notNull(),
     chapters: text("chapters", { mode: "json" }).notNull().$type<Chapter[]>(),
-    // supplementalFiles: text("supplemental_files", { mode: "json" }).$type<
-    //   SupplementalFile[]
-    // >(),
+    supplementalFiles: text("supplemental_files", { mode: "json" })
+      .notNull()
+      .$type<SupplementalFile[]>(),
     fullCast: integer("full_cast", { mode: "boolean" }).notNull(),
     abridged: integer("abridged", { mode: "boolean" }).notNull(),
     mpdPath: text("mpd_path"),
@@ -271,11 +290,11 @@ export const media = sqliteTable(
     published: integer("published", { mode: "timestamp" }),
     publishedFormat: text("published_format", {
       enum: ["full", "year_month", "year"],
-    }),
-    // notes: text("notes"),
+    }).notNull(),
+    notes: text("notes"),
     thumbnails: text("thumbnails", { mode: "json" }).$type<Thumbnails | null>(),
     description: text("description"),
-    // publisher: text("publisher"),
+    publisher: text("publisher"),
     insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
@@ -286,6 +305,10 @@ export const media = sqliteTable(
         columns: [table.url, table.bookId],
         foreignColumns: [books.url, books.id],
       }).onDelete("cascade"),
+      bookIndex: index("media_book_index").on(table.url, table.bookId),
+      statusIndex: index("media_status_index").on(table.status),
+      insertedAtIndex: index("media_inserted_at_index").on(table.insertedAt),
+      publishedIndex: index("media_published_index").on(table.published),
     };
   },
 );
@@ -320,6 +343,14 @@ export const mediaNarrators = sqliteTable(
         columns: [table.url, table.narratorId],
         foreignColumns: [narrators.url, narrators.id],
       }).onDelete("cascade"),
+      mediaIndex: index("media_narrators_media_index").on(
+        table.url,
+        table.mediaId,
+      ),
+      narratorIndex: index("media_narrators_narrator_index").on(
+        table.url,
+        table.narratorId,
+      ),
     };
   },
 );
@@ -357,6 +388,15 @@ export const playerStates = sqliteTable(
         columns: [table.url, table.mediaId],
         foreignColumns: [media.url, media.id],
       }).onDelete("cascade"),
+      emailIndex: index("player_states_email_index").on(table.userEmail),
+      statusIndex: index("player_states_status_index").on(table.status),
+      mediaIndex: index("player_states_media_index").on(
+        table.url,
+        table.mediaId,
+      ),
+      updatedAtIndex: index("player_states_updated_at_index").on(
+        table.updatedAt,
+      ),
     };
   },
 );
@@ -389,6 +429,10 @@ export const localPlayerStates = sqliteTable(
         columns: [table.url, table.mediaId],
         foreignColumns: [media.url, media.id],
       }).onDelete("cascade"),
+      mediaIndex: index("local_player_states_media_index").on(
+        table.url,
+        table.mediaId,
+      ),
     };
   },
 );
@@ -441,6 +485,10 @@ export const downloads = sqliteTable(
         columns: [table.url, table.mediaId],
         foreignColumns: [media.url, media.id],
       }).onDelete("cascade"),
+      mediaIndex: index("downloads_media_index").on(table.url, table.mediaId),
+      downloadedAtIndex: index("downloads_downloaded_at_index").on(
+        table.downloadedAt,
+      ),
     };
   },
 );
