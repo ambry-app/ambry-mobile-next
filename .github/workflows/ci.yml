@@ -27,6 +27,8 @@ jobs:
           bun-version-file: ".tool-versions"
       - name: Install dependencies
         run: bun install
+      - name: Check dependencies
+        run: bun expo install --check
       - name: Run eslint
         run: bun run lint
       - name: Run tsc
