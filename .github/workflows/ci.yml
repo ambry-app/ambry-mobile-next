@@ -10,9 +10,13 @@ env:
   MIX_ENV: test
 
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
+  checks:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    name: Checks
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout
