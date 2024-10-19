@@ -9,7 +9,9 @@
     "prebuild": "APP_VARIANT=development expo prebuild",
     "test": "jest --watchAll",
     "lint": "expo lint",
-    "update": "npm install expo@latest && npx expo install --fix"
+    "update": "bun install expo@latest && bun expo install --fix",
+    "android-preview": "bun eas build --platform android --profile preview --local",
+    "ios-preview": "bun eas build --platform ios --profile preview --local"
   },
   "jest": {
     "preset": "jest-expo"
@@ -49,7 +51,7 @@
     "react-native-track-player": "^4.1.1",
     "react-native-web": "~0.19.10",
     "tailwindcss": "^3.4.12",
-    "zustand": "^5.0.0-rc.2"
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
     "@0no-co/graphqlsp": "^1.12.14",
@@ -62,6 +64,7 @@
     "@types/react-test-renderer": "^18.0.7",
     "babel-plugin-inline-import": "^3.0.0",
     "drizzle-kit": "^0.26.1",
+    "eas-cli": "^12.5.3",
     "eslint": "^8.57.0",
     "eslint-config-expo": "^7.1.2",
     "eslint-config-prettier": "^9.1.0",
@@ -73,5 +76,8 @@
     "react-test-renderer": "18.2.0",
     "typescript": "~5.3.3"
   },
+  "trustedDependencies": [
+    "esbuild"
+  ],
   "private": true
 }
