@@ -17,12 +17,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version-file: .tool-versions
-          cache: npm
+          bun-version-file: ".tool-versions"
       - name: Install dependencies
-        run: npm install
+        run: bun install
       - name: Run eslint
-        run: npx expo lint
+        run: bun run lint
+      - name: Run tsc
+        run: bun tsc
+      - name: Run prebuild
+        run: bun run prebuild

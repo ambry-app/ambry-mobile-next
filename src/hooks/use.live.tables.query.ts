@@ -14,6 +14,7 @@ export const useLiveTablesQuery = <
   deps: unknown[] = [],
 ) => {
   const [data, setData] = useState<Awaited<T>>(
+    // @ts-ignore: drizzle types are wrong
     (is(query, SQLiteRelationalQuery) && query.mode === "first"
       ? undefined
       : []) as Awaited<T>,
