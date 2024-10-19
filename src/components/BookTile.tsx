@@ -41,10 +41,12 @@ export default function BookTile({
   book: givenBook,
   media: givenMedia,
   seriesBook,
+  className,
 }: {
   book?: BookProp;
   media?: MediaProp;
   seriesBook?: SeriesBookProp;
+  className?: string;
 }) {
   const router = useRouter();
 
@@ -71,7 +73,7 @@ export default function BookTile({
   };
 
   return (
-    <View className="flex gap-3">
+    <View className={(className || "") + " flex gap-3"}>
       <View className="gap-1">
         {seriesBook && (
           <Text className="text-lg text-zinc-100 font-medium" numberOfLines={1}>

@@ -69,9 +69,7 @@ export default function LibraryScreen() {
       keyExtractor={(item) => item.id}
       numColumns={2}
       renderItem={({ item }) => (
-        <View className="p-2 w-1/2 mb-2">
-          <BookTile media={item} />
-        </View>
+        <BookTile className="p-2 w-1/2 mb-2" media={item} />
       )}
     />
   );

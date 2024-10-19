@@ -320,11 +320,7 @@ function BooksByAuthor({
         keyExtractor={(item) => item.id}
         numColumns={2}
         renderItem={({ item }) => {
-          return (
-            <View className="p-2 w-1/2 mb-2">
-              <BookTile book={item} />
-            </View>
-          );
+          return <BookTile className="p-2 w-1/2 mb-2" book={item} />;
         }}
       />
     </View>
@@ -448,11 +444,7 @@ function MediaByNarrator({
         keyExtractor={(item) => item.id}
         numColumns={2}
         renderItem={({ item }) => {
-          return (
-            <View className="p-2 w-1/2 mb-2">
-              <BookTile media={item} />
-            </View>
-          );
+          return <BookTile className="p-2 w-1/2 mb-2" media={item} />;
         }}
       />
     </View>

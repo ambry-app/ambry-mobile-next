@@ -829,11 +829,7 @@ function OtherEditions({
         keyExtractor={(item) => item.id}
         horizontal={true}
         renderItem={({ item }) => {
-          return (
-            <View className="w-48 mr-4">
-              <BookTile media={item} />
-            </View>
-          );
+          return <BookTile className="w-48 mr-4" media={item} />;
         }}
       />
     </View>
@@ -931,11 +927,7 @@ function OtherBooksInSeries({
         keyExtractor={(item) => item.id}
         horizontal={true}
         renderItem={({ item }) => {
-          return (
-            <View className="w-48 mr-4">
-              <BookTile seriesBook={item} />
-            </View>
-          );
+          return <BookTile className="w-48 mr-4" seriesBook={item} />;
         }}
       />
     </View>
@@ -1086,11 +1078,7 @@ function OtherBooksByAuthor({
         keyExtractor={(item) => item.id}
         horizontal={true}
         renderItem={({ item }) => {
-          return (
-            <View className="w-48 mr-4">
-              <BookTile book={item} />
-            </View>
-          );
+          return <BookTile className="w-48 mr-4" book={item} />;
         }}
       />
     </View>
@@ -1258,11 +1246,7 @@ function OtherMediaByNarrator({
         keyExtractor={(item) => item.id}
         horizontal={true}
         renderItem={({ item }) => {
-          return (
-            <View className="w-48 mr-4">
-              <BookTile media={item} />
-            </View>
-          );
+          return <BookTile className="w-48 mr-4" media={item} />;
         }}
       />
     </View>
