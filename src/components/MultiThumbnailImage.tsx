@@ -38,7 +38,7 @@ export default function MultiThumbnailImage({
             className={(className || "") + " border border-black"}
           />
         </View>
-        <View className="absolute top-0 -translate-x-1 -translate-y-1 scale-95">
+        <View className="absolute top-0 w-full -translate-x-1 -translate-y-1 scale-95">
           <ThumbnailImage
             {...thumbnailPairs[1]}
             size={size}
@@ -58,14 +58,14 @@ export default function MultiThumbnailImage({
             className={(className || "") + " border border-black"}
           />
         </View>
-        <View className="absolute top-0 scale-90">
+        <View className="absolute top-0 w-full scale-90">
           <ThumbnailImage
             {...thumbnailPairs[1]}
             size={size}
             className={(className || "") + " border border-black"}
           />
         </View>
-        <View className="absolute top-0 -translate-x-2 -translate-y-2 scale-90">
+        <View className="absolute top-0 w-full -translate-x-2 -translate-y-2 scale-90">
           <ThumbnailImage
             {...thumbnailPairs[2]}
             size={size}

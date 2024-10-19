@@ -1,26 +1,30 @@
+import BookTile from "@/src/components/BookTile";
 import Description from "@/src/components/Description";
-import MultiThumbnailImage from "@/src/components/MultiThumbnailImage";
 import NamesList from "@/src/components/NamesList";
+import PersonTile from "@/src/components/PersonTile";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
-import { Thumbnails } from "@/src/db/schema";
-import { syncDown } from "@/src/db/sync";
 import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
+import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
 import { useDownloadsStore } from "@/src/stores/downloads";
 import { Session, useSessionStore } from "@/src/stores/session";
 import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import { and, desc, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
-import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import {
-  Link,
-  Stack,
-  useFocusEffect,
-  useLocalSearchParams,
-  useRouter,
-} from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+  and,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  ne,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm";
+import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -33,18 +37,7 @@ import colors from "tailwindcss/colors";
 export default function MediaDetails() {
   const session = useSessionStore((state) => state.session);
   const { id: mediaId } = useLocalSearchParams<{ id: string }>();
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!session) return;
-
-      // sync in background
-      // if network is down, we just ignore the error
-      syncDown(session).catch((error) => {
-        console.error("sync error:", error);
-      });
-    }, [session]),
-  );
+  useSyncOnFocus();
 
   if (!session) return null;
 
@@ -78,7 +71,8 @@ type AuthorsAndNarratorsSection = {
 type OtherEditionsSection = {
   id: string;
   type: "otherEditions";
-  mediaId: string;
+  bookId: string;
+  withoutMediaId: string;
 };
 
 type OtherBooksInSeriesSection = {
@@ -101,6 +95,7 @@ type OtherMediaByNarratorSection = {
   narratorId: string;
   withoutMediaId: string;
   withoutSeriesIds: string[];
+  withoutAuthorIds: string[];
 };
 
 type Section =
@@ -152,6 +147,7 @@ function useSections(mediaId: string, session: Session) {
       seriesIds: media.book.seriesBooks.map((sb) => sb.seriesId),
       narratorIds: media.mediaNarrators.map((mn) => mn.narratorId),
     };
+
     const sections: Section[] = [
       { id: `header-${mediaId}`, type: "header", mediaId },
       { id: `actions-${mediaId}`, type: "actionBar", mediaId },
@@ -165,7 +161,12 @@ function useSections(mediaId: string, session: Session) {
         type: "authorsAndNarrators",
         mediaId,
       },
-      { id: `editions-${mediaId}`, type: "otherEditions", mediaId },
+      {
+        id: `editions-${mediaId}`,
+        type: "otherEditions",
+        bookId: collectedIds.bookId,
+        withoutMediaId: mediaId,
+      },
       ...collectedIds.seriesIds.map(
         (seriesId): OtherBooksInSeriesSection => ({
           id: `books-in-series-${seriesId}`,
@@ -189,6 +190,7 @@ function useSections(mediaId: string, session: Session) {
           narratorId,
           withoutMediaId: mediaId,
           withoutSeriesIds: collectedIds.seriesIds,
+          withoutAuthorIds: collectedIds.authorIds,
         }),
       ),
     ];
@@ -232,7 +234,13 @@ function MediaDetailsFlatList({
               <AuthorsAndNarrators mediaId={item.mediaId} session={session} />
             );
           case "otherEditions":
-            return <OtherEditions mediaId={item.mediaId} session={session} />;
+            return (
+              <OtherEditions
+                bookId={item.bookId}
+                withoutMediaId={item.withoutMediaId}
+                session={session}
+              />
+            );
           case "otherBooksInSeries":
             return (
               <OtherBooksInSeries seriesId={item.seriesId} session={session} />
@@ -253,6 +261,7 @@ function MediaDetailsFlatList({
                 session={session}
                 withoutMediaId={item.withoutMediaId}
                 withoutSeriesIds={item.withoutSeriesIds}
+                withoutAuthorIds={item.withoutAuthorIds}
               />
             );
           default:
@@ -682,13 +691,15 @@ function AuthorsAndNarrators({
               ? "Author & Narrator"
               : "Author";
             return (
-              <PersonTile
-                label={label}
-                personId={item.author.person.id}
-                name={item.author.name}
-                realName={item.author.person.name}
-                thumbnails={item.author.person.thumbnails}
-              />
+              <View className="w-48 mr-4">
+                <PersonTile
+                  label={label}
+                  personId={item.author.person.id}
+                  name={item.author.name}
+                  realName={item.author.person.name}
+                  thumbnails={item.author.person.thumbnails}
+                />
+              </View>
             );
           }
 
@@ -697,13 +708,15 @@ function AuthorsAndNarrators({
             if (authorSet.has(item.narrator.person.id)) return null;
 
             return (
-              <PersonTile
-                label="Narrator"
-                personId={item.narrator.person.id}
-                name={item.narrator.name}
-                realName={item.narrator.person.name}
-                thumbnails={item.narrator.person.thumbnails}
-              />
+              <View className="w-48 mr-4">
+                <PersonTile
+                  label="Narrator"
+                  personId={item.narrator.person.id}
+                  name={item.narrator.name}
+                  realName={item.narrator.person.name}
+                  thumbnails={item.narrator.person.thumbnails}
+                />
+              </View>
             );
           }
 
@@ -716,90 +729,60 @@ function AuthorsAndNarrators({
   );
 }
 
-function PersonTile({
-  personId,
-  name,
-  realName,
-  thumbnails,
-  label,
-}: {
-  personId: string;
-  name: string;
-  realName?: string;
-  thumbnails: Thumbnails | null;
-  label: string;
-}) {
-  return (
-    <Link
-      href={{
-        pathname: "/person/[id]",
-        params: { id: personId },
-      }}
-      asChild
-    >
-      <Pressable>
-        <View className="flex items-center w-48 mr-4 gap-1">
-          <ThumbnailImage
-            thumbnails={thumbnails}
-            size="large"
-            className="w-48 rounded-full aspect-square"
-          />
-          <View>
-            <Text
-              className="text-lg text-zinc-100 font-medium text-center"
-              numberOfLines={1}
-            >
-              {name}
-            </Text>
-            {realName !== name && (
-              <Text className="text-zinc-300 text-center" numberOfLines={1}>
-                ({realName})
-              </Text>
-            )}
-            <Text className="text-sm text-zinc-400 text-center">{label}</Text>
-          </View>
-        </View>
-      </Pressable>
-    </Link>
-  );
-}
-
 function OtherEditions({
-  mediaId,
+  bookId,
   session,
+  withoutMediaId,
 }: {
-  mediaId: string;
+  bookId: string;
   session: Session;
+  withoutMediaId: string;
 }) {
+  const { data: mediaIds } = useLiveQuery(
+    db
+      .select({ id: schema.media.id })
+      .from(schema.media)
+      .limit(10)
+      .where(
+        and(
+          eq(schema.media.url, session.url),
+          eq(schema.media.bookId, bookId),
+          ne(schema.media.id, withoutMediaId),
+        ),
+      ),
+  );
+
   const { data: media } = useLiveQuery(
-    db.query.media.findFirst({
-      columns: {},
+    db.query.media.findMany({
+      columns: { id: true, thumbnails: true },
       where: and(
         eq(schema.media.url, session.url),
-        eq(schema.media.id, mediaId),
+        inArray(
+          schema.media.id,
+          mediaIds.map((media) => media.id),
+        ),
       ),
+      orderBy: desc(schema.media.published),
       with: {
-        book: {
-          columns: { id: true },
+        download: {
+          columns: { thumbnails: true },
+        },
+        mediaNarrators: {
+          columns: {},
           with: {
-            media: {
-              columns: {
-                id: true,
-                thumbnails: true,
-                published: true,
-                publishedFormat: true,
-                publisher: true,
-              },
-              orderBy: desc(schema.media.published),
-              where: ne(schema.media.id, mediaId),
+            narrator: {
+              columns: { name: true },
+            },
+          },
+        },
+        book: {
+          columns: { id: true, title: true },
+          with: {
+            bookAuthors: {
+              columns: {},
               with: {
-                mediaNarrators: {
-                  columns: {},
-                  with: {
-                    narrator: {
-                      columns: { name: true },
-                    },
-                  },
+                author: {
+                  columns: { name: true },
                 },
               },
             },
@@ -807,12 +790,12 @@ function OtherEditions({
         },
       },
     }),
+    [mediaIds],
   );
 
   const router = useRouter();
 
-  if (!media) return null;
-  if (media.book.media.length === 0) return null;
+  if (media.length === 0) return null;
 
   return (
     <View className="mt-8">
@@ -820,7 +803,7 @@ function OtherEditions({
         onPress={() => {
           router.push({
             pathname: "/book/[id]",
-            params: { id: media.book.id },
+            params: { id: media[0].book.id },
           });
         }}
       >
@@ -842,77 +825,18 @@ function OtherEditions({
       </Pressable>
       <FlatList
         className="p-2"
-        data={[...media.book.media]}
+        data={media}
         keyExtractor={(item) => item.id}
         horizontal={true}
         renderItem={({ item }) => {
-          return <EditionTile media={item} />;
+          return (
+            <View className="w-48 mr-4">
+              <BookTile media={item} />
+            </View>
+          );
         }}
       />
     </View>
-  );
-}
-
-function EditionTile({
-  media,
-}: {
-  media: {
-    id: string;
-    thumbnails: schema.Thumbnails | null;
-    published: Date | null;
-    publishedFormat: "full" | "year_month" | "year";
-    publisher: string | null;
-    mediaNarrators: {
-      narrator: {
-        name: string;
-      };
-    }[];
-  };
-}) {
-  const router = useRouter();
-
-  return (
-    <Pressable
-      onPress={() => {
-        router.push({
-          pathname: "/media/[id]",
-          params: { id: media.id },
-        });
-      }}
-    >
-      <View className="flex w-48 mr-4 gap-1">
-        <ThumbnailImage
-          thumbnails={media.thumbnails}
-          size="large"
-          className="w-48 rounded-lg aspect-square"
-        />
-        <View>
-          <NamesList
-            prefix="Read by"
-            names={media.mediaNarrators.map((mn) => mn.narrator.name)}
-            className="text-zinc-100"
-            numberOfLines={1}
-          />
-          {media.published && (
-            <Text
-              className="text-sm text-zinc-400 leading-tight"
-              numberOfLines={1}
-            >
-              Published{" "}
-              {formatPublished(media.published, media.publishedFormat, "short")}
-            </Text>
-          )}
-          {media.publisher && (
-            <Text
-              className="text-sm text-zinc-400 leading-tight"
-              numberOfLines={1}
-            >
-              by {media.publisher}
-            </Text>
-          )}
-        </View>
-      </View>
-    </Pressable>
   );
 }
 
@@ -939,9 +863,25 @@ function OtherBooksInSeries({
             book: {
               columns: { id: true, title: true },
               with: {
+                bookAuthors: {
+                  columns: {},
+                  with: {
+                    author: {
+                      columns: { name: true },
+                    },
+                  },
+                },
                 media: {
                   columns: { id: true, thumbnails: true },
                   with: {
+                    mediaNarrators: {
+                      columns: {},
+                      with: {
+                        narrator: {
+                          columns: { name: true },
+                        },
+                      },
+                    },
                     download: {
                       columns: { thumbnails: true },
                     },
@@ -991,76 +931,14 @@ function OtherBooksInSeries({
         keyExtractor={(item) => item.id}
         horizontal={true}
         renderItem={({ item }) => {
-          return <SeriesBookTile seriesBook={item} />;
+          return (
+            <View className="w-48 mr-4">
+              <BookTile seriesBook={item} />
+            </View>
+          );
         }}
       />
     </View>
-  );
-}
-
-function SeriesBookTile({
-  seriesBook,
-}: {
-  seriesBook: {
-    id: string;
-    bookNumber: string;
-
-    book: {
-      id: string;
-      title: string;
-      media: {
-        id: string;
-        thumbnails: schema.Thumbnails | null;
-        download: {
-          thumbnails: schema.DownloadedThumbnails | null;
-        } | null;
-      }[];
-    };
-  };
-}) {
-  // TODO: render an image stack
-  const router = useRouter();
-
-  if (seriesBook.book.media.length === 0) return null;
-
-  return (
-    <Pressable
-      onPress={() => {
-        if (seriesBook.book.media.length === 1) {
-          router.push({
-            pathname: "/media/[id]",
-            params: { id: seriesBook.book.media[0].id },
-          });
-        } else {
-          router.push({
-            pathname: "/book/[id]",
-            params: { id: seriesBook.book.id },
-          });
-        }
-      }}
-    >
-      <View className="flex w-48 mr-4 gap-1">
-        <Text className="text-lg text-zinc-100 font-medium" numberOfLines={1}>
-          Book {seriesBook.bookNumber}
-        </Text>
-        <MultiThumbnailImage
-          thumbnailPairs={seriesBook.book.media.map((m) => ({
-            thumbnails: m.thumbnails,
-            downloadedThumbnails: m.download?.thumbnails || null,
-          }))}
-          size="large"
-          className="w-48 rounded-lg aspect-square"
-        />
-        <View>
-          <Text
-            className="text-lg leading-tight font-medium text-zinc-100"
-            numberOfLines={2}
-          >
-            {seriesBook.book.title}
-          </Text>
-        </View>
-      </View>
-    </Pressable>
   );
 }
 
@@ -1100,14 +978,16 @@ function OtherBooksByAuthor({
           eq(schema.books.id, schema.seriesBooks.bookId),
         ),
       )
-      .orderBy(desc(schema.books.published))
       .limit(10)
       .where(
         and(
           eq(schema.authors.url, session.url),
           eq(schema.authors.id, authorId),
           ne(schema.books.id, withoutBookId),
-          notInArray(schema.seriesBooks.seriesId, withoutSeriesIds),
+          or(
+            isNull(schema.seriesBooks.seriesId),
+            notInArray(schema.seriesBooks.seriesId, withoutSeriesIds),
+          ),
         ),
       ),
   );
@@ -1139,8 +1019,29 @@ function OtherBooksByAuthor({
       ),
       orderBy: desc(schema.books.published),
       with: {
+        bookAuthors: {
+          columns: {},
+          with: {
+            author: {
+              columns: { name: true },
+            },
+          },
+        },
         media: {
           columns: { id: true, thumbnails: true },
+          with: {
+            mediaNarrators: {
+              columns: {},
+              with: {
+                narrator: {
+                  columns: { name: true },
+                },
+              },
+            },
+            download: {
+              columns: { thumbnails: true },
+            },
+          },
         },
       },
     }),
@@ -1185,62 +1086,14 @@ function OtherBooksByAuthor({
         keyExtractor={(item) => item.id}
         horizontal={true}
         renderItem={({ item }) => {
-          return <BookTile book={item} />;
+          return (
+            <View className="w-48 mr-4">
+              <BookTile book={item} />
+            </View>
+          );
         }}
       />
     </View>
-  );
-}
-
-function BookTile({
-  book,
-}: {
-  book: {
-    id: string;
-    title: string;
-    media: {
-      id: string;
-      thumbnails: schema.Thumbnails | null;
-    }[];
-  };
-}) {
-  // TODO: render an image stack
-  const router = useRouter();
-
-  if (book.media.length === 0) return null;
-
-  return (
-    <Pressable
-      onPress={() => {
-        if (book.media.length === 1) {
-          router.push({
-            pathname: "/media/[id]",
-            params: { id: book.media[0].id },
-          });
-        } else {
-          router.push({
-            pathname: "/book/[id]",
-            params: { id: book.id },
-          });
-        }
-      }}
-    >
-      <View className="flex w-48 mr-4 gap-1">
-        <ThumbnailImage
-          thumbnails={book.media[0].thumbnails}
-          size="large"
-          className="w-48 rounded-lg aspect-square"
-        />
-        <View>
-          <Text
-            className="text-lg leading-tight font-medium text-zinc-100"
-            numberOfLines={2}
-          >
-            {book.title}
-          </Text>
-        </View>
-      </View>
-    </Pressable>
   );
 }
 
@@ -1249,11 +1102,13 @@ function OtherMediaByNarrator({
   session,
   withoutMediaId,
   withoutSeriesIds,
+  withoutAuthorIds,
 }: {
   narratorId: string;
   session: Session;
   withoutMediaId: string;
   withoutSeriesIds: string[];
+  withoutAuthorIds: string[];
 }) {
   const { data: mediaIds } = useLiveQuery(
     db
@@ -1280,6 +1135,13 @@ function OtherMediaByNarrator({
           eq(schema.media.bookId, schema.books.id),
         ),
       )
+      .innerJoin(
+        schema.bookAuthors,
+        and(
+          eq(schema.books.url, schema.bookAuthors.url),
+          eq(schema.books.id, schema.bookAuthors.bookId),
+        ),
+      )
       .leftJoin(
         schema.seriesBooks,
         and(
@@ -1287,14 +1149,17 @@ function OtherMediaByNarrator({
           eq(schema.books.id, schema.seriesBooks.bookId),
         ),
       )
-      .orderBy(desc(schema.media.published))
       .limit(10)
       .where(
         and(
           eq(schema.narrators.url, session.url),
           eq(schema.narrators.id, narratorId),
           ne(schema.media.id, withoutMediaId),
-          notInArray(schema.seriesBooks.seriesId, withoutSeriesIds),
+          notInArray(schema.bookAuthors.authorId, withoutAuthorIds),
+          or(
+            isNull(schema.seriesBooks.seriesId),
+            notInArray(schema.seriesBooks.seriesId, withoutSeriesIds),
+          ),
         ),
       ),
   );
@@ -1326,8 +1191,29 @@ function OtherMediaByNarrator({
       ),
       orderBy: desc(schema.media.published),
       with: {
+        download: {
+          columns: { thumbnails: true },
+        },
+        mediaNarrators: {
+          columns: {},
+          with: {
+            narrator: {
+              columns: { name: true },
+            },
+          },
+        },
         book: {
           columns: { id: true, title: true },
+          with: {
+            bookAuthors: {
+              columns: {},
+              with: {
+                author: {
+                  columns: { name: true },
+                },
+              },
+            },
+          },
         },
       },
     }),
@@ -1372,51 +1258,13 @@ function OtherMediaByNarrator({
         keyExtractor={(item) => item.id}
         horizontal={true}
         renderItem={({ item }) => {
-          return <MediaTile media={item} />;
+          return (
+            <View className="w-48 mr-4">
+              <BookTile media={item} />
+            </View>
+          );
         }}
       />
     </View>
-  );
-}
-
-function MediaTile({
-  media,
-}: {
-  media: {
-    id: string;
-    thumbnails: schema.Thumbnails | null;
-    book: {
-      id: string;
-      title: string;
-    };
-  };
-}) {
-  const router = useRouter();
-
-  return (
-    <Pressable
-      onPress={() => {
-        router.push({
-          pathname: "/media/[id]",
-          params: { id: media.id },
-        });
-      }}
-    >
-      <View className="flex w-48 mr-4 gap-1">
-        <ThumbnailImage
-          thumbnails={media.thumbnails}
-          size="large"
-          className="w-48 rounded-lg aspect-square"
-        />
-        <View>
-          <Text
-            className="text-lg leading-tight font-medium text-zinc-100"
-            numberOfLines={2}
-          >
-            {media.book.title}
-          </Text>
-        </View>
-      </View>
-    </Pressable>
   );
 }
