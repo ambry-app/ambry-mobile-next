@@ -9,9 +9,7 @@
     "prebuild": "APP_VARIANT=development expo prebuild",
     "test": "jest --watchAll",
     "lint": "expo lint",
-    "update": "bun install expo@latest && bun expo install --fix",
-    "android-preview": "bun eas build --platform android --profile preview --local",
-    "ios-preview": "bun eas build --platform ios --profile preview --local"
+    "update": "bun install expo@latest && bun expo install --fix"
   },
   "jest": {
     "preset": "jest-expo"
@@ -64,7 +62,6 @@
     "@types/react-test-renderer": "^18.3.0",
     "babel-plugin-inline-import": "^3.0.0",
     "drizzle-kit": "^0.26.2",
-    "eas-cli": "^12.5.3",
     "eslint": "^8.57.1",
     "eslint-config-expo": "^7.1.2",
     "eslint-config-prettier": "^9.1.0",

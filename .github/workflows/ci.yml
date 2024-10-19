@@ -29,6 +29,8 @@ jobs:
         run: bun install
       - name: Check dependencies
         run: bun expo install --check
+      - name: Run expo-doctor
+        run: bun expo-doctor
       - name: Run eslint
         run: bun run lint
       - name: Run tsc
