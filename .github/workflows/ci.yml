@@ -30,7 +30,7 @@ jobs:
       - name: Check dependencies
         run: bun expo install --check
       - name: Run expo-doctor
-        run: bun expo-doctor
+        run: bun run doctor
       - name: Run eslint
         run: bun run lint
       - name: Run tsc

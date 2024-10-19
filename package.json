@@ -9,7 +9,10 @@
     "prebuild": "APP_VARIANT=development expo prebuild",
     "test": "jest --watchAll",
     "lint": "expo lint",
-    "update": "bun install expo@latest && bun expo install --fix"
+    "doctor": "bunx expo-doctor",
+    "update": "bun install expo@latest && bun expo install --fix",
+    "android-preview": "bunx eas build --platform android --profile preview --local",
+    "ios-preview": "bunx eas build --platform ios --profile preview --local"
   },
   "jest": {
     "preset": "jest-expo"
@@ -66,7 +69,6 @@
     "eslint-config-expo": "^7.1.2",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
-    "expo-doctor": "^1.11.2",
     "jest": "^29.7.0",
     "jest-expo": "~51.0.4",
     "prettier": "^3.3.3",
