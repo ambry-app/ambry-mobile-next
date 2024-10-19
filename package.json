@@ -12,7 +12,10 @@
     "doctor": "bunx expo-doctor",
     "update": "bun install expo@latest && bun expo install --fix",
     "android-preview": "bunx eas build --platform android --profile preview --local",
-    "ios-preview": "bunx eas build --platform ios --profile preview --local"
+    "ios-preview": "bunx eas build --platform ios --profile preview --local",
+    "codegen": "bunx graphql-codegen --config codegen.ts",
+    "codegen-watch": "bunx graphql-codegen --config codegen.ts --watch",
+    "generate-migrations": "bunx drizzle-kit generate"
   },
   "jest": {
     "preset": "jest-expo"
