@@ -9,9 +9,13 @@
     "prebuild": "APP_VARIANT=development expo prebuild",
     "test": "jest --watchAll",
     "lint": "expo lint",
+    "doctor": "bunx expo-doctor",
     "update": "bun install expo@latest && bun expo install --fix",
-    "android-preview": "bun eas build --platform android --profile preview --local",
-    "ios-preview": "bun eas build --platform ios --profile preview --local"
+    "android-preview": "bunx eas build --platform android --profile preview --local",
+    "ios-preview": "bunx eas build --platform ios --profile preview --local",
+    "codegen": "bunx graphql-codegen --config codegen.ts",
+    "codegen-watch": "bunx graphql-codegen --config codegen.ts --watch",
+    "generate-migrations": "bunx drizzle-kit generate"
   },
   "jest": {
     "preset": "jest-expo"
@@ -64,12 +68,10 @@
     "@types/react-test-renderer": "^18.3.0",
     "babel-plugin-inline-import": "^3.0.0",
     "drizzle-kit": "^0.26.2",
-    "eas-cli": "^12.5.3",
     "eslint": "^8.57.1",
     "eslint-config-expo": "^7.1.2",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
-    "expo-doctor": "^1.11.2",
     "jest": "^29.7.0",
     "jest-expo": "~51.0.4",
     "prettier": "^3.3.3",
