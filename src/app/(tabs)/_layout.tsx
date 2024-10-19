@@ -1,5 +1,5 @@
-import MediaImage from "@/src/components/MediaImage";
 import NamesList from "@/src/components/NamesList";
+import ThumbnailImage from "@/src/components/ThumbnailImage";
 import { useMediaDetails } from "@/src/hooks/use.media.details";
 import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
@@ -23,7 +23,7 @@ function FloatingPlayer() {
       asChild
     >
       <Pressable className="flex flex-row p-4 h-full items-center gap-4 border-t-[0.25px] border-zinc-600">
-        <MediaImage
+        <ThumbnailImage
           downloadedThumbnails={media.download?.thumbnails}
           thumbnails={media.thumbnails}
           size="small"
@@ -39,7 +39,7 @@ function FloatingPlayer() {
             numberOfLines={1}
           />
           <NamesList
-            prefix="Narrated by"
+            prefix="Read by"
             names={media.mediaNarrators.map((mn) => mn.narrator.name)}
             className="text-xs text-zinc-400 leading-tight"
             numberOfLines={1}

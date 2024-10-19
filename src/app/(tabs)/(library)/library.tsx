@@ -1,4 +1,4 @@
-import Grid from "@/src/components/Grid";
+import BookTile from "@/src/components/BookTile";
 import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
 import ScreenCentered from "@/src/components/ScreenCentered";
 import { MediaForIndex, listMediaForIndex } from "@/src/db/library";
@@ -6,7 +6,7 @@ import { syncDown } from "@/src/db/sync";
 import { useSessionStore } from "@/src/stores/session";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { Text } from "react-native";
+import { FlatList, Text, View } from "react-native";
 
 export default function LibraryScreen() {
   const session = useSessionStore((state) => state.session);
@@ -62,5 +62,17 @@ export default function LibraryScreen() {
     );
   }
 
-  return <Grid media={media} />;
+  return (
+    <FlatList
+      className="p-2"
+      data={media}
+      keyExtractor={(item) => item.id}
+      numColumns={2}
+      renderItem={({ item }) => (
+        <View className="p-2 w-1/2 mb-2">
+          <BookTile media={item} />
+        </View>
+      )}
+    />
+  );
 }

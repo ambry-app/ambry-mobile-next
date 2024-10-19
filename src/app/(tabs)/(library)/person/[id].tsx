@@ -1,117 +1,459 @@
+import BookTile from "@/src/components/BookTile";
 import Description from "@/src/components/Description";
-import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
-import ScreenCentered from "@/src/components/ScreenCentered";
-import { PersonForDetails, getPersonForDetails } from "@/src/db/library";
-import { Thumbnails } from "@/src/db/schema";
-import { syncDown } from "@/src/db/sync";
-import { useSessionStore } from "@/src/stores/session";
-import { Image } from "expo-image";
-import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import ThumbnailImage from "@/src/components/ThumbnailImage";
+import { db } from "@/src/db/db";
+import * as schema from "@/src/db/schema";
+import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
+import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
+import { Session, useSessionStore } from "@/src/stores/session";
+import { and, desc, eq, inArray } from "drizzle-orm";
+import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { Stack, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
+import { FlatList, Text, View } from "react-native";
 
 export default function PersonDetails() {
   const session = useSessionStore((state) => state.session);
   const { id: personId } = useLocalSearchParams<{ id: string }>();
-  const [person, setPerson] = useState<PersonForDetails | undefined>();
-  const [error, setError] = useState(false);
+  useSyncOnFocus();
 
-  const loadPerson = useCallback(() => {
-    if (!session) return;
+  if (!session) return null;
 
-    getPersonForDetails(session, personId)
-      .then(setPerson)
-      .catch((error) => {
-        console.error("Failed to load person:", error);
-        setError(true);
-      });
-  }, [session, personId]);
+  return <PersonDetailsFlatList session={session} personId={personId} />;
+}
 
-  useFocusEffect(
-    useCallback(() => {
-      console.log("person/[id] focused!");
-      if (!session) return;
+type HeaderSection = {
+  id: string;
+  type: "header";
+  personId: string;
+};
 
-      // load what's in the DB right now
-      loadPerson();
+type PersonDescriptionSection = {
+  id: string;
+  type: "personDescription";
+  personId: string;
+};
 
-      // sync in background, then load again
-      // if network is down, we just ignore the error
-      syncDown(session)
-        .then(loadPerson)
-        .catch((error) => {
-          console.error("sync error:", error);
-        });
+type BooksByAuthorSection = {
+  id: string;
+  type: "booksByAuthor";
+  authorId: string;
+};
 
-      return () => {
-        console.log("person/[id] unfocused");
-      };
-    }, [loadPerson, session]),
+type MediaByNarratorSection = {
+  id: string;
+  type: "mediaByNarrator";
+  narratorId: string;
+};
+
+type Section =
+  | HeaderSection
+  | PersonDescriptionSection
+  | BooksByAuthorSection
+  | MediaByNarratorSection;
+
+function useSections(personId: string, session: Session) {
+  const { data: person } = useLiveTablesQuery(
+    db.query.people.findFirst({
+      columns: {},
+      where: and(
+        eq(schema.people.url, session.url),
+        eq(schema.people.id, personId),
+      ),
+      with: {
+        authors: {
+          columns: { id: true },
+        },
+        narrators: {
+          columns: { id: true },
+        },
+      },
+    }),
+    ["people", "authors", "narrators"],
   );
 
-  if (person === undefined) {
-    return (
-      <ScreenCentered>
-        <LargeActivityIndicator />
-      </ScreenCentered>
-    );
-  }
+  const [sections, setSections] = useState<Section[] | undefined>();
 
-  if (error) {
-    console.error("Failed to load person:", error);
+  useEffect(() => {
+    if (!person) return;
 
-    return (
-      <ScreenCentered>
-        <Text className="text-red-500">Failed to load person!</Text>
-      </ScreenCentered>
-    );
-  }
+    const collectedIds = {
+      personId,
+      authorIds: person.authors.map((a) => a.id),
+      narratorIds: person.narrators.map((n) => n.id),
+    };
+
+    const sections: Section[] = [
+      { id: `header-${personId}`, type: "header", personId },
+      {
+        id: `description-${personId}`,
+        type: "personDescription",
+        personId,
+      },
+      ...collectedIds.authorIds.map(
+        (authorId): BooksByAuthorSection => ({
+          id: `books-${authorId}`,
+          type: "booksByAuthor",
+          authorId,
+        }),
+      ),
+      ...collectedIds.narratorIds.map(
+        (narratorId): MediaByNarratorSection => ({
+          id: `media-${narratorId}`,
+          type: "mediaByNarrator",
+          narratorId,
+        }),
+      ),
+    ];
+    setSections(sections);
+  }, [person, personId, session]);
+
+  return sections;
+}
+
+function PersonDetailsFlatList({
+  session,
+  personId,
+}: {
+  session: Session;
+  personId: string;
+}) {
+  const sections = useSections(personId, session);
+
+  if (!sections) return null;
 
   return (
-    <>
-      <Stack.Screen options={{ title: person.name }} />
-      <ScrollView>
-        <View className="p-4 flex gap-4">
-          <PersonImage thumbnails={person.thumbnails} />
-          <Text className="text-2xl text-zinc-100 font-bold text-center">
-            {person.name}
-          </Text>
-          {person.description && (
-            <Description description={person.description} />
-          )}
-        </View>
-      </ScrollView>
-    </>
+    <FlatList
+      className="px-4"
+      data={sections}
+      keyExtractor={(item) => item.id}
+      initialNumToRender={2}
+      ListHeaderComponent={<View className="h-4" />}
+      ListFooterComponent={<View className="h-4" />}
+      renderItem={({ item }) => {
+        switch (item.type) {
+          case "header":
+            return <Header personId={item.personId} session={session} />;
+          case "personDescription":
+            return (
+              <PersonDescription personId={item.personId} session={session} />
+            );
+          case "booksByAuthor":
+            return <BooksByAuthor authorId={item.authorId} session={session} />;
+          case "mediaByNarrator":
+            return (
+              <MediaByNarrator narratorId={item.narratorId} session={session} />
+            );
+          default:
+            // can't happen
+            console.error("unknown section type:", item);
+            return null;
+        }
+      }}
+    />
   );
 }
 
-function PersonImage({ thumbnails }: { thumbnails: Thumbnails | null }) {
-  const session = useSessionStore((state) => state.session);
-  if (!session) return null;
+function Header({ personId, session }: { personId: string; session: Session }) {
+  const { data: person } = useLiveQuery(
+    db.query.people.findFirst({
+      columns: {
+        name: true,
+        thumbnails: true,
+      },
+      where: and(
+        eq(schema.people.url, session.url),
+        eq(schema.people.id, personId),
+      ),
+    }),
+  );
 
-  if (!thumbnails) {
-    return (
-      <View className="mx-12 my-8 rounded-full bg-zinc-900 overflow-hidden">
-        <View className="w-full" style={{ aspectRatio: 1 / 1 }} />
-      </View>
-    );
-  }
-
-  const source = {
-    uri: `${session.url}/${thumbnails.extraLarge}`,
-    headers: { Authorization: `Bearer ${session.token}` },
-  };
-  const placeholder = { thumbhash: thumbnails.thumbhash };
+  if (!person) return null;
 
   return (
-    <View className="mx-12 my-8 rounded-full bg-zinc-900 overflow-hidden">
-      <Image
-        source={source}
-        className="w-full"
-        style={{ aspectRatio: 1 / 1 }}
-        placeholder={placeholder}
-        contentFit="cover"
-        transition={250}
+    <View className="gap-2">
+      <Stack.Screen options={{ title: person.name }} />
+      <ThumbnailImage
+        thumbnails={person.thumbnails}
+        size="extraLarge"
+        className="w-3/4 mt-8 mx-auto rounded-full aspect-square"
+      />
+    </View>
+  );
+}
+
+function PersonDescription({
+  personId,
+  session,
+}: {
+  personId: string;
+  session: Session;
+}) {
+  const { data: person } = useLiveQuery(
+    db.query.people.findFirst({
+      columns: {
+        description: true,
+      },
+      where: and(
+        eq(schema.people.url, session.url),
+        eq(schema.people.id, personId),
+      ),
+    }),
+  );
+
+  if (!person?.description) return null;
+
+  return (
+    <View className="mt-8">
+      <Description description={person.description} />
+    </View>
+  );
+}
+
+function BooksByAuthor({
+  authorId,
+  session,
+}: {
+  authorId: string;
+  session: Session;
+}) {
+  const { data: booksIds } = useLiveQuery(
+    db
+      .selectDistinct({ id: schema.books.id })
+      .from(schema.authors)
+      .innerJoin(
+        schema.bookAuthors,
+        and(
+          eq(schema.authors.url, schema.bookAuthors.url),
+          eq(schema.authors.id, schema.bookAuthors.authorId),
+        ),
+      )
+      .innerJoin(
+        schema.books,
+        and(
+          eq(schema.bookAuthors.url, schema.books.url),
+          eq(schema.bookAuthors.bookId, schema.books.id),
+        ),
+      )
+      .where(
+        and(
+          eq(schema.authors.url, session.url),
+          eq(schema.authors.id, authorId),
+        ),
+      ),
+  );
+
+  const { data: author } = useLiveQuery(
+    db.query.authors.findFirst({
+      columns: { id: true, name: true },
+      where: and(
+        eq(schema.authors.url, session.url),
+        eq(schema.authors.id, authorId),
+      ),
+      with: {
+        person: {
+          columns: { id: true, name: true },
+        },
+      },
+    }),
+  );
+
+  const { data: books } = useLiveQuery(
+    db.query.books.findMany({
+      columns: { id: true, title: true },
+      where: and(
+        eq(schema.books.url, session.url),
+        inArray(
+          schema.books.id,
+          booksIds.map((book) => book.id),
+        ),
+      ),
+      orderBy: desc(schema.books.published),
+      with: {
+        bookAuthors: {
+          columns: {},
+          with: {
+            author: {
+              columns: { name: true },
+            },
+          },
+        },
+        media: {
+          columns: { id: true, thumbnails: true },
+          with: {
+            mediaNarrators: {
+              columns: {},
+              with: {
+                narrator: {
+                  columns: { name: true },
+                },
+              },
+            },
+            download: {
+              columns: { thumbnails: true },
+            },
+          },
+        },
+      },
+    }),
+    [booksIds],
+  );
+
+  if (!author) return null;
+
+  if (books.length === 0) return null;
+
+  return (
+    <View className="mt-8">
+      <Text
+        className="mb-2 text-2xl font-medium text-zinc-100"
+        numberOfLines={1}
+      >
+        {author.name === author.person.name
+          ? `By ${author.name}`
+          : `As ${author.name}`}
+      </Text>
+
+      <FlatList
+        className="py-2"
+        data={books}
+        keyExtractor={(item) => item.id}
+        numColumns={2}
+        renderItem={({ item }) => {
+          return (
+            <View className="p-2 w-1/2 mb-2">
+              <BookTile book={item} />
+            </View>
+          );
+        }}
+      />
+    </View>
+  );
+}
+
+function MediaByNarrator({
+  narratorId,
+  session,
+}: {
+  narratorId: string;
+  session: Session;
+}) {
+  const { data: mediaIds } = useLiveQuery(
+    db
+      .selectDistinct({ id: schema.media.id })
+      .from(schema.narrators)
+      .innerJoin(
+        schema.mediaNarrators,
+        and(
+          eq(schema.narrators.url, schema.mediaNarrators.url),
+          eq(schema.narrators.id, schema.mediaNarrators.narratorId),
+        ),
+      )
+      .innerJoin(
+        schema.media,
+        and(
+          eq(schema.mediaNarrators.url, schema.media.url),
+          eq(schema.mediaNarrators.mediaId, schema.media.id),
+        ),
+      )
+      .innerJoin(
+        schema.books,
+        and(
+          eq(schema.media.url, schema.books.url),
+          eq(schema.media.bookId, schema.books.id),
+        ),
+      )
+      .where(
+        and(
+          eq(schema.narrators.url, session.url),
+          eq(schema.narrators.id, narratorId),
+        ),
+      ),
+  );
+
+  const { data: narrator } = useLiveQuery(
+    db.query.narrators.findFirst({
+      columns: { id: true, name: true },
+      where: and(
+        eq(schema.narrators.url, session.url),
+        eq(schema.narrators.id, narratorId),
+      ),
+      with: {
+        person: {
+          columns: { id: true, name: true },
+        },
+      },
+    }),
+  );
+
+  const { data: media } = useLiveQuery(
+    db.query.media.findMany({
+      columns: { id: true, thumbnails: true },
+      where: and(
+        eq(schema.media.url, session.url),
+        inArray(
+          schema.media.id,
+          mediaIds.map((media) => media.id),
+        ),
+      ),
+      orderBy: desc(schema.media.published),
+      with: {
+        mediaNarrators: {
+          columns: {},
+          with: {
+            narrator: {
+              columns: { name: true },
+            },
+          },
+        },
+        download: {
+          columns: { thumbnails: true },
+        },
+        book: {
+          columns: { id: true, title: true },
+          with: {
+            bookAuthors: {
+              columns: {},
+              with: {
+                author: {
+                  columns: { name: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+    [mediaIds],
+  );
+
+  if (!narrator) return null;
+
+  if (media.length === 0) return null;
+
+  return (
+    <View className="mt-8">
+      <Text
+        className="mb-2 text-2xl font-medium text-zinc-100"
+        numberOfLines={1}
+      >
+        {narrator.name === narrator.person.name
+          ? `Read by ${narrator.name}`
+          : `Read as ${narrator.name}`}
+      </Text>
+
+      <FlatList
+        className="py-2"
+        data={media}
+        keyExtractor={(item) => item.id}
+        numColumns={2}
+        renderItem={({ item }) => {
+          return (
+            <View className="p-2 w-1/2 mb-2">
+              <BookTile media={item} />
+            </View>
+          );
+        }}
       />
     </View>
   );

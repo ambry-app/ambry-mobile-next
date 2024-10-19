@@ -1,8 +1,8 @@
-import MediaImage from "@/src/components/MediaImage";
 import NamesList from "@/src/components/NamesList";
+import ThumbnailImage from "@/src/components/ThumbnailImage";
 import { useLiveDownloadsList, type Download } from "@/src/db/downloads";
 import { useDownloadsStore } from "@/src/stores/downloads";
-import { useSessionStore } from "@/src/stores/session";
+import { Session, useSessionStore } from "@/src/stores/session";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import * as FileSystem from "expo-file-system";
 import { Link } from "expo-router";
@@ -19,6 +19,13 @@ import colors from "tailwindcss/colors";
 
 export default function DownloadsScreen() {
   const session = useSessionStore((state) => state.session);
+
+  if (!session) return null;
+
+  return <DownloadsList session={session} />;
+}
+
+function DownloadsList({ session }: { session: Session }) {
   const { data } = useLiveDownloadsList(session);
 
   if (data.length === 0) {
@@ -43,13 +50,20 @@ export default function DownloadsScreen() {
       className=""
       data={data}
       keyExtractor={(download) => download.media.id}
-      renderItem={({ item }) => <DownloadRow download={item} />}
+      renderItem={({ item }) => (
+        <DownloadRow session={session} download={item} />
+      )}
     />
   );
 }
 
-function DownloadRow({ download }: { download: Download }) {
-  const session = useSessionStore((state) => state.session);
+function DownloadRow({
+  session,
+  download,
+}: {
+  session: Session;
+  download: Download;
+}) {
   const progress = useDownloadsStore(
     (state) => state.downloadProgresses[download.media.id],
   );
@@ -57,16 +71,14 @@ function DownloadRow({ download }: { download: Download }) {
   const cancelDownload = useDownloadsStore((state) => state.cancelDownload);
   const [isModalVisible, setIsModalVisible] = useState(false);
 
-  if (!session) return null;
-
   return (
     <View>
       <View className="p-4 flex flex-row items-center gap-4 border-b-[0.25px] border-zinc-600">
-        <MediaImage
+        <ThumbnailImage
           downloadedThumbnails={download.thumbnails}
           thumbnails={download.media.thumbnails}
           size="small"
-          className="w-16 h-16 rounded-md"
+          className="w-20 h-20 rounded-md"
         />
         <View className="flex-1">
           <Text className="text-zinc-100 font-medium" numberOfLines={1}>
@@ -78,7 +90,7 @@ function DownloadRow({ download }: { download: Download }) {
             numberOfLines={1}
           />
           <NamesList
-            prefix="Narrated by"
+            prefix="Read by"
             names={download.media.mediaNarrators.map((mn) => mn.narrator.name)}
             className="text-xs text-zinc-400 leading-tight"
             numberOfLines={1}
@@ -131,7 +143,7 @@ function DownloadRow({ download }: { download: Download }) {
         >
           <Pressable onPress={() => setIsModalVisible(false)}>
             <View className="bg-black/80 w-full h-full">
-              <View className="bg-zinc-800 rounded-lg absolute bottom-12 left-4 right-4">
+              <View className="bg-zinc-800 rounded-lg absolute top-1/2 left-4 right-4">
                 {download.status === "ready" && (
                   <Pressable
                     onPress={() => {

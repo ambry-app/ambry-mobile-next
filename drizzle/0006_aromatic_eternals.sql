@@ -1,0 +1,20 @@
+CREATE INDEX `authors_person_index` ON `authors` (`url`,`person_id`);--> statement-breakpoint
+CREATE INDEX `book_authors_author_index` ON `book_authors` (`url`,`author_id`);--> statement-breakpoint
+CREATE INDEX `book_authors_book_index` ON `book_authors` (`url`,`book_id`);--> statement-breakpoint
+CREATE INDEX `books_published_index` ON `books` (`published`);--> statement-breakpoint
+CREATE INDEX `downloads_media_index` ON `downloads` (`url`,`media_id`);--> statement-breakpoint
+CREATE INDEX `downloads_downloaded_at_index` ON `downloads` (`downloaded_at`);--> statement-breakpoint
+CREATE INDEX `local_player_states_media_index` ON `local_player_states` (`url`,`media_id`);--> statement-breakpoint
+CREATE INDEX `media_book_index` ON `media` (`url`,`book_id`);--> statement-breakpoint
+CREATE INDEX `media_status_index` ON `media` (`status`);--> statement-breakpoint
+CREATE INDEX `media_inserted_at_index` ON `media` (`inserted_at`);--> statement-breakpoint
+CREATE INDEX `media_published_index` ON `media` (`published`);--> statement-breakpoint
+CREATE INDEX `media_narrators_media_index` ON `media_narrators` (`url`,`media_id`);--> statement-breakpoint
+CREATE INDEX `media_narrators_narrator_index` ON `media_narrators` (`url`,`narrator_id`);--> statement-breakpoint
+CREATE INDEX `narrators_person_index` ON `narrators` (`url`,`person_id`);--> statement-breakpoint
+CREATE INDEX `player_states_email_index` ON `player_states` (`user_email`);--> statement-breakpoint
+CREATE INDEX `player_states_status_index` ON `player_states` (`status`);--> statement-breakpoint
+CREATE INDEX `player_states_media_index` ON `player_states` (`url`,`media_id`);--> statement-breakpoint
+CREATE INDEX `player_states_updated_at_index` ON `player_states` (`updated_at`);--> statement-breakpoint
+CREATE INDEX `series_books_book_index` ON `series_books` (`url`,`book_id`);--> statement-breakpoint
+CREATE INDEX `series_books_series_index` ON `series_books` (`url`,`series_id`);

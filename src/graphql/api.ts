@@ -91,14 +91,26 @@ const allChangesSinceQuery = graphql(`
       }
       published
       publishedFormat
+      publisher
+      notes
       abridged
       fullCast
       mp4Path
       mpdPath
       hlsPath
       duration
-      # TODO:
-      # chapters
+      chapters {
+        id
+        title
+        startTime
+        endTime
+      }
+      supplementalFiles {
+        filename
+        label
+        mime
+        path
+      }
       insertedAt
       updatedAt
     }
