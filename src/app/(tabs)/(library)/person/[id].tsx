@@ -1,6 +1,6 @@
-import BookTile from "@/src/components/BookTile";
 import Description from "@/src/components/Description";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
+import { BookTile, MediaTile } from "@/src/components/Tiles";
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
@@ -171,14 +171,14 @@ function Header({ personId, session }: { personId: string; session: Session }) {
   if (!person) return null;
 
   return (
-    <View className="gap-2">
+    <>
       <Stack.Screen options={{ title: person.name }} />
       <ThumbnailImage
         thumbnails={person.thumbnails}
         size="extraLarge"
         className="w-3/4 mt-8 mx-auto rounded-full aspect-square"
       />
-    </View>
+    </>
   );
 }
 
@@ -315,16 +315,12 @@ function BooksByAuthor({
       </Text>
 
       <FlatList
-        className="py-2"
+        className="-mx-2"
         data={books}
         keyExtractor={(item) => item.id}
         numColumns={2}
         renderItem={({ item }) => {
-          return (
-            <View className="p-2 w-1/2 mb-2">
-              <BookTile book={item} />
-            </View>
-          );
+          return <BookTile className="p-2 w-1/2 mb-2" book={item} />;
         }}
       />
     </View>
@@ -443,16 +439,12 @@ function MediaByNarrator({
       </Text>
 
       <FlatList
-        className="py-2"
+        className="-mx-2"
         data={media}
         keyExtractor={(item) => item.id}
         numColumns={2}
         renderItem={({ item }) => {
-          return (
-            <View className="p-2 w-1/2 mb-2">
-              <BookTile media={item} />
-            </View>
-          );
+          return <MediaTile className="p-2 w-1/2 mb-2" media={item} />;
         }}
       />
     </View>
