@@ -1,8 +1,8 @@
-import BookTile from "@/src/components/BookTile";
 import Description from "@/src/components/Description";
 import NamesList from "@/src/components/NamesList";
 import PersonTile from "@/src/components/PersonTile";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
+import { BookTile, MediaTile, SeriesBookTile } from "@/src/components/Tiles";
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
@@ -829,7 +829,7 @@ function OtherEditions({
         keyExtractor={(item) => item.id}
         horizontal={true}
         renderItem={({ item }) => {
-          return <BookTile className="w-48 mr-4" media={item} />;
+          return <MediaTile className="w-48 mr-4" media={item} />;
         }}
       />
     </View>
@@ -927,7 +927,7 @@ function OtherBooksInSeries({
         keyExtractor={(item) => item.id}
         horizontal={true}
         renderItem={({ item }) => {
-          return <BookTile className="w-48 mr-4" seriesBook={item} />;
+          return <SeriesBookTile className="w-48 mr-4" seriesBook={item} />;
         }}
       />
     </View>
@@ -1246,7 +1246,7 @@ function OtherMediaByNarrator({
         keyExtractor={(item) => item.id}
         horizontal={true}
         renderItem={({ item }) => {
-          return <BookTile className="w-48 mr-4" media={item} />;
+          return <MediaTile className="w-48 mr-4" media={item} />;
         }}
       />
     </View>

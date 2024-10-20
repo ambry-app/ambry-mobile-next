@@ -37,26 +37,45 @@ type MediaProp = Media & { book: Book };
 type BookProp = Book & { media: Media[] };
 type SeriesBookProp = SeriesBook & { book: BookProp };
 
-export default function BookTile({
-  book: givenBook,
-  media: givenMedia,
+type MediaTileProps = { media: MediaProp; className?: string };
+
+export function MediaTile({ media, className }: MediaTileProps) {
+  return <Tile book={media.book} media={[media]} className={className} />;
+}
+
+type BookTileProps = { book: BookProp; className?: string };
+
+export function BookTile({ book, className }: BookTileProps) {
+  if (book.media.length === 0) return null;
+  return <Tile book={book} media={book.media} className={className} />;
+}
+
+type SeriesBookTileProps = { seriesBook: SeriesBookProp; className?: string };
+
+export function SeriesBookTile({ seriesBook, className }: SeriesBookTileProps) {
+  if (seriesBook.book.media.length === 0) return null;
+  return (
+    <Tile
+      book={seriesBook.book}
+      media={seriesBook.book.media}
+      seriesBook={seriesBook}
+      className={className}
+    />
+  );
+}
+
+function Tile({
+  book,
+  media,
   seriesBook,
   className,
 }: {
-  book?: BookProp;
-  media?: MediaProp;
-  seriesBook?: SeriesBookProp;
+  book: Book;
+  media: Media[];
+  seriesBook?: SeriesBook;
   className?: string;
 }) {
   const router = useRouter();
-
-  const book: Book | undefined =
-    givenBook || givenMedia?.book || seriesBook?.book;
-  const media: Media[] | undefined = givenMedia
-    ? [givenMedia]
-    : givenBook?.media || seriesBook?.book.media;
-
-  if (!book || !media || media.length === 0) return null;
 
   const navigateToBook = () => {
     if (media.length === 1) {

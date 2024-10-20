@@ -1,12 +1,12 @@
-import BookTile from "@/src/components/BookTile";
 import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
 import ScreenCentered from "@/src/components/ScreenCentered";
+import { MediaTile } from "@/src/components/Tiles";
 import { MediaForIndex, listMediaForIndex } from "@/src/db/library";
 import { syncDown } from "@/src/db/sync";
 import { useSessionStore } from "@/src/stores/session";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { FlatList, Text, View } from "react-native";
+import { FlatList, Text } from "react-native";
 
 export default function LibraryScreen() {
   const session = useSessionStore((state) => state.session);
@@ -69,7 +69,7 @@ export default function LibraryScreen() {
       keyExtractor={(item) => item.id}
       numColumns={2}
       renderItem={({ item }) => (
-        <BookTile className="p-2 w-1/2 mb-2" media={item} />
+        <MediaTile className="p-2 w-1/2 mb-2" media={item} />
       )}
     />
   );
