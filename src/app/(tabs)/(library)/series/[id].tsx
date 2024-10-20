@@ -31,13 +31,15 @@ type AuthorOrNarrator = {
   };
 };
 
+type SeriesDetailsFlatListProps = {
+  seriesId: string;
+  session: Session;
+};
+
 function SeriesDetailsFlatList({
   seriesId,
   session,
-}: {
-  seriesId: string;
-  session: Session;
-}) {
+}: SeriesDetailsFlatListProps) {
   const { data: series } = useLiveTablesQuery(
     db.query.series.findFirst({
       columns: { id: true, name: true },
@@ -175,13 +177,12 @@ function SeriesDetailsFlatList({
   );
 }
 
-function Header({
-  authors,
-  narrators,
-}: {
+type HeaderProps = {
   authors: AuthorOrNarrator[];
   narrators: AuthorOrNarrator[];
-}) {
+};
+
+function Header({ authors, narrators }: HeaderProps) {
   return (
     <View className="p-2 gap-1">
       <NamesList
@@ -198,13 +199,12 @@ function Header({
   );
 }
 
-function Footer({
-  authors,
-  narrators,
-}: {
+type FooterProps = {
   authors: AuthorOrNarrator[];
   narrators: AuthorOrNarrator[];
-}) {
+};
+
+function Footer({ authors, narrators }: FooterProps) {
   return (
     <View className="mt-8">
       <Text

@@ -562,7 +562,7 @@ function MediaDescription({
   return (
     <View className="gap-1 mt-8">
       <Description description={media.description} />
-      <View className="flex">
+      <View>
         {media.book.published && (
           <Text className="text-sm text-zinc-400">
             First published{" "}

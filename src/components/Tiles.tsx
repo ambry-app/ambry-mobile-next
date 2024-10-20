@@ -64,17 +64,14 @@ export function SeriesBookTile({ seriesBook, className }: SeriesBookTileProps) {
   );
 }
 
-function Tile({
-  book,
-  media,
-  seriesBook,
-  className,
-}: {
+type TileProps = {
   book: Book;
   media: Media[];
   seriesBook?: SeriesBook;
   className?: string;
-}) {
+};
+
+export function Tile({ book, media, seriesBook, className }: TileProps) {
   const router = useRouter();
 
   const navigateToBook = () => {
