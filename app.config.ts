@@ -3,14 +3,14 @@ const IS_PREVIEW = process.env.APP_VARIANT === "preview";
 
 const getUniqueIdentifier = () => {
   if (IS_DEV) {
-    return "com.doughsay.ambry.dev";
+    return "app.ambry.mobile.dev";
   }
 
   if (IS_PREVIEW) {
-    return "com.doughsay.ambry.preview";
+    return "app.ambry.mobile.preview";
   }
 
-  return "com.doughsay.ambry";
+  return "app.ambry.mobile";
 };
 
 const getAppName = () => {
@@ -28,7 +28,7 @@ const getAppName = () => {
 export default {
   expo: {
     name: getAppName(),
-    slug: "ambry",
+    slug: "ambry-mobile",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
@@ -73,10 +73,10 @@ export default {
     experiments: {
       typedRoutes: true,
     },
-    owner: "doughsay",
+    owner: "ambry-app",
     extra: {
       eas: {
-        projectId: "3c2e6465-601f-4887-9084-dda1a0a28415",
+        projectId: "47185dc5-b1cf-48be-8e0d-9bec4dfac948",
       },
     },
   },
