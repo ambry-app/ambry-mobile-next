@@ -1,20 +1,21 @@
 import MultiThumbnailImage from "@/src/components/MultiThumbnailImage";
 import NamesList from "@/src/components/NamesList";
-import * as schema from "@/src/db/schema";
+import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 import { useRouter } from "expo-router";
 import { Text, TouchableOpacity, View } from "react-native";
 import { PressableScale } from "react-native-pressable-scale";
+import ThumbnailImage from "./ThumbnailImage";
 
 type Media = {
   id: string;
-  thumbnails: schema.Thumbnails | null;
+  thumbnails: Thumbnails | null;
   mediaNarrators: {
     narrator: {
       name: string;
     };
   }[];
   download: {
-    thumbnails: schema.DownloadedThumbnails | null;
+    thumbnails: DownloadedThumbnails | null;
   } | null;
 };
 
@@ -78,12 +79,12 @@ export function Tile({ book, media, seriesBook, className }: TileProps) {
     if (media.length === 1) {
       router.push({
         pathname: "/media/[id]",
-        params: { id: media[0].id },
+        params: { id: media[0].id, title: book.title },
       });
     } else {
       router.push({
         pathname: "/book/[id]",
-        params: { id: book.id },
+        params: { id: book.id, title: book.title },
       });
     }
   };
@@ -128,6 +129,64 @@ export function Tile({ book, media, seriesBook, className }: TileProps) {
               numberOfLines={1}
             />
           )}
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+type PersonTileProps = {
+  personId: string;
+  name: string;
+  realName: string;
+  thumbnails: Thumbnails | null;
+  label: string;
+};
+
+export function PersonTile({
+  personId,
+  name,
+  realName,
+  thumbnails,
+  label,
+}: PersonTileProps) {
+  const router = useRouter();
+
+  const navigateToPerson = () => {
+    router.push({
+      pathname: "/person/[id]",
+      params: { id: personId, title: realName },
+    });
+  };
+
+  return (
+    <View className="flex gap-3">
+      <PressableScale weight="light" onPress={navigateToPerson}>
+        <ThumbnailImage
+          thumbnails={thumbnails}
+          size="large"
+          className="rounded-full aspect-square"
+        />
+      </PressableScale>
+      <TouchableOpacity onPress={navigateToPerson}>
+        <View>
+          <Text
+            className="text-lg text-zinc-100 font-medium text-center leading-tight"
+            numberOfLines={1}
+          >
+            {name}
+          </Text>
+          {realName !== name && (
+            <Text
+              className="text-zinc-300 text-center leading-tight"
+              numberOfLines={1}
+            >
+              ({realName})
+            </Text>
+          )}
+          <Text className="text-sm text-zinc-400 text-center leading-tight">
+            {label}
+          </Text>
         </View>
       </TouchableOpacity>
     </View>
