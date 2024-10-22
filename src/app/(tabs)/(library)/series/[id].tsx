@@ -1,6 +1,5 @@
 import NamesList from "@/src/components/NamesList";
-import PersonTile from "@/src/components/PersonTile";
-import { SeriesBookTile } from "@/src/components/Tiles";
+import { PersonTile, SeriesBookTile } from "@/src/components/Tiles";
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
@@ -12,12 +11,20 @@ import { FlatList, Text, View } from "react-native";
 
 export default function SeriesDetails() {
   const session = useSessionStore((state) => state.session);
-  const { id: seriesId } = useLocalSearchParams<{ id: string }>();
+  const { id: seriesId, title } = useLocalSearchParams<{
+    id: string;
+    title: string;
+  }>();
   useSyncOnFocus();
 
   if (!session) return null;
 
-  return <SeriesDetailsFlatList session={session} seriesId={seriesId} />;
+  return (
+    <>
+      <Stack.Screen options={{ title }} />
+      <SeriesDetailsFlatList session={session} seriesId={seriesId} />
+    </>
+  );
 }
 
 type AuthorOrNarrator = {
@@ -154,26 +161,21 @@ function SeriesDetailsFlatList({
   );
 
   return (
-    <>
-      <Stack.Screen options={{ title: series.name }} />
-      <FlatList
-        className="px-2"
-        data={seriesBooks}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        ListHeaderComponent={() => (
-          <Header authors={authors} narrators={narrators} />
-        )}
-        ListFooterComponent={() => (
-          <Footer authors={authors} narrators={narrators} />
-        )}
-        renderItem={({ item }) => {
-          return (
-            <SeriesBookTile className="p-2 w-1/2 mb-2" seriesBook={item} />
-          );
-        }}
-      />
-    </>
+    <FlatList
+      className="px-2"
+      data={seriesBooks}
+      keyExtractor={(item) => item.id}
+      numColumns={2}
+      ListHeaderComponent={() => (
+        <Header authors={authors} narrators={narrators} />
+      )}
+      ListFooterComponent={() => (
+        <Footer authors={authors} narrators={narrators} />
+      )}
+      renderItem={({ item }) => {
+        return <SeriesBookTile className="p-2 w-1/2 mb-2" seriesBook={item} />;
+      }}
+    />
   );
 }
 

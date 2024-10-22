@@ -1,2 +1,4 @@
 bun 1.1.31
 java adoptopenjdk-22.0.2+9
+# only needed for esbuild postinstall?
+nodejs 20.17.0

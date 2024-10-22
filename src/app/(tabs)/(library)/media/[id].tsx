@@ -1,8 +1,12 @@
 import Description from "@/src/components/Description";
 import NamesList from "@/src/components/NamesList";
-import PersonTile from "@/src/components/PersonTile";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
-import { BookTile, MediaTile, SeriesBookTile } from "@/src/components/Tiles";
+import {
+  BookTile,
+  MediaTile,
+  PersonTile,
+  SeriesBookTile,
+} from "@/src/components/Tiles";
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
@@ -10,6 +14,7 @@ import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
 import { useDownloadsStore } from "@/src/stores/downloads";
 import { Session, useSessionStore } from "@/src/stores/session";
 import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
+import { formatPublished } from "@/src/utils/dates";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import {
   and,
@@ -36,12 +41,20 @@ import colors from "tailwindcss/colors";
 
 export default function MediaDetails() {
   const session = useSessionStore((state) => state.session);
-  const { id: mediaId } = useLocalSearchParams<{ id: string }>();
+  const { id: mediaId, title } = useLocalSearchParams<{
+    id: string;
+    title: string;
+  }>();
   useSyncOnFocus();
 
   if (!session) return null;
 
-  return <MediaDetailsFlatList session={session} mediaId={mediaId} />;
+  return (
+    <>
+      <Stack.Screen options={{ title }} />
+      <MediaDetailsFlatList session={session} mediaId={mediaId} />
+    </>
+  );
 }
 
 type HeaderSection = {
@@ -324,7 +337,6 @@ function Header({ mediaId, session }: { mediaId: string; session: Session }) {
 
   return (
     <View className="gap-2">
-      <Stack.Screen options={{ title: media.book.title }} />
       <ThumbnailImage
         thumbnails={media.thumbnails}
         downloadedThumbnails={media.download?.thumbnails}
@@ -584,20 +596,6 @@ function MediaDescription({
       </View>
     </View>
   );
-}
-
-function formatPublished(
-  published: Date,
-  publishedFormat: string,
-  month: "short" | "long" = "long",
-) {
-  const options: Intl.DateTimeFormatOptions =
-    publishedFormat === "full"
-      ? { year: "numeric", month, day: "numeric" }
-      : publishedFormat === "year_month"
-        ? { year: "numeric", month }
-        : { year: "numeric" };
-  return new Intl.DateTimeFormat("en-US", options).format(published);
 }
 
 function AuthorsAndNarrators({

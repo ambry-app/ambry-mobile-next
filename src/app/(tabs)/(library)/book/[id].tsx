@@ -5,18 +5,27 @@ import * as schema from "@/src/db/schema";
 import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
 import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
 import { Session, useSessionStore } from "@/src/stores/session";
+import { formatPublished } from "@/src/utils/dates";
 import { and, eq } from "drizzle-orm";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { FlatList, Text, View } from "react-native";
 
 export default function BookDetails() {
   const session = useSessionStore((state) => state.session);
-  const { id: bookId } = useLocalSearchParams<{ id: string }>();
+  const { id: bookId, title } = useLocalSearchParams<{
+    id: string;
+    title: string;
+  }>();
   useSyncOnFocus();
 
   if (!session) return null;
 
-  return <BookDetailsFlatList session={session} bookId={bookId} />;
+  return (
+    <>
+      <Stack.Screen options={{ title }} />
+      <BookDetailsFlatList session={session} bookId={bookId} />
+    </>
+  );
 }
 
 function BookDetailsFlatList({
@@ -85,19 +94,16 @@ function BookDetailsFlatList({
   if (!book) return null;
 
   return (
-    <>
-      <Stack.Screen options={{ title: book.title }} />
-      <FlatList
-        className="px-2"
-        data={book.media}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        ListHeaderComponent={() => <Header book={book} />}
-        renderItem={({ item }) => {
-          return <Tile className="p-2 w-1/2 mb-2" media={[item]} book={book} />;
-        }}
-      />
-    </>
+    <FlatList
+      className="px-2"
+      data={book.media}
+      keyExtractor={(item) => item.id}
+      numColumns={2}
+      ListHeaderComponent={() => <Header book={book} />}
+      renderItem={({ item }) => {
+        return <Tile className="p-2 w-1/2 mb-2" media={[item]} book={book} />;
+      }}
+    />
   );
 }
 
@@ -161,18 +167,4 @@ function Header({ book }: HeaderProps) {
       </Text>
     </View>
   );
-}
-
-function formatPublished(
-  published: Date,
-  publishedFormat: string,
-  month: "short" | "long" = "long",
-) {
-  const options: Intl.DateTimeFormatOptions =
-    publishedFormat === "full"
-      ? { year: "numeric", month, day: "numeric" }
-      : publishedFormat === "year_month"
-        ? { year: "numeric", month }
-        : { year: "numeric" };
-  return new Intl.DateTimeFormat("en-US", options).format(published);
 }

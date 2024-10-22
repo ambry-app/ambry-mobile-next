@@ -14,12 +14,20 @@ import { FlatList, Text, View } from "react-native";
 
 export default function PersonDetails() {
   const session = useSessionStore((state) => state.session);
-  const { id: personId } = useLocalSearchParams<{ id: string }>();
+  const { id: personId, title } = useLocalSearchParams<{
+    id: string;
+    title: string;
+  }>();
   useSyncOnFocus();
 
   if (!session) return null;
 
-  return <PersonDetailsFlatList session={session} personId={personId} />;
+  return (
+    <>
+      <Stack.Screen options={{ title }} />
+      <PersonDetailsFlatList session={session} personId={personId} />
+    </>
+  );
 }
 
 type HeaderSection = {
@@ -171,14 +179,11 @@ function Header({ personId, session }: { personId: string; session: Session }) {
   if (!person) return null;
 
   return (
-    <>
-      <Stack.Screen options={{ title: person.name }} />
-      <ThumbnailImage
-        thumbnails={person.thumbnails}
-        size="extraLarge"
-        className="w-3/4 mt-8 mx-auto rounded-full aspect-square"
-      />
-    </>
+    <ThumbnailImage
+      thumbnails={person.thumbnails}
+      size="extraLarge"
+      className="w-3/4 mt-8 mx-auto rounded-full aspect-square"
+    />
   );
 }
 

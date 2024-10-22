@@ -8,7 +8,7 @@ import * as NavigationBar from "expo-navigation-bar";
 import { Stack } from "expo-router";
 import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
-import { Text, View } from "react-native";
+import { Platform, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
 
 SystemUI.setBackgroundColorAsync("black");
@@ -27,7 +27,11 @@ const Theme = {
 
 export default function App() {
   useEffect(() => {
-    NavigationBar.setBackgroundColorAsync(colors.zinc[900]);
+    if (Platform.OS === "android") {
+      NavigationBar.setBackgroundColorAsync(colors.transparent);
+      NavigationBar.setBorderColorAsync(colors.transparent);
+      NavigationBar.setPositionAsync("absolute");
+    }
   });
 
   return (
