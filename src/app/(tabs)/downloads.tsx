@@ -36,7 +36,7 @@ function DownloadsList({ session }: { session: Session }) {
         </Text>
         <Text className="text-zinc-100 text-xl">
           Go to the{" "}
-          <Link href="/(library)/library" className="text-lime-400">
+          <Link href="/(library)/" className="text-lime-400">
             library
           </Link>{" "}
           to download some!

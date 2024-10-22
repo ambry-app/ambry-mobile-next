@@ -29,7 +29,6 @@ export default function App() {
   useEffect(() => {
     if (Platform.OS === "android") {
       NavigationBar.setBackgroundColorAsync(colors.transparent);
-      NavigationBar.setBorderColorAsync(colors.transparent);
       NavigationBar.setPositionAsync("absolute");
     }
   });
@@ -60,7 +59,6 @@ function Root() {
 
   return isReady ? (
     <Stack>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="sign-in" options={{ title: "Sign In" }} />
     </Stack>
