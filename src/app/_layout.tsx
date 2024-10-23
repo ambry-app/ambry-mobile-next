@@ -1,5 +1,6 @@
 import "@/assets/global.css";
 import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
+import MeasureScreenHeight from "@/src/components/MeasureScreenHeight";
 import { expoDb } from "@/src/db/db";
 import { useAppBoot } from "@/src/hooks/use.app.boot";
 import { ThemeProvider } from "@react-navigation/native";
@@ -9,6 +10,7 @@ import { Stack } from "expo-router";
 import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
 import { Platform, Text, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import colors from "tailwindcss/colors";
 
 SystemUI.setBackgroundColorAsync("black");
@@ -34,12 +36,13 @@ export default function App() {
   });
 
   return (
-    <>
+    <GestureHandlerRootView>
+      <MeasureScreenHeight />
       {__DEV__ && <DrizzleStudio />}
       <ThemeProvider value={Theme}>
         <Root />
       </ThemeProvider>
-    </>
+    </GestureHandlerRootView>
   );
 }
 
