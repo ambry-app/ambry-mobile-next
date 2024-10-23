@@ -12,6 +12,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
+  interpolate,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -84,58 +85,60 @@ function TabBarWithPlayer({
   navigation,
   insets,
 }: BottomTabBarProps) {
-  const mediaId = useTrackPlayerStore((state) => state.mediaId);
-  const playerVisible = !!mediaId;
+  const expansion = useSharedValue(1.0);
+  const { height: screenHeight } = useScreenStore((state) => state);
+  const whereItWas = useSharedValue(0);
+  const onEnd = useSharedValue(0);
+
   const tabBarHeight = 50 + insets.bottom;
   const playerHeight = 85;
-  const expansion = useSharedValue(1.0);
-  const { height } = useScreenStore((state) => state);
-  const whereItWas = useSharedValue(0);
 
   const panGesture = Gesture.Pan()
     .onStart((e) => {
-      console.log("pan start");
       whereItWas.value = expansion.value;
     })
     .onUpdate((e) => {
-      console.log("pan update", e.translationY / -height);
       expansion.value = Math.min(
         1.0,
-        Math.max(0.0, whereItWas.value + e.translationY / -height),
+        Math.max(
+          0.0,
+          whereItWas.value +
+            e.translationY / -(screenHeight - tabBarHeight - playerHeight),
+        ),
       );
+
+      if (e.velocityY < -0) onEnd.value = 1.0;
+      if (e.velocityY > 0) onEnd.value = 0.0;
     })
     .onEnd((e) => {
-      console.log("pan end", e.velocityY);
-      if (e.velocityY < -0) {
-        console.log("UP");
-        expansion.value = 1.0;
-      }
-
-      if (e.velocityY > 0) {
-        console.log("DOWN");
-        expansion.value = 0.0;
-      }
+      expansion.value = withTiming(onEnd.value, {
+        duration: 400,
+        easing: Easing.out(Easing.exp),
+      });
     });
 
-  const tapGesture = Gesture.Tap()
-    .onStart((e) => {
-      console.log("tap triggered", expansion.value);
-    })
-    .onEnd((e) => {
-      console.log("tap end");
-      if (expansion.value === 1.0) {
-        expansion.value = 0.0;
-      } else if (expansion.value === 0.0) {
-        expansion.value = 1.0;
-      }
-    });
+  const tapGesture = Gesture.Tap().onEnd((e) => {
+    if (expansion.value === 1.0) {
+      expansion.value = withTiming(0.0, {
+        duration: 400,
+        easing: Easing.out(Easing.exp),
+      });
+    } else if (expansion.value === 0.0) {
+      expansion.value = withTiming(1.0, {
+        duration: 400,
+        easing: Easing.out(Easing.exp),
+      });
+    }
+  });
 
   const gestures = Gesture.Race(panGesture, tapGesture);
 
   useBackHandler(() => {
-    console.log(expansion.value);
     if (expansion.value === 1.0) {
-      expansion.value = 0.0;
+      expansion.value = withTiming(0.0, {
+        duration: 400,
+        easing: Easing.out(Easing.exp),
+      });
       return true;
     }
     return false;
@@ -145,46 +148,59 @@ function TabBarWithPlayer({
     return {
       transform: [
         {
-          translateY: withTiming(expansion.value * tabBarHeight, {
-            duration: 400,
-            easing: Easing.out(Easing.exp),
-          }),
+          translateY: interpolate(expansion.value, [0, 1], [0, tabBarHeight]),
         },
       ],
     };
   });
 
   const playerStyle = useAnimatedStyle(() => {
-    // linearly interpolate between playerHeight and height
-    // based on the expansion value which is from 0.0 to 1.0:
-    const interpolatedHeight =
-      playerHeight + expansion.value * (height - playerHeight);
+    const interpolatedHeight = interpolate(
+      expansion.value,
+      [0, 1],
+      [playerHeight, screenHeight],
+    );
 
-    // linearly interpolate between 0 and tabBarHeight
-    // based on the expansion value which is from 0.0 to 1.0:
-    const interpolatedBottom = (1 - expansion.value) * tabBarHeight;
+    const interpolatedBottom = interpolate(
+      expansion.value,
+      [0, 1],
+      [tabBarHeight, 0],
+    );
+
     return {
-      height: withTiming(interpolatedHeight, {
-        duration: 400,
-        easing: Easing.out(Easing.exp),
-      }),
-      bottom: withTiming(interpolatedBottom, {
-        duration: 400,
-        easing: Easing.out(Easing.exp),
-      }),
+      height: interpolatedHeight,
+      bottom: interpolatedBottom,
+    };
+  });
+
+  const backgroundStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(expansion.value, [0, 1], [0, 0.95]),
     };
   });
 
   return (
-    <View
-      style={{
-        display: "flex",
-        justifyContent: "flex-end",
-        backgroundColor: colors.zinc[900],
-        height: tabBarHeight + playerHeight,
-      }}
-    >
-      {playerVisible && (
+    <>
+      <Animated.View
+        style={[
+          {
+            position: "absolute",
+            height: "100%",
+            width: "100%",
+            backgroundColor: "black",
+            pointerEvents: "none",
+          },
+          backgroundStyle,
+        ]}
+      />
+      <View
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          backgroundColor: colors.zinc[900],
+          height: tabBarHeight + playerHeight,
+        }}
+      >
         <GestureDetector gesture={gestures}>
           <Animated.View
             style={[
@@ -202,11 +218,11 @@ function TabBarWithPlayer({
             <Text className="text-zinc-100">This is the player</Text>
           </Animated.View>
         </GestureDetector>
-      )}
-      <Animated.View style={[{ height: tabBarHeight }, tabBarStyle]}>
-        <BottomTabBar {...{ state, descriptors, navigation, insets }} />
-      </Animated.View>
-    </View>
+        <Animated.View style={[{ height: tabBarHeight }, tabBarStyle]}>
+          <BottomTabBar {...{ state, descriptors, navigation, insets }} />
+        </Animated.View>
+      </View>
+    </>
   );
 }
 
