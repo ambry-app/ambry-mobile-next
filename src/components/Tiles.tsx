@@ -1,10 +1,12 @@
-import MultiThumbnailImage from "@/src/components/MultiThumbnailImage";
+import MultiThumbnailImage, {
+  MultiThumbnailImageNoTW,
+} from "@/src/components/MultiThumbnailImage";
 import NamesList from "@/src/components/NamesList";
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 import { useRouter } from "expo-router";
 import { Text, TouchableOpacity, View } from "react-native";
 import { PressableScale } from "react-native-pressable-scale";
-import ThumbnailImage from "./ThumbnailImage";
+import ThumbnailImage, { ThumbnailImageNoTW } from "./ThumbnailImage";
 
 type Media = {
   id: string;
@@ -98,13 +100,14 @@ export function Tile({ book, media, seriesBook, className }: TileProps) {
           </Text>
         )}
         <PressableScale weight="light" onPress={navigateToBook}>
-          <MultiThumbnailImage
+          <MultiThumbnailImageNoTW
             thumbnailPairs={media.map((m) => ({
               thumbnails: m.thumbnails,
               downloadedThumbnails: m.download?.thumbnails || null,
             }))}
             size="large"
-            className="rounded-lg aspect-square"
+            // className="rounded-lg aspect-square"
+            style={{ aspectRatio: 1, borderRadius: 8 }}
           />
         </PressableScale>
       </View>
@@ -162,10 +165,10 @@ export function PersonTile({
   return (
     <View className="flex gap-3">
       <PressableScale weight="light" onPress={navigateToPerson}>
-        <ThumbnailImage
+        <ThumbnailImageNoTW
           thumbnails={thumbnails}
           size="large"
-          className="rounded-full aspect-square"
+          style={{ aspectRatio: 1, borderRadius: 9999 }}
         />
       </PressableScale>
       <TouchableOpacity onPress={navigateToPerson}>

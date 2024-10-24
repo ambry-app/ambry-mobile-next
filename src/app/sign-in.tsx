@@ -68,7 +68,12 @@ export default function SignIn() {
         title="Sign in"
         color={colors.lime[500]}
         onPress={() => {
-          signIn(host, email, password);
+          // to help the automated Google Play pre-launch report
+          if (email === "demo@ambry.app") {
+            signIn("https://demo.ambry.app", email, "demo");
+          } else {
+            signIn(host, email, password);
+          }
         }}
         disabled={isLoading}
       />

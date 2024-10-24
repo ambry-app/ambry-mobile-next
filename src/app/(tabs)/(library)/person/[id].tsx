@@ -1,5 +1,7 @@
 import Description from "@/src/components/Description";
-import ThumbnailImage from "@/src/components/ThumbnailImage";
+import ThumbnailImage, {
+  ThumbnailImageNoTW,
+} from "@/src/components/ThumbnailImage";
 import { BookTile, MediaTile } from "@/src/components/Tiles";
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
@@ -179,10 +181,17 @@ function Header({ personId, session }: { personId: string; session: Session }) {
   if (!person) return null;
 
   return (
-    <ThumbnailImage
+    <ThumbnailImageNoTW
       thumbnails={person.thumbnails}
       size="extraLarge"
-      className="w-3/4 mt-8 mx-auto rounded-full aspect-square"
+      style={{
+        aspectRatio: 1,
+        borderRadius: 9999,
+        marginLeft: "auto",
+        marginRight: "auto",
+        marginTop: 32,
+        width: "75%",
+      }}
     />
   );
 }

@@ -1,6 +1,8 @@
 import Description from "@/src/components/Description";
 import NamesList from "@/src/components/NamesList";
-import ThumbnailImage from "@/src/components/ThumbnailImage";
+import ThumbnailImage, {
+  ThumbnailImageNoTW,
+} from "@/src/components/ThumbnailImage";
 import {
   BookTile,
   MediaTile,
@@ -337,11 +339,11 @@ function Header({ mediaId, session }: { mediaId: string; session: Session }) {
 
   return (
     <View className="gap-2">
-      <ThumbnailImage
+      <ThumbnailImageNoTW
         thumbnails={media.thumbnails}
         downloadedThumbnails={media.download?.thumbnails}
         size="extraLarge"
-        className="w-full rounded-xl aspect-square"
+        style={{ width: "100%", aspectRatio: 1, borderRadius: 12 }}
       />
       <View>
         <Text className="text-2xl text-zinc-100 font-bold leading-tight">

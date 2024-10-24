@@ -1,5 +1,8 @@
 import NamesList from "@/src/components/NamesList";
-import ThumbnailImage from "@/src/components/ThumbnailImage";
+import ThumbnailImage, {
+  ThumbnailImageNative,
+  ThumbnailImageNoTW,
+} from "@/src/components/ThumbnailImage";
 import useBackHandler from "@/src/hooks/use.back.handler";
 import { useMediaDetails } from "@/src/hooks/use.media.details";
 import { useScreenStore } from "@/src/stores/screen";
@@ -8,10 +11,11 @@ import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { BottomTabBar, BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Tabs } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
+  Extrapolation,
   interpolate,
   useAnimatedStyle,
   useSharedValue,
@@ -85,13 +89,15 @@ function TabBarWithPlayer({
   navigation,
   insets,
 }: BottomTabBarProps) {
+  const mediaId = useTrackPlayerStore((state) => state.mediaId);
+  const { media } = useMediaDetails(mediaId);
   const expansion = useSharedValue(1.0);
   const { height: screenHeight } = useScreenStore((state) => state);
   const whereItWas = useSharedValue(0);
   const onEnd = useSharedValue(0);
 
   const tabBarHeight = 50 + insets.bottom;
-  const playerHeight = 85;
+  const playerHeight = 80;
 
   const panGesture = Gesture.Pan()
     .onStart((e) => {
@@ -117,21 +123,21 @@ function TabBarWithPlayer({
       });
     });
 
-  const tapGesture = Gesture.Tap().onEnd((e) => {
-    if (expansion.value === 1.0) {
-      expansion.value = withTiming(0.0, {
-        duration: 400,
-        easing: Easing.out(Easing.exp),
-      });
-    } else if (expansion.value === 0.0) {
-      expansion.value = withTiming(1.0, {
-        duration: 400,
-        easing: Easing.out(Easing.exp),
-      });
-    }
-  });
+  // const tapGesture = Gesture.Tap().onEnd((e) => {
+  //   if (expansion.value === 1.0) {
+  //     expansion.value = withTiming(0.0, {
+  //       duration: 400,
+  //       easing: Easing.out(Easing.exp),
+  //     });
+  //   } else if (expansion.value === 0.0) {
+  //     expansion.value = withTiming(1.0, {
+  //       duration: 400,
+  //       easing: Easing.out(Easing.exp),
+  //     });
+  //   }
+  // });
 
-  const gestures = Gesture.Race(panGesture, tapGesture);
+  const gestures = Gesture.Race(panGesture);
 
   useBackHandler(() => {
     if (expansion.value === 1.0) {
@@ -170,6 +176,7 @@ function TabBarWithPlayer({
     return {
       height: interpolatedHeight,
       bottom: interpolatedBottom,
+      paddingTop: interpolate(expansion.value, [0, 1], [0, insets.top]),
     };
   });
 
@@ -178,6 +185,58 @@ function TabBarWithPlayer({
       opacity: interpolate(expansion.value, [0, 1], [0, 0.95]),
     };
   });
+
+  const chevronStyle = useAnimatedStyle(() => {
+    return {
+      // padding: interpolate(
+      //   expansion.value,
+      //   [0, 0.75],
+      //   [0, 8],
+      //   Extrapolation.CLAMP,
+      // ),
+      width: `${interpolate(expansion.value, [0, 0.75], [0, 10], Extrapolation.CLAMP)}%`,
+      // opacity: interpolate(
+      //   expansion.value,
+      //   [0.75, 1],
+      //   [0, 1],
+      //   Extrapolation.CLAMP,
+      // ),
+    };
+  });
+
+  const imageStyle = useAnimatedStyle(() => {
+    return {
+      width: `${interpolate(expansion.value, [0, 1], [20, 80])}%`,
+      paddingLeft: interpolate(expansion.value, [0, 1], [16, 0]),
+    };
+  });
+
+  const miniControlsStyle = useAnimatedStyle(() => {
+    return {
+      width: `${interpolate(expansion.value, [0, 1], [80, 10])}%`,
+      paddingRight: interpolate(expansion.value, [0, 1], [16, 0]),
+      // opacity: interpolate(
+      //   expansion.value,
+      //   [0, 0.5],
+      //   [1, 0],
+      //   Extrapolation.CLAMP,
+      // ),
+    };
+  });
+
+  const controlsStyle = useAnimatedStyle(() => {
+    return {
+      paddingTop: interpolate(expansion.value, [0.75, 1], [32, 0]),
+      // opacity: interpolate(
+      //   expansion.value,
+      //   [0.75, 1],
+      //   [0, 1],
+      //   Extrapolation.CLAMP,
+      // ),
+    };
+  });
+
+  if (!media) return null;
 
   return (
     <>
@@ -205,17 +264,160 @@ function TabBarWithPlayer({
           <Animated.View
             style={[
               {
+                display: "flex",
                 width: "100%",
                 position: "absolute",
-                padding: 32,
                 backgroundColor: colors.zinc[900],
-                display: "flex",
-                justifyContent: "center",
+                borderColor: colors.zinc[600],
+                borderTopWidth: StyleSheet.hairlineWidth,
               },
               playerStyle,
             ]}
           >
-            <Text className="text-zinc-100">This is the player</Text>
+            <View
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                // alignItems: "center",
+                // justifyContent: "space-evenly",
+                // paddingVertical: 8,
+                // paddingHorizontal: 16,
+                // gap: 16,
+              }}
+            >
+              <Animated.View
+                style={[
+                  {
+                    // marginTop: -8,
+                    // alignSelf: "flex-start",
+                    backgroundColor: colors.cyan[900],
+                  },
+                  chevronStyle,
+                ]}
+              >
+                <Pressable onPress={() => console.log("lol?")}>
+                  <FontAwesome6
+                    size={24}
+                    name="chevron-down"
+                    color={colors.zinc[100]}
+                  />
+                </Pressable>
+              </Animated.View>
+              <Animated.View
+                style={[
+                  {
+                    // display: "flex",
+                    alignSelf: "center",
+                    backgroundColor: colors.green[900],
+                  },
+                  imageStyle,
+                ]}
+              >
+                <ThumbnailImageNoTW
+                  downloadedThumbnails={media.download?.thumbnails}
+                  thumbnails={media.thumbnails}
+                  size="extraLarge"
+                  style={{
+                    width: "100%",
+                    aspectRatio: 1,
+                    borderRadius: 6,
+                  }}
+                />
+              </Animated.View>
+              <Animated.View
+                style={[
+                  {
+                    backgroundColor: colors.red[900],
+                    height: playerHeight,
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingLeft: 8,
+                  },
+                  miniControlsStyle,
+                ]}
+              >
+                <View className="flex-1">
+                  <Text className="text-zinc-100 font-medium" numberOfLines={1}>
+                    {media.book.title}
+                  </Text>
+                  <NamesList
+                    names={media.book.bookAuthors.map((ba) => ba.author.name)}
+                    className="text-sm text-zinc-300 leading-tight"
+                    numberOfLines={1}
+                  />
+                  <NamesList
+                    prefix="Read by"
+                    names={media.mediaNarrators.map((mn) => mn.narrator.name)}
+                    className="text-xs text-zinc-400 leading-tight"
+                    numberOfLines={1}
+                  />
+                </View>
+                <View className="pr-2">
+                  <Pressable
+                    onPress={() => {
+                      console.log("lol?");
+                    }}
+                  >
+                    <FontAwesome6
+                      size={24}
+                      name="play"
+                      color={colors.zinc[100]}
+                    />
+                  </Pressable>
+                </View>
+              </Animated.View>
+            </View>
+            <View
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                // alignItems: "center",
+                // justifyContent: "space-evenly",
+                // paddingVertical: 8,
+                // paddingHorizontal: 16,
+                // gap: 16,
+              }}
+            >
+              <View style={{ width: "10%" }}></View>
+              <View style={{ width: "80%" }}>
+                <Text className="text-zinc-100 font-medium" numberOfLines={1}>
+                  {media.book.title}
+                </Text>
+                <NamesList
+                  names={media.book.bookAuthors.map((ba) => ba.author.name)}
+                  className="text-sm text-zinc-300 leading-tight"
+                  numberOfLines={1}
+                />
+                <NamesList
+                  prefix="Read by"
+                  names={media.mediaNarrators.map((mn) => mn.narrator.name)}
+                  className="text-xs text-zinc-400 leading-tight"
+                  numberOfLines={1}
+                />
+              </View>
+              <View style={{ width: "10%" }}></View>
+            </View>
+            <Animated.View
+              style={[
+                {
+                  width: "100%",
+                  flexGrow: 1,
+                  display: "flex",
+                  // justifyContent: "space-between",
+                  paddingBottom: insets.bottom,
+                  backgroundColor: colors.blue[900],
+                },
+                controlsStyle,
+              ]}
+            >
+              <Text className="text-zinc-100 text-center bg-yellow-900 grow">
+                Other stuff here
+              </Text>
+              <Text className="text-zinc-100 text-center bg-purple-900 grow">
+                This is at the bottom
+              </Text>
+            </Animated.View>
           </Animated.View>
         </GestureDetector>
         <Animated.View style={[{ height: tabBarHeight }, tabBarStyle]}>

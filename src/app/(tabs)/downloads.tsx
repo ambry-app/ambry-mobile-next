@@ -1,5 +1,9 @@
+import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
 import NamesList from "@/src/components/NamesList";
-import ThumbnailImage from "@/src/components/ThumbnailImage";
+import ScreenCentered from "@/src/components/ScreenCentered";
+import ThumbnailImage, {
+  ThumbnailImageNoTW,
+} from "@/src/components/ThumbnailImage";
 import { useLiveDownloadsList, type Download } from "@/src/db/downloads";
 import { useDownloadsStore } from "@/src/stores/downloads";
 import { Session, useSessionStore } from "@/src/stores/session";
@@ -26,7 +30,15 @@ export default function DownloadsScreen() {
 }
 
 function DownloadsList({ session }: { session: Session }) {
-  const { data } = useLiveDownloadsList(session);
+  const { data, updatedAt } = useLiveDownloadsList(session);
+
+  if (updatedAt === undefined) {
+    return (
+      <ScreenCentered>
+        <LargeActivityIndicator />
+      </ScreenCentered>
+    );
+  }
 
   if (data.length === 0) {
     return (
@@ -74,11 +86,11 @@ function DownloadRow({
   return (
     <View>
       <View className="p-4 flex flex-row items-center gap-4 border-b-[0.25px] border-zinc-600">
-        <ThumbnailImage
+        <ThumbnailImageNoTW
           downloadedThumbnails={download.thumbnails}
           thumbnails={download.media.thumbnails}
           size="small"
-          className="w-20 h-20 rounded-md"
+          style={{ width: 70, height: 70, borderRadius: 6 }}
         />
         <View className="flex-1">
           <Text className="text-zinc-100 font-medium" numberOfLines={1}>
