@@ -80,7 +80,13 @@ export default function TabLayout() {
 }
 
 function TabBar({ state, descriptors, navigation, insets }: BottomTabBarProps) {
-  return <BottomTabBar {...{ state, descriptors, navigation, insets }} />;
+  const tabBarHeight = 50 + insets.bottom;
+  return (
+    <BottomTabBar
+      style={{ height: tabBarHeight }}
+      {...{ state, descriptors, navigation, insets }}
+    />
+  );
 }
 
 function TabBarWithPlayer({
@@ -92,12 +98,22 @@ function TabBarWithPlayer({
   const mediaId = useTrackPlayerStore((state) => state.mediaId);
   const { media } = useMediaDetails(mediaId);
   const expansion = useSharedValue(1.0);
-  const { height: screenHeight } = useScreenStore((state) => state);
+  const { height: screenHeight, width: screenWidth } = useScreenStore(
+    (state) => state,
+  );
   const whereItWas = useSharedValue(0);
   const onEnd = useSharedValue(0);
 
   const tabBarHeight = 50 + insets.bottom;
-  const playerHeight = 80;
+  const playerHeight = 70;
+  const eightyPercentScreenWidth = screenWidth * 0.8;
+  const tenPercentScreenWidth = screenWidth * 0.1;
+  const miniControlsWidth = screenWidth - playerHeight;
+
+  const debugBackgrounds = false;
+  const debugBackground = (background: any) => {
+    return debugBackgrounds ? background : undefined;
+  };
 
   const panGesture = Gesture.Pan()
     .onStart((e) => {
@@ -186,7 +202,7 @@ function TabBarWithPlayer({
     };
   });
 
-  const chevronStyle = useAnimatedStyle(() => {
+  const leftGutterStyle = useAnimatedStyle(() => {
     return {
       // padding: interpolate(
       //   expansion.value,
@@ -194,7 +210,12 @@ function TabBarWithPlayer({
       //   [0, 8],
       //   Extrapolation.CLAMP,
       // ),
-      width: `${interpolate(expansion.value, [0, 0.75], [0, 10], Extrapolation.CLAMP)}%`,
+      width: interpolate(
+        expansion.value,
+        [0, 0.75],
+        [0, tenPercentScreenWidth],
+        Extrapolation.CLAMP,
+      ),
       // opacity: interpolate(
       //   expansion.value,
       //   [0.75, 1],
@@ -206,37 +227,85 @@ function TabBarWithPlayer({
 
   const imageStyle = useAnimatedStyle(() => {
     return {
-      width: `${interpolate(expansion.value, [0, 1], [20, 80])}%`,
-      paddingLeft: interpolate(expansion.value, [0, 1], [16, 0]),
+      // width: `${interpolate(expansion.value, [0, 1], [20, 80])}%`,
+      // paddingLeft: interpolate(expansion.value, [0, 1], [16, 0]),
+      height: interpolate(
+        expansion.value,
+        [0, 1],
+        [playerHeight, eightyPercentScreenWidth],
+      ),
+      width: interpolate(
+        expansion.value,
+        [0, 1],
+        [playerHeight, eightyPercentScreenWidth],
+      ),
+      padding: interpolate(expansion.value, [0, 1], [8, 0]),
     };
   });
 
   const miniControlsStyle = useAnimatedStyle(() => {
     return {
-      width: `${interpolate(expansion.value, [0, 1], [80, 10])}%`,
-      paddingRight: interpolate(expansion.value, [0, 1], [16, 0]),
-      // opacity: interpolate(
-      //   expansion.value,
-      //   [0, 0.5],
-      //   [1, 0],
-      //   Extrapolation.CLAMP,
-      // ),
+      width: interpolate(
+        expansion.value,
+        [0, 1],
+        [miniControlsWidth, tenPercentScreenWidth],
+      ),
+      // paddingRight: interpolate(expansion.value, [0, 1], [16, 0]),
+      opacity: interpolate(
+        expansion.value,
+        [0, 0.25],
+        [1, 0],
+        Extrapolation.CLAMP,
+      ),
     };
   });
 
   const controlsStyle = useAnimatedStyle(() => {
     return {
-      paddingTop: interpolate(expansion.value, [0.75, 1], [32, 0]),
-      // opacity: interpolate(
-      //   expansion.value,
-      //   [0.75, 1],
-      //   [0, 1],
-      //   Extrapolation.CLAMP,
-      // ),
+      // fly in from below:
+      // paddingTop: interpolate(expansion.value, [0.75, 1], [32, 0]),
+      opacity: interpolate(
+        expansion.value,
+        [0.75, 1],
+        [0, 1],
+        Extrapolation.CLAMP,
+      ),
     };
   });
 
-  if (!media) return null;
+  const topActionBarStyle = useAnimatedStyle(() => {
+    return {
+      height: interpolate(expansion.value, [0, 0.75], [0, 64]),
+      opacity: interpolate(
+        expansion.value,
+        [0.75, 1],
+        [0, 1],
+        Extrapolation.CLAMP,
+      ),
+    };
+  });
+
+  const infoStyle = useAnimatedStyle(() => {
+    return {
+      // fly in from below:
+      paddingTop: interpolate(expansion.value, [0.75, 1], [32, 8]),
+      opacity: interpolate(
+        expansion.value,
+        [0.75, 1],
+        [0, 1],
+        Extrapolation.CLAMP,
+      ),
+    };
+  });
+
+  if (!media) {
+    return (
+      <BottomTabBar
+        style={{ height: tabBarHeight }}
+        {...{ state, descriptors, navigation, insets }}
+      />
+    );
+  }
 
   return (
     <>
@@ -274,6 +343,57 @@ function TabBarWithPlayer({
               playerStyle,
             ]}
           >
+            <Animated.View
+              style={[
+                {
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  overflow: "hidden",
+                  paddingHorizontal: 16,
+                  backgroundColor: debugBackground(colors.emerald[900]),
+                },
+                topActionBarStyle,
+              ]}
+            >
+              <Pressable onPress={() => console.log("TODO: collapse player")}>
+                <View
+                  style={{
+                    height: 48,
+                    width: 48,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: debugBackground(colors.fuchsia[900]),
+                  }}
+                >
+                  <FontAwesome6
+                    size={24}
+                    name="chevron-down"
+                    color={colors.zinc[100]}
+                  />
+                </View>
+              </Pressable>
+              <Pressable onPress={() => console.log("TODO: context menu")}>
+                <View
+                  style={{
+                    height: 48,
+                    width: 48,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: debugBackground(colors.fuchsia[900]),
+                  }}
+                >
+                  <FontAwesome6
+                    size={24}
+                    name="ellipsis-vertical"
+                    color={colors.zinc[100]}
+                  />
+                </View>
+              </Pressable>
+            </Animated.View>
             <View
               style={{
                 display: "flex",
@@ -290,25 +410,18 @@ function TabBarWithPlayer({
                   {
                     // marginTop: -8,
                     // alignSelf: "flex-start",
-                    backgroundColor: colors.cyan[900],
+                    backgroundColor: debugBackground(colors.cyan[900]),
                   },
-                  chevronStyle,
+                  leftGutterStyle,
                 ]}
-              >
-                <Pressable onPress={() => console.log("lol?")}>
-                  <FontAwesome6
-                    size={24}
-                    name="chevron-down"
-                    color={colors.zinc[100]}
-                  />
-                </Pressable>
-              </Animated.View>
+              ></Animated.View>
               <Animated.View
                 style={[
                   {
                     // display: "flex",
                     alignSelf: "center",
-                    backgroundColor: colors.green[900],
+                    overflow: "hidden",
+                    backgroundColor: debugBackground(colors.green[900]),
                   },
                   imageStyle,
                 ]}
@@ -327,12 +440,12 @@ function TabBarWithPlayer({
               <Animated.View
                 style={[
                   {
-                    backgroundColor: colors.red[900],
                     height: playerHeight,
                     display: "flex",
                     flexDirection: "row",
                     alignItems: "center",
                     paddingLeft: 8,
+                    backgroundColor: debugBackground(colors.red[900]),
                   },
                   miniControlsStyle,
                 ]}
@@ -353,51 +466,64 @@ function TabBarWithPlayer({
                     numberOfLines={1}
                   />
                 </View>
-                <View className="pr-2">
+                <View style={{}}>
                   <Pressable
                     onPress={() => {
-                      console.log("lol?");
+                      console.log("TODO: toggle playback");
                     }}
                   >
-                    <FontAwesome6
-                      size={24}
-                      name="play"
-                      color={colors.zinc[100]}
-                    />
+                    <View
+                      style={{
+                        height: 64,
+                        width: 64,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: debugBackground(colors.fuchsia[900]),
+                      }}
+                    >
+                      <FontAwesome6
+                        size={32}
+                        name="play"
+                        color={colors.zinc[100]}
+                      />
+                    </View>
                   </Pressable>
                 </View>
               </Animated.View>
             </View>
-            <View
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                // alignItems: "center",
-                // justifyContent: "space-evenly",
-                // paddingVertical: 8,
-                // paddingHorizontal: 16,
-                // gap: 16,
-              }}
+            <Animated.View
+              style={[
+                {
+                  display: "flex",
+                  flexDirection: "row",
+                  // paddingTop: 8,
+                },
+                infoStyle,
+              ]}
             >
               <View style={{ width: "10%" }}></View>
               <View style={{ width: "80%" }}>
-                <Text className="text-zinc-100 font-medium" numberOfLines={1}>
+                <Text
+                  className="text-xl text-zinc-100 font-bold"
+                  numberOfLines={1}
+                >
                   {media.book.title}
                 </Text>
                 <NamesList
                   names={media.book.bookAuthors.map((ba) => ba.author.name)}
-                  className="text-sm text-zinc-300 leading-tight"
+                  className="text-lg text-zinc-300 leading-tight"
                   numberOfLines={1}
                 />
                 <NamesList
                   prefix="Read by"
                   names={media.mediaNarrators.map((mn) => mn.narrator.name)}
-                  className="text-xs text-zinc-400 leading-tight"
+                  className="text-zinc-400 leading-tight"
                   numberOfLines={1}
                 />
               </View>
               <View style={{ width: "10%" }}></View>
-            </View>
+            </Animated.View>
             <Animated.View
               style={[
                 {
@@ -406,120 +532,23 @@ function TabBarWithPlayer({
                   display: "flex",
                   // justifyContent: "space-between",
                   paddingBottom: insets.bottom,
-                  backgroundColor: colors.blue[900],
+                  backgroundColor: debugBackground(colors.blue[900]),
                 },
                 controlsStyle,
               ]}
             >
-              <Text className="text-zinc-100 text-center bg-yellow-900 grow">
-                Other stuff here
-              </Text>
-              <Text className="text-zinc-100 text-center bg-purple-900 grow">
-                This is at the bottom
-              </Text>
+              {/*
+               */}
             </Animated.View>
           </Animated.View>
         </GestureDetector>
         <Animated.View style={[{ height: tabBarHeight }, tabBarStyle]}>
-          <BottomTabBar {...{ state, descriptors, navigation, insets }} />
+          <BottomTabBar
+            style={{ height: tabBarHeight }}
+            {...{ state, descriptors, navigation, insets }}
+          />
         </Animated.View>
       </View>
     </>
-  );
-}
-
-function FloatingPlayer() {
-  const mediaId = useTrackPlayerStore((state) => state.mediaId);
-  const { media } = useMediaDetails(mediaId);
-  const [expanded, setExpanded] = useState(true);
-
-  useBackHandler(() => {
-    if (expanded) {
-      setExpanded(false);
-      return true;
-    }
-    return false;
-  });
-
-  if (!media) return null;
-
-  if (expanded) {
-    return (
-      <View className="bg-zinc-900 h-full flex">
-        <SafeAreaView>
-          <View className="gap-8">
-            <View className="px-8 py-4 flex flex-row items-center">
-              <Pressable onPress={() => setExpanded(false)}>
-                <FontAwesome6
-                  size={16}
-                  name="chevron-down"
-                  color={colors.zinc[100]}
-                />
-              </Pressable>
-            </View>
-            <View className="flex flex-row justify-center">
-              <ThumbnailImage
-                thumbnails={media.thumbnails}
-                downloadedThumbnails={media.download?.thumbnails}
-                size="extraLarge"
-                className="w-3/4 aspect-square rounded-lg"
-              />
-            </View>
-            <View className="flex flex-row justify-center">
-              <Pressable
-                onPress={() => {
-                  console.log("lol?");
-                }}
-              >
-                <FontAwesome6 size={64} name="play" color={colors.zinc[100]} />
-              </Pressable>
-            </View>
-          </View>
-        </SafeAreaView>
-      </View>
-    );
-  }
-
-  return (
-    <Pressable onPress={() => setExpanded(true)}>
-      <View
-        className="flex flex-row items-center p-2 px-4 gap-4 border-zinc-600 bg-zinc-900"
-        style={{ borderTopWidth: StyleSheet.hairlineWidth }}
-      >
-        <ThumbnailImage
-          downloadedThumbnails={media.download?.thumbnails}
-          thumbnails={media.thumbnails}
-          size="extraLarge"
-          className="w-16 h-16 rounded-md"
-        />
-        <View className="flex-1">
-          <Text className="text-zinc-100 font-medium" numberOfLines={1}>
-            {media.book.title}
-          </Text>
-          <NamesList
-            names={media.book.bookAuthors.map((ba) => ba.author.name)}
-            className="text-sm text-zinc-300 leading-tight"
-            numberOfLines={1}
-          />
-          <NamesList
-            prefix="Read by"
-            names={media.mediaNarrators.map((mn) => mn.narrator.name)}
-            className="text-xs text-zinc-400 leading-tight"
-            numberOfLines={1}
-          />
-        </View>
-        <View className="pr-2">
-          {/* TODO: play or pause depending on state */}
-          <Pressable
-            onPress={() => {
-              console.log("lol?");
-            }}
-          >
-            <FontAwesome6 size={24} name="play" color={colors.zinc[100]} />
-          </Pressable>
-        </View>
-        {/* TODO: progress bar at bottom */}
-      </View>
-    </Pressable>
   );
 }
