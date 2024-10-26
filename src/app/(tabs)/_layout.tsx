@@ -1,8 +1,9 @@
+import IconButton from "@/src/components/IconButton";
 import NamesList from "@/src/components/NamesList";
-import ThumbnailImage, {
-  ThumbnailImageNative,
-  ThumbnailImageNoTW,
-} from "@/src/components/ThumbnailImage";
+import PlayerButtons from "@/src/components/PlayerButtons";
+import PlayerProgressBar from "@/src/components/PlayerProgressBar";
+import PlayerScrubber from "@/src/components/PlayerScrubber";
+import ThumbnailImage from "@/src/components/ThumbnailImage";
 import useBackHandler from "@/src/hooks/use.back.handler";
 import { useMediaDetails } from "@/src/hooks/use.media.details";
 import { useScreenStore } from "@/src/stores/screen";
@@ -10,8 +11,7 @@ import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { BottomTabBar, BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Tabs } from "expo-router";
-import { useEffect, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
@@ -21,7 +21,6 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
 import colors from "tailwindcss/colors";
 
 export default function TabLayout() {
@@ -98,9 +97,7 @@ function TabBarWithPlayer({
   const mediaId = useTrackPlayerStore((state) => state.mediaId);
   const { media } = useMediaDetails(mediaId);
   const expansion = useSharedValue(1.0);
-  const { height: screenHeight, width: screenWidth } = useScreenStore(
-    (state) => state,
-  );
+  const { screenHeight, screenWidth } = useScreenStore((state) => state);
   const whereItWas = useSharedValue(0);
   const onEnd = useSharedValue(0);
 
@@ -357,59 +354,29 @@ function TabBarWithPlayer({
                 topActionBarStyle,
               ]}
             >
-              <Pressable onPress={() => console.log("TODO: collapse player")}>
-                <View
-                  style={{
-                    height: 48,
-                    width: 48,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: debugBackground(colors.fuchsia[900]),
-                  }}
-                >
-                  <FontAwesome6
-                    size={24}
-                    name="chevron-down"
-                    color={colors.zinc[100]}
-                  />
-                </View>
-              </Pressable>
-              <Pressable onPress={() => console.log("TODO: context menu")}>
-                <View
-                  style={{
-                    height: 48,
-                    width: 48,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: debugBackground(colors.fuchsia[900]),
-                  }}
-                >
-                  <FontAwesome6
-                    size={24}
-                    name="ellipsis-vertical"
-                    color={colors.zinc[100]}
-                  />
-                </View>
-              </Pressable>
+              <IconButton
+                size={24}
+                icon="chevron-down"
+                color={colors.zinc[100]}
+                onPress={() => console.log("TODO: collapse player")}
+              />
+
+              <IconButton
+                size={24}
+                icon="ellipsis-vertical"
+                color={colors.zinc[100]}
+                onPress={() => console.log("TODO: context menu")}
+              />
             </Animated.View>
             <View
               style={{
                 display: "flex",
                 flexDirection: "row",
-                // alignItems: "center",
-                // justifyContent: "space-evenly",
-                // paddingVertical: 8,
-                // paddingHorizontal: 16,
-                // gap: 16,
               }}
             >
               <Animated.View
                 style={[
                   {
-                    // marginTop: -8,
-                    // alignSelf: "flex-start",
                     backgroundColor: debugBackground(colors.cyan[900]),
                   },
                   leftGutterStyle,
@@ -418,7 +385,6 @@ function TabBarWithPlayer({
               <Animated.View
                 style={[
                   {
-                    // display: "flex",
                     alignSelf: "center",
                     overflow: "hidden",
                     backgroundColor: debugBackground(colors.green[900]),
@@ -426,7 +392,7 @@ function TabBarWithPlayer({
                   imageStyle,
                 ]}
               >
-                <ThumbnailImageNoTW
+                <ThumbnailImage
                   downloadedThumbnails={media.download?.thumbnails}
                   thumbnails={media.thumbnails}
                   size="extraLarge"
@@ -467,28 +433,12 @@ function TabBarWithPlayer({
                   />
                 </View>
                 <View style={{}}>
-                  <Pressable
-                    onPress={() => {
-                      console.log("TODO: toggle playback");
-                    }}
-                  >
-                    <View
-                      style={{
-                        height: 64,
-                        width: 64,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        backgroundColor: debugBackground(colors.fuchsia[900]),
-                      }}
-                    >
-                      <FontAwesome6
-                        size={32}
-                        name="play"
-                        color={colors.zinc[100]}
-                      />
-                    </View>
-                  </Pressable>
+                  <IconButton
+                    size={32}
+                    icon="play"
+                    color={colors.zinc[100]}
+                    onPress={() => console.log("TODO: toggle playback")}
+                  />
                 </View>
               </Animated.View>
             </View>
@@ -497,7 +447,6 @@ function TabBarWithPlayer({
                 {
                   display: "flex",
                   flexDirection: "row",
-                  // paddingTop: 8,
                 },
                 infoStyle,
               ]}
@@ -530,15 +479,23 @@ function TabBarWithPlayer({
                   width: "100%",
                   flexGrow: 1,
                   display: "flex",
-                  // justifyContent: "space-between",
+                  justifyContent: "space-between",
                   paddingBottom: insets.bottom,
                   backgroundColor: debugBackground(colors.blue[900]),
                 },
                 controlsStyle,
               ]}
             >
-              {/*
-               */}
+              <View
+                style={{
+                  paddingHorizontal: tenPercentScreenWidth,
+                  paddingTop: 16,
+                }}
+              >
+                <PlayerProgressBar />
+              </View>
+              <PlayerButtons />
+              <PlayerScrubber />
             </Animated.View>
           </Animated.View>
         </GestureDetector>

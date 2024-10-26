@@ -1,8 +1,6 @@
 import Description from "@/src/components/Description";
 import NamesList from "@/src/components/NamesList";
-import ThumbnailImage, {
-  ThumbnailImageNoTW,
-} from "@/src/components/ThumbnailImage";
+import ThumbnailImage from "@/src/components/ThumbnailImage";
 import {
   BookTile,
   MediaTile,
@@ -16,7 +14,8 @@ import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
 import { useDownloadsStore } from "@/src/stores/downloads";
 import { Session, useSessionStore } from "@/src/stores/session";
 import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
-import { formatPublished } from "@/src/utils/dates";
+import { formatPublished } from "@/src/utils/date";
+import { durationDisplay } from "@/src/utils/time";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import {
   and,
@@ -339,7 +338,7 @@ function Header({ mediaId, session }: { mediaId: string; session: Session }) {
 
   return (
     <View className="gap-2">
-      <ThumbnailImageNoTW
+      <ThumbnailImage
         thumbnails={media.thumbnails}
         downloadedThumbnails={media.download?.thumbnails}
         size="extraLarge"
@@ -385,18 +384,6 @@ function Header({ mediaId, session }: { mediaId: string; session: Session }) {
       )}
     </View>
   );
-}
-
-export function durationDisplay(input: string): string {
-  const total = Number(input);
-  const hours = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-
-  if (hours === 0) {
-    return `${minutes} minutes`;
-  } else {
-    return `${hours} hours and ${minutes} minutes`;
-  }
 }
 
 function ActionBar({
@@ -461,7 +448,8 @@ function ActionBar({
             className="grow p-4"
             onPress={() => {
               loadMediaIntoPlayer(session, media.id);
-              router.navigate("/");
+              // TODO: expand player
+              // router.navigate("/");
             }}
           >
             <View className="flex items-center justify-end">
@@ -492,7 +480,8 @@ function ActionBar({
             className="grow border-r border-zinc-800 p-4"
             onPress={() => {
               loadMediaIntoPlayer(session, media.id);
-              router.navigate("/");
+              // TODO: expand player
+              // router.navigate("/");
             }}
           >
             <View className="flex items-center justify-end">

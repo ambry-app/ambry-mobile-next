@@ -1,9 +1,7 @@
 import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
 import NamesList from "@/src/components/NamesList";
 import ScreenCentered from "@/src/components/ScreenCentered";
-import ThumbnailImage, {
-  ThumbnailImageNoTW,
-} from "@/src/components/ThumbnailImage";
+import ThumbnailImage from "@/src/components/ThumbnailImage";
 import { useLiveDownloadsList, type Download } from "@/src/db/downloads";
 import { useDownloadsStore } from "@/src/stores/downloads";
 import { Session, useSessionStore } from "@/src/stores/session";
@@ -86,7 +84,7 @@ function DownloadRow({
   return (
     <View>
       <View className="p-4 flex flex-row items-center gap-4 border-b-[0.25px] border-zinc-600">
-        <ThumbnailImageNoTW
+        <ThumbnailImage
           downloadedThumbnails={download.thumbnails}
           thumbnails={download.media.thumbnails}
           size="small"

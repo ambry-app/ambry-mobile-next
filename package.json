@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.4",
+    "@react-hook/previous": "^1.0.1",
     "@react-navigation/native": "^6.1.18",
     "drizzle-orm": "^0.35.2",
     "expo": "^51.0.38",

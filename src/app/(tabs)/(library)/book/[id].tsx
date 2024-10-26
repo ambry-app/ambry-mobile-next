@@ -5,7 +5,7 @@ import * as schema from "@/src/db/schema";
 import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
 import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
 import { Session, useSessionStore } from "@/src/stores/session";
-import { formatPublished } from "@/src/utils/dates";
+import { formatPublished } from "@/src/utils/date";
 import { and, eq } from "drizzle-orm";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { FlatList, Text, View } from "react-native";
