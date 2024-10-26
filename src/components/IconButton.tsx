@@ -1,5 +1,5 @@
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 
 type IconButtonProps = {
   size: number;
@@ -14,7 +14,7 @@ export default function IconButton(props: IconButtonProps) {
   const { size, icon, color, onPress, padding = size / 2, children } = props;
 
   return (
-    <Pressable onPress={onPress}>
+    <TouchableOpacity onPress={onPress}>
       <View
         style={[
           styles.container,
@@ -24,7 +24,7 @@ export default function IconButton(props: IconButtonProps) {
         <FontAwesome6 size={size} name={icon} color={color} />
         {children}
       </View>
-    </Pressable>
+    </TouchableOpacity>
   );
 }
 

@@ -1,48 +1,34 @@
 import { StyleSheet, View } from "react-native";
 import colors from "tailwindcss/colors";
-import IconButton from "./IconButton";
+import PlayButton from "./PlayButton";
+import SeekButton from "./SeekButton";
 
 export default function PlayerButtons() {
   return (
     <View style={styles.container}>
-      <IconButton
-        onPress={() => {
-          console.log("TODO: back 1 min");
-        }}
-        size={24}
+      <SeekButton
+        amount={-60}
         icon="backward"
-        color={colors.zinc[100]}
-      />
-      <IconButton
-        onPress={() => {
-          console.log("TODO: back 10 sec");
-        }}
-        size={32}
-        icon="arrow-rotate-left"
-        color={colors.zinc[100]}
-      />
-      <IconButton
-        onPress={() => {
-          console.log("TODO: play/pause");
-        }}
-        size={48}
-        icon="play"
-        color={colors.zinc[100]}
-      />
-      <IconButton
-        onPress={() => {
-          console.log("TODO: forward 10 sec");
-        }}
-        size={32}
-        icon="arrow-rotate-right"
-        color={colors.zinc[100]}
-      />
-      <IconButton
-        onPress={() => {
-          console.log("TODO: forward 1 min");
-        }}
         size={24}
+        color={colors.zinc[100]}
+      />
+      <SeekButton
+        amount={-10}
+        icon="arrow-rotate-left"
+        size={32}
+        color={colors.zinc[100]}
+      />
+      <PlayButton size={48} color={colors.zinc[100]} />
+      <SeekButton
+        amount={10}
+        icon="arrow-rotate-right"
+        size={32}
+        color={colors.zinc[100]}
+      />
+      <SeekButton
+        amount={60}
         icon="forward"
+        size={24}
         color={colors.zinc[100]}
       />
     </View>

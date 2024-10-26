@@ -1,4 +1,5 @@
 import IconButton from "@/src/components/IconButton";
+import PlayButton from "@/src/components/PlayButton";
 import PlayerButtons from "@/src/components/PlayerButtons";
 import PlayerProgressBar from "@/src/components/PlayerProgressBar";
 import PlayerScrubber from "@/src/components/PlayerScrubber";
@@ -427,12 +428,7 @@ function TabBarWithPlayer({
                   />
                 </View>
                 <View style={{}}>
-                  <IconButton
-                    size={32}
-                    icon="play"
-                    color={colors.zinc[100]}
-                    onPress={() => console.log("TODO: toggle playback")}
-                  />
+                  <PlayButton size={32} color={colors.zinc[100]} />
                 </View>
               </Animated.View>
             </View>
