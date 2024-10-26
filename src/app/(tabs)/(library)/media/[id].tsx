@@ -1,4 +1,5 @@
 import Description from "@/src/components/Description";
+import Loading from "@/src/components/Loading";
 import NamesList from "@/src/components/NamesList";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
 import {
@@ -12,9 +13,11 @@ import * as schema from "@/src/db/schema";
 import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
 import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
 import { useDownloadsStore } from "@/src/stores/downloads";
+import { useScreenStore } from "@/src/stores/screen";
 import { Session, useSessionStore } from "@/src/stores/session";
 import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
-import { formatPublished } from "@/src/utils/dates";
+import { formatPublished } from "@/src/utils/date";
+import { durationDisplay } from "@/src/utils/time";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import {
   and,
@@ -30,13 +33,7 @@ import {
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  Text,
-  View,
-} from "react-native";
+import { FlatList, Pressable, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
 
 export default function MediaDetails() {
@@ -341,7 +338,7 @@ function Header({ mediaId, session }: { mediaId: string; session: Session }) {
         thumbnails={media.thumbnails}
         downloadedThumbnails={media.download?.thumbnails}
         size="extraLarge"
-        className="w-full rounded-xl aspect-square"
+        style={{ width: "100%", aspectRatio: 1, borderRadius: 12 }}
       />
       <View>
         <Text className="text-2xl text-zinc-100 font-bold leading-tight">
@@ -383,18 +380,6 @@ function Header({ mediaId, session }: { mediaId: string; session: Session }) {
       )}
     </View>
   );
-}
-
-export function durationDisplay(input: string): string {
-  const total = Number(input);
-  const hours = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-
-  if (hours === 0) {
-    return `${minutes} minutes`;
-  } else {
-    return `${hours} hours and ${minutes} minutes`;
-  }
 }
 
 function ActionBar({
@@ -442,7 +427,7 @@ function ActionBar({
         >
           <View className="flex items-center justify-end">
             <View>
-              <ActivityIndicator size={36} color={colors.zinc[100]} />
+              <Loading size={36} />
             </View>
             <View>
               <Text className="text-lg text-zinc-100">Downloading...</Text>
@@ -459,7 +444,8 @@ function ActionBar({
             className="grow p-4"
             onPress={() => {
               loadMediaIntoPlayer(session, media.id);
-              router.navigate("/");
+              // TODO: expand player
+              // router.navigate("/");
             }}
           >
             <View className="flex items-center justify-end">
@@ -490,7 +476,8 @@ function ActionBar({
             className="grow border-r border-zinc-800 p-4"
             onPress={() => {
               loadMediaIntoPlayer(session, media.id);
-              router.navigate("/");
+              // TODO: expand player
+              // router.navigate("/");
             }}
           >
             <View className="flex items-center justify-end">
@@ -605,6 +592,7 @@ function AuthorsAndNarrators({
   mediaId: string;
   session: Session;
 }) {
+  const { screenWidth } = useScreenStore((state) => state);
   const { data: media } = useLiveQuery(
     db.query.media.findFirst({
       columns: {},
@@ -689,7 +677,7 @@ function AuthorsAndNarrators({
               ? "Author & Narrator"
               : "Author";
             return (
-              <View className="w-48 mr-4">
+              <View style={{ width: screenWidth / 2.5, marginRight: 16 }}>
                 <PersonTile
                   label={label}
                   personId={item.author.person.id}
@@ -706,7 +694,7 @@ function AuthorsAndNarrators({
             if (authorSet.has(item.narrator.person.id)) return null;
 
             return (
-              <View className="w-48 mr-4">
+              <View style={{ width: screenWidth / 2.5, marginRight: 16 }}>
                 <PersonTile
                   label="Narrator"
                   personId={item.narrator.person.id}
@@ -736,6 +724,7 @@ function OtherEditions({
   session: Session;
   withoutMediaId: string;
 }) {
+  const { screenWidth } = useScreenStore((state) => state);
   const { data: mediaIds } = useLiveQuery(
     db
       .select({ id: schema.media.id })
@@ -827,7 +816,12 @@ function OtherEditions({
         keyExtractor={(item) => item.id}
         horizontal={true}
         renderItem={({ item }) => {
-          return <MediaTile className="w-48 mr-4" media={item} />;
+          return (
+            <MediaTile
+              style={{ width: screenWidth / 2.5, marginRight: 16 }}
+              media={item}
+            />
+          );
         }}
       />
     </View>
@@ -841,6 +835,7 @@ function OtherBooksInSeries({
   seriesId: string;
   session: Session;
 }) {
+  const { screenWidth } = useScreenStore((state) => state);
   const { data: series } = useLiveQuery(
     db.query.series.findFirst({
       columns: { id: true, name: true },
@@ -925,7 +920,12 @@ function OtherBooksInSeries({
         keyExtractor={(item) => item.id}
         horizontal={true}
         renderItem={({ item }) => {
-          return <SeriesBookTile className="w-48 mr-4" seriesBook={item} />;
+          return (
+            <SeriesBookTile
+              style={{ width: screenWidth / 2.5, marginRight: 16 }}
+              seriesBook={item}
+            />
+          );
         }}
       />
     </View>
@@ -943,6 +943,7 @@ function OtherBooksByAuthor({
   withoutBookId: string;
   withoutSeriesIds: string[];
 }) {
+  const { screenWidth } = useScreenStore((state) => state);
   const { data: booksIds } = useLiveQuery(
     db
       .selectDistinct({ id: schema.books.id })
@@ -1076,7 +1077,12 @@ function OtherBooksByAuthor({
         keyExtractor={(item) => item.id}
         horizontal={true}
         renderItem={({ item }) => {
-          return <BookTile className="w-48 mr-4" book={item} />;
+          return (
+            <BookTile
+              style={{ width: screenWidth / 2.5, marginRight: 16 }}
+              book={item}
+            />
+          );
         }}
       />
     </View>
@@ -1096,6 +1102,7 @@ function OtherMediaByNarrator({
   withoutSeriesIds: string[];
   withoutAuthorIds: string[];
 }) {
+  const { screenWidth } = useScreenStore((state) => state);
   const { data: mediaIds } = useLiveQuery(
     db
       .selectDistinct({ id: schema.media.id })
@@ -1244,7 +1251,12 @@ function OtherMediaByNarrator({
         keyExtractor={(item) => item.id}
         horizontal={true}
         renderItem={({ item }) => {
-          return <MediaTile className="w-48 mr-4" media={item} />;
+          return (
+            <MediaTile
+              style={{ width: screenWidth / 2.5, marginRight: 16 }}
+              media={item}
+            />
+          );
         }}
       />
     </View>

@@ -1,5 +1,5 @@
 import Logo from "@/assets/images/logo.svg";
-import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
+import Loading from "@/src/components/Loading";
 import { useSessionStore } from "@/src/stores/session";
 import { Redirect } from "expo-router";
 import { useState } from "react";
@@ -68,11 +68,16 @@ export default function SignIn() {
         title="Sign in"
         color={colors.lime[500]}
         onPress={() => {
-          signIn(host, email, password);
+          // to help the automated Google Play pre-launch report
+          if (email === "demo@ambry.app") {
+            signIn("https://demo.ambry.app", email, "demo");
+          } else {
+            signIn(host, email, password);
+          }
         }}
         disabled={isLoading}
       />
-      {isLoading && <LargeActivityIndicator className="mt-4" />}
+      {isLoading && <Loading style={{ marginTop: 16 }} />}
       {error && (
         <Text className="mt-4 text-red-500 text-center">
           Invalid host, username, or password

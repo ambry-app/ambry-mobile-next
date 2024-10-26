@@ -1,5 +1,6 @@
 import "@/assets/global.css";
-import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
+import Loading from "@/src/components/Loading";
+import MeasureScreenHeight from "@/src/components/MeasureScreenHeight";
 import { expoDb } from "@/src/db/db";
 import { useAppBoot } from "@/src/hooks/use.app.boot";
 import { ThemeProvider } from "@react-navigation/native";
@@ -9,6 +10,7 @@ import { Stack } from "expo-router";
 import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
 import { Platform, Text, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import colors from "tailwindcss/colors";
 
 SystemUI.setBackgroundColorAsync("black");
@@ -29,18 +31,18 @@ export default function App() {
   useEffect(() => {
     if (Platform.OS === "android") {
       NavigationBar.setBackgroundColorAsync(colors.transparent);
-      NavigationBar.setBorderColorAsync(colors.transparent);
       NavigationBar.setPositionAsync("absolute");
     }
   });
 
   return (
-    <>
+    <GestureHandlerRootView>
+      <MeasureScreenHeight />
       {__DEV__ && <DrizzleStudio />}
       <ThemeProvider value={Theme}>
         <Root />
       </ThemeProvider>
-    </>
+    </GestureHandlerRootView>
   );
 }
 
@@ -60,13 +62,12 @@ function Root() {
 
   return isReady ? (
     <Stack>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="sign-in" options={{ title: "Sign In" }} />
     </Stack>
   ) : (
     <View className="flex h-full items-center justify-center">
-      <LargeActivityIndicator />
+      <Loading />
     </View>
   );
 }

@@ -1,48 +1,52 @@
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
-import { View } from "react-native";
+import { ImageStyle } from "expo-image";
+import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import colors from "tailwindcss/colors";
 import ThumbnailImage from "./ThumbnailImage";
 
-export default function MultiThumbnailImage({
-  thumbnailPairs,
-  size,
-  className,
-}: {
+type MultiThumbnailImageProps = {
   thumbnailPairs: {
     thumbnails: Thumbnails | null;
     downloadedThumbnails: DownloadedThumbnails | null;
   }[];
   size: "extraSmall" | "small" | "medium" | "large" | "extraLarge";
-  className?: string;
-}) {
+  style?: StyleProp<ViewStyle>;
+  imageStyle?: StyleProp<ImageStyle>;
+};
+
+export default function MultiThumbnailImage(props: MultiThumbnailImageProps) {
+  const { thumbnailPairs, size, style, imageStyle } = props;
+
   if (thumbnailPairs.length === 0)
-    return (
-      <View className={(className || "") + " overflow-hidden bg-zinc-900"} />
-    );
+    return <View style={[styles.container, style]} />;
 
   if (thumbnailPairs.length === 1)
     return (
       <ThumbnailImage
         {...thumbnailPairs[0]}
         size={size}
-        className={className}
+        style={style}
+        imageStyle={imageStyle}
       />
     );
 
   if (thumbnailPairs.length === 2)
     return (
-      <View className="relative">
-        <View className="translate-x-1 translate-y-1 scale-95">
+      <View style={styles.multiContainer}>
+        <View style={styles.firstOfTwo}>
           <ThumbnailImage
             {...thumbnailPairs[0]}
             size={size}
-            className={(className || "") + " border border-black"}
+            style={[styles.blackBorder, style]}
+            imageStyle={imageStyle}
           />
         </View>
-        <View className="absolute top-0 w-full -translate-x-1 -translate-y-1 scale-95">
+        <View style={styles.secondOfTwo}>
           <ThumbnailImage
             {...thumbnailPairs[1]}
             size={size}
-            className={(className || "") + " border border-black"}
+            style={[styles.blackBorder, style]}
+            imageStyle={imageStyle}
           />
         </View>
       </View>
@@ -50,28 +54,69 @@ export default function MultiThumbnailImage({
 
   if (thumbnailPairs.length >= 3)
     return (
-      <View className="relative">
-        <View className="translate-x-2 translate-y-2 scale-90">
+      <View style={styles.multiContainer}>
+        <View style={styles.firstOfThree}>
           <ThumbnailImage
             {...thumbnailPairs[0]}
             size={size}
-            className={(className || "") + " border border-black"}
+            style={[styles.blackBorder, style]}
+            imageStyle={imageStyle}
           />
         </View>
-        <View className="absolute top-0 w-full scale-90">
+        <View style={styles.secondOfThree}>
           <ThumbnailImage
             {...thumbnailPairs[1]}
             size={size}
-            className={(className || "") + " border border-black"}
+            style={[styles.blackBorder, style]}
+            imageStyle={imageStyle}
           />
         </View>
-        <View className="absolute top-0 w-full -translate-x-2 -translate-y-2 scale-90">
+        <View style={styles.thirdOfThree}>
           <ThumbnailImage
             {...thumbnailPairs[2]}
             size={size}
-            className={(className || "") + " border border-black"}
+            style={[styles.blackBorder, style]}
+            imageStyle={imageStyle}
           />
         </View>
       </View>
     );
 }
+
+const styles = StyleSheet.create({
+  blackBorder: {
+    borderWidth: 1,
+    borderColor: colors.black,
+  },
+  container: {
+    overflow: "hidden",
+    backgroundColor: colors.zinc[800],
+  },
+  multiContainer: {
+    position: "relative",
+  },
+  firstOfTwo: {
+    transform: [{ translateX: 4 }, { translateY: 4 }, { scale: 0.95 }],
+  },
+  secondOfTwo: {
+    position: "absolute",
+    top: 0,
+    width: "100%",
+    transform: [{ translateX: -4 }, { translateY: -4 }, { scale: 0.95 }],
+  },
+  firstOfThree: {
+    transform: [{ translateX: 8 }, { translateY: 8 }, { scale: 0.9 }],
+  },
+  secondOfThree: {
+    position: "absolute",
+    top: 0,
+    width: "100%",
+    transform: [{ scale: 0.9 }],
+  },
+  thirdOfThree: {
+    position: "absolute",
+    top: 0,
+    width: "100%",
+    transform: [{ translateX: -8 }, { translateY: -8 }, { scale: 0.9 }],
+  },
+});

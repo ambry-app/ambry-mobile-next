@@ -1,32 +1,33 @@
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 import { useSessionStore } from "@/src/stores/session";
-import { Image } from "expo-image";
-import { View } from "react-native";
+import { Image, ImageStyle } from "expo-image";
+import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import colors from "tailwindcss/colors";
 
-export default function ThumbnailImage({
-  downloadedThumbnails,
-  thumbnails,
-  size,
-  className,
-}: {
+type ThumbnailImageProps = {
   downloadedThumbnails?: DownloadedThumbnails | null;
   thumbnails?: Thumbnails | null;
   size: "extraSmall" | "small" | "medium" | "large" | "extraLarge";
-  className?: string;
-}) {
+  style?: StyleProp<ViewStyle>;
+  imageStyle?: StyleProp<ImageStyle>;
+};
+
+export default function ThumbnailImage(props: ThumbnailImageProps) {
+  const { downloadedThumbnails, thumbnails, size, style, imageStyle } = props;
   const session = useSessionStore((state) => state.session);
 
   if (session && downloadedThumbnails) {
     return (
-      <View className={(className || "") + " overflow-hidden"}>
+      <View style={[styles.container, style]}>
         <Image
           source={{
             uri: downloadedThumbnails[size],
           }}
-          style={{ width: "100%", height: "100%" }}
+          style={styles.image}
           placeholder={{ thumbhash: downloadedThumbnails.thumbhash }}
           contentFit="cover"
           transition={0}
+          cachePolicy={"memory-disk"}
         />
       </View>
     );
@@ -34,22 +35,32 @@ export default function ThumbnailImage({
 
   if (session && thumbnails) {
     return (
-      <View className={(className || "") + " overflow-hidden"}>
+      <View style={[styles.container, style]}>
         <Image
           source={{
             uri: `${session.url}/${thumbnails[size]}`,
             headers: { Authorization: `Bearer ${session.token}` },
           }}
-          style={{ width: "100%", height: "100%" }}
+          style={[styles.image, imageStyle]}
           placeholder={{ thumbhash: thumbnails.thumbhash }}
           contentFit="cover"
           transition={0}
+          cachePolicy={"memory-disk"}
         />
       </View>
     );
   }
 
-  return (
-    <View className={(className || "") + " overflow-hidden bg-zinc-900"} />
-  );
+  return <View style={[styles.container, style]} />;
 }
+
+const styles = StyleSheet.create({
+  container: {
+    overflow: "hidden",
+    backgroundColor: colors.zinc[800],
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+  },
+});

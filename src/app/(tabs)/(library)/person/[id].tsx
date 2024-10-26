@@ -10,7 +10,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { FlatList, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 
 export default function PersonDetails() {
   const session = useSessionStore((state) => state.session);
@@ -182,7 +182,14 @@ function Header({ personId, session }: { personId: string; session: Session }) {
     <ThumbnailImage
       thumbnails={person.thumbnails}
       size="extraLarge"
-      className="w-3/4 mt-8 mx-auto rounded-full aspect-square"
+      style={{
+        aspectRatio: 1,
+        borderRadius: 9999,
+        marginLeft: "auto",
+        marginRight: "auto",
+        marginTop: 32,
+        width: "75%",
+      }}
     />
   );
 }
@@ -325,7 +332,7 @@ function BooksByAuthor({
         keyExtractor={(item) => item.id}
         numColumns={2}
         renderItem={({ item }) => {
-          return <BookTile className="p-2 w-1/2 mb-2" book={item} />;
+          return <BookTile style={styles.tile} book={item} />;
         }}
       />
     </View>
@@ -449,9 +456,17 @@ function MediaByNarrator({
         keyExtractor={(item) => item.id}
         numColumns={2}
         renderItem={({ item }) => {
-          return <MediaTile className="p-2 w-1/2 mb-2" media={item} />;
+          return <MediaTile style={styles.tile} media={item} />;
         }}
       />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  tile: {
+    padding: 8,
+    width: "50%",
+    marginBottom: 8,
+  },
+});

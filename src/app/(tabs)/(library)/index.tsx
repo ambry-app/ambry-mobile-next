@@ -1,4 +1,4 @@
-import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
+import Loading from "@/src/components/Loading";
 import ScreenCentered from "@/src/components/ScreenCentered";
 import { MediaTile } from "@/src/components/Tiles";
 import { MediaForIndex, listMediaForIndex } from "@/src/db/library";
@@ -6,7 +6,8 @@ import { syncDown } from "@/src/db/sync";
 import { useSessionStore } from "@/src/stores/session";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { FlatList, Text } from "react-native";
+import { FlatList, StyleSheet, Text } from "react-native";
+import colors from "tailwindcss/colors";
 
 export default function LibraryScreen() {
   const session = useSessionStore((state) => state.session);
@@ -49,7 +50,7 @@ export default function LibraryScreen() {
   if (media === undefined) {
     return (
       <ScreenCentered>
-        <LargeActivityIndicator />
+        <Loading />
       </ScreenCentered>
     );
   }
@@ -57,20 +58,32 @@ export default function LibraryScreen() {
   if (error) {
     return (
       <ScreenCentered>
-        <Text className="text-red-500">Failed to load audiobooks!</Text>
+        <Text style={styles.error}>Failed to load audiobooks!</Text>
       </ScreenCentered>
     );
   }
 
   return (
     <FlatList
-      className="p-2"
+      style={styles.flatlist}
       data={media}
       keyExtractor={(item) => item.id}
       numColumns={2}
-      renderItem={({ item }) => (
-        <MediaTile className="p-2 w-1/2 mb-2" media={item} />
-      )}
+      renderItem={({ item }) => <MediaTile style={styles.tile} media={item} />}
     />
   );
 }
+
+const styles = StyleSheet.create({
+  flatlist: {
+    padding: 8,
+  },
+  tile: {
+    padding: 8,
+    width: "50%",
+    marginBottom: 8,
+  },
+  error: {
+    color: colors.red[500],
+  },
+});

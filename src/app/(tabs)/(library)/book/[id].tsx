@@ -5,10 +5,10 @@ import * as schema from "@/src/db/schema";
 import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
 import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
 import { Session, useSessionStore } from "@/src/stores/session";
-import { formatPublished } from "@/src/utils/dates";
+import { formatPublished } from "@/src/utils/date";
 import { and, eq } from "drizzle-orm";
 import { Stack, useLocalSearchParams } from "expo-router";
-import { FlatList, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 
 export default function BookDetails() {
   const session = useSessionStore((state) => state.session);
@@ -101,7 +101,7 @@ function BookDetailsFlatList({
       numColumns={2}
       ListHeaderComponent={() => <Header book={book} />}
       renderItem={({ item }) => {
-        return <Tile className="p-2 w-1/2 mb-2" media={[item]} book={book} />;
+        return <Tile style={styles.tile} media={[item]} book={book} />;
       }}
     />
   );
@@ -168,3 +168,11 @@ function Header({ book }: HeaderProps) {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  tile: {
+    padding: 8,
+    width: "50%",
+    marginBottom: 8,
+  },
+});
