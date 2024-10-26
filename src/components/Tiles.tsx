@@ -1,10 +1,18 @@
 import MultiThumbnailImage from "@/src/components/MultiThumbnailImage";
-import NamesList from "@/src/components/NamesList";
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 import { useRouter } from "expo-router";
-import { Text, TouchableOpacity, View } from "react-native";
+import {
+  StyleProp,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ViewStyle,
+} from "react-native";
 import { PressableScale } from "react-native-pressable-scale";
+import colors from "tailwindcss/colors";
 import ThumbnailImage from "./ThumbnailImage";
+import TitleAuthorsNarrators from "./TitleAuthorNarrator";
 
 type Media = {
   id: string;
@@ -38,41 +46,50 @@ type MediaProp = Media & { book: Book };
 type BookProp = Book & { media: Media[] };
 type SeriesBookProp = SeriesBook & { book: BookProp };
 
-type MediaTileProps = { media: MediaProp; className?: string };
+type MediaTileProps = { media: MediaProp; style?: StyleProp<ViewStyle> };
+type BookTileProps = { book: BookProp; style?: StyleProp<ViewStyle> };
+type SeriesBookTileProps = {
+  seriesBook: SeriesBookProp;
+  style?: StyleProp<ViewStyle>;
+};
 
-export function MediaTile({ media, className }: MediaTileProps) {
-  return <Tile book={media.book} media={[media]} className={className} />;
+type TileProps = {
+  book: Book;
+  media: Media[];
+  seriesBook?: SeriesBook;
+  style?: StyleProp<ViewStyle>;
+};
+
+type PersonTileProps = {
+  personId: string;
+  name: string;
+  realName: string;
+  thumbnails: Thumbnails | null;
+  label: string;
+};
+
+export function MediaTile({ media, style }: MediaTileProps) {
+  return <Tile book={media.book} media={[media]} style={style} />;
 }
 
-type BookTileProps = { book: BookProp; className?: string };
-
-export function BookTile({ book, className }: BookTileProps) {
+export function BookTile({ book, style }: BookTileProps) {
   if (book.media.length === 0) return null;
-  return <Tile book={book} media={book.media} className={className} />;
+  return <Tile book={book} media={book.media} style={style} />;
 }
 
-type SeriesBookTileProps = { seriesBook: SeriesBookProp; className?: string };
-
-export function SeriesBookTile({ seriesBook, className }: SeriesBookTileProps) {
+export function SeriesBookTile({ seriesBook, style }: SeriesBookTileProps) {
   if (seriesBook.book.media.length === 0) return null;
   return (
     <Tile
       book={seriesBook.book}
       media={seriesBook.book.media}
       seriesBook={seriesBook}
-      className={className}
+      style={style}
     />
   );
 }
 
-type TileProps = {
-  book: Book;
-  media: Media[];
-  seriesBook?: SeriesBook;
-  className?: string;
-};
-
-export function Tile({ book, media, seriesBook, className }: TileProps) {
+export function Tile({ book, media, seriesBook, style }: TileProps) {
   const router = useRouter();
 
   const navigateToBook = () => {
@@ -90,10 +107,10 @@ export function Tile({ book, media, seriesBook, className }: TileProps) {
   };
 
   return (
-    <View className={(className || "") + " flex gap-3"}>
-      <View className="gap-1">
+    <View style={[styles.container, style]}>
+      <View style={styles.seriesBookContainer}>
         {seriesBook && (
-          <Text className="text-lg text-zinc-100 font-medium" numberOfLines={1}>
+          <Text style={styles.bookNumber} numberOfLines={1}>
             Book {seriesBook.bookNumber}
           </Text>
         )}
@@ -104,53 +121,30 @@ export function Tile({ book, media, seriesBook, className }: TileProps) {
               downloadedThumbnails: m.download?.thumbnails || null,
             }))}
             size="large"
-            // className="rounded-lg aspect-square"
             style={{ aspectRatio: 1, borderRadius: 8 }}
           />
         </PressableScale>
       </View>
       <TouchableOpacity onPress={navigateToBook}>
         <View>
-          <Text
-            className="text-lg leading-tight font-medium text-zinc-100"
-            numberOfLines={1}
-          >
-            {book.title}
-          </Text>
-          <NamesList
-            names={book.bookAuthors.map((ba) => ba.author.name)}
-            className="text-zinc-300 leading-tight"
-            numberOfLines={1}
+          <TitleAuthorsNarrators
+            baseFontSize={16}
+            title={book.title}
+            authors={book.bookAuthors.map((ba) => ba.author.name)}
+            narrators={
+              media.length === 1
+                ? media[0].mediaNarrators.map((mn) => mn.narrator.name)
+                : undefined
+            }
           />
-          {media.length === 1 && (
-            <NamesList
-              prefix="Read by"
-              names={media[0].mediaNarrators.map((mn) => mn.narrator.name)}
-              className="text-sm text-zinc-400 leading-tight"
-              numberOfLines={1}
-            />
-          )}
         </View>
       </TouchableOpacity>
     </View>
   );
 }
 
-type PersonTileProps = {
-  personId: string;
-  name: string;
-  realName: string;
-  thumbnails: Thumbnails | null;
-  label: string;
-};
-
-export function PersonTile({
-  personId,
-  name,
-  realName,
-  thumbnails,
-  label,
-}: PersonTileProps) {
+export function PersonTile(props: PersonTileProps) {
+  const { personId, name, realName, thumbnails, label } = props;
   const router = useRouter();
 
   const navigateToPerson = () => {
@@ -161,35 +155,62 @@ export function PersonTile({
   };
 
   return (
-    <View className="flex gap-3">
+    <View style={styles.container}>
       <PressableScale weight="light" onPress={navigateToPerson}>
         <ThumbnailImage
           thumbnails={thumbnails}
           size="large"
-          style={{ aspectRatio: 1, borderRadius: 9999 }}
+          style={styles.thumbnail}
         />
       </PressableScale>
       <TouchableOpacity onPress={navigateToPerson}>
         <View>
-          <Text
-            className="text-lg text-zinc-100 font-medium text-center leading-tight"
-            numberOfLines={1}
-          >
+          <Text style={styles.name} numberOfLines={1}>
             {name}
           </Text>
           {realName !== name && (
-            <Text
-              className="text-zinc-300 text-center leading-tight"
-              numberOfLines={1}
-            >
+            <Text style={styles.realName} numberOfLines={1}>
               ({realName})
             </Text>
           )}
-          <Text className="text-sm text-zinc-400 text-center leading-tight">
-            {label}
-          </Text>
+          <Text style={styles.label}>{label}</Text>
         </View>
       </TouchableOpacity>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    display: "flex",
+    gap: 12,
+  },
+  seriesBookContainer: {
+    gap: 4,
+  },
+  thumbnail: {
+    aspectRatio: 1,
+    borderRadius: 999,
+  },
+  bookNumber: {
+    fontSize: 16,
+    fontWeight: 500,
+    color: colors.zinc[100],
+  },
+  name: {
+    fontSize: 16,
+    fontWeight: 500,
+    color: colors.zinc[100],
+    textAlign: "center",
+  },
+  realName: {
+    fontSize: 14,
+    color: colors.zinc[300],
+    textAlign: "center",
+  },
+  label: {
+    fontSize: 12,
+    color: colors.zinc[400],
+    textAlign: "center",
+  },
+});

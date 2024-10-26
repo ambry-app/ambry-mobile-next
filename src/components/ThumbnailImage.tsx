@@ -55,6 +55,12 @@ export default function ThumbnailImage(props: ThumbnailImageProps) {
 }
 
 const styles = StyleSheet.create({
-  container: { overflow: "hidden", backgroundColor: colors.zinc[800] },
-  image: { width: "100%", height: "100%" },
+  container: {
+    overflow: "hidden",
+    backgroundColor: colors.zinc[800],
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+  },
 });

@@ -7,7 +7,7 @@ import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
 import { Session, useSessionStore } from "@/src/stores/session";
 import { and, eq, sql } from "drizzle-orm";
 import { Stack, useLocalSearchParams } from "expo-router";
-import { FlatList, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 
 export default function SeriesDetails() {
   const session = useSessionStore((state) => state.session);
@@ -173,7 +173,7 @@ function SeriesDetailsFlatList({
         <Footer authors={authors} narrators={narrators} />
       )}
       renderItem={({ item }) => {
-        return <SeriesBookTile className="p-2 w-1/2 mb-2" seriesBook={item} />;
+        return <SeriesBookTile style={styles.tile} seriesBook={item} />;
       }}
     />
   );
@@ -246,3 +246,11 @@ function Footer({ authors, narrators }: FooterProps) {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  tile: {
+    padding: 8,
+    width: "50%",
+    marginBottom: 8,
+  },
+});

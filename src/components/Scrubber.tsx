@@ -2,11 +2,10 @@ import AnimatedText from "@/src/components/AnimatedText";
 import usePrevious from "@react-hook/previous";
 import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, StyleSheet } from "react-native";
-import { Gesture, PanGestureHandler } from "react-native-gesture-handler";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
   runOnJS,
-  useAnimatedGestureHandler,
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
@@ -14,6 +13,15 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Line, Path, Rect } from "react-native-svg";
+
+type Theme = {
+  strong: string;
+  normal: string;
+  dimmed: string;
+  emphasized: string;
+  accent: string;
+  weak: string;
+};
 
 const SPACING = 10; // pixels between ticks
 const FACTOR = SPACING / 5; // 5 seconds per tick
@@ -23,12 +31,12 @@ const HEIGHT = 60;
 const HALF_WIDTH = WIDTH / 2;
 const NUM_TICKS = Math.ceil(WIDTH / SPACING);
 
-const clamp = (value, lowerBound, upperBound) => {
+const clamp = (value: number, lowerBound: number, upperBound: number) => {
   "worklet";
   return Math.min(Math.max(lowerBound, value), upperBound);
 };
 
-function friction(value) {
+function friction(value: number) {
   "worklet";
 
   const MAX_FRICTION = 200;
@@ -49,37 +57,47 @@ function friction(value) {
   return res;
 }
 
-function timeToTranslateX(time) {
+function timeToTranslateX(time: number) {
   return time * -FACTOR;
 }
 
-function translateXToTime(translateX) {
+function translateXToTime(translateX: number) {
   "worklet";
   return translateX / -FACTOR;
 }
 
 function useIsScrubbing() {
   const [isScrubbing, _setIsScrubbing] = useState(false);
-  const timerRef = useRef();
+  const timerRef = useRef<NodeJS.Timeout | undefined>();
 
-  const setIsScrubbing = useCallback((newValue) => {
-    if (newValue) {
-      // if true, set immediately
-      _setIsScrubbing(true);
-      // and cancel any active timer that may be waiting
-      clearTimeout(timerRef.current);
-    } else {
-      // if false, delay by 1 second
-      timerRef.current = setTimeout(() => {
-        _setIsScrubbing(false);
-      }, 1000);
-    }
-  }, []);
+  const setIsScrubbing = useCallback(
+    (newValue: boolean) => {
+      if (newValue) {
+        // if true, set immediately
+        _setIsScrubbing(true);
+        // and cancel any active timer that may be waiting
+        clearTimeout(timerRef.current);
+      } else {
+        // if false, delay by 1 second
+        timerRef.current = setTimeout(() => {
+          _setIsScrubbing(false);
+        }, 1000);
+      }
+    },
+    [timerRef],
+  );
 
-  return [isScrubbing, setIsScrubbing];
+  return [isScrubbing, setIsScrubbing] as [
+    boolean,
+    (newValue: boolean) => void,
+  ];
 }
 
-const Ticks = memo(function Ticks({ theme }) {
+type TicksProps = {
+  theme: Theme;
+};
+
+const Ticks = memo(function Ticks({ theme }: TicksProps) {
   return (
     <Svg height={HEIGHT} width={WIDTH + 120}>
       {Array.from({ length: NUM_TICKS + 12 }, (_, i) => (
@@ -103,7 +121,12 @@ const Ticks = memo(function Ticks({ theme }) {
   );
 });
 
-const Markers = memo(function Markers({ markers, duration, theme }) {
+type MarkersProps = {
+  markers: number[];
+  theme: Theme;
+};
+
+const Markers = memo(function Markers({ markers, theme }: MarkersProps) {
   return markers.map((marker, i) => {
     return (
       <Svg
@@ -128,14 +151,24 @@ const Markers = memo(function Markers({ markers, duration, theme }) {
   });
 });
 
-export default function Scrubber({
-  position: positionInput,
-  duration,
-  playbackRate,
-  onChange,
-  markers,
-  theme,
-}) {
+type ScrubberProps = {
+  position: number;
+  duration: number;
+  playbackRate: number;
+  onChange: (newPosition: number) => void;
+  markers: number[];
+  theme: Theme;
+};
+
+export default function Scrubber(props: ScrubberProps) {
+  const {
+    position: positionInput,
+    duration,
+    playbackRate,
+    onChange,
+    markers,
+    theme,
+  } = props;
   // console.log('RENDERING: Scrubber')
   const translateX = useSharedValue(
     timeToTranslateX(Math.round(positionInput)),
@@ -144,24 +177,18 @@ export default function Scrubber({
   const maxTranslateX = timeToTranslateX(duration);
   const previousPosition = usePrevious(positionInput);
 
-  // const panGestureHandler = Gesture.Pan()
-  //   .onStart((_event, ctx) => {
-  //     runOnJS(setIsScrubbing)(true);
-  //     const currentX = translateX.value;
-  //     ctx.startX = currentX;
-  //     translateX.value = currentX;
-  //   })
-  //   .onUpdate((event, ctx) => {
+  const startX = useSharedValue(0);
+  const isAnimating = useSharedValue(false);
 
-  const onGestureEventHandler = useAnimatedGestureHandler({
-    onStart: (_event, ctx) => {
+  const panGestureHandler = Gesture.Pan()
+    .onStart((_event) => {
       runOnJS(setIsScrubbing)(true);
       const currentX = translateX.value;
-      ctx.startX = currentX;
+      startX.value = currentX;
       translateX.value = currentX;
-    },
-    onActive: (event, ctx) => {
-      const nextTranslateX = ctx.startX + event.translationX;
+    })
+    .onUpdate((event) => {
+      const nextTranslateX = startX.value + event.translationX;
 
       if (nextTranslateX < maxTranslateX) {
         translateX.value =
@@ -171,10 +198,10 @@ export default function Scrubber({
       } else {
         translateX.value = nextTranslateX;
       }
-    },
-    onEnd: (event, ctx) => {
-      const onFinish = (finished) => {
-        ctx.animating = false;
+    })
+    .onEnd((event) => {
+      const onFinish = (finished: boolean | undefined) => {
+        isAnimating.value = false;
 
         if (finished) {
           const newPosition = translateXToTime(translateX.value);
@@ -183,7 +210,7 @@ export default function Scrubber({
         }
       };
 
-      ctx.animating = true;
+      isAnimating.value = true;
 
       if (translateX.value < maxTranslateX || translateX.value > 0) {
         const toValue = translateX.value > 0 ? 0 : maxTranslateX;
@@ -205,15 +232,14 @@ export default function Scrubber({
           onFinish,
         );
       }
-    },
-    onFinish(_event, ctx) {
-      if (!ctx.animating) {
+    })
+    .onFinalize(() => {
+      if (!isAnimating.value) {
         const newPosition = translateXToTime(translateX.value);
         runOnJS(onChange)(newPosition);
         runOnJS(setIsScrubbing)(false);
       }
-    },
-  });
+    });
 
   const animatedScrubberStyle = useAnimatedStyle(() => {
     const value = translateX.value;
@@ -271,7 +297,7 @@ export default function Scrubber({
 
   useEffect(() => {
     if (!isScrubbing) {
-      if (Math.abs(positionInput - previousPosition) > 5) {
+      if (Math.abs(positionInput - (previousPosition || positionInput)) > 5) {
         translateX.value = withTiming(timeToTranslateX(positionInput), {
           easing: Easing.out(Easing.exp),
         });
@@ -285,7 +311,7 @@ export default function Scrubber({
   }, [translateX, isScrubbing, positionInput, previousPosition, playbackRate]);
 
   return (
-    <PanGestureHandler onGestureEvent={onGestureEventHandler}>
+    <GestureDetector gesture={panGestureHandler}>
       <Animated.View>
         <AnimatedText
           text={timecode}
@@ -307,10 +333,10 @@ export default function Scrubber({
         </Animated.View>
 
         <Animated.View style={[styles.markers, animatedMarkerStyle]}>
-          <Markers markers={markers} duration={duration} theme={theme} />
+          <Markers markers={markers} theme={theme} />
         </Animated.View>
       </Animated.View>
-    </PanGestureHandler>
+    </GestureDetector>
   );
 }
 

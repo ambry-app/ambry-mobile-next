@@ -1,9 +1,9 @@
 import IconButton from "@/src/components/IconButton";
-import NamesList from "@/src/components/NamesList";
 import PlayerButtons from "@/src/components/PlayerButtons";
 import PlayerProgressBar from "@/src/components/PlayerProgressBar";
 import PlayerScrubber from "@/src/components/PlayerScrubber";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
+import TitleAuthorsNarrators from "@/src/components/TitleAuthorNarrator";
 import useBackHandler from "@/src/hooks/use.back.handler";
 import { useMediaDetails } from "@/src/hooks/use.media.details";
 import { useScreenStore } from "@/src/stores/screen";
@@ -11,7 +11,7 @@ import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { BottomTabBar, BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Tabs } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
@@ -417,19 +417,13 @@ function TabBarWithPlayer({
                 ]}
               >
                 <View className="flex-1">
-                  <Text className="text-zinc-100 font-medium" numberOfLines={1}>
-                    {media.book.title}
-                  </Text>
-                  <NamesList
-                    names={media.book.bookAuthors.map((ba) => ba.author.name)}
-                    className="text-sm text-zinc-300 leading-tight"
-                    numberOfLines={1}
-                  />
-                  <NamesList
-                    prefix="Read by"
-                    names={media.mediaNarrators.map((mn) => mn.narrator.name)}
-                    className="text-xs text-zinc-400 leading-tight"
-                    numberOfLines={1}
+                  <TitleAuthorsNarrators
+                    baseFontSize={14}
+                    title={media.book.title}
+                    authors={media.book.bookAuthors.map((ba) => ba.author.name)}
+                    narrators={media.mediaNarrators.map(
+                      (mn) => mn.narrator.name,
+                    )}
                   />
                 </View>
                 <View style={{}}>
@@ -453,22 +447,12 @@ function TabBarWithPlayer({
             >
               <View style={{ width: "10%" }}></View>
               <View style={{ width: "80%" }}>
-                <Text
-                  className="text-xl text-zinc-100 font-bold"
-                  numberOfLines={1}
-                >
-                  {media.book.title}
-                </Text>
-                <NamesList
-                  names={media.book.bookAuthors.map((ba) => ba.author.name)}
-                  className="text-lg text-zinc-300 leading-tight"
-                  numberOfLines={1}
-                />
-                <NamesList
-                  prefix="Read by"
-                  names={media.mediaNarrators.map((mn) => mn.narrator.name)}
-                  className="text-zinc-400 leading-tight"
-                  numberOfLines={1}
+                <TitleAuthorsNarrators
+                  baseFontSize={18}
+                  titleWeight={700}
+                  title={media.book.title}
+                  authors={media.book.bookAuthors.map((ba) => ba.author.name)}
+                  narrators={media.mediaNarrators.map((mn) => mn.narrator.name)}
                 />
               </View>
               <View style={{ width: "10%" }}></View>

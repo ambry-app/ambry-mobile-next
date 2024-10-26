@@ -1,7 +1,7 @@
-import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
-import NamesList from "@/src/components/NamesList";
+import Loading from "@/src/components/Loading";
 import ScreenCentered from "@/src/components/ScreenCentered";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
+import TitleAuthorsNarrators from "@/src/components/TitleAuthorNarrator";
 import { useLiveDownloadsList, type Download } from "@/src/db/downloads";
 import { useDownloadsStore } from "@/src/stores/downloads";
 import { Session, useSessionStore } from "@/src/stores/session";
@@ -9,14 +9,7 @@ import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import * as FileSystem from "expo-file-system";
 import { Link } from "expo-router";
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Modal,
-  Pressable,
-  Text,
-  View,
-} from "react-native";
+import { FlatList, Modal, Pressable, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
 
 export default function DownloadsScreen() {
@@ -33,7 +26,7 @@ function DownloadsList({ session }: { session: Session }) {
   if (updatedAt === undefined) {
     return (
       <ScreenCentered>
-        <LargeActivityIndicator />
+        <Loading />
       </ScreenCentered>
     );
   }
@@ -91,19 +84,15 @@ function DownloadRow({
           style={{ width: 70, height: 70, borderRadius: 6 }}
         />
         <View className="flex-1">
-          <Text className="text-zinc-100 font-medium" numberOfLines={1}>
-            {download.media.book.title}
-          </Text>
-          <NamesList
-            names={download.media.book.bookAuthors.map((ba) => ba.author.name)}
-            className="text-sm text-zinc-300 leading-tight"
-            numberOfLines={1}
-          />
-          <NamesList
-            prefix="Read by"
-            names={download.media.mediaNarrators.map((mn) => mn.narrator.name)}
-            className="text-xs text-zinc-400 leading-tight"
-            numberOfLines={1}
+          <TitleAuthorsNarrators
+            baseFontSize={14}
+            title={download.media.book.title}
+            authors={download.media.book.bookAuthors.map(
+              (ba) => ba.author.name,
+            )}
+            narrators={download.media.mediaNarrators.map(
+              (mn) => mn.narrator.name,
+            )}
           />
           {download.status === "ready" && <FileSize download={download} />}
         </View>
@@ -116,15 +105,7 @@ function DownloadRow({
             />
           )}
         </View>
-        <View>
-          {progress !== undefined && (
-            <ActivityIndicator
-              animating={true}
-              size={24}
-              color={colors.zinc[200]}
-            />
-          )}
-        </View>
+        <View>{progress !== undefined && <Loading size={24} />}</View>
         <View>
           <Pressable
             className="w-12 h-12 flex items-center justify-center"

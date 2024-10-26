@@ -1,5 +1,5 @@
 import "@/assets/global.css";
-import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
+import Loading from "@/src/components/Loading";
 import MeasureScreenHeight from "@/src/components/MeasureScreenHeight";
 import { expoDb } from "@/src/db/db";
 import { useAppBoot } from "@/src/hooks/use.app.boot";
@@ -67,7 +67,7 @@ function Root() {
     </Stack>
   ) : (
     <View className="flex h-full items-center justify-center">
-      <LargeActivityIndicator />
+      <Loading />
     </View>
   );
 }

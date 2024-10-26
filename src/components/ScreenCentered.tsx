@@ -1,8 +1,15 @@
 import { ReactNode } from "react";
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 export default function ScreenCentered({ children }: { children: ReactNode }) {
-  return (
-    <View className="flex h-full items-center justify-center">{children}</View>
-  );
+  return <View style={styles.centered}>{children}</View>;
 }
+
+const styles = StyleSheet.create({
+  centered: {
+    display: "flex",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});

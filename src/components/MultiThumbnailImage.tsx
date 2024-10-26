@@ -84,9 +84,17 @@ export default function MultiThumbnailImage(props: MultiThumbnailImageProps) {
 }
 
 const styles = StyleSheet.create({
-  blackBorder: { borderWidth: 1, borderColor: colors.black },
-  container: { overflow: "hidden", backgroundColor: colors.zinc[800] },
-  multiContainer: { position: "relative" },
+  blackBorder: {
+    borderWidth: 1,
+    borderColor: colors.black,
+  },
+  container: {
+    overflow: "hidden",
+    backgroundColor: colors.zinc[800],
+  },
+  multiContainer: {
+    position: "relative",
+  },
   firstOfTwo: {
     transform: [{ translateX: 4 }, { translateY: 4 }, { scale: 0.95 }],
   },

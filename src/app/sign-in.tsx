@@ -1,5 +1,5 @@
 import Logo from "@/assets/images/logo.svg";
-import LargeActivityIndicator from "@/src/components/LargeActivityIndicator";
+import Loading from "@/src/components/Loading";
 import { useSessionStore } from "@/src/stores/session";
 import { Redirect } from "expo-router";
 import { useState } from "react";
@@ -77,7 +77,7 @@ export default function SignIn() {
         }}
         disabled={isLoading}
       />
-      {isLoading && <LargeActivityIndicator className="mt-4" />}
+      {isLoading && <Loading style={{ marginTop: 16 }} />}
       {error && (
         <Text className="mt-4 text-red-500 text-center">
           Invalid host, username, or password
