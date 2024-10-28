@@ -22,6 +22,10 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appName": "Ambry Audiobook Player"
+      }
+    }
   }
 }

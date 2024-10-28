@@ -73,7 +73,7 @@ export default function SignIn() {
         onPress={() => {
           // to help the automated Google Play pre-launch report
           if (email === "demo@ambry.app") {
-            signIn("https://demo.ambry.app", email, "demo");
+            signIn("https://demo.ambry.app", email, password);
           } else {
             signIn(host, email, password);
           }
