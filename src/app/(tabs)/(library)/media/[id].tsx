@@ -1,4 +1,5 @@
 import Description from "@/src/components/Description";
+import IconButton from "@/src/components/IconButton";
 import Loading from "@/src/components/Loading";
 import NamesList from "@/src/components/NamesList";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
@@ -392,7 +393,8 @@ function ActionBar({
   const progress = useDownloadsStore(
     (state) => state.downloadProgresses[mediaId],
   );
-  const loadMediaIntoPlayer = useTrackPlayerStore((state) => state.loadMedia);
+  const { loadMedia: loadMediaIntoPlayer, requestExpandPlayer } =
+    useTrackPlayerStore((state) => state);
   const { startDownload } = useDownloadsStore();
   const router = useRouter();
 
@@ -440,27 +442,22 @@ function ActionBar({
     return (
       <View className="gap-2 mt-8">
         <View className="flex flex-row bg-zinc-900 rounded-xl items-center">
-          <Pressable
-            className="grow p-4"
-            onPress={() => {
-              loadMediaIntoPlayer(session, media.id);
-              // TODO: expand player
-              // router.navigate("/");
-            }}
-          >
-            <View className="flex items-center justify-end">
-              <View className="mb-2">
-                <FontAwesome6
-                  name="play-circle"
-                  size={32}
-                  color={colors.zinc[100]}
-                />
-              </View>
-              <View>
-                <Text className="text-lg text-zinc-100 leading-none">Play</Text>
-              </View>
-            </View>
-          </Pressable>
+          <View className="grow flex items-center justify-center">
+            <IconButton
+              icon="play-circle"
+              size={32}
+              padding={24}
+              color={colors.zinc[100]}
+              onPress={() => {
+                loadMediaIntoPlayer(session, media.id);
+                requestExpandPlayer();
+              }}
+            >
+              <Text className="text-lg text-zinc-100 leading-none mt-2">
+                Play
+              </Text>
+            </IconButton>
+          </View>
         </View>
         <Text className="text-zinc-500 text-sm leading-tight">
           You have this audiobook downloaded, it will play from your device and
@@ -472,52 +469,44 @@ function ActionBar({
     return (
       <View className="gap-2 mt-8">
         <View className="flex flex-row bg-zinc-900 rounded-xl items-center">
-          <Pressable
-            className="grow border-r border-zinc-800 p-4"
-            onPress={() => {
-              loadMediaIntoPlayer(session, media.id);
-              // TODO: expand player
-              // router.navigate("/");
-            }}
-          >
-            <View className="flex items-center justify-end">
-              <View className="mb-2">
-                <FontAwesome6
-                  name="play-circle"
-                  size={32}
-                  color={colors.zinc[100]}
-                />
-              </View>
-              <View>
-                <Text className="text-lg text-zinc-100 leading-none">
-                  Stream
-                </Text>
-              </View>
-            </View>
-          </Pressable>
-          <Pressable
-            className="grow p-4"
-            onPress={() => {
-              if (!media.mp4Path) return;
-              startDownload(session, media.id, media.mp4Path, media.thumbnails);
-              router.navigate("/downloads");
-            }}
-          >
-            <View className="flex items-center justify-end">
-              <View className="mb-2">
-                <FontAwesome6
-                  name="download"
-                  size={32}
-                  color={colors.zinc[100]}
-                />
-              </View>
-              <View>
-                <Text className="text-lg text-zinc-100 leading-none">
-                  Download
-                </Text>
-              </View>
-            </View>
-          </Pressable>
+          <View className="grow border-r border-zinc-800 flex items-center justify-center">
+            <IconButton
+              icon="play-circle"
+              size={32}
+              padding={24}
+              color={colors.zinc[100]}
+              onPress={() => {
+                loadMediaIntoPlayer(session, media.id);
+                requestExpandPlayer();
+              }}
+            >
+              <Text className="text-lg text-zinc-100 leading-none mt-2">
+                Stream
+              </Text>
+            </IconButton>
+          </View>
+          <View className="grow flex items-center justify-center">
+            <IconButton
+              icon="download"
+              size={32}
+              padding={24}
+              color={colors.zinc[100]}
+              onPress={() => {
+                if (!media.mp4Path) return;
+                startDownload(
+                  session,
+                  media.id,
+                  media.mp4Path,
+                  media.thumbnails,
+                );
+                router.navigate("/downloads");
+              }}
+            >
+              <Text className="text-lg text-zinc-100 leading-none mt-2">
+                Download
+              </Text>
+            </IconButton>
+          </View>
         </View>
         <Text className="text-zinc-500 text-sm leading-tight">
           Playing this audiobook will stream it and require an internet

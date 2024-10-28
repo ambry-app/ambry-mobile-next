@@ -1,3 +1,4 @@
+import IconButton from "@/src/components/IconButton";
 import Loading from "@/src/components/Loading";
 import ScreenCentered from "@/src/components/ScreenCentered";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
@@ -7,9 +8,16 @@ import { useDownloadsStore } from "@/src/stores/downloads";
 import { Session, useSessionStore } from "@/src/stores/session";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import * as FileSystem from "expo-file-system";
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import { useEffect, useState } from "react";
-import { FlatList, Modal, Pressable, Text, View } from "react-native";
+import {
+  FlatList,
+  Modal,
+  Pressable,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import colors from "tailwindcss/colors";
 
 export default function DownloadsScreen() {
@@ -60,13 +68,12 @@ function DownloadsList({ session }: { session: Session }) {
   );
 }
 
-function DownloadRow({
-  session,
-  download,
-}: {
+type DownloadRowProps = {
   session: Session;
   download: Download;
-}) {
+};
+
+function DownloadRow({ session, download }: DownloadRowProps) {
   const progress = useDownloadsStore(
     (state) => state.downloadProgresses[download.media.id],
   );
@@ -74,27 +81,41 @@ function DownloadRow({
   const cancelDownload = useDownloadsStore((state) => state.cancelDownload);
   const [isModalVisible, setIsModalVisible] = useState(false);
 
+  const navigateToBook = () => {
+    router.push({
+      pathname: "/media/[id]",
+      params: {
+        id: download.media.id,
+        title: download.media.book.title,
+      },
+    });
+  };
+
   return (
     <View>
       <View className="p-4 flex flex-row items-center gap-4 border-b-[0.25px] border-zinc-600">
-        <ThumbnailImage
-          downloadedThumbnails={download.thumbnails}
-          thumbnails={download.media.thumbnails}
-          size="small"
-          style={{ width: 70, height: 70, borderRadius: 6 }}
-        />
-        <View className="flex-1">
-          <TitleAuthorsNarrators
-            baseFontSize={14}
-            title={download.media.book.title}
-            authors={download.media.book.bookAuthors.map(
-              (ba) => ba.author.name,
-            )}
-            narrators={download.media.mediaNarrators.map(
-              (mn) => mn.narrator.name,
-            )}
+        <TouchableOpacity onPress={navigateToBook}>
+          <ThumbnailImage
+            downloadedThumbnails={download.thumbnails}
+            thumbnails={download.media.thumbnails}
+            size="small"
+            style={{ width: 70, height: 70, borderRadius: 6 }}
           />
-          {download.status === "ready" && <FileSize download={download} />}
+        </TouchableOpacity>
+        <View className="flex-1">
+          <TouchableOpacity onPress={navigateToBook}>
+            <TitleAuthorsNarrators
+              baseFontSize={14}
+              title={download.media.book.title}
+              authors={download.media.book.bookAuthors.map(
+                (ba) => ba.author.name,
+              )}
+              narrators={download.media.mediaNarrators.map(
+                (mn) => mn.narrator.name,
+              )}
+            />
+            {download.status === "ready" && <FileSize download={download} />}
+          </TouchableOpacity>
         </View>
         <View>
           {download.status === "error" && (
@@ -107,16 +128,12 @@ function DownloadRow({
         </View>
         <View>{progress !== undefined && <Loading size={24} />}</View>
         <View>
-          <Pressable
-            className="w-12 h-12 flex items-center justify-center"
+          <IconButton
+            size={16}
+            icon="ellipsis-vertical"
+            color={colors.zinc[100]}
             onPress={() => setIsModalVisible(true)}
-          >
-            <FontAwesome6
-              size={16}
-              name="ellipsis-vertical"
-              color={colors.zinc[100]}
-            />
-          </Pressable>
+          />
         </View>
       </View>
       {progress !== undefined && (

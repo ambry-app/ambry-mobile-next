@@ -1,9 +1,12 @@
-import TrackPlayer, { useProgress } from "react-native-track-player";
+import TrackPlayer from "react-native-track-player";
 import colors from "tailwindcss/colors";
+import { useTrackPlayerStore } from "../stores/trackPlayer";
 import Scrubber from "./Scrubber";
 
 export default function PlayerScrubber() {
-  const { position, duration } = useProgress(1000);
+  const { playbackRate, position, duration } = useTrackPlayerStore(
+    (state) => state,
+  );
   const theme = {
     accent: colors.lime[400],
     strong: colors.gray[100],
@@ -17,8 +20,7 @@ export default function PlayerScrubber() {
     <Scrubber
       position={position}
       duration={duration}
-      // FIXME:
-      playbackRate={1}
+      playbackRate={playbackRate}
       onChange={(newPosition: number) => TrackPlayer.seekTo(newPosition)}
       markers={[]}
       theme={theme}

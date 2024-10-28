@@ -1,10 +1,10 @@
+import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
 import { secondsDisplay } from "@/src/utils/time";
 import { StyleSheet, Text, View } from "react-native";
-import { useProgress } from "react-native-track-player";
 import colors from "tailwindcss/colors";
 
 export default function PlayerProgressBar() {
-  const { position, duration } = useProgress(1000);
+  const { position, duration } = useTrackPlayerStore((state) => state);
   const percent = duration > 0 ? (position / duration) * 100 : 0;
 
   return (
@@ -15,7 +15,7 @@ export default function PlayerProgressBar() {
       <View style={styles.timeDisplayRow}>
         <Text style={styles.timeDisplayText}>{secondsDisplay(position)}</Text>
         <Text style={styles.timeDisplayText}>
-          -{secondsDisplay(duration - position)}
+          -{secondsDisplay(Math.max(duration - position, 0))}
         </Text>
       </View>
     </>

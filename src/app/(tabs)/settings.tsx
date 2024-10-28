@@ -1,6 +1,6 @@
 import { useSessionStore } from "@/src/stores/session";
 import { useRouter } from "expo-router";
-import { Button, StyleSheet, View } from "react-native";
+import { Button, StyleSheet, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
 
 export default function SettingsScreen() {
@@ -9,6 +9,10 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.container}>
+      <Text style={styles.text}>Coming Soon:</Text>
+      <Text style={styles.text}>
+        Settings, like your preferred playback speed, will be here.
+      </Text>
       <Button
         title="Sign out"
         onPress={() => {
@@ -26,5 +30,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    gap: 16,
+  },
+  text: {
+    color: colors.zinc[100],
   },
 });

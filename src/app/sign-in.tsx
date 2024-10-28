@@ -36,6 +36,8 @@ export default function SignIn() {
           setHost(host);
           clearError();
         }}
+        textContentType="URL"
+        keyboardType="url"
         className="my-2 text-zinc-200 bg-zinc-800 rounded px-4 py-4 border-2 focus:border-zinc-700"
         placeholderTextColor={colors.zinc[500]}
       />
@@ -61,6 +63,7 @@ export default function SignIn() {
           clearError();
         }}
         secureTextEntry
+        textContentType="password"
         className="my-2 mb-10 text-zinc-200 bg-zinc-800 rounded px-4 py-4 border-2 focus:border-zinc-700"
         placeholderTextColor={colors.zinc[500]}
       />
