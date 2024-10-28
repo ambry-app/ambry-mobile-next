@@ -1,11 +1,12 @@
-import TrackPlayer, { useProgress } from "react-native-track-player";
+import TrackPlayer from "react-native-track-player";
 import colors from "tailwindcss/colors";
 import { useTrackPlayerStore } from "../stores/trackPlayer";
 import Scrubber from "./Scrubber";
 
 export default function PlayerScrubber() {
-  const { playbackRate } = useTrackPlayerStore((state) => state);
-  const { position, duration } = useProgress(1000 / playbackRate);
+  const { playbackRate, position, duration } = useTrackPlayerStore(
+    (state) => state,
+  );
   const theme = {
     accent: colors.lime[400],
     strong: colors.gray[100],

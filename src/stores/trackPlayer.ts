@@ -15,6 +15,7 @@ import TrackPlayer, {
   IOSCategory,
   IOSCategoryMode,
   PitchAlgorithm,
+  State,
   TrackType,
 } from "react-native-track-player";
 import { create } from "zustand";
@@ -24,8 +25,8 @@ interface TrackPlayerState {
   setup: boolean;
   setupError: unknown | null;
   mediaId: string | null;
-  duration: number;
   position: number;
+  duration: number;
   playbackRate: number;
   lastPlayerExpandRequest: Date | undefined;
   setupTrackPlayer: () => Promise<void>;
@@ -33,6 +34,8 @@ interface TrackPlayerState {
   loadMedia: (session: Session, mediaId: string) => Promise<void>;
   requestExpandPlayer: () => void;
   expandPlayerHandled: () => void;
+  updateProgress: (position: number, duration: number) => void;
+  seekRelative: (position: number) => void;
 }
 
 interface TrackLoadResult {
@@ -46,8 +49,8 @@ export const useTrackPlayerStore = create<TrackPlayerState>()((set, get) => ({
   setup: false,
   setupError: null,
   mediaId: null,
-  duration: 0,
   position: 0,
+  duration: 0,
   playbackRate: 1,
   lastPlayerExpandRequest: undefined,
   setupTrackPlayer: async () => {
@@ -99,7 +102,38 @@ export const useTrackPlayerStore = create<TrackPlayerState>()((set, get) => ({
   },
   requestExpandPlayer: () => set({ lastPlayerExpandRequest: new Date() }),
   expandPlayerHandled: () => set({ lastPlayerExpandRequest: undefined }),
+  updateProgress: (position, duration) => {
+    set({ position, duration });
+  },
+  seekRelative: async (amount) => {
+    const { state } = await TrackPlayer.getPlaybackState();
+    if (!shouldSeek(state)) return;
+    const { position, duration } = await TrackPlayer.getProgress();
+
+    let newPosition = position + amount * get().playbackRate;
+    if (newPosition < 0) newPosition = 0;
+    if (newPosition > duration) newPosition = duration;
+
+    TrackPlayer.seekTo(newPosition);
+    set({ position: newPosition });
+  },
 }));
+
+function shouldSeek(state: State): boolean {
+  switch (state) {
+    case State.Paused:
+    case State.Stopped:
+    case State.Ready:
+    case State.Playing:
+    case State.Ended:
+      return true;
+    case State.Buffering:
+    case State.Loading:
+    case State.None:
+    case State.Error:
+      return false;
+  }
+}
 
 async function setupTrackPlayer(): Promise<TrackLoadResult | true> {
   try {

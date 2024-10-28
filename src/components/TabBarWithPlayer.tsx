@@ -23,6 +23,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { useProgress } from "react-native-track-player";
 import colors from "tailwindcss/colors";
 
 export default function TabBarWithPlayer({
@@ -89,8 +90,6 @@ export default function TabBarWithPlayer({
             e.translationY / -(screenHeight - tabBarHeight - playerHeight),
         ),
       );
-
-      console.log(e.velocityY, expansion.value);
 
       if (expansion.value > 0.85) onPanEndAction.value = "expand";
       if (expansion.value <= 0.15) onPanEndAction.value = "collapse";
@@ -240,6 +239,7 @@ export default function TabBarWithPlayer({
 
   return (
     <>
+      <TrackPlayerProgressSubscriber />
       <Animated.View
         style={[
           {
@@ -455,4 +455,15 @@ export default function TabBarWithPlayer({
       </View>
     </>
   );
+}
+
+function TrackPlayerProgressSubscriber() {
+  const { playbackRate, updateProgress } = useTrackPlayerStore(
+    (state) => state,
+  );
+  const { position, duration } = useProgress(1000 / playbackRate);
+  useEffect(() => {
+    updateProgress(position, duration);
+  }, [duration, position, updateProgress]);
+  return null;
 }
