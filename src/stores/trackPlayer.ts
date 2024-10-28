@@ -8,6 +8,7 @@ import {
   getSyncedPlayerState,
   updatePlayerState,
 } from "@/src/db/playerStates";
+import { Platform } from "react-native";
 import TrackPlayer, {
   AndroidAudioContentType,
   Capability,
@@ -26,9 +27,12 @@ interface TrackPlayerState {
   duration: number;
   position: number;
   playbackRate: number;
+  lastPlayerExpandRequest: Date | undefined;
   setupTrackPlayer: () => Promise<void>;
   loadMostRecentMedia: (session: Session) => Promise<void>;
   loadMedia: (session: Session, mediaId: string) => Promise<void>;
+  requestExpandPlayer: () => void;
+  expandPlayerHandled: () => void;
 }
 
 interface TrackLoadResult {
@@ -45,6 +49,7 @@ export const useTrackPlayerStore = create<TrackPlayerState>()((set, get) => ({
   duration: 0,
   position: 0,
   playbackRate: 1,
+  lastPlayerExpandRequest: undefined,
   setupTrackPlayer: async () => {
     if (get().setup) {
       return;
@@ -92,6 +97,8 @@ export const useTrackPlayerStore = create<TrackPlayerState>()((set, get) => ({
       playbackRate: track.playbackRate,
     });
   },
+  requestExpandPlayer: () => set({ lastPlayerExpandRequest: new Date() }),
+  expandPlayerHandled: () => set({ lastPlayerExpandRequest: undefined }),
 }));
 
 async function setupTrackPlayer(): Promise<TrackLoadResult | true> {
@@ -174,8 +181,10 @@ async function loadPlayerState(
   } else {
     // the media is not downloaded, load the stream
     await TrackPlayer.add({
-      // FIXME: iOS use HLS
-      url: `${session.url}${playerState.media.mpdPath}`,
+      url:
+        Platform.OS === "ios"
+          ? `${session.url}${playerState.media.hlsPath}`
+          : `${session.url}${playerState.media.mpdPath}`,
       type: TrackType.Dash,
       pitchAlgorithm: PitchAlgorithm.Voice,
       duration: playerState.media.duration

@@ -392,7 +392,8 @@ function ActionBar({
   const progress = useDownloadsStore(
     (state) => state.downloadProgresses[mediaId],
   );
-  const loadMediaIntoPlayer = useTrackPlayerStore((state) => state.loadMedia);
+  const { loadMedia: loadMediaIntoPlayer, requestExpandPlayer } =
+    useTrackPlayerStore((state) => state);
   const { startDownload } = useDownloadsStore();
   const router = useRouter();
 
@@ -444,8 +445,7 @@ function ActionBar({
             className="grow p-4"
             onPress={() => {
               loadMediaIntoPlayer(session, media.id);
-              // TODO: expand player
-              // router.navigate("/");
+              requestExpandPlayer();
             }}
           >
             <View className="flex items-center justify-end">
@@ -476,8 +476,7 @@ function ActionBar({
             className="grow border-r border-zinc-800 p-4"
             onPress={() => {
               loadMediaIntoPlayer(session, media.id);
-              // TODO: expand player
-              // router.navigate("/");
+              requestExpandPlayer();
             }}
           >
             <View className="flex items-center justify-end">

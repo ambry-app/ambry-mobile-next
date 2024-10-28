@@ -297,16 +297,17 @@ export default function Scrubber(props: ScrubberProps) {
 
   useEffect(() => {
     if (!isScrubbing) {
-      if (Math.abs(positionInput - (previousPosition || positionInput)) > 5) {
-        translateX.value = withTiming(timeToTranslateX(positionInput), {
-          easing: Easing.out(Easing.exp),
-        });
-      } else {
-        translateX.value = withTiming(timeToTranslateX(positionInput), {
-          duration: 1000 / playbackRate,
-          easing: Easing.linear,
-        });
-      }
+      translateX.value = timeToTranslateX(positionInput);
+      // if (Math.abs(positionInput - (previousPosition || positionInput)) > 5) {
+      //   translateX.value = withTiming(timeToTranslateX(positionInput), {
+      //     easing: Easing.out(Easing.exp),
+      //   });
+      // } else {
+      //   translateX.value = withTiming(timeToTranslateX(positionInput), {
+      //     duration: 1000 / playbackRate,
+      //     easing: Easing.linear,
+      //   });
+      // }
     }
   }, [translateX, isScrubbing, positionInput, previousPosition, playbackRate]);
 
