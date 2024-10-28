@@ -1,3 +1,4 @@
+import IconButton from "@/src/components/IconButton";
 import Loading from "@/src/components/Loading";
 import ScreenCentered from "@/src/components/ScreenCentered";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
@@ -127,16 +128,12 @@ function DownloadRow({ session, download }: DownloadRowProps) {
         </View>
         <View>{progress !== undefined && <Loading size={24} />}</View>
         <View>
-          <Pressable
-            className="w-12 h-12 flex items-center justify-center"
+          <IconButton
+            size={16}
+            icon="ellipsis-vertical"
+            color={colors.zinc[100]}
             onPress={() => setIsModalVisible(true)}
-          >
-            <FontAwesome6
-              size={16}
-              name="ellipsis-vertical"
-              color={colors.zinc[100]}
-            />
-          </Pressable>
+          />
         </View>
       </View>
       {progress !== undefined && (
