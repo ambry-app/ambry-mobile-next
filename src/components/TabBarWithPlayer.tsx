@@ -90,8 +90,12 @@ export default function TabBarWithPlayer({
         ),
       );
 
-      if (e.velocityY < -0) onPanEndAction.value = "expand";
-      if (e.velocityY > 0) onPanEndAction.value = "collapse";
+      console.log(e.velocityY, expansion.value);
+
+      if (expansion.value > 0.85) onPanEndAction.value = "expand";
+      if (expansion.value <= 0.15) onPanEndAction.value = "collapse";
+      if (e.velocityY < -300) onPanEndAction.value = "expand";
+      if (e.velocityY > 300) onPanEndAction.value = "collapse";
     })
     .onEnd((e) => {
       if (onPanEndAction.value === "expand") {

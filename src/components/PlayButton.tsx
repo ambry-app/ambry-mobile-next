@@ -77,6 +77,7 @@ function stateAction(state: State | undefined): () => void {
     case State.Paused:
     case State.Stopped:
     case State.Ready:
+    case State.Error:
       return () => {
         TrackPlayer.play();
       };
@@ -87,7 +88,6 @@ function stateAction(state: State | undefined): () => void {
     case State.Buffering:
     case State.Loading:
     case State.None:
-    case State.Error:
     case State.Ended:
       return () => {};
   }
