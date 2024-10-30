@@ -82,7 +82,7 @@ function DownloadRow({ session, download }: DownloadRowProps) {
   const [isModalVisible, setIsModalVisible] = useState(false);
 
   const navigateToBook = () => {
-    router.push({
+    router.navigate({
       pathname: "/media/[id]",
       params: {
         id: download.media.id,

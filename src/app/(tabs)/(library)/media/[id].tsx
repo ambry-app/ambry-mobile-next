@@ -777,7 +777,7 @@ function OtherEditions({
     <View className="mt-8">
       <Pressable
         onPress={() => {
-          router.push({
+          router.navigate({
             pathname: "/book/[id]",
             params: { id: media[0].book.id },
           });
@@ -881,7 +881,7 @@ function OtherBooksInSeries({
     <View className="mt-8">
       <Pressable
         onPress={() => {
-          router.push({
+          router.navigate({
             pathname: "/series/[id]",
             params: { id: series.id },
           });
@@ -1038,7 +1038,7 @@ function OtherBooksByAuthor({
     <View className="mt-8">
       <Pressable
         onPress={() => {
-          router.push({
+          router.navigate({
             pathname: "/person/[id]",
             params: { id: author.person.id },
           });
@@ -1212,7 +1212,7 @@ function OtherMediaByNarrator({
     <View className="mt-8">
       <Pressable
         onPress={() => {
-          router.push({
+          router.navigate({
             pathname: "/person/[id]",
             params: { id: narrator.person.id },
           });

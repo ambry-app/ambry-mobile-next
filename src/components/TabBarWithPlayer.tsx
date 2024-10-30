@@ -62,8 +62,8 @@ export default function TabBarWithPlayer({
   useEffect(() => {
     if (!expanded && lastPlayerExpandRequest) {
       expandLocal();
-      expandPlayerHandled();
     }
+    expandPlayerHandled();
   }, [expandLocal, expanded, lastPlayerExpandRequest, expandPlayerHandled]);
 
   const tabBarHeight = 50 + insets.bottom;
@@ -333,7 +333,7 @@ export default function TabBarWithPlayer({
                     } else {
                       collapseLocal();
                       setTimeout(() => {
-                        router.push({
+                        router.navigate({
                           pathname: "/media/[id]",
                           params: { id: media.id, title: media.book.title },
                         });
@@ -400,7 +400,7 @@ export default function TabBarWithPlayer({
                   onPress={() => {
                     collapseLocal();
                     setTimeout(() => {
-                      router.push({
+                      router.navigate({
                         pathname: "/media/[id]",
                         params: { id: media.id, title: media.book.title },
                       });
