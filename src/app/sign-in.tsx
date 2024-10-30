@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
 import colors from "tailwindcss/colors";
 
-export default function SignIn() {
+export default function SignInScreen() {
   const { session, error, isLoading, signIn, clearError } = useSessionStore(
     (state) => state,
   );

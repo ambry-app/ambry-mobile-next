@@ -94,12 +94,12 @@ export function Tile({ book, media, seriesBook, style }: TileProps) {
 
   const navigateToBook = () => {
     if (media.length === 1) {
-      router.push({
+      router.navigate({
         pathname: "/media/[id]",
         params: { id: media[0].id, title: book.title },
       });
     } else {
-      router.push({
+      router.navigate({
         pathname: "/book/[id]",
         params: { id: book.id, title: book.title },
       });
@@ -148,7 +148,7 @@ export function PersonTile(props: PersonTileProps) {
   const router = useRouter();
 
   const navigateToPerson = () => {
-    router.push({
+    router.navigate({
       pathname: "/person/[id]",
       params: { id: personId, title: realName },
     });
