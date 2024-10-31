@@ -446,7 +446,7 @@ function ActionBar({
             <IconButton
               icon="play-circle"
               size={32}
-              padding={24}
+              style={{ padding: 8 }}
               color={colors.zinc[100]}
               onPress={() => {
                 loadMediaIntoPlayer(session, media.id);
@@ -473,7 +473,7 @@ function ActionBar({
             <IconButton
               icon="play-circle"
               size={32}
-              padding={24}
+              style={{ padding: 8 }}
               color={colors.zinc[100]}
               onPress={() => {
                 loadMediaIntoPlayer(session, media.id);
@@ -489,7 +489,7 @@ function ActionBar({
             <IconButton
               icon="download"
               size={32}
-              padding={24}
+              style={{ padding: 8 }}
               color={colors.zinc[100]}
               onPress={() => {
                 if (!media.mp4Path) return;

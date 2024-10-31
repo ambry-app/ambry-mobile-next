@@ -1,3 +1,4 @@
+import { StyleProp, ViewStyle } from "react-native";
 import { useTrackPlayerStore } from "../stores/trackPlayer";
 import IconButton from "./IconButton";
 
@@ -6,11 +7,11 @@ type SeekButtonProps = {
   size: number;
   color: string;
   amount: number;
-  padding?: number;
+  style?: StyleProp<ViewStyle>;
 };
 
 export default function SeekButton(props: SeekButtonProps) {
-  const { icon, size, color, amount, padding = size / 2 } = props;
+  const { icon, size, color, amount, style } = props;
   const { seekRelative } = useTrackPlayerStore((state) => state);
 
   return (
@@ -19,7 +20,7 @@ export default function SeekButton(props: SeekButtonProps) {
       size={size}
       icon={icon}
       color={color}
-      padding={padding}
+      style={style}
     />
   );
 }

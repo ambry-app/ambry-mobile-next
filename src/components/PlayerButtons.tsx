@@ -18,7 +18,7 @@ export default function PlayerButtons() {
         size={32}
         color={colors.zinc[100]}
       />
-      <PlayButton size={48} color={colors.zinc[100]} />
+      <PlayButton size={48} color={colors.zinc[100]} style={{ padding: 16 }} />
       <SeekButton
         amount={10}
         icon="arrow-rotate-right"
@@ -41,6 +41,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 32,
+    marginHorizontal: -12,
+    // backgroundColor: "yellow",
   },
 });

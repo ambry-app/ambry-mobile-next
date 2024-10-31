@@ -25,6 +25,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { useProgress } from "react-native-track-player";
 import colors from "tailwindcss/colors";
+import PlayerChapterControls from "./PlayerChapterControls";
+import PlayerSettingButtons from "./PlayerSettingButtons";
 
 export default function TabBarWithPlayer({
   state,
@@ -68,8 +70,11 @@ export default function TabBarWithPlayer({
 
   const tabBarHeight = 50 + insets.bottom;
   const playerHeight = 70;
-  const eightyPercentScreenWidth = screenWidth * 0.8;
-  const tenPercentScreenWidth = screenWidth * 0.1;
+
+  const largeImageSize =
+    screenHeight / screenWidth < 1.8 ? screenWidth * 0.6 : screenWidth * 0.8;
+  const imageGutterWidth = (screenWidth - largeImageSize) / 2;
+
   const miniControlsWidth = screenWidth - playerHeight;
 
   const debugBackgrounds = false;
@@ -125,22 +130,19 @@ export default function TabBarWithPlayer({
   });
 
   const playerStyle = useAnimatedStyle(() => {
-    const interpolatedHeight = interpolate(
-      expansion.value,
-      [0, 1],
-      [playerHeight, screenHeight],
-    );
-
-    const interpolatedBottom = interpolate(
-      expansion.value,
-      [0, 1],
-      [tabBarHeight, 0],
-    );
-
     return {
-      height: interpolatedHeight,
-      bottom: interpolatedBottom,
+      height: interpolate(
+        expansion.value,
+        [0, 1],
+        [playerHeight, screenHeight],
+      ),
+      bottom: interpolate(expansion.value, [0, 1], [tabBarHeight, 0]),
       paddingTop: interpolate(expansion.value, [0, 1], [0, insets.top]),
+      borderTopWidth: interpolate(
+        expansion.value,
+        [0, 1],
+        [StyleSheet.hairlineWidth, 0],
+      ),
     };
   });
 
@@ -155,7 +157,7 @@ export default function TabBarWithPlayer({
       width: interpolate(
         expansion.value,
         [0, 0.75],
-        [0, tenPercentScreenWidth],
+        [0, imageGutterWidth],
         Extrapolation.CLAMP,
       ),
     };
@@ -166,12 +168,12 @@ export default function TabBarWithPlayer({
       height: interpolate(
         expansion.value,
         [0, 1],
-        [playerHeight, eightyPercentScreenWidth],
+        [playerHeight, largeImageSize],
       ),
       width: interpolate(
         expansion.value,
         [0, 1],
-        [playerHeight, eightyPercentScreenWidth],
+        [playerHeight, largeImageSize],
       ),
       padding: interpolate(expansion.value, [0, 1], [8, 0]),
     };
@@ -182,7 +184,7 @@ export default function TabBarWithPlayer({
       width: interpolate(
         expansion.value,
         [0, 1],
-        [miniControlsWidth, tenPercentScreenWidth],
+        [miniControlsWidth, imageGutterWidth],
       ),
       opacity: interpolate(
         expansion.value,
@@ -195,6 +197,12 @@ export default function TabBarWithPlayer({
 
   const controlsStyle = useAnimatedStyle(() => {
     return {
+      transform: [
+        {
+          translateY: interpolate(expansion.value, [0, 1], [256, 0]),
+        },
+      ],
+      marginBottom: interpolate(expansion.value, [0, 1], [-512, 0]),
       opacity: interpolate(
         expansion.value,
         [0.75, 1],
@@ -206,7 +214,7 @@ export default function TabBarWithPlayer({
 
   const topActionBarStyle = useAnimatedStyle(() => {
     return {
-      height: interpolate(expansion.value, [0, 0.75], [0, 64]),
+      height: interpolate(expansion.value, [0, 0.75], [0, 36]),
       opacity: interpolate(
         expansion.value,
         [0.75, 1],
@@ -218,7 +226,7 @@ export default function TabBarWithPlayer({
 
   const infoStyle = useAnimatedStyle(() => {
     return {
-      paddingTop: interpolate(expansion.value, [0.75, 1], [32, 8]),
+      paddingTop: interpolate(expansion.value, [0.75, 1], [64, 8]),
       opacity: interpolate(
         expansion.value,
         [0.75, 1],
@@ -269,7 +277,6 @@ export default function TabBarWithPlayer({
                 position: "absolute",
                 backgroundColor: colors.zinc[900],
                 borderColor: colors.zinc[600],
-                borderTopWidth: StyleSheet.hairlineWidth,
               },
               playerStyle,
             ]}
@@ -390,6 +397,8 @@ export default function TabBarWithPlayer({
                 {
                   display: "flex",
                   flexDirection: "row",
+                  backgroundColor: debugBackground(colors.indigo[900]),
+                  paddingTop: 8,
                 },
                 infoStyle,
               ]}
@@ -423,9 +432,8 @@ export default function TabBarWithPlayer({
             <Animated.View
               style={[
                 {
-                  width: "100%",
-                  flexGrow: 1,
                   display: "flex",
+                  flexGrow: 1,
                   justifyContent: "space-between",
                   paddingBottom: insets.bottom,
                   backgroundColor: debugBackground(colors.blue[900]),
@@ -435,13 +443,22 @@ export default function TabBarWithPlayer({
             >
               <View
                 style={{
-                  paddingHorizontal: tenPercentScreenWidth,
+                  paddingHorizontal: "10%",
                   paddingTop: 16,
+                  display: "flex",
+                  justifyContent: "space-evenly",
+                  flexGrow: 1,
                 }}
               >
-                <PlayerProgressBar />
+                <View style={{ display: "flex", gap: 16 }}>
+                  <PlayerSettingButtons />
+                  <PlayerProgressBar />
+                </View>
+                <View>
+                  <PlayerButtons />
+                  <PlayerChapterControls />
+                </View>
               </View>
-              <PlayerButtons />
               <PlayerScrubber />
             </Animated.View>
           </Animated.View>
@@ -458,10 +475,8 @@ export default function TabBarWithPlayer({
 }
 
 function TrackPlayerProgressSubscriber() {
-  const { playbackRate, updateProgress } = useTrackPlayerStore(
-    (state) => state,
-  );
-  const { position, duration } = useProgress(1000 / playbackRate);
+  const { updateProgress } = useTrackPlayerStore((state) => state);
+  const { position, duration } = useProgress(1000);
   useEffect(() => {
     updateProgress(position, duration);
   }, [duration, position, updateProgress]);

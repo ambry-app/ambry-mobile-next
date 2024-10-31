@@ -14,6 +14,7 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: colors.lime[400],
         tabBarStyle: playerVisible ? { borderTopWidth: 0 } : {},
+        tabBarLabelStyle: { paddingBottom: 4 },
       }}
       tabBar={(props) =>
         playerVisible ? <TabBarWithPlayer {...props} /> : <TabBar {...props} />

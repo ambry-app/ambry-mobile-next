@@ -1,4 +1,4 @@
-import { StyleSheet, View } from "react-native";
+import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import TrackPlayer, {
   State,
   usePlaybackState,
@@ -10,24 +10,22 @@ import Loading from "./Loading";
 type PlayButtonProps = {
   size: number;
   color: string;
-  padding?: number;
+  style?: StyleProp<ViewStyle>;
 };
 
 export default function PlayButton(props: PlayButtonProps) {
-  const { size, color, padding = size / 2 } = props;
+  const { size, color, style } = props;
   const { state } = usePlaybackState();
   const [debouncedState] = useDebounce(state, 50);
   const icon = stateIcon(debouncedState);
 
   if (!debouncedState || !icon || icon === "spinner") {
     return (
-      <View
-        style={[
-          styles.container,
-          { height: size + padding * 2, width: size + padding * 2 },
-        ]}
-      >
-        <Loading size={size} color={color} />
+      <View style={[styles.container, { padding: size / 2 }, style]}>
+        {/* NOTE: this sizing has to match the sizing of the IconButton component */}
+        <View style={[styles.container, { width: size + 1, height: size + 1 }]}>
+          <Loading size={size} color={color} />
+        </View>
       </View>
     );
   }
@@ -38,7 +36,7 @@ export default function PlayButton(props: PlayButtonProps) {
       size={size}
       icon={icon}
       color={color}
-      padding={padding}
+      style={style}
     />
   );
 }
