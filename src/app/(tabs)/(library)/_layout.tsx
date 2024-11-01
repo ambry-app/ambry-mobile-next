@@ -1,11 +1,11 @@
-import { useSessionStore } from "@/src/stores/session";
+import { useSession } from "@/src/stores/session";
 import { Redirect, Stack } from "expo-router";
 
 const getId = ({ params }: { params?: Record<string, any> | undefined }) =>
   params?.id;
 
 export default function AppLayout() {
-  const session = useSessionStore((state) => state.session);
+  const session = useSession((state) => state.session);
 
   if (!session) {
     return <Redirect href="/sign-in" />;

@@ -3,14 +3,14 @@ import ScreenCentered from "@/src/components/ScreenCentered";
 import { MediaTile } from "@/src/components/Tiles";
 import { MediaForIndex, listMediaForIndex } from "@/src/db/library";
 import { syncDown } from "@/src/db/sync";
-import { useSessionStore } from "@/src/stores/session";
+import { useSession } from "@/src/stores/session";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { FlatList, StyleSheet, Text } from "react-native";
 import colors from "tailwindcss/colors";
 
 export default function LibraryScreen() {
-  const session = useSessionStore((state) => state.session);
+  const session = useSession((state) => state.session);
   const [media, setMedia] = useState<MediaForIndex[] | undefined>();
   const [error, setError] = useState(false);
 

@@ -15,13 +15,15 @@ export default function PlayerChapterControls() {
         onPress={() => {}}
       />
       <Button
+        style={{ flex: 1 }}
         size={24}
         onPress={() => {
           router.navigate("/chapter-select");
         }}
       >
         <Text style={styles.chapterText} numberOfLines={1}>
-          Chapter 1: This is not a real chapter
+          Chapter 1: This is not a real chapter, but it's title is very long and
+          needs to be truncated
         </Text>
       </Button>
       <IconButton

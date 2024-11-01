@@ -1,12 +1,12 @@
 import TabBar from "@/src/components/TabBar";
 import TabBarWithPlayer from "@/src/components/TabBarWithPlayer";
-import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
+import { usePlayer } from "@/src/stores/player";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { Tabs } from "expo-router";
 import colors from "tailwindcss/colors";
 
 export default function TabLayout() {
-  const mediaId = useTrackPlayerStore((state) => state.mediaId);
+  const mediaId = usePlayer((state) => state.mediaId);
   const playerVisible = !!mediaId;
 
   return (

@@ -1,13 +1,13 @@
 import { updatePlayerState } from "@/src/db/playerStates";
 import TrackPlayer, { Event } from "react-native-track-player";
 import { syncUp } from "../db/sync";
-import { useSessionStore } from "../stores/session";
-import { useTrackPlayerStore } from "../stores/trackPlayer";
+import { usePlayer } from "../stores/player";
+import { useSession } from "../stores/session";
 
 async function updatePlayerStateFromTrackPlayer() {
   const progress = await TrackPlayer.getProgress();
-  const session = useSessionStore.getState().session;
-  const mediaId = useTrackPlayerStore.getState().mediaId;
+  const session = useSession.getState().session;
+  const mediaId = usePlayer.getState().mediaId;
 
   if (!session || !mediaId) return;
 
@@ -59,8 +59,8 @@ export const PlaybackService = async function () {
     Event.PlaybackProgressUpdated,
     async (data): Promise<void> => {
       console.debug("Service: playback progress updated", data);
-      const session = useSessionStore.getState().session;
-      const mediaId = useTrackPlayerStore.getState().mediaId;
+      const session = useSession.getState().session;
+      const mediaId = usePlayer.getState().mediaId;
 
       if (!session || !mediaId) return;
 

@@ -1,8 +1,8 @@
 import migrations from "@/drizzle/migrations";
 import { db } from "@/src/db/db";
 import { syncDown } from "@/src/db/sync";
-import { useSessionStore } from "@/src/stores/session";
-import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
+import { usePlayer } from "@/src/stores/player";
+import { useSession } from "@/src/stores/session";
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import { useEffect, useState } from "react";
 
@@ -12,9 +12,9 @@ const useAppBoot = () => {
     db,
     migrations,
   );
-  const session = useSessionStore((_) => _.session);
-  const setupTrackPlayer = useTrackPlayerStore((_) => _.setupTrackPlayer);
-  const loadMostRecentMedia = useTrackPlayerStore((_) => _.loadMostRecentMedia);
+  const session = useSession((_) => _.session);
+  const setupPlayer = usePlayer((_) => _.setupPlayer);
+  const loadMostRecentMedia = usePlayer((_) => _.loadMostRecentMedia);
 
   useEffect(() => {
     if (migrateError)
@@ -26,18 +26,12 @@ const useAppBoot = () => {
     console.log("[AppBoot] starting...");
     syncDown(session)
       .then(() => console.log("[AppBoot] db sync complete"))
-      .then(() => setupTrackPlayer())
+      .then(() => setupPlayer())
       .then(() => loadMostRecentMedia(session))
       .then(() => console.log("[AppBoot] trackPlayer setup complete"))
       .catch((e) => console.error("[AppBoot] error", e))
       .finally(() => setIsReady(true));
-  }, [
-    loadMostRecentMedia,
-    setupTrackPlayer,
-    migrateSuccess,
-    migrateError,
-    session,
-  ]);
+  }, [loadMostRecentMedia, setupPlayer, migrateSuccess, migrateError, session]);
 
   return { isReady, migrateError };
 };

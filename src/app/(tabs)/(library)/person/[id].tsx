@@ -5,7 +5,7 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
 import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
-import { Session, useSessionStore } from "@/src/stores/session";
+import { Session, useSession } from "@/src/stores/session";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { Stack, useLocalSearchParams } from "expo-router";
@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 
 export default function PersonDetails() {
-  const session = useSessionStore((state) => state.session);
+  const session = useSession((state) => state.session);
   const { id: personId, title } = useLocalSearchParams<{
     id: string;
     title: string;

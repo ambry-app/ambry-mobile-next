@@ -1,4 +1,4 @@
-import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
+import { usePlayer } from "@/src/stores/player";
 import { formatPlaybackRate } from "@/src/utils/rate";
 import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
@@ -6,7 +6,7 @@ import colors from "tailwindcss/colors";
 import IconButton from "./IconButton";
 
 export default function PlayerSettingButtons() {
-  const { playbackRate } = useTrackPlayerStore((state) => state);
+  const { playbackRate } = usePlayer((state) => state);
   return (
     <View style={styles.container}>
       <IconButton

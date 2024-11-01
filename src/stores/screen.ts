@@ -6,7 +6,7 @@ interface ScreenState {
   setDimensions: (screenHeight: number, screenWidth: number) => void;
 }
 
-export const useScreenStore = create<ScreenState>()((set, get) => ({
+export const useScreen = create<ScreenState>()((set, get) => ({
   screenHeight: 0,
   screenWidth: 0,
   setDimensions: (screenHeight: number, screenWidth: number) =>

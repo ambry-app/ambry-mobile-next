@@ -7,8 +7,8 @@ import ThumbnailImage from "@/src/components/ThumbnailImage";
 import TitleAuthorsNarrators from "@/src/components/TitleAuthorNarrator";
 import useBackHandler from "@/src/hooks/use.back.handler";
 import { useMediaDetails } from "@/src/hooks/use.media.details";
-import { useScreenStore } from "@/src/stores/screen";
-import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
+import { usePlayer } from "@/src/stores/player";
+import { useScreen } from "@/src/stores/screen";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { BottomTabBar, BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { router } from "expo-router";
@@ -42,11 +42,11 @@ export default function TabBarWithPlayer({
   insets,
 }: BottomTabBarProps) {
   const { mediaId, lastPlayerExpandRequest, expandPlayerHandled, streaming } =
-    useTrackPlayerStore((state) => state);
+    usePlayer((state) => state);
   const { media } = useMediaDetails(mediaId);
   const [expanded, setExpanded] = useState(true);
   const expansion = useSharedValue(1.0);
-  const { screenHeight, screenWidth } = useScreenStore((state) => state);
+  const { screenHeight, screenWidth } = useScreen((state) => state);
   const whereItWas = useSharedValue(0);
   const onPanEndAction = useSharedValue<"none" | "expand" | "collapse">("none");
 
@@ -504,7 +504,7 @@ export default function TabBarWithPlayer({
 }
 
 function TrackPlayerProgressSubscriber() {
-  const { updateProgress } = useTrackPlayerStore((state) => state);
+  const { updateProgress } = usePlayer((state) => state);
   const { position, duration } = useProgress(1000);
   useEffect(() => {
     updateProgress(position, duration);

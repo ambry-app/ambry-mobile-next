@@ -4,8 +4,8 @@ import ScreenCentered from "@/src/components/ScreenCentered";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
 import TitleAuthorsNarrators from "@/src/components/TitleAuthorNarrator";
 import { useLiveDownloadsList, type Download } from "@/src/db/downloads";
-import { useDownloadsStore } from "@/src/stores/downloads";
-import { Session, useSessionStore } from "@/src/stores/session";
+import { useDownloads } from "@/src/stores/downloads";
+import { Session, useSession } from "@/src/stores/session";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import * as FileSystem from "expo-file-system";
 import { Link, router } from "expo-router";
@@ -21,7 +21,7 @@ import {
 import colors from "tailwindcss/colors";
 
 export default function DownloadsScreen() {
-  const session = useSessionStore((state) => state.session);
+  const session = useSession((state) => state.session);
 
   if (!session) return null;
 
@@ -74,11 +74,11 @@ type DownloadRowProps = {
 };
 
 function DownloadRow({ session, download }: DownloadRowProps) {
-  const progress = useDownloadsStore(
+  const progress = useDownloads(
     (state) => state.downloadProgresses[download.media.id],
   );
-  const removeDownload = useDownloadsStore((state) => state.removeDownload);
-  const cancelDownload = useDownloadsStore((state) => state.cancelDownload);
+  const removeDownload = useDownloads((state) => state.removeDownload);
+  const cancelDownload = useDownloads((state) => state.cancelDownload);
   const [isModalVisible, setIsModalVisible] = useState(false);
 
   const navigateToBook = () => {

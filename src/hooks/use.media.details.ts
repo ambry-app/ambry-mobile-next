@@ -1,9 +1,9 @@
 import { MediaForDetails, getMediaForDetails } from "@/src/db/library";
-import { useSessionStore } from "@/src/stores/session";
+import { useSession } from "@/src/stores/session";
 import { useEffect, useState } from "react";
 
 export function useMediaDetails(mediaId: string | null) {
-  const session = useSessionStore((state) => state.session);
+  const session = useSession((state) => state.session);
   const [media, setMedia] = useState<MediaForDetails | undefined>();
   const [error, setError] = useState(false);
 

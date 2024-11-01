@@ -4,13 +4,13 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
 import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
-import { Session, useSessionStore } from "@/src/stores/session";
+import { Session, useSession } from "@/src/stores/session";
 import { and, eq, sql } from "drizzle-orm";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 
 export default function SeriesDetails() {
-  const session = useSessionStore((state) => state.session);
+  const session = useSession((state) => state.session);
   const { id: seriesId, title } = useLocalSearchParams<{
     id: string;
     title: string;

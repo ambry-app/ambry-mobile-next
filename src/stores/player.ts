@@ -21,7 +21,7 @@ import TrackPlayer, {
 import { create } from "zustand";
 import { Session } from "./session";
 
-interface TrackPlayerState {
+interface PlayerState {
   setup: boolean;
   setupError: unknown | null;
   mediaId: string | null;
@@ -30,7 +30,7 @@ interface TrackPlayerState {
   playbackRate: number;
   lastPlayerExpandRequest: Date | undefined;
   streaming: boolean | undefined;
-  setupTrackPlayer: () => Promise<void>;
+  setupPlayer: () => Promise<void>;
   loadMostRecentMedia: (session: Session) => Promise<void>;
   loadMedia: (session: Session, mediaId: string) => Promise<void>;
   requestExpandPlayer: () => void;
@@ -48,7 +48,7 @@ interface TrackLoadResult {
   streaming: boolean;
 }
 
-export const useTrackPlayerStore = create<TrackPlayerState>()((set, get) => ({
+export const usePlayer = create<PlayerState>()((set, get) => ({
   setup: false,
   setupError: null,
   mediaId: null,
@@ -57,13 +57,13 @@ export const useTrackPlayerStore = create<TrackPlayerState>()((set, get) => ({
   playbackRate: 1,
   lastPlayerExpandRequest: undefined,
   streaming: undefined,
-  setupTrackPlayer: async () => {
+  setupPlayer: async () => {
     if (get().setup) {
       return;
     }
 
     try {
-      const response = await setupTrackPlayer();
+      const response = await setupPlayer();
 
       if (response === true) {
         set({ setup: true });
@@ -148,7 +148,7 @@ function shouldSeek(state: State): boolean {
   }
 }
 
-async function setupTrackPlayer(): Promise<TrackLoadResult | true> {
+async function setupPlayer(): Promise<TrackLoadResult | true> {
   try {
     // just checking to see if it's already initialized
     const track = await TrackPlayer.getTrack(0);

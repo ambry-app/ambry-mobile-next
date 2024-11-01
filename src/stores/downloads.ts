@@ -22,7 +22,7 @@ interface DownloadsState {
   cancelDownload: (session: Session, mediaId: string) => Promise<void>;
 }
 
-export const useDownloadsStore = create<DownloadsState>((set, get) => ({
+export const useDownloads = create<DownloadsState>((set, get) => ({
   downloadProgresses: {},
   downloadResumables: {},
   startDownload: async (

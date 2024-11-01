@@ -13,10 +13,10 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
 import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
-import { useDownloadsStore } from "@/src/stores/downloads";
-import { useScreenStore } from "@/src/stores/screen";
-import { Session, useSessionStore } from "@/src/stores/session";
-import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
+import { useDownloads } from "@/src/stores/downloads";
+import { usePlayer } from "@/src/stores/player";
+import { useScreen } from "@/src/stores/screen";
+import { Session, useSession } from "@/src/stores/session";
 import { formatPublished } from "@/src/utils/date";
 import { durationDisplay } from "@/src/utils/time";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
@@ -38,7 +38,7 @@ import { FlatList, Pressable, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
 
 export default function MediaDetails() {
-  const session = useSessionStore((state) => state.session);
+  const session = useSession((state) => state.session);
   const { id: mediaId, title } = useLocalSearchParams<{
     id: string;
     title: string;
@@ -390,12 +390,11 @@ function ActionBar({
   mediaId: string;
   session: Session;
 }) {
-  const progress = useDownloadsStore(
-    (state) => state.downloadProgresses[mediaId],
+  const progress = useDownloads((state) => state.downloadProgresses[mediaId]);
+  const { loadMedia: loadMediaIntoPlayer, requestExpandPlayer } = usePlayer(
+    (state) => state,
   );
-  const { loadMedia: loadMediaIntoPlayer, requestExpandPlayer } =
-    useTrackPlayerStore((state) => state);
-  const { startDownload } = useDownloadsStore();
+  const { startDownload } = useDownloads();
   const router = useRouter();
 
   const { data: media } = useLiveTablesQuery(
@@ -581,7 +580,7 @@ function AuthorsAndNarrators({
   mediaId: string;
   session: Session;
 }) {
-  const { screenWidth } = useScreenStore((state) => state);
+  const { screenWidth } = useScreen((state) => state);
   const { data: media } = useLiveQuery(
     db.query.media.findFirst({
       columns: {},
@@ -713,7 +712,7 @@ function OtherEditions({
   session: Session;
   withoutMediaId: string;
 }) {
-  const { screenWidth } = useScreenStore((state) => state);
+  const { screenWidth } = useScreen((state) => state);
   const { data: mediaIds } = useLiveQuery(
     db
       .select({ id: schema.media.id })
@@ -824,7 +823,7 @@ function OtherBooksInSeries({
   seriesId: string;
   session: Session;
 }) {
-  const { screenWidth } = useScreenStore((state) => state);
+  const { screenWidth } = useScreen((state) => state);
   const { data: series } = useLiveQuery(
     db.query.series.findFirst({
       columns: { id: true, name: true },
@@ -932,7 +931,7 @@ function OtherBooksByAuthor({
   withoutBookId: string;
   withoutSeriesIds: string[];
 }) {
-  const { screenWidth } = useScreenStore((state) => state);
+  const { screenWidth } = useScreen((state) => state);
   const { data: booksIds } = useLiveQuery(
     db
       .selectDistinct({ id: schema.books.id })
@@ -1091,7 +1090,7 @@ function OtherMediaByNarrator({
   withoutSeriesIds: string[];
   withoutAuthorIds: string[];
 }) {
-  const { screenWidth } = useScreenStore((state) => state);
+  const { screenWidth } = useScreen((state) => state);
   const { data: mediaIds } = useLiveQuery(
     db
       .selectDistinct({ id: schema.media.id })

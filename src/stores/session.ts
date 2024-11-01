@@ -36,7 +36,7 @@ const secureStorage: StateStorage = {
 
 const storage = createJSONStorage(() => secureStorage);
 
-export const useSessionStore = create<SessionState>()(
+export const useSession = create<SessionState>()(
   persist(
     (set, get) => ({
       isLoading: false,

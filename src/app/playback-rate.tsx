@@ -1,7 +1,7 @@
 import Button from "@/src/components/Button";
 import useBackHandler from "@/src/hooks/use.back.handler";
-import { useSessionStore } from "@/src/stores/session";
-import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
+import { usePlayer } from "@/src/stores/player";
+import { useSession } from "@/src/stores/session";
 import { formatPlaybackRate } from "@/src/utils/rate";
 import { secondsDisplay } from "@/src/utils/time";
 import Slider from "@react-native-community/slider";
@@ -16,10 +16,11 @@ export default function PlaybackRateModal() {
     return true;
   });
 
-  const { session } = useSessionStore((state) => state);
+  const { session } = useSession((state) => state);
 
-  const { position, duration, playbackRate, setPlaybackRate } =
-    useTrackPlayerStore((state) => state);
+  const { position, duration, playbackRate, setPlaybackRate } = usePlayer(
+    (state) => state,
+  );
 
   const [displayPlaybackRate, setDisplayPlaybackRate] = useState(1.0);
 
