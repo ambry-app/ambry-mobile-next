@@ -29,6 +29,7 @@ interface TrackPlayerState {
   duration: number;
   playbackRate: number;
   lastPlayerExpandRequest: Date | undefined;
+  streaming: boolean | undefined;
   setupTrackPlayer: () => Promise<void>;
   loadMostRecentMedia: (session: Session) => Promise<void>;
   loadMedia: (session: Session, mediaId: string) => Promise<void>;
@@ -36,6 +37,7 @@ interface TrackPlayerState {
   expandPlayerHandled: () => void;
   updateProgress: (position: number, duration: number) => void;
   seekRelative: (position: number) => void;
+  setPlaybackRate: (session: Session, playbackRate: number) => void;
 }
 
 interface TrackLoadResult {
@@ -43,6 +45,7 @@ interface TrackLoadResult {
   duration: number;
   position: number;
   playbackRate: number;
+  streaming: boolean;
 }
 
 export const useTrackPlayerStore = create<TrackPlayerState>()((set, get) => ({
@@ -53,6 +56,7 @@ export const useTrackPlayerStore = create<TrackPlayerState>()((set, get) => ({
   duration: 0,
   playbackRate: 1,
   lastPlayerExpandRequest: undefined,
+  streaming: undefined,
   setupTrackPlayer: async () => {
     if (get().setup) {
       return;
@@ -87,6 +91,7 @@ export const useTrackPlayerStore = create<TrackPlayerState>()((set, get) => ({
         duration: track.duration,
         position: track.position,
         playbackRate: track.playbackRate,
+        streaming: track.streaming,
       });
     }
   },
@@ -98,6 +103,7 @@ export const useTrackPlayerStore = create<TrackPlayerState>()((set, get) => ({
       duration: track.duration,
       position: track.position,
       playbackRate: track.playbackRate,
+      streaming: track.streaming,
     });
   },
   requestExpandPlayer: () => set({ lastPlayerExpandRequest: new Date() }),
@@ -116,6 +122,13 @@ export const useTrackPlayerStore = create<TrackPlayerState>()((set, get) => ({
 
     TrackPlayer.seekTo(newPosition);
     set({ position: newPosition });
+  },
+  setPlaybackRate: async (session: Session, playbackRate: number) => {
+    set({ playbackRate });
+    await Promise.all([
+      TrackPlayer.setRate(playbackRate),
+      updatePlayerState(session, get().mediaId!, { playbackRate }),
+    ]);
   },
 }));
 
@@ -141,12 +154,13 @@ async function setupTrackPlayer(): Promise<TrackLoadResult | true> {
     const track = await TrackPlayer.getTrack(0);
 
     if (track) {
+      const streaming = track.url.startsWith("http");
       const mediaId = track.description!;
       const progress = await TrackPlayer.getProgress();
       const position = progress.position;
       const duration = progress.duration;
       const playbackRate = await TrackPlayer.getRate();
-      return { mediaId, position, duration, playbackRate };
+      return { mediaId, position, duration, playbackRate, streaming };
     }
   } catch (error) {
     console.debug("[TrackPlayer] player not yet set up", error);
@@ -193,10 +207,12 @@ async function loadPlayerState(
   playerState: LocalPlayerState,
 ): Promise<TrackLoadResult> {
   console.log("Loading player state into player...");
+  let streaming: boolean;
 
   await TrackPlayer.reset();
   if (playerState.media.download?.status === "ready") {
     // the media is downloaded, load the local file
+    streaming = false;
     await TrackPlayer.add({
       url: playerState.media.download.filePath,
       pitchAlgorithm: PitchAlgorithm.Voice,
@@ -214,6 +230,7 @@ async function loadPlayerState(
     });
   } else {
     // the media is not downloaded, load the stream
+    streaming = true;
     await TrackPlayer.add({
       url:
         Platform.OS === "ios"
@@ -244,6 +261,7 @@ async function loadPlayerState(
     duration: parseFloat(playerState.media.duration || "0"),
     position: playerState.position,
     playbackRate: playerState.playbackRate,
+    streaming,
   };
 }
 
@@ -311,12 +329,13 @@ async function loadMostRecentMedia(
   const track = await TrackPlayer.getTrack(0);
 
   if (track) {
+    const streaming = track.url.startsWith("http");
     const mediaId = track.description!;
     const progress = await TrackPlayer.getProgress();
     const position = progress.position;
     const duration = progress.duration;
     const playbackRate = await TrackPlayer.getRate();
-    return { mediaId, position, duration, playbackRate };
+    return { mediaId, position, duration, playbackRate, streaming };
   }
 
   const mostRecentSyncedMedia =

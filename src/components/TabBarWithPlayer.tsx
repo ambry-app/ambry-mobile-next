@@ -9,10 +9,17 @@ import useBackHandler from "@/src/hooks/use.back.handler";
 import { useMediaDetails } from "@/src/hooks/use.media.details";
 import { useScreenStore } from "@/src/stores/screen";
 import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { BottomTabBar, BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
@@ -34,7 +41,7 @@ export default function TabBarWithPlayer({
   navigation,
   insets,
 }: BottomTabBarProps) {
-  const { mediaId, lastPlayerExpandRequest, expandPlayerHandled } =
+  const { mediaId, lastPlayerExpandRequest, expandPlayerHandled, streaming } =
     useTrackPlayerStore((state) => state);
   const { media } = useMediaDetails(mediaId);
   const [expanded, setExpanded] = useState(true);
@@ -70,9 +77,8 @@ export default function TabBarWithPlayer({
 
   const tabBarHeight = 50 + insets.bottom;
   const playerHeight = 70;
-
-  const largeImageSize =
-    screenHeight / screenWidth < 1.8 ? screenWidth * 0.6 : screenWidth * 0.8;
+  const shortScreen = screenHeight / screenWidth < 1.8;
+  const largeImageSize = shortScreen ? screenWidth * 0.6 : screenWidth * 0.8;
   const imageGutterWidth = (screenWidth - largeImageSize) / 2;
 
   const miniControlsWidth = screenWidth - playerHeight;
@@ -302,12 +308,35 @@ export default function TabBarWithPlayer({
                 onPress={() => collapseLocal()}
               />
 
-              {/* <IconButton
+              {streaming !== undefined && (
+                <View
+                  style={{
+                    alignSelf: "flex-end",
+                    paddingBottom: 4,
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  <FontAwesome6
+                    size={12}
+                    name={streaming ? "cloud-arrow-down" : "download"}
+                    color={colors.zinc[700]}
+                  />
+                  <Text style={{ color: colors.zinc[700] }}>
+                    {streaming ? "streaming" : "downloaded"}
+                  </Text>
+                </View>
+              )}
+
+              <IconButton
                 size={24}
                 icon="ellipsis-vertical"
                 color={colors.zinc[100]}
                 onPress={() => console.log("TODO: context menu")}
-              /> */}
+                style={{ opacity: 0 }}
+              />
             </Animated.View>
             <View
               style={{
@@ -417,7 +446,7 @@ export default function TabBarWithPlayer({
                   }}
                 >
                   <TitleAuthorsNarrators
-                    baseFontSize={18}
+                    baseFontSize={16}
                     titleWeight={700}
                     title={media.book.title}
                     authors={media.book.bookAuthors.map((ba) => ba.author.name)}

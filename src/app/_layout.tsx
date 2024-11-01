@@ -64,6 +64,18 @@ function Root() {
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="sign-in" options={{ title: "Sign In" }} />
+      <Stack.Screen
+        name="sleep-timer"
+        options={{ presentation: "modal", title: "Sleep Timer" }}
+      />
+      <Stack.Screen
+        name="playback-rate"
+        options={{ presentation: "modal", title: "Playback Speed" }}
+      />
+      <Stack.Screen
+        name="chapter-select"
+        options={{ presentation: "modal", title: "Chapter Select" }}
+      />
     </Stack>
   ) : (
     <View className="flex h-full items-center justify-center">

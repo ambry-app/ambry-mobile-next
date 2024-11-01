@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
 import Button from "./Button";
@@ -13,7 +14,12 @@ export default function PlayerChapterControls() {
         color="white"
         onPress={() => {}}
       />
-      <Button size={24} onPress={() => {}}>
+      <Button
+        size={24}
+        onPress={() => {
+          router.navigate("/chapter-select");
+        }}
+      >
         <Text style={styles.chapterText} numberOfLines={1}>
           Chapter 1: This is not a real chapter
         </Text>

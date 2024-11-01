@@ -1,8 +1,12 @@
+import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
+import { formatPlaybackRate } from "@/src/utils/rate";
+import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
 import IconButton from "./IconButton";
 
 export default function PlayerSettingButtons() {
+  const { playbackRate } = useTrackPlayerStore((state) => state);
   return (
     <View style={styles.container}>
       <IconButton
@@ -10,7 +14,9 @@ export default function PlayerSettingButtons() {
         size={16}
         color={colors.zinc[100]}
         style={styles.button}
-        onPress={() => {}}
+        onPress={() => {
+          router.navigate("/sleep-timer");
+        }}
       >
         <Text style={styles.sleepTimerText}>10:00</Text>
       </IconButton>
@@ -19,9 +25,13 @@ export default function PlayerSettingButtons() {
         size={16}
         color={colors.zinc[100]}
         style={styles.button}
-        onPress={() => {}}
+        onPress={() => {
+          router.navigate("/playback-rate");
+        }}
       >
-        <Text style={styles.sleepTimerText}>1.75x</Text>
+        <Text style={styles.sleepTimerText}>
+          {formatPlaybackRate(playbackRate)}×
+        </Text>
       </IconButton>
     </View>
   );
