@@ -1,11 +1,10 @@
 import { useSession } from "@/src/stores/session";
-import { useRouter } from "expo-router";
+import { router } from "expo-router";
 import { Button, StyleSheet, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
 
 export default function SettingsScreen() {
   const { signOut, session } = useSession((state) => state);
-  const router = useRouter();
 
   if (!session) return null;
 

@@ -9,40 +9,34 @@ import {
   PersonTile,
   SeriesBookTile,
 } from "@/src/components/Tiles";
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
+import {
+  useMediaActionBarInfo,
+  useMediaAuthorsAndNarrators,
+  useMediaDescription,
+  useMediaHeaderInfo,
+  useMediaIds,
+  useMediaOtherEditions,
+  useOtherBooksByAuthor,
+  useOtherBooksInSeries,
+  useOtherMediaByNarrator,
+} from "@/src/db/library";
 import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
 import { useDownloads } from "@/src/stores/downloads";
 import { usePlayer } from "@/src/stores/player";
 import { useScreen } from "@/src/stores/screen";
 import { Session, useSession } from "@/src/stores/session";
+import { RouterParams } from "@/src/types/router";
 import { formatPublished } from "@/src/utils/date";
 import { durationDisplay } from "@/src/utils/time";
-import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import {
-  and,
-  desc,
-  eq,
-  inArray,
-  isNull,
-  ne,
-  notInArray,
-  or,
-  sql,
-} from "drizzle-orm";
-import { useLiveQuery } from "drizzle-orm/expo-sqlite";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { FlatList, Pressable, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import colors from "tailwindcss/colors";
 
-export default function MediaDetails() {
+export default function MediaDetailsScreen() {
   const session = useSession((state) => state.session);
-  const { id: mediaId, title } = useLocalSearchParams<{
-    id: string;
-    title: string;
-  }>();
+  const { id: mediaId, title } = useLocalSearchParams<RouterParams>();
   useSyncOnFocus();
 
   if (!session) return null;
@@ -120,44 +114,12 @@ type Section =
   | OtherMediaByNarratorSection;
 
 function useSections(mediaId: string, session: Session) {
-  const { data: media } = useLiveQuery(
-    db.query.media.findFirst({
-      columns: { bookId: true },
-      where: and(
-        eq(schema.media.url, session.url),
-        eq(schema.media.id, mediaId),
-      ),
-      with: {
-        book: {
-          columns: {},
-          with: {
-            bookAuthors: {
-              columns: { authorId: true },
-            },
-            seriesBooks: {
-              columns: { seriesId: true },
-            },
-          },
-        },
-        mediaNarrators: {
-          columns: { narratorId: true },
-        },
-      },
-    }),
-  );
+  const { ids, opacity } = useMediaIds(session, mediaId);
 
   const [sections, setSections] = useState<Section[] | undefined>();
 
   useEffect(() => {
-    if (!media) return;
-
-    const collectedIds = {
-      mediaId,
-      bookId: media.bookId,
-      authorIds: media.book.bookAuthors.map((ba) => ba.authorId),
-      seriesIds: media.book.seriesBooks.map((sb) => sb.seriesId),
-      narratorIds: media.mediaNarrators.map((mn) => mn.narratorId),
-    };
+    if (!ids) return;
 
     const sections: Section[] = [
       { id: `header-${mediaId}`, type: "header", mediaId },
@@ -175,59 +137,58 @@ function useSections(mediaId: string, session: Session) {
       {
         id: `editions-${mediaId}`,
         type: "otherEditions",
-        bookId: collectedIds.bookId,
+        bookId: ids.bookId,
         withoutMediaId: mediaId,
       },
-      ...collectedIds.seriesIds.map(
+      ...ids.seriesIds.map(
         (seriesId): OtherBooksInSeriesSection => ({
           id: `books-in-series-${seriesId}`,
           type: "otherBooksInSeries",
           seriesId,
         }),
       ),
-      ...collectedIds.authorIds.map(
+      ...ids.authorIds.map(
         (authorId): OtherBooksByAuthorSection => ({
           id: `other-books-${authorId}`,
           type: "otherBooksByAuthor",
           authorId,
-          withoutBookId: collectedIds.bookId,
-          withoutSeriesIds: collectedIds.seriesIds,
+          withoutBookId: ids.bookId,
+          withoutSeriesIds: ids.seriesIds,
         }),
       ),
-      ...collectedIds.narratorIds.map(
+      ...ids.narratorIds.map(
         (narratorId): OtherMediaByNarratorSection => ({
           id: `other-media-${narratorId}`,
           type: "otherMediaByNarrator",
           narratorId,
           withoutMediaId: mediaId,
-          withoutSeriesIds: collectedIds.seriesIds,
-          withoutAuthorIds: collectedIds.authorIds,
+          withoutSeriesIds: ids.seriesIds,
+          withoutAuthorIds: ids.authorIds,
         }),
       ),
     ];
     setSections(sections);
-  }, [media, mediaId, session]);
+  }, [ids, mediaId, session]);
 
-  return sections;
+  return { sections, opacity };
 }
 
-function MediaDetailsFlatList({
-  session,
-  mediaId,
-}: {
+type MediaDetailsFlatListProps = {
   session: Session;
   mediaId: string;
-}) {
-  const sections = useSections(mediaId, session);
+};
+
+function MediaDetailsFlatList({ session, mediaId }: MediaDetailsFlatListProps) {
+  const { sections, opacity } = useSections(mediaId, session);
 
   if (!sections) return null;
 
   return (
-    <FlatList
-      className="px-4"
+    <Animated.FlatList
+      style={[styles.container, { opacity }]}
       data={sections}
       keyExtractor={(item) => item.id}
-      initialNumToRender={3}
+      initialNumToRender={1}
       ListHeaderComponent={<View className="h-4" />}
       ListFooterComponent={<View className="h-4" />}
       renderItem={({ item }) => {
@@ -285,56 +246,18 @@ function MediaDetailsFlatList({
   );
 }
 
-function Header({ mediaId, session }: { mediaId: string; session: Session }) {
-  const { data: media } = useLiveQuery(
-    db.query.media.findFirst({
-      columns: {
-        fullCast: true,
-        abridged: true,
-        thumbnails: true,
-        duration: true,
-      },
-      where: and(
-        eq(schema.media.url, session.url),
-        eq(schema.media.id, mediaId),
-      ),
-      with: {
-        download: {
-          columns: { thumbnails: true },
-        },
-        mediaNarrators: {
-          columns: {},
-          with: {
-            narrator: {
-              columns: { name: true },
-            },
-          },
-        },
-        book: {
-          columns: { title: true },
-          with: {
-            bookAuthors: {
-              columns: {},
-              with: {
-                author: {
-                  columns: { name: true },
-                },
-              },
-            },
-            seriesBooks: {
-              columns: { bookNumber: true },
-              with: { series: { columns: { name: true } } },
-            },
-          },
-        },
-      },
-    }),
-  );
+type HeaderProps = {
+  mediaId: string;
+  session: Session;
+};
+
+function Header({ mediaId, session }: HeaderProps) {
+  const { data: media, opacity } = useMediaHeaderInfo(session, mediaId);
 
   if (!media) return null;
 
   return (
-    <View className="gap-2">
+    <Animated.View style={[styles.headerContainer, { opacity }]}>
       <ThumbnailImage
         thumbnails={media.thumbnails}
         downloadedThumbnails={media.download?.thumbnails}
@@ -379,49 +302,31 @@ function Header({ mediaId, session }: { mediaId: string; session: Session }) {
           </Text>
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 
-function ActionBar({
-  mediaId,
-  session,
-}: {
+type ActionBarProps = {
   mediaId: string;
   session: Session;
-}) {
+};
+
+function ActionBar({ mediaId, session }: ActionBarProps) {
   const progress = useDownloads((state) => state.downloadProgresses[mediaId]);
+  const { startDownload } = useDownloads();
+  const { data: media, opacity } = useMediaActionBarInfo(session, mediaId);
   const { loadMedia: loadMediaIntoPlayer, requestExpandPlayer } = usePlayer(
     (state) => state,
-  );
-  const { startDownload } = useDownloads();
-  const router = useRouter();
-
-  const { data: media } = useLiveTablesQuery(
-    db.query.media.findFirst({
-      columns: {
-        id: true,
-        thumbnails: true,
-        mp4Path: true,
-      },
-      where: and(
-        eq(schema.media.url, session.url),
-        eq(schema.media.id, mediaId),
-      ),
-      with: {
-        download: {
-          columns: { status: true },
-        },
-      },
-    }),
-    ["media", "downloads"],
   );
 
   if (!media) return null;
 
   if (progress) {
     return (
-      <View className="flex flex-row bg-zinc-900 rounded-xl items-center mt-8">
+      <Animated.View
+        style={{ opacity }}
+        className="flex flex-row bg-zinc-900 rounded-xl items-center mt-8"
+      >
         <Pressable
           className="grow p-4"
           onPress={() => router.navigate("/downloads")}
@@ -435,11 +340,11 @@ function ActionBar({
             </View>
           </View>
         </Pressable>
-      </View>
+      </Animated.View>
     );
   } else if (media.download && media.download.status !== "error") {
     return (
-      <View className="gap-2 mt-8">
+      <Animated.View style={{ opacity }} className="gap-2 mt-8">
         <View className="flex flex-row bg-zinc-900 rounded-xl items-center">
           <View className="grow flex items-center justify-center">
             <IconButton
@@ -462,11 +367,11 @@ function ActionBar({
           You have this audiobook downloaded, it will play from your device and
           not require an internet connection.
         </Text>
-      </View>
+      </Animated.View>
     );
   } else {
     return (
-      <View className="gap-2 mt-8">
+      <Animated.View style={{ opacity }} className="gap-2 mt-8">
         <View className="flex flex-row bg-zinc-900 rounded-xl items-center">
           <View className="grow border-r border-zinc-800 flex items-center justify-center">
             <IconButton
@@ -511,43 +416,23 @@ function ActionBar({
           Playing this audiobook will stream it and require an internet
           connection and may use your data plan.
         </Text>
-      </View>
+      </Animated.View>
     );
   }
 }
 
-function MediaDescription({
-  mediaId,
-  session,
-}: {
+type MediaDescriptionProps = {
   mediaId: string;
   session: Session;
-}) {
-  const { data: media } = useLiveQuery(
-    db.query.media.findFirst({
-      columns: {
-        description: true,
-        published: true,
-        publishedFormat: true,
-        publisher: true,
-        notes: true,
-      },
-      with: {
-        book: {
-          columns: { published: true, publishedFormat: true },
-        },
-      },
-      where: and(
-        eq(schema.media.url, session.url),
-        eq(schema.media.id, mediaId),
-      ),
-    }),
-  );
+};
+
+function MediaDescription({ mediaId, session }: MediaDescriptionProps) {
+  const { data: media, opacity } = useMediaDescription(session, mediaId);
 
   if (!media?.description) return null;
 
   return (
-    <View className="gap-1 mt-8">
+    <Animated.View style={{ opacity }} className="gap-1 mt-8">
       <Description description={media.description} />
       <View>
         {media.book.published && (
@@ -569,84 +454,24 @@ function MediaDescription({
           <Text className="text-sm text-zinc-400">Note: {media.notes}</Text>
         )}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
-function AuthorsAndNarrators({
-  mediaId,
-  session,
-}: {
+type AuthorsAndNarratorsProps = {
   mediaId: string;
   session: Session;
-}) {
+};
+
+function AuthorsAndNarrators({ mediaId, session }: AuthorsAndNarratorsProps) {
   const { screenWidth } = useScreen((state) => state);
-  const { data: media } = useLiveQuery(
-    db.query.media.findFirst({
-      columns: {},
-      where: and(
-        eq(schema.media.url, session.url),
-        eq(schema.media.id, mediaId),
-      ),
-      with: {
-        book: {
-          columns: {},
-          with: {
-            bookAuthors: {
-              columns: { id: true },
-              with: {
-                author: {
-                  columns: { name: true },
-                  with: {
-                    person: {
-                      columns: { id: true, name: true, thumbnails: true },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-        mediaNarrators: {
-          columns: { id: true },
-          with: {
-            narrator: {
-              columns: { name: true },
-              with: {
-                person: { columns: { id: true, name: true, thumbnails: true } },
-              },
-            },
-          },
-        },
-      },
-    }),
-  );
-
-  const [authorSet, setAuthorSet] = useState<Set<string>>(new Set<string>());
-  const [narratorSet, setNarratorSet] = useState<Set<string>>(
-    new Set<string>(),
-  );
-
-  useEffect(() => {
-    if (!media) return;
-
-    const newAuthorSet = new Set<string>();
-    for (const ba of media.book.bookAuthors) {
-      newAuthorSet.add(ba.author.person.id);
-    }
-    setAuthorSet(newAuthorSet);
-
-    const newNarratorSet = new Set<string>();
-    for (const mn of media.mediaNarrators) {
-      newNarratorSet.add(mn.narrator.person.id);
-    }
-    setNarratorSet(newNarratorSet);
-  }, [media]);
+  const { media, authorSet, narratorSet, opacity } =
+    useMediaAuthorsAndNarrators(session, mediaId);
 
   if (!media) return null;
 
   return (
-    <View className="mt-8">
+    <Animated.View style={{ opacity }} className="mt-8">
       <Text
         className="text-2xl font-medium text-zinc-100 mb-2"
         numberOfLines={1}
@@ -699,105 +524,37 @@ function AuthorsAndNarrators({
           return null;
         }}
       />
-    </View>
+    </Animated.View>
   );
 }
 
-function OtherEditions({
-  bookId,
-  session,
-  withoutMediaId,
-}: {
+type OtherEditionsProps = {
   bookId: string;
   session: Session;
   withoutMediaId: string;
-}) {
+};
+
+function OtherEditions(props: OtherEditionsProps) {
+  const { bookId, session, withoutMediaId } = props;
   const { screenWidth } = useScreen((state) => state);
-  const { data: mediaIds } = useLiveQuery(
-    db
-      .select({ id: schema.media.id })
-      .from(schema.media)
-      .limit(10)
-      .where(
-        and(
-          eq(schema.media.url, session.url),
-          eq(schema.media.bookId, bookId),
-          ne(schema.media.id, withoutMediaId),
-        ),
-      ),
+  const { media, opacity } = useMediaOtherEditions(
+    session,
+    bookId,
+    withoutMediaId,
   );
-
-  const { data: media } = useLiveQuery(
-    db.query.media.findMany({
-      columns: { id: true, thumbnails: true },
-      where: and(
-        eq(schema.media.url, session.url),
-        inArray(
-          schema.media.id,
-          mediaIds.map((media) => media.id),
-        ),
-      ),
-      orderBy: desc(schema.media.published),
-      with: {
-        download: {
-          columns: { thumbnails: true },
-        },
-        mediaNarrators: {
-          columns: {},
-          with: {
-            narrator: {
-              columns: { name: true },
-            },
-          },
-        },
-        book: {
-          columns: { id: true, title: true },
-          with: {
-            bookAuthors: {
-              columns: {},
-              with: {
-                author: {
-                  columns: { name: true },
-                },
-              },
-            },
-          },
-        },
-      },
-    }),
-    [mediaIds],
-  );
-
-  const router = useRouter();
 
   if (media.length === 0) return null;
 
+  const navigateToBook = () => {
+    router.navigate({
+      pathname: "/book/[id]",
+      params: { id: media[0].book.id, title: media[0].book.title },
+    });
+  };
+
   return (
-    <View className="mt-8">
-      <Pressable
-        onPress={() => {
-          router.navigate({
-            pathname: "/book/[id]",
-            params: { id: media[0].book.id, title: media[0].book.title },
-          });
-        }}
-      >
-        <View className="flex flex-row items-center mb-2 justify-between">
-          <Text
-            className="text-2xl font-medium text-zinc-100"
-            numberOfLines={1}
-          >
-            Other Editions
-          </Text>
-          <View className="mr-6">
-            <FontAwesome6
-              name="chevron-right"
-              size={16}
-              color={colors.zinc[100]}
-            />
-          </View>
-        </View>
-      </Pressable>
+    <Animated.View style={{ opacity }} className="mt-8">
+      <HeaderButton label="Other Editions" onPress={navigateToBook} />
       <FlatList
         className="p-2"
         data={media}
@@ -812,96 +569,31 @@ function OtherEditions({
           );
         }}
       />
-    </View>
+    </Animated.View>
   );
 }
 
-function OtherBooksInSeries({
-  seriesId,
-  session,
-}: {
+type OtherBooksInSeriesProps = {
   seriesId: string;
   session: Session;
-}) {
-  const { screenWidth } = useScreen((state) => state);
-  const { data: series } = useLiveQuery(
-    db.query.series.findFirst({
-      columns: { id: true, name: true },
-      where: and(
-        eq(schema.series.url, session.url),
-        eq(schema.series.id, seriesId),
-      ),
-      with: {
-        seriesBooks: {
-          columns: { id: true, bookNumber: true },
-          orderBy: sql`CAST(book_number AS FLOAT)`,
-          limit: 10,
-          with: {
-            book: {
-              columns: { id: true, title: true },
-              with: {
-                bookAuthors: {
-                  columns: {},
-                  with: {
-                    author: {
-                      columns: { name: true },
-                    },
-                  },
-                },
-                media: {
-                  columns: { id: true, thumbnails: true },
-                  with: {
-                    mediaNarrators: {
-                      columns: {},
-                      with: {
-                        narrator: {
-                          columns: { name: true },
-                        },
-                      },
-                    },
-                    download: {
-                      columns: { thumbnails: true },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    }),
-  );
+};
 
-  const router = useRouter();
+function OtherBooksInSeries({ seriesId, session }: OtherBooksInSeriesProps) {
+  const { screenWidth } = useScreen((state) => state);
+  const { data: series, opacity } = useOtherBooksInSeries(session, seriesId);
 
   if (!series) return null;
 
+  const navigateToSeries = () => {
+    router.navigate({
+      pathname: "/series/[id]",
+      params: { id: series.id, title: series.name },
+    });
+  };
+
   return (
-    <View className="mt-8">
-      <Pressable
-        onPress={() => {
-          router.navigate({
-            pathname: "/series/[id]",
-            params: { id: series.id, title: series.name },
-          });
-        }}
-      >
-        <View className="flex flex-row items-center mb-2 justify-between">
-          <Text
-            className="text-2xl font-medium text-zinc-100"
-            numberOfLines={1}
-          >
-            {series.name}
-          </Text>
-          <View className="mr-6">
-            <FontAwesome6
-              name="chevron-right"
-              size={16}
-              color={colors.zinc[100]}
-            />
-          </View>
-        </View>
-      </Pressable>
+    <Animated.View style={{ opacity }} className="mt-8">
+      <HeaderButton label={series.name} onPress={navigateToSeries} />
       <FlatList
         className="py-2"
         data={series.seriesBooks}
@@ -916,149 +608,43 @@ function OtherBooksInSeries({
           );
         }}
       />
-    </View>
+    </Animated.View>
   );
 }
 
-function OtherBooksByAuthor({
-  authorId,
-  session,
-  withoutBookId,
-  withoutSeriesIds,
-}: {
+type OtherBooksByAuthorProps = {
   authorId: string;
   session: Session;
   withoutBookId: string;
   withoutSeriesIds: string[];
-}) {
+};
+
+function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
+  const { authorId, session, withoutBookId, withoutSeriesIds } = props;
   const { screenWidth } = useScreen((state) => state);
-  const { data: booksIds } = useLiveQuery(
-    db
-      .selectDistinct({ id: schema.books.id })
-      .from(schema.authors)
-      .innerJoin(
-        schema.bookAuthors,
-        and(
-          eq(schema.authors.url, schema.bookAuthors.url),
-          eq(schema.authors.id, schema.bookAuthors.authorId),
-        ),
-      )
-      .innerJoin(
-        schema.books,
-        and(
-          eq(schema.bookAuthors.url, schema.books.url),
-          eq(schema.bookAuthors.bookId, schema.books.id),
-        ),
-      )
-      .leftJoin(
-        schema.seriesBooks,
-        and(
-          eq(schema.books.url, schema.seriesBooks.url),
-          eq(schema.books.id, schema.seriesBooks.bookId),
-        ),
-      )
-      .limit(10)
-      .where(
-        and(
-          eq(schema.authors.url, session.url),
-          eq(schema.authors.id, authorId),
-          ne(schema.books.id, withoutBookId),
-          or(
-            isNull(schema.seriesBooks.seriesId),
-            notInArray(schema.seriesBooks.seriesId, withoutSeriesIds),
-          ),
-        ),
-      ),
+  const { books, author, opacity } = useOtherBooksByAuthor(
+    session,
+    authorId,
+    withoutBookId,
+    withoutSeriesIds,
   );
-
-  const { data: author } = useLiveQuery(
-    db.query.authors.findFirst({
-      columns: { id: true, name: true },
-      where: and(
-        eq(schema.authors.url, session.url),
-        eq(schema.authors.id, authorId),
-      ),
-      with: {
-        person: {
-          columns: { id: true, name: true },
-        },
-      },
-    }),
-  );
-
-  const { data: books } = useLiveQuery(
-    db.query.books.findMany({
-      columns: { id: true, title: true },
-      where: and(
-        eq(schema.books.url, session.url),
-        inArray(
-          schema.books.id,
-          booksIds.map((book) => book.id),
-        ),
-      ),
-      orderBy: desc(schema.books.published),
-      with: {
-        bookAuthors: {
-          columns: {},
-          with: {
-            author: {
-              columns: { name: true },
-            },
-          },
-        },
-        media: {
-          columns: { id: true, thumbnails: true },
-          with: {
-            mediaNarrators: {
-              columns: {},
-              with: {
-                narrator: {
-                  columns: { name: true },
-                },
-              },
-            },
-            download: {
-              columns: { thumbnails: true },
-            },
-          },
-        },
-      },
-    }),
-    [booksIds],
-  );
-
-  const router = useRouter();
 
   if (!author) return null;
-
   if (books.length === 0) return null;
 
+  const navigateToPerson = () => {
+    router.navigate({
+      pathname: "/person/[id]",
+      params: { id: author.person.id, title: author.person.name },
+    });
+  };
+
   return (
-    <View className="mt-8">
-      <Pressable
-        onPress={() => {
-          router.navigate({
-            pathname: "/person/[id]",
-            params: { id: author.person.id, title: author.person.name },
-          });
-        }}
-      >
-        <View className="flex flex-row items-center mb-2 justify-between">
-          <Text
-            className="text-2xl font-medium text-zinc-100"
-            numberOfLines={1}
-          >
-            More by {author.name}
-          </Text>
-          <View className="mr-6">
-            <FontAwesome6
-              name="chevron-right"
-              size={16}
-              color={colors.zinc[100]}
-            />
-          </View>
-        </View>
-      </Pressable>
+    <Animated.View style={{ opacity }} className="mt-8">
+      <HeaderButton
+        label={`More by ${author.name}`}
+        onPress={navigateToPerson}
+      />
       <FlatList
         className="py-2"
         data={books}
@@ -1073,166 +659,51 @@ function OtherBooksByAuthor({
           );
         }}
       />
-    </View>
+    </Animated.View>
   );
 }
 
-function OtherMediaByNarrator({
-  narratorId,
-  session,
-  withoutMediaId,
-  withoutSeriesIds,
-  withoutAuthorIds,
-}: {
+type OtherMediaByNarratorProps = {
   narratorId: string;
   session: Session;
   withoutMediaId: string;
   withoutSeriesIds: string[];
   withoutAuthorIds: string[];
-}) {
+};
+
+function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
+  const {
+    narratorId,
+    session,
+    withoutMediaId,
+    withoutSeriesIds,
+    withoutAuthorIds,
+  } = props;
   const { screenWidth } = useScreen((state) => state);
-  const { data: mediaIds } = useLiveQuery(
-    db
-      .selectDistinct({ id: schema.media.id })
-      .from(schema.narrators)
-      .innerJoin(
-        schema.mediaNarrators,
-        and(
-          eq(schema.narrators.url, schema.mediaNarrators.url),
-          eq(schema.narrators.id, schema.mediaNarrators.narratorId),
-        ),
-      )
-      .innerJoin(
-        schema.media,
-        and(
-          eq(schema.mediaNarrators.url, schema.media.url),
-          eq(schema.mediaNarrators.mediaId, schema.media.id),
-        ),
-      )
-      .innerJoin(
-        schema.books,
-        and(
-          eq(schema.media.url, schema.books.url),
-          eq(schema.media.bookId, schema.books.id),
-        ),
-      )
-      .innerJoin(
-        schema.bookAuthors,
-        and(
-          eq(schema.books.url, schema.bookAuthors.url),
-          eq(schema.books.id, schema.bookAuthors.bookId),
-        ),
-      )
-      .leftJoin(
-        schema.seriesBooks,
-        and(
-          eq(schema.books.url, schema.seriesBooks.url),
-          eq(schema.books.id, schema.seriesBooks.bookId),
-        ),
-      )
-      .limit(10)
-      .where(
-        and(
-          eq(schema.narrators.url, session.url),
-          eq(schema.narrators.id, narratorId),
-          ne(schema.media.id, withoutMediaId),
-          notInArray(schema.bookAuthors.authorId, withoutAuthorIds),
-          or(
-            isNull(schema.seriesBooks.seriesId),
-            notInArray(schema.seriesBooks.seriesId, withoutSeriesIds),
-          ),
-        ),
-      ),
+  const { media, narrator, opacity } = useOtherMediaByNarrator(
+    session,
+    narratorId,
+    withoutMediaId,
+    withoutSeriesIds,
+    withoutAuthorIds,
   );
-
-  const { data: narrator } = useLiveQuery(
-    db.query.narrators.findFirst({
-      columns: { id: true, name: true },
-      where: and(
-        eq(schema.narrators.url, session.url),
-        eq(schema.narrators.id, narratorId),
-      ),
-      with: {
-        person: {
-          columns: { id: true, name: true },
-        },
-      },
-    }),
-  );
-
-  const { data: media } = useLiveQuery(
-    db.query.media.findMany({
-      columns: { id: true, thumbnails: true },
-      where: and(
-        eq(schema.media.url, session.url),
-        inArray(
-          schema.media.id,
-          mediaIds.map((media) => media.id),
-        ),
-      ),
-      orderBy: desc(schema.media.published),
-      with: {
-        download: {
-          columns: { thumbnails: true },
-        },
-        mediaNarrators: {
-          columns: {},
-          with: {
-            narrator: {
-              columns: { name: true },
-            },
-          },
-        },
-        book: {
-          columns: { id: true, title: true },
-          with: {
-            bookAuthors: {
-              columns: {},
-              with: {
-                author: {
-                  columns: { name: true },
-                },
-              },
-            },
-          },
-        },
-      },
-    }),
-    [mediaIds],
-  );
-
-  const router = useRouter();
 
   if (!narrator) return null;
-
   if (media.length === 0) return null;
 
+  const navigateToPerson = () => {
+    router.navigate({
+      pathname: "/person/[id]",
+      params: { id: narrator.person.id, title: narrator.person.name },
+    });
+  };
+
   return (
-    <View className="mt-8">
-      <Pressable
-        onPress={() => {
-          router.navigate({
-            pathname: "/person/[id]",
-            params: { id: narrator.person.id, title: narrator.person.name },
-          });
-        }}
-      >
-        <View className="flex flex-row items-center mb-2 justify-between">
-          <Text
-            className="text-2xl font-medium text-zinc-100"
-            numberOfLines={1}
-          >
-            More read by {narrator.name}
-          </Text>
-          <View className="mr-6">
-            <FontAwesome6
-              name="chevron-right"
-              size={16}
-              color={colors.zinc[100]}
-            />
-          </View>
-        </View>
-      </Pressable>
+    <Animated.View style={{ opacity }} className="mt-8">
+      <HeaderButton
+        label={`More by ${narrator.name}`}
+        onPress={navigateToPerson}
+      />
       <FlatList
         className="py-2"
         data={media}
@@ -1247,6 +718,41 @@ function OtherMediaByNarrator({
           );
         }}
       />
-    </View>
+    </Animated.View>
   );
 }
+
+type HeaderButtonProps = {
+  label: string;
+  onPress: () => void;
+};
+
+function HeaderButton({ label, onPress }: HeaderButtonProps) {
+  return (
+    <IconButton
+      icon="chevron-right"
+      size={16}
+      color={colors.zinc[100]}
+      style={{
+        flexDirection: "row-reverse",
+        justifyContent: "space-between",
+        paddingLeft: 0,
+        paddingRight: 16,
+      }}
+      onPress={onPress}
+    >
+      <Text className="text-2xl font-medium text-zinc-100" numberOfLines={1}>
+        {label}
+      </Text>
+    </IconButton>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    paddingHorizontal: 16,
+  },
+  headerContainer: {
+    gap: 8,
+  },
+});

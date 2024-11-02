@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { useSharedValue, withTiming } from "react-native-reanimated";
 import { useLiveTablesQuery } from "./use.live.tables.query";
 
+export const fadeInTime = 500;
+
 /**
  * This hook is a wrapper around useLiveTablesQuery that fades in an opacity
  * value when the query first returns.
@@ -17,7 +19,8 @@ export default function useFadeInQuery<
   const { data, updatedAt, error } = useLiveTablesQuery(query, tables, deps);
 
   useEffect(() => {
-    if (updatedAt !== undefined) opacity.value = withTiming(1);
+    if (updatedAt !== undefined)
+      opacity.value = withTiming(1, { duration: fadeInTime });
   }, [opacity, updatedAt]);
 
   return { data, updatedAt, error, opacity } as const;
