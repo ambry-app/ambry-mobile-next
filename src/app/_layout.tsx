@@ -1,6 +1,7 @@
 import "@/assets/global.css";
 import Loading from "@/src/components/Loading";
 import MeasureScreenHeight from "@/src/components/MeasureScreenHeight";
+import ScreenCentered from "@/src/components/ScreenCentered";
 import { expoDb } from "@/src/db/db";
 import { useAppBoot } from "@/src/hooks/use.app.boot";
 import { ThemeProvider } from "@react-navigation/native";
@@ -27,7 +28,7 @@ const Theme = {
   },
 };
 
-export default function App() {
+export default function RootStackLayout() {
   useEffect(() => {
     if (Platform.OS === "android") {
       NavigationBar.setBackgroundColorAsync(colors.transparent);
@@ -60,27 +61,19 @@ function Root() {
     );
   }
 
-  return isReady ? (
+  if (!isReady) {
+    return (
+      <ScreenCentered>
+        <Loading />
+      </ScreenCentered>
+    );
+  }
+
+  return (
     <Stack>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(app)" options={{ headerShown: false }} />
       <Stack.Screen name="sign-in" options={{ title: "Sign In" }} />
-      <Stack.Screen
-        name="sleep-timer"
-        options={{ presentation: "modal", title: "Sleep Timer" }}
-      />
-      <Stack.Screen
-        name="playback-rate"
-        options={{ presentation: "modal", title: "Playback Speed" }}
-      />
-      <Stack.Screen
-        name="chapter-select"
-        options={{ presentation: "modal", title: "Chapter Select" }}
-      />
     </Stack>
-  ) : (
-    <View className="flex h-full items-center justify-center">
-      <Loading />
-    </View>
   );
 }
 

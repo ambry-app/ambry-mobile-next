@@ -5,7 +5,7 @@ import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { Tabs } from "expo-router";
 import colors from "tailwindcss/colors";
 
-export default function TabLayout() {
+export default function AppTabLayout() {
   const mediaId = usePlayer((state) => state.mediaId);
   const playerVisible = !!mediaId;
 

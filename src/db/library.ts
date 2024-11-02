@@ -199,6 +199,72 @@ export async function getMediaForDetails(
   });
 }
 
+export function useMediaDetails(session: Session, mediaId: string) {
+  const query = db.query.media.findFirst({
+    columns: {
+      id: true,
+      thumbnails: true,
+      description: true,
+      mp4Path: true,
+      duration: true,
+      published: true,
+      publishedFormat: true,
+      publisher: true,
+      notes: true,
+    },
+    where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
+    with: {
+      download: {
+        columns: { status: true, thumbnails: true },
+      },
+      mediaNarrators: {
+        columns: { id: true },
+        with: {
+          narrator: {
+            columns: { id: true, name: true },
+            with: { person: { columns: { id: true } } },
+          },
+        },
+      },
+      book: {
+        columns: { id: true, title: true },
+        with: {
+          bookAuthors: {
+            columns: { id: true },
+            with: {
+              author: {
+                columns: { id: true, name: true },
+                with: { person: { columns: { id: true } } },
+              },
+            },
+          },
+          seriesBooks: {
+            columns: { id: true, bookNumber: true },
+            with: { series: { columns: { id: true, name: true } } },
+          },
+        },
+      },
+    },
+  });
+
+  return useFadeInQuery(
+    query,
+    [
+      "media",
+      "downloads",
+      "media_narrators",
+      "narrators",
+      "people",
+      "books",
+      "book_authors",
+      "authors",
+      "series_books",
+      "series",
+    ],
+    [mediaId],
+  );
+}
+
 export type BookDetails = {
   title: string;
   published: Date;

@@ -19,7 +19,7 @@ export default function SettingsScreen() {
         title="Sign out"
         onPress={() => {
           signOut();
-          router.navigate("/");
+          router.navigate("/sign-in");
         }}
         color={colors.lime[500]}
       />
