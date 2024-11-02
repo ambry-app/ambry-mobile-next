@@ -135,7 +135,7 @@ const signOutAsync = async (url: string, token: string): Promise<boolean> => {
   try {
     const response = await executeAuthenticated(url, token, signOutMutation);
 
-    if (!response.deleteSession) {
+    if (!response?.deleteSession) {
       return false;
     }
     return response.deleteSession.deleted;

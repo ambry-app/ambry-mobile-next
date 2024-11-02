@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import type { TypedDocumentString } from "./graphql";
 
 export async function executeAuthenticated<TResult, TVariables>(
@@ -18,6 +19,10 @@ export async function executeAuthenticated<TResult, TVariables>(
       variables,
     }),
   });
+
+  if (response.status === 401) {
+    return router.navigate("/sign-out");
+  }
 
   if (!response.ok) {
     throw new Error("Network response was not ok");
