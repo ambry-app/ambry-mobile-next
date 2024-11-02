@@ -38,6 +38,7 @@ interface PlayerState {
   updateProgress: (position: number, duration: number) => void;
   seekRelative: (position: number) => void;
   setPlaybackRate: (session: Session, playbackRate: number) => void;
+  unloadPlayer: () => Promise<void>;
 }
 
 interface TrackLoadResult {
@@ -129,6 +130,9 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
       TrackPlayer.setRate(playbackRate),
       updatePlayerState(session, get().mediaId!, { playbackRate }),
     ]);
+  },
+  unloadPlayer: async () => {
+    await TrackPlayer.reset();
   },
 }));
 

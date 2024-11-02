@@ -4,7 +4,7 @@ import { Button, StyleSheet, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
 
 export default function SettingsScreen() {
-  const { signOut, session } = useSession((state) => state);
+  const { session } = useSession((state) => state);
 
   if (!session) return null;
 
@@ -17,10 +17,7 @@ export default function SettingsScreen() {
       <Text style={styles.text}>You are signed in as: {session.email}</Text>
       <Button
         title="Sign out"
-        onPress={() => {
-          signOut();
-          router.navigate("/sign-in");
-        }}
+        onPress={() => router.navigate("/sign-out")}
         color={colors.lime[500]}
       />
     </View>
