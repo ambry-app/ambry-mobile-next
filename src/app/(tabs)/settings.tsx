@@ -4,8 +4,10 @@ import { Button, StyleSheet, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
 
 export default function SettingsScreen() {
-  const signOut = useSession((state) => state.signOut);
+  const { signOut, session } = useSession((state) => state);
   const router = useRouter();
+
+  if (!session) return null;
 
   return (
     <View style={styles.container}>
@@ -13,6 +15,7 @@ export default function SettingsScreen() {
       <Text style={styles.text}>
         Settings, like your preferred playback speed, will be here.
       </Text>
+      <Text style={styles.text}>You are signed in as: {session.email}</Text>
       <Button
         title="Sign out"
         onPress={() => {

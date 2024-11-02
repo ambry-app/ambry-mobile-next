@@ -1,20 +1,17 @@
 import NamesList from "@/src/components/NamesList";
 import { PersonTile, SeriesBookTile } from "@/src/components/Tiles";
-import { db } from "@/src/db/db";
+import { useSeriesDetails } from "@/src/db/library";
 import * as schema from "@/src/db/schema";
-import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
 import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
 import { Session, useSession } from "@/src/stores/session";
-import { and, eq, sql } from "drizzle-orm";
+import { RouterParams } from "@/src/types/router";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { FlatList, StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 
-export default function SeriesDetails() {
+export default function SeriesDetailsScreen() {
   const session = useSession((state) => state.session);
-  const { id: seriesId, title } = useLocalSearchParams<{
-    id: string;
-    title: string;
-  }>();
+  const { id: seriesId, title } = useLocalSearchParams<RouterParams>();
   useSyncOnFocus();
 
   if (!session) return null;
@@ -47,67 +44,7 @@ function SeriesDetailsFlatList({
   seriesId,
   session,
 }: SeriesDetailsFlatListProps) {
-  const { data: series } = useLiveTablesQuery(
-    db.query.series.findFirst({
-      columns: { id: true, name: true },
-      where: and(
-        eq(schema.series.url, session.url),
-        eq(schema.series.id, seriesId),
-      ),
-      with: {
-        seriesBooks: {
-          columns: { id: true, bookNumber: true },
-          orderBy: sql`CAST(book_number AS FLOAT)`,
-          with: {
-            book: {
-              columns: { id: true, title: true },
-              with: {
-                bookAuthors: {
-                  columns: {},
-                  with: {
-                    author: {
-                      columns: { id: true, name: true },
-                      with: {
-                        person: {
-                          columns: { id: true, name: true, thumbnails: true },
-                        },
-                      },
-                    },
-                  },
-                },
-                media: {
-                  columns: { id: true, thumbnails: true },
-                  with: {
-                    mediaNarrators: {
-                      columns: {},
-                      with: {
-                        narrator: {
-                          columns: { id: true, name: true },
-                          with: {
-                            person: {
-                              columns: {
-                                id: true,
-                                name: true,
-                                thumbnails: true,
-                              },
-                            },
-                          },
-                        },
-                      },
-                    },
-                    download: {
-                      columns: { thumbnails: true },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    }),
-    ["series"],
-  );
+  const { data: series, opacity } = useSeriesDetails(session, seriesId);
 
   if (!series) return null;
 
@@ -161,8 +98,8 @@ function SeriesDetailsFlatList({
   );
 
   return (
-    <FlatList
-      className="px-2"
+    <Animated.FlatList
+      style={[styles.container, { opacity }]}
       data={seriesBooks}
       keyExtractor={(item) => item.id}
       numColumns={2}
@@ -248,6 +185,9 @@ function Footer({ authors, narrators }: FooterProps) {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    paddingHorizontal: 8,
+  },
   tile: {
     padding: 8,
     width: "50%",

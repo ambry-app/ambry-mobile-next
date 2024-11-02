@@ -778,7 +778,7 @@ function OtherEditions({
         onPress={() => {
           router.navigate({
             pathname: "/book/[id]",
-            params: { id: media[0].book.id },
+            params: { id: media[0].book.id, title: media[0].book.title },
           });
         }}
       >
@@ -882,7 +882,7 @@ function OtherBooksInSeries({
         onPress={() => {
           router.navigate({
             pathname: "/series/[id]",
-            params: { id: series.id },
+            params: { id: series.id, title: series.name },
           });
         }}
       >
@@ -1039,7 +1039,7 @@ function OtherBooksByAuthor({
         onPress={() => {
           router.navigate({
             pathname: "/person/[id]",
-            params: { id: author.person.id },
+            params: { id: author.person.id, title: author.person.name },
           });
         }}
       >
@@ -1213,7 +1213,7 @@ function OtherMediaByNarrator({
         onPress={() => {
           router.navigate({
             pathname: "/person/[id]",
-            params: { id: narrator.person.id },
+            params: { id: narrator.person.id, title: narrator.person.name },
           });
         }}
       >

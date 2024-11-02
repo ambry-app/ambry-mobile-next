@@ -1,21 +1,18 @@
 import NamesList from "@/src/components/NamesList";
 import { Tile } from "@/src/components/Tiles";
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
+import { BookDetails, useBookDetails } from "@/src/db/library";
 import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
 import { Session, useSession } from "@/src/stores/session";
+import { RouterParams } from "@/src/types/router";
 import { formatPublished } from "@/src/utils/date";
-import { and, eq } from "drizzle-orm";
 import { Stack, useLocalSearchParams } from "expo-router";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
+import colors from "tailwindcss/colors";
 
-export default function BookDetails() {
+export default function BookDetailsScreen() {
   const session = useSession((state) => state.session);
-  const { id: bookId, title } = useLocalSearchParams<{
-    id: string;
-    title: string;
-  }>();
+  const { id: bookId, title } = useLocalSearchParams<RouterParams>();
   useSyncOnFocus();
 
   if (!session) return null;
@@ -28,74 +25,19 @@ export default function BookDetails() {
   );
 }
 
-function BookDetailsFlatList({
-  bookId,
-  session,
-}: {
+type BookDetailsFlatListProps = {
   bookId: string;
   session: Session;
-}) {
-  const { data: book } = useLiveTablesQuery(
-    db.query.books.findFirst({
-      columns: {
-        id: true,
-        title: true,
-        published: true,
-        publishedFormat: true,
-      },
-      where: and(
-        eq(schema.books.url, session.url),
-        eq(schema.books.id, bookId),
-      ),
-      with: {
-        bookAuthors: {
-          columns: {},
-          with: {
-            author: {
-              columns: { id: true, name: true },
-              with: {
-                person: {
-                  columns: { id: true, name: true, thumbnails: true },
-                },
-              },
-            },
-          },
-        },
-        media: {
-          columns: { id: true, thumbnails: true },
-          with: {
-            mediaNarrators: {
-              columns: {},
-              with: {
-                narrator: {
-                  columns: { id: true, name: true },
-                  with: {
-                    person: {
-                      columns: {
-                        id: true,
-                        name: true,
-                        thumbnails: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-            download: {
-              columns: { thumbnails: true },
-            },
-          },
-        },
-      },
-    }),
-    ["books"],
-  );
+};
+
+function BookDetailsFlatList({ bookId, session }: BookDetailsFlatListProps) {
+  const { data: book, opacity } = useBookDetails(session, bookId);
 
   if (!book) return null;
 
   return (
-    <FlatList
-      className="px-2"
+    <Animated.FlatList
+      style={[styles.container, { opacity }]}
       data={book.media}
       keyExtractor={(item) => item.id}
       numColumns={2}
@@ -107,62 +49,26 @@ function BookDetailsFlatList({
   );
 }
 
-type BookProp = {
-  title: string;
-  published: Date;
-  publishedFormat: "full" | "year_month" | "year";
-  bookAuthors: {
-    author: {
-      id: string;
-      name: string;
-      person: {
-        id: string;
-        name: string;
-        thumbnails: schema.Thumbnails | null;
-      };
-    };
-  }[];
-  media: {
-    id: string;
-    thumbnails: schema.Thumbnails | null;
-    mediaNarrators: {
-      narrator: {
-        id: string;
-        name: string;
-        person: {
-          id: string;
-          name: string;
-          thumbnails: schema.Thumbnails | null;
-        };
-      };
-    }[];
-    download: {
-      thumbnails: schema.DownloadedThumbnails | null;
-    } | null;
-  }[];
-};
-
-type HeaderProps = {
-  book: BookProp;
-};
+type BookProp = BookDetails;
+type HeaderProps = { book: BookProp };
 
 function Header({ book }: HeaderProps) {
   return (
-    <View className="p-2 gap-8">
-      <View className="gap-1">
+    <View style={styles.headerContainer}>
+      <View>
         <NamesList
-          className="text-xl font-medium text-zinc-100 leading-tight"
+          style={styles.headerAuthorsList}
           prefix="By"
           names={book.bookAuthors.map((ba) => ba.author.name)}
         />
         {book.published && (
-          <Text className="text text-zinc-300">
+          <Text style={styles.headerPublishedText}>
             First published{" "}
             {formatPublished(book.published, book.publishedFormat)}
           </Text>
         )}
       </View>
-      <Text className="text-2xl font-medium text-zinc-100" numberOfLines={1}>
+      <Text style={styles.headerEditionsText} numberOfLines={1}>
         Editions
       </Text>
     </View>
@@ -170,9 +76,29 @@ function Header({ book }: HeaderProps) {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    paddingHorizontal: 8,
+  },
   tile: {
     padding: 8,
     width: "50%",
     marginBottom: 8,
+  },
+  headerContainer: {
+    padding: 8,
+    gap: 32,
+  },
+  headerAuthorsList: {
+    fontSize: 18,
+    fontWeight: 500,
+    color: colors.zinc[100],
+  },
+  headerPublishedText: {
+    color: colors.zinc[300],
+  },
+  headerEditionsText: {
+    fontSize: 22,
+    fontWeight: 500,
+    color: colors.zinc[100],
   },
 });
