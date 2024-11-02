@@ -1,71 +1,35 @@
-import Loading from "@/src/components/Loading";
-import ScreenCentered from "@/src/components/ScreenCentered";
 import { MediaTile } from "@/src/components/Tiles";
-import { MediaForIndex, listMediaForIndex } from "@/src/db/library";
-import { syncDown } from "@/src/db/sync";
-import { useSession } from "@/src/stores/session";
-import { useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
-import { FlatList, StyleSheet, Text } from "react-native";
+import { useMediaList } from "@/src/db/library";
+import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
+import { Session, useSession } from "@/src/stores/session";
+import { StyleSheet } from "react-native";
+import Animated from "react-native-reanimated";
 import colors from "tailwindcss/colors";
 
 export default function LibraryScreen() {
   const session = useSession((state) => state.session);
-  const [media, setMedia] = useState<MediaForIndex[] | undefined>();
-  const [error, setError] = useState(false);
+  useSyncOnFocus();
 
-  const loadMedia = useCallback(() => {
-    if (!session) return;
+  if (!session) return null;
 
-    listMediaForIndex(session)
-      .then(setMedia)
-      .catch((error) => {
-        console.error("Failed to load media:", error);
-        setError(true);
-      });
-  }, [session]);
+  return <LibraryFlatlist session={session} />;
+}
 
-  useFocusEffect(
-    useCallback(() => {
-      console.log("index focused!");
-      if (!session) return;
+type LibraryFlatlistProps = {
+  session: Session;
+};
 
-      // load what's in the DB right now
-      loadMedia();
+function LibraryFlatlist({ session }: LibraryFlatlistProps) {
+  const { data: media, updatedAt, opacity } = useMediaList(session);
 
-      // sync in background, then load again
-      // if network is down, we just ignore the error
-      syncDown(session)
-        .then(loadMedia)
-        .catch((error) => {
-          console.error("sync error:", error);
-        });
-
-      return () => {
-        console.log("index unfocused");
-      };
-    }, [loadMedia, session]),
-  );
-
-  if (media === undefined) {
-    return (
-      <ScreenCentered>
-        <Loading />
-      </ScreenCentered>
-    );
-  }
-
-  if (error) {
-    return (
-      <ScreenCentered>
-        <Text style={styles.error}>Failed to load audiobooks!</Text>
-      </ScreenCentered>
-    );
+  if (updatedAt !== undefined && media.length === 0) {
+    // TODO: there are no books on this server
+    return null;
   }
 
   return (
-    <FlatList
-      style={styles.flatlist}
+    <Animated.FlatList
+      style={[styles.flatlist, { opacity }]}
       data={media}
       keyExtractor={(item) => item.id}
       numColumns={2}

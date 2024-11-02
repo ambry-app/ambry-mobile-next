@@ -5,8 +5,8 @@ import PlayerProgressBar from "@/src/components/PlayerProgressBar";
 import PlayerScrubber from "@/src/components/PlayerScrubber";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
 import TitleAuthorsNarrators from "@/src/components/TitleAuthorNarrator";
+import { useMediaDetails } from "@/src/db/library";
 import useBackHandler from "@/src/hooks/use.back.handler";
-import { useMediaDetails } from "@/src/hooks/use.media.details";
 import { usePlayer } from "@/src/stores/player";
 import { useScreen } from "@/src/stores/screen";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
@@ -32,6 +32,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useProgress } from "react-native-track-player";
 import colors from "tailwindcss/colors";
+import { Session } from "../stores/session";
 import PlayerChapterControls from "./PlayerChapterControls";
 import PlayerSettingButtons from "./PlayerSettingButtons";
 
@@ -40,10 +41,13 @@ export default function TabBarWithPlayer({
   descriptors,
   navigation,
   insets,
-}: BottomTabBarProps) {
-  const { mediaId, lastPlayerExpandRequest, expandPlayerHandled, streaming } =
-    usePlayer((state) => state);
-  const { media } = useMediaDetails(mediaId);
+  session,
+  mediaId,
+}: BottomTabBarProps & { session: Session; mediaId: string }) {
+  const { lastPlayerExpandRequest, expandPlayerHandled, streaming } = usePlayer(
+    (state) => state,
+  );
+  const { data: media, opacity } = useMediaDetails(session, mediaId);
   const [expanded, setExpanded] = useState(true);
   const expansion = useSharedValue(1.0);
   const { screenHeight, screenWidth } = useScreen((state) => state);
@@ -137,6 +141,7 @@ export default function TabBarWithPlayer({
 
   const playerStyle = useAnimatedStyle(() => {
     return {
+      opacity: opacity.value,
       height: interpolate(
         expansion.value,
         [0, 1],
