@@ -2,7 +2,7 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { and, desc, eq } from "drizzle-orm";
-import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import useFadeInQuery from "../hooks/use.fade.in.query";
 
 export type MediaNarrator = {
   id: string;
@@ -42,39 +42,31 @@ export type Download = {
   media: Media;
 };
 
-export type LiveDownloadsList = {
-  readonly data: Download[];
-  readonly error: Error | undefined;
-  readonly updatedAt: Date | undefined;
-};
-
-export function useLiveDownloadsList(session: Session): LiveDownloadsList {
-  return useLiveQuery(
-    db.query.downloads.findMany({
-      columns: { status: true, thumbnails: true, filePath: true },
-      where: eq(schema.downloads.url, session.url),
-      orderBy: desc(schema.downloads.downloadedAt),
-      with: {
-        media: {
-          columns: { id: true, thumbnails: true },
-          with: {
-            mediaNarrators: {
-              columns: { id: true },
-              with: {
-                narrator: {
-                  columns: { id: true, name: true },
-                },
+export function useDownloadsList(session: Session) {
+  const query = db.query.downloads.findMany({
+    columns: { status: true, thumbnails: true, filePath: true },
+    where: eq(schema.downloads.url, session.url),
+    orderBy: desc(schema.downloads.downloadedAt),
+    with: {
+      media: {
+        columns: { id: true, thumbnails: true },
+        with: {
+          mediaNarrators: {
+            columns: { id: true },
+            with: {
+              narrator: {
+                columns: { id: true, name: true },
               },
             },
-            book: {
-              columns: { id: true, title: true },
-              with: {
-                bookAuthors: {
-                  columns: { id: true },
-                  with: {
-                    author: {
-                      columns: { id: true, name: true },
-                    },
+          },
+          book: {
+            columns: { id: true, title: true },
+            with: {
+              bookAuthors: {
+                columns: { id: true },
+                with: {
+                  author: {
+                    columns: { id: true, name: true },
                   },
                 },
               },
@@ -82,8 +74,18 @@ export function useLiveDownloadsList(session: Session): LiveDownloadsList {
           },
         },
       },
-    }),
-  );
+    },
+  });
+
+  return useFadeInQuery(query, [
+    "downloads",
+    "media",
+    "media_narrators",
+    "narrators",
+    "books",
+    "book_authors",
+    "authors",
+  ]);
 }
 
 export async function getDownload(
