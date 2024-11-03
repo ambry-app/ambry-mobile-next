@@ -46,6 +46,7 @@ interface PlayerState {
   updateProgress: (position: number, duration: number) => void;
   seekRelative: (position: number) => void;
   seekRelativeUnsafe: (position: number) => void;
+  seekTo: (position: number) => Promise<void>;
   skipToEndOfChapter: () => void;
   skipToBeginningOfChapter: () => void;
   setPlaybackRate: (session: Session, playbackRate: number) => void;
@@ -171,6 +172,12 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
 
     updateProgress(newPosition, duration);
     TrackPlayer.seekTo(newPosition);
+  },
+  seekTo: async (position) => {
+    const { duration, updateProgress } = get();
+    const newPosition = Math.max(0, Math.min(position, duration));
+    updateProgress(newPosition, duration);
+    return TrackPlayer.seekTo(newPosition);
   },
   skipToEndOfChapter: async () => {
     const { chapterState, duration, updateProgress } = get();
