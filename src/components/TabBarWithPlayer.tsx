@@ -7,8 +7,13 @@ import ThumbnailImage from "@/src/components/ThumbnailImage";
 import TitleAuthorsNarrators from "@/src/components/TitleAuthorNarrator";
 import { useMediaDetails } from "@/src/db/library";
 import useBackHandler from "@/src/hooks/use.back.handler";
-import { usePlayer } from "@/src/stores/player";
+import {
+  expandPlayerHandled,
+  updateProgress,
+  usePlayer,
+} from "@/src/stores/player";
 import { useScreen } from "@/src/stores/screen";
+import { Session } from "@/src/stores/session";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { BottomTabBar, BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { router } from "expo-router";
@@ -32,7 +37,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useProgress } from "react-native-track-player";
 import colors from "tailwindcss/colors";
-import { Session } from "../stores/session";
+import { useShallow } from "zustand/react/shallow";
 import PlayerChapterControls from "./PlayerChapterControls";
 import PlayerSettingButtons from "./PlayerSettingButtons";
 
@@ -44,8 +49,11 @@ export default function TabBarWithPlayer({
   session,
   mediaId,
 }: BottomTabBarProps & { session: Session; mediaId: string }) {
-  const { lastPlayerExpandRequest, expandPlayerHandled, streaming } = usePlayer(
-    (state) => state,
+  const { lastPlayerExpandRequest, streaming } = usePlayer(
+    useShallow(({ lastPlayerExpandRequest, streaming }) => ({
+      lastPlayerExpandRequest,
+      streaming,
+    })),
   );
   const { data: media, opacity } = useMediaDetails(session, mediaId);
   const [expanded, setExpanded] = useState(true);
@@ -77,7 +85,7 @@ export default function TabBarWithPlayer({
       expandLocal();
     }
     expandPlayerHandled();
-  }, [expandLocal, expanded, lastPlayerExpandRequest, expandPlayerHandled]);
+  }, [expandLocal, expanded, lastPlayerExpandRequest]);
 
   const tabBarHeight = 50 + insets.bottom;
   const playerHeight = 70;
@@ -509,10 +517,9 @@ export default function TabBarWithPlayer({
 }
 
 function TrackPlayerProgressSubscriber() {
-  const { updateProgress } = usePlayer((state) => state);
   const { position, duration } = useProgress(1000);
   useEffect(() => {
     updateProgress(position, duration);
-  }, [duration, position, updateProgress]);
+  }, [duration, position]);
   return null;
 }

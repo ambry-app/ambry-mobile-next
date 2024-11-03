@@ -2,9 +2,16 @@ import { usePlayer } from "@/src/stores/player";
 import { secondsDisplay } from "@/src/utils/time";
 import { StyleSheet, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
+import { useShallow } from "zustand/react/shallow";
 
 export default function PlayerProgressBar() {
-  const { position, duration, playbackRate } = usePlayer((state) => state);
+  const { position, duration, playbackRate } = usePlayer(
+    useShallow(({ position, duration, playbackRate }) => ({
+      position,
+      duration,
+      playbackRate,
+    })),
+  );
   const percent = duration > 0 ? (position / duration) * 100 : 0;
 
   return (

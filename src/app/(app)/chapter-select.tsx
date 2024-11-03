@@ -1,7 +1,7 @@
 import Button from "@/src/components/Button";
 import * as schema from "@/src/db/schema";
 import useBackHandler from "@/src/hooks/use.back.handler";
-import { usePlayer } from "@/src/stores/player";
+import { seekTo, usePlayer } from "@/src/stores/player";
 import { secondsDisplay } from "@/src/utils/time";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
@@ -68,8 +68,6 @@ type ChapterProps = {
 };
 
 function Chapter({ chapter, currentChapterId }: ChapterProps) {
-  const seekTo = usePlayer((state) => state.seekTo);
-
   return (
     <View style={styles.chapterRowContainer}>
       <Button

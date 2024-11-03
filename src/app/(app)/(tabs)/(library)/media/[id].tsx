@@ -21,8 +21,8 @@ import {
   useOtherMediaByNarrator,
 } from "@/src/db/library";
 import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
-import { useDownloads } from "@/src/stores/downloads";
-import { usePlayer } from "@/src/stores/player";
+import { startDownload, useDownloads } from "@/src/stores/downloads";
+import { loadMedia, requestExpandPlayer } from "@/src/stores/player";
 import { useScreen } from "@/src/stores/screen";
 import { Session, useSession } from "@/src/stores/session";
 import { RouterParams } from "@/src/types/router";
@@ -188,7 +188,7 @@ function MediaDetailsFlatList({ session, mediaId }: MediaDetailsFlatListProps) {
       style={[styles.container, { opacity }]}
       data={sections}
       keyExtractor={(item) => item.id}
-      initialNumToRender={1}
+      initialNumToRender={2}
       ListHeaderComponent={<View className="h-4" />}
       ListFooterComponent={<View className="h-4" />}
       renderItem={({ item }) => {
@@ -313,11 +313,7 @@ type ActionBarProps = {
 
 function ActionBar({ mediaId, session }: ActionBarProps) {
   const progress = useDownloads((state) => state.downloadProgresses[mediaId]);
-  const { startDownload } = useDownloads();
   const { data: media, opacity } = useMediaActionBarInfo(session, mediaId);
-  const { loadMedia: loadMediaIntoPlayer, requestExpandPlayer } = usePlayer(
-    (state) => state,
-  );
 
   if (!media) return null;
 
@@ -353,7 +349,7 @@ function ActionBar({ mediaId, session }: ActionBarProps) {
               style={{ padding: 8 }}
               color={colors.zinc[100]}
               onPress={() => {
-                loadMediaIntoPlayer(session, media.id);
+                loadMedia(session, media.id);
                 requestExpandPlayer();
               }}
             >
@@ -380,7 +376,7 @@ function ActionBar({ mediaId, session }: ActionBarProps) {
               style={{ padding: 8 }}
               color={colors.zinc[100]}
               onPress={() => {
-                loadMediaIntoPlayer(session, media.id);
+                loadMedia(session, media.id);
                 requestExpandPlayer();
               }}
             >
@@ -464,7 +460,7 @@ type AuthorsAndNarratorsProps = {
 };
 
 function AuthorsAndNarrators({ mediaId, session }: AuthorsAndNarratorsProps) {
-  const { screenWidth } = useScreen((state) => state);
+  const screenWidth = useScreen((state) => state.screenWidth);
   const { media, authorSet, narratorSet, opacity } =
     useMediaAuthorsAndNarrators(session, mediaId);
 
@@ -536,7 +532,7 @@ type OtherEditionsProps = {
 
 function OtherEditions(props: OtherEditionsProps) {
   const { bookId, session, withoutMediaId } = props;
-  const { screenWidth } = useScreen((state) => state);
+  const screenWidth = useScreen((state) => state.screenWidth);
   const { media, opacity } = useMediaOtherEditions(
     session,
     bookId,
@@ -579,7 +575,7 @@ type OtherBooksInSeriesProps = {
 };
 
 function OtherBooksInSeries({ seriesId, session }: OtherBooksInSeriesProps) {
-  const { screenWidth } = useScreen((state) => state);
+  const screenWidth = useScreen((state) => state.screenWidth);
   const { data: series, opacity } = useOtherBooksInSeries(session, seriesId);
 
   if (!series) return null;
@@ -621,7 +617,7 @@ type OtherBooksByAuthorProps = {
 
 function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
   const { authorId, session, withoutBookId, withoutSeriesIds } = props;
-  const { screenWidth } = useScreen((state) => state);
+  const screenWidth = useScreen((state) => state.screenWidth);
   const { books, author, opacity } = useOtherBooksByAuthor(
     session,
     authorId,
@@ -679,7 +675,7 @@ function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
     withoutSeriesIds,
     withoutAuthorIds,
   } = props;
-  const { screenWidth } = useScreen((state) => state);
+  const screenWidth = useScreen((state) => state.screenWidth);
   const { media, narrator, opacity } = useOtherMediaByNarrator(
     session,
     narratorId,

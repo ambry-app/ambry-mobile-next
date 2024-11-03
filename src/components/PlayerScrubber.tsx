@@ -1,11 +1,17 @@
 import TrackPlayer from "react-native-track-player";
 import colors from "tailwindcss/colors";
+import { useShallow } from "zustand/react/shallow";
 import { usePlayer } from "../stores/player";
 import Scrubber from "./Scrubber";
 
 export default function PlayerScrubber() {
   const { playbackRate, position, duration, chapterState } = usePlayer(
-    (state) => state,
+    useShallow(({ playbackRate, position, duration, chapterState }) => ({
+      playbackRate,
+      position,
+      duration,
+      chapterState,
+    })),
   );
   const theme = {
     accent: colors.lime[400],

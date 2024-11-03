@@ -4,7 +4,7 @@ import { Button, StyleSheet, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
 
 export default function SettingsScreen() {
-  const { session } = useSession((state) => state);
+  const session = useSession((state) => state.session);
 
   if (!session) return null;
 

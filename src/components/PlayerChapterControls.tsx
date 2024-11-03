@@ -1,17 +1,24 @@
-import { usePlayer } from "@/src/stores/player";
+import {
+  skipToBeginningOfChapter,
+  skipToEndOfChapter,
+  usePlayer,
+} from "@/src/stores/player";
 import { secondsDisplay } from "@/src/utils/time";
 import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
+import { useShallow } from "zustand/react/shallow";
 import Button from "./Button";
 import IconButton from "./IconButton";
 
 export default function PlayerChapterControls() {
-  const chapterState = usePlayer((_) => _.chapterState);
-  const skipToEndOfChapter = usePlayer((_) => _.skipToEndOfChapter);
-  const skipToBeginningOfChapter = usePlayer((_) => _.skipToBeginningOfChapter);
-  const position = usePlayer((_) => _.position);
-  const duration = usePlayer((_) => _.duration);
+  const { chapterState, position, duration } = usePlayer(
+    useShallow(({ chapterState, position, duration }) => ({
+      chapterState,
+      position,
+      duration,
+    })),
+  );
 
   if (!chapterState) return null;
 

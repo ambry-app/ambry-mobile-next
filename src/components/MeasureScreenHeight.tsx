@@ -1,12 +1,10 @@
+import { setDimensions } from "@/src/stores/screen";
 import { StyleSheet, View } from "react-native";
-import { useScreen } from "../stores/screen";
 
 // This is a workaround due to Android screen height currently being broken:
 // https://github.com/facebook/react-native/issues/47080
 
 export default function MeasureScreenHeight() {
-  const { setDimensions } = useScreen((state) => state);
-
   return (
     <View
       onLayout={({ nativeEvent }) => {

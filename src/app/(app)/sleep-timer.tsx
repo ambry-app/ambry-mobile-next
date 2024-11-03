@@ -17,7 +17,7 @@ export default function SleepTimerModal() {
         onPress={() => router.back()}
         style={styles.closeButton}
       >
-        <Text style={styles.closeButtonText}>Close</Text>
+        <Text style={styles.closeButtonText}>Ok</Text>
       </Button>
     </View>
   );

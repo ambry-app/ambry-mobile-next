@@ -22,13 +22,13 @@ import TrackPlayer, {
 import { create } from "zustand";
 import { Session } from "./session";
 
-type ChapterState = {
+export type ChapterState = {
   chapters: schema.Chapter[];
   currentChapter: schema.Chapter;
   previousChapterStartTime: number;
 };
 
-interface PlayerState {
+export interface PlayerState {
   setup: boolean;
   setupError: unknown | null;
   mediaId: string | null;
@@ -38,19 +38,6 @@ interface PlayerState {
   lastPlayerExpandRequest: Date | undefined;
   streaming: boolean | undefined;
   chapterState: ChapterState | null;
-  setupPlayer: (session: Session) => Promise<void>;
-  loadMostRecentMedia: (session: Session) => Promise<void>;
-  loadMedia: (session: Session, mediaId: string) => Promise<void>;
-  requestExpandPlayer: () => void;
-  expandPlayerHandled: () => void;
-  updateProgress: (position: number, duration: number) => void;
-  seekRelative: (position: number) => void;
-  seekRelativeUnsafe: (position: number) => void;
-  seekTo: (position: number) => Promise<void>;
-  skipToEndOfChapter: () => void;
-  skipToBeginningOfChapter: () => void;
-  setPlaybackRate: (session: Session, playbackRate: number) => void;
-  unloadPlayer: () => Promise<void>;
 }
 
 interface TrackLoadResult {
@@ -72,59 +59,45 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
   lastPlayerExpandRequest: undefined,
   streaming: undefined,
   chapterState: null,
-  setupPlayer: async (session: Session) => {
-    if (get().setup) {
-      return;
-    }
+}));
 
-    try {
-      const response = await setupPlayer(session);
+export async function setupPlayer(session: Session) {
+  if (usePlayer.getState().setup) {
+    return;
+  }
 
-      if (response === true) {
-        set({ setup: true });
-      } else {
-        set({
-          setup: true,
-          mediaId: response.mediaId,
-          duration: response.duration,
-          position: response.position,
-          playbackRate: response.playbackRate,
-          streaming: response.streaming,
-          chapterState: initializeChapterState(
-            response.chapters,
-            response.position,
-            response.duration,
-          ),
-        });
-      }
-    } catch (error) {
-      set({ setupError: error });
-    }
-  },
-  loadMostRecentMedia: async (session: Session) => {
-    if (!get().setup) return;
+  try {
+    const response = await setupTrackPlayer(session);
 
-    const track = await loadMostRecentMedia(session);
-
-    if (track) {
-      set({
-        mediaId: track.mediaId,
-        duration: track.duration,
-        position: track.position,
-        playbackRate: track.playbackRate,
-        streaming: track.streaming,
+    if (response === true) {
+      usePlayer.setState({ setup: true });
+    } else {
+      usePlayer.setState({
+        setup: true,
+        mediaId: response.mediaId,
+        duration: response.duration,
+        position: response.position,
+        playbackRate: response.playbackRate,
+        streaming: response.streaming,
         chapterState: initializeChapterState(
-          track.chapters,
-          track.position,
-          track.duration,
+          response.chapters,
+          response.position,
+          response.duration,
         ),
       });
     }
-  },
-  loadMedia: async (session: Session, mediaId: string) => {
-    const track = await loadMedia(session, mediaId);
+  } catch (error) {
+    usePlayer.setState({ setupError: error });
+  }
+}
 
-    set({
+export async function loadMostRecentMedia(session: Session) {
+  if (!usePlayer.getState().setup) return;
+
+  const track = await loadMostRecentMediaIntoTrackPlayer(session);
+
+  if (track) {
+    usePlayer.setState({
       mediaId: track.mediaId,
       duration: track.duration,
       position: track.position,
@@ -136,81 +109,112 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
         track.duration,
       ),
     });
-  },
-  requestExpandPlayer: () => set({ lastPlayerExpandRequest: new Date() }),
-  expandPlayerHandled: () => set({ lastPlayerExpandRequest: undefined }),
-  updateProgress: (position, duration) => {
-    set({ position, duration });
+  }
+}
 
-    const chapterState = get().chapterState;
+export async function loadMedia(session: Session, mediaId: string) {
+  const track = await loadMediaIntoTrackPlayer(session, mediaId);
 
-    if (chapterState) {
-      set({
-        chapterState: updateChapterState(chapterState, position, duration),
-      });
-    }
-  },
-  seekRelative: async (amount) => {
-    const { playbackRate, updateProgress } = get();
-    const { state } = await TrackPlayer.getPlaybackState();
-    if (!shouldSeek(state)) return;
-    const { position, duration } = await TrackPlayer.getProgress();
+  usePlayer.setState({
+    mediaId: track.mediaId,
+    duration: track.duration,
+    position: track.position,
+    playbackRate: track.playbackRate,
+    streaming: track.streaming,
+    chapterState: initializeChapterState(
+      track.chapters,
+      track.position,
+      track.duration,
+    ),
+  });
+}
 
-    let newPosition = position + amount * playbackRate;
-    if (newPosition < 0) newPosition = 0;
-    if (newPosition > duration) newPosition = duration;
+export function requestExpandPlayer() {
+  usePlayer.setState({ lastPlayerExpandRequest: new Date() });
+}
 
-    TrackPlayer.seekTo(newPosition);
-    updateProgress(newPosition, duration);
-  },
-  seekRelativeUnsafe: async (amount) => {
-    const { position, duration, playbackRate, updateProgress } = get();
-    // TODO: what about checking the state?
-    let newPosition = position + amount * playbackRate;
-    if (newPosition < 0) newPosition = 0;
-    if (newPosition > duration) newPosition = duration;
+export function expandPlayerHandled() {
+  usePlayer.setState({ lastPlayerExpandRequest: undefined });
+}
 
-    updateProgress(newPosition, duration);
-    TrackPlayer.seekTo(newPosition);
-  },
-  seekTo: async (position) => {
-    const { duration, updateProgress } = get();
-    const newPosition = Math.max(0, Math.min(position, duration));
-    updateProgress(newPosition, duration);
-    return TrackPlayer.seekTo(newPosition);
-  },
-  skipToEndOfChapter: async () => {
-    const { chapterState, duration, updateProgress } = get();
-    if (!chapterState) return;
+export function updateProgress(position: number, duration: number) {
+  usePlayer.setState({ position, duration });
 
-    const { currentChapter } = chapterState;
-    const newPosition = currentChapter.endTime || duration;
-    updateProgress(newPosition, duration);
-    TrackPlayer.seekTo(newPosition);
-  },
-  skipToBeginningOfChapter: async () => {
-    const { chapterState, position, duration, updateProgress } = get();
-    if (!chapterState) return;
+  const chapterState = usePlayer.getState().chapterState;
 
-    const { currentChapter, previousChapterStartTime } = chapterState;
-    const newPosition =
-      position === currentChapter.startTime
-        ? previousChapterStartTime
-        : currentChapter.startTime;
-    updateProgress(newPosition, duration);
-    TrackPlayer.seekTo(newPosition);
-  },
-  setPlaybackRate: async (session: Session, playbackRate: number) => {
-    set({ playbackRate });
-    await Promise.all([
-      TrackPlayer.setRate(playbackRate),
-      updatePlayerState(session, get().mediaId!, { playbackRate }),
-    ]);
-  },
-  unloadPlayer: async () => {
-    await TrackPlayer.reset();
-  },
-}));
+  if (chapterState) {
+    usePlayer.setState({
+      chapterState: updateChapterState(chapterState, position, duration),
+    });
+  }
+}
+
+export async function seekRelative(amount: number) {
+  const { playbackRate } = usePlayer.getState();
+  const { state } = await TrackPlayer.getPlaybackState();
+  if (!shouldSeek(state)) return;
+  const { position, duration } = await TrackPlayer.getProgress();
+
+  let newPosition = position + amount * playbackRate;
+  if (newPosition < 0) newPosition = 0;
+  if (newPosition > duration) newPosition = duration;
+
+  TrackPlayer.seekTo(newPosition);
+  updateProgress(newPosition, duration);
+}
+
+export async function seekRelativeUnsafe(amount: number) {
+  const { position, duration, playbackRate } = usePlayer.getState();
+  // TODO: what about checking the track player state?
+  let newPosition = position + amount * playbackRate;
+  if (newPosition < 0) newPosition = 0;
+  if (newPosition > duration) newPosition = duration;
+
+  updateProgress(newPosition, duration);
+  TrackPlayer.seekTo(newPosition);
+}
+
+export async function seekTo(position: number) {
+  const { duration } = usePlayer.getState();
+  const newPosition = Math.max(0, Math.min(position, duration));
+  updateProgress(newPosition, duration);
+  return TrackPlayer.seekTo(newPosition);
+}
+
+export async function skipToEndOfChapter() {
+  const { chapterState, duration } = usePlayer.getState();
+  if (!chapterState) return;
+
+  const { currentChapter } = chapterState;
+  const newPosition = currentChapter.endTime || duration;
+  updateProgress(newPosition, duration);
+  TrackPlayer.seekTo(newPosition);
+}
+
+export async function skipToBeginningOfChapter() {
+  const { chapterState, position, duration } = usePlayer.getState();
+  if (!chapterState) return;
+
+  const { currentChapter, previousChapterStartTime } = chapterState;
+  const newPosition =
+    position === currentChapter.startTime
+      ? previousChapterStartTime
+      : currentChapter.startTime;
+  updateProgress(newPosition, duration);
+  TrackPlayer.seekTo(newPosition);
+}
+
+export async function setPlaybackRate(session: Session, playbackRate: number) {
+  usePlayer.setState({ playbackRate });
+  await Promise.all([
+    TrackPlayer.setRate(playbackRate),
+    updatePlayerState(session, usePlayer.getState().mediaId!, { playbackRate }),
+  ]);
+}
+
+export async function unloadPlayer() {
+  await TrackPlayer.reset();
+}
 
 function shouldSeek(state: State): boolean {
   switch (state) {
@@ -228,7 +232,9 @@ function shouldSeek(state: State): boolean {
   }
 }
 
-async function setupPlayer(session: Session): Promise<TrackLoadResult | true> {
+async function setupTrackPlayer(
+  session: Session,
+): Promise<TrackLoadResult | true> {
   try {
     // just checking to see if it's already initialized
     const track = await TrackPlayer.getTrack(0);
@@ -354,7 +360,7 @@ async function loadPlayerState(
   };
 }
 
-async function loadMedia(
+async function loadMediaIntoTrackPlayer(
   session: Session,
   mediaId: string,
 ): Promise<TrackLoadResult> {
@@ -412,7 +418,7 @@ async function loadMedia(
   return loadPlayerState(session, updatedLocalPlayerState);
 }
 
-async function loadMostRecentMedia(
+async function loadMostRecentMediaIntoTrackPlayer(
   session: Session,
 ): Promise<TrackLoadResult | null> {
   const track = await TrackPlayer.getTrack(0);
@@ -444,20 +450,20 @@ async function loadMostRecentMedia(
   }
 
   if (mostRecentSyncedMedia && !mostRecentLocalMedia) {
-    return loadMedia(session, mostRecentSyncedMedia.mediaId);
+    return loadMediaIntoTrackPlayer(session, mostRecentSyncedMedia.mediaId);
   }
 
   if (!mostRecentSyncedMedia && mostRecentLocalMedia) {
-    return loadMedia(session, mostRecentLocalMedia.mediaId);
+    return loadMediaIntoTrackPlayer(session, mostRecentLocalMedia.mediaId);
   }
 
   if (!mostRecentSyncedMedia || !mostRecentLocalMedia)
     throw new Error("Impossible");
 
   if (mostRecentLocalMedia.updatedAt >= mostRecentSyncedMedia.updatedAt) {
-    return loadMedia(session, mostRecentLocalMedia.mediaId);
+    return loadMediaIntoTrackPlayer(session, mostRecentLocalMedia.mediaId);
   } else {
-    return loadMedia(session, mostRecentSyncedMedia.mediaId);
+    return loadMediaIntoTrackPlayer(session, mostRecentSyncedMedia.mediaId);
   }
 }
 

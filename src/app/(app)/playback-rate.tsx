@@ -1,6 +1,6 @@
 import Button from "@/src/components/Button";
 import useBackHandler from "@/src/hooks/use.back.handler";
-import { usePlayer } from "@/src/stores/player";
+import { setPlaybackRate, usePlayer } from "@/src/stores/player";
 import { useSession } from "@/src/stores/session";
 import { formatPlaybackRate } from "@/src/utils/rate";
 import { secondsDisplay } from "@/src/utils/time";
@@ -9,6 +9,7 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
+import { useShallow } from "zustand/react/shallow";
 
 export default function PlaybackRateModal() {
   useBackHandler(() => {
@@ -16,12 +17,15 @@ export default function PlaybackRateModal() {
     return true;
   });
 
-  const { session } = useSession((state) => state);
+  const session = useSession((state) => state.session);
 
-  const { position, duration, playbackRate, setPlaybackRate } = usePlayer(
-    (state) => state,
+  const { position, duration, playbackRate } = usePlayer(
+    useShallow(({ position, duration, playbackRate }) => ({
+      position,
+      duration,
+      playbackRate,
+    })),
   );
-
   const [displayPlaybackRate, setDisplayPlaybackRate] = useState(1.0);
 
   useEffect(() => {
@@ -34,7 +38,7 @@ export default function PlaybackRateModal() {
       setDisplayPlaybackRate(value);
       setPlaybackRate(session, value);
     },
-    [session, setPlaybackRate],
+    [session],
   );
 
   if (!session) return null;
@@ -97,7 +101,7 @@ export default function PlaybackRateModal() {
         onPress={() => router.back()}
         style={styles.closeButton}
       >
-        <Text style={styles.closeButtonText}>Close</Text>
+        <Text style={styles.closeButtonText}>Ok</Text>
       </Button>
     </View>
   );

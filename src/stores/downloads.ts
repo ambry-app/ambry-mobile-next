@@ -9,123 +9,124 @@ import * as FileSystem from "expo-file-system";
 import { create } from "zustand";
 import { Session } from "./session";
 
-interface DownloadsState {
-  downloadProgresses: Record<string, number | undefined>;
-  downloadResumables: Record<string, FileSystem.DownloadResumable | undefined>;
-  startDownload: (
-    session: Session,
-    mediaId: string,
-    uri: string,
-    thumbnails: Thumbnails | null,
-  ) => Promise<void>;
-  removeDownload: (session: Session, mediaId: string) => Promise<void>;
-  cancelDownload: (session: Session, mediaId: string) => Promise<void>;
+export type DownloadProgresses = Partial<Record<string, number>>;
+export type DownloadResumables = Partial<
+  Record<string, FileSystem.DownloadResumable>
+>;
+
+export interface DownloadsState {
+  downloadProgresses: DownloadProgresses;
+  downloadResumables: DownloadResumables;
 }
 
-export const useDownloads = create<DownloadsState>((set, get) => ({
+export const useDownloads = create<DownloadsState>(() => ({
   downloadProgresses: {},
   downloadResumables: {},
-  startDownload: async (
-    session: Session,
-    mediaId: string,
-    uri: string,
-    thumbnails: Thumbnails | null,
-  ) => {
-    set((state) => ({
+}));
+
+export async function startDownload(
+  session: Session,
+  mediaId: string,
+  uri: string,
+  thumbnails: Thumbnails | null,
+) {
+  useDownloads.setState((state) => ({
+    downloadProgresses: {
+      ...state.downloadProgresses,
+      [mediaId]: 0,
+    },
+  }));
+
+  const filePath = FileSystem.documentDirectory + `${mediaId}.mp4`;
+
+  console.log("Downloading to", filePath);
+
+  await createDownload(session, mediaId, filePath);
+  if (thumbnails) {
+    const downloadedThumbnails = await downloadThumbnails(
+      session,
+      mediaId,
+      thumbnails,
+    );
+    await updateDownload(session, mediaId, {
+      thumbnails: downloadedThumbnails,
+    });
+  }
+
+  const progressCallback = (downloadProgress: any) => {
+    const progress =
+      downloadProgress.totalBytesWritten /
+      downloadProgress.totalBytesExpectedToWrite;
+    useDownloads.setState((state) => ({
       downloadProgresses: {
         ...state.downloadProgresses,
-        [mediaId]: 0,
+        [mediaId]: progress,
       },
     }));
+  };
 
-    const filePath = FileSystem.documentDirectory + `${mediaId}.mp4`;
+  const downloadResumable = FileSystem.createDownloadResumable(
+    `${session.url}/${uri}`,
+    filePath,
+    { headers: { Authorization: `Bearer ${session.token}` } },
+    progressCallback,
+  );
 
-    console.log("Downloading to", filePath);
+  useDownloads.setState((state) => ({
+    downloadResumables: {
+      ...state.downloadResumables,
+      [mediaId]: downloadResumable,
+    },
+  }));
 
-    await createDownload(session, mediaId, filePath);
-    if (thumbnails) {
-      const downloadedThumbnails = await downloadThumbnails(
-        session,
-        mediaId,
-        thumbnails,
-      );
-      await updateDownload(session, mediaId, {
-        thumbnails: downloadedThumbnails,
-      });
+  try {
+    const result = await downloadResumable.downloadAsync();
+
+    if (result) {
+      console.log("Download succeeded");
+      await updateDownload(session, mediaId, { status: "ready" });
+    } else {
+      console.log("Download was canceled");
     }
+  } catch (error) {
+    console.error("Download failed:", error);
+    await updateDownload(session, mediaId, { status: "error" });
+  } finally {
+    useDownloads.setState((state) => {
+      const { [mediaId]: _dp, ...downloadProgresses } =
+        state.downloadProgresses;
+      const { [mediaId]: _dr, ...downloadResumables } =
+        state.downloadResumables;
+      return { downloadProgresses, downloadResumables };
+    });
+  }
+}
 
-    const progressCallback = (downloadProgress: any) => {
-      const progress =
-        downloadProgress.totalBytesWritten /
-        downloadProgress.totalBytesExpectedToWrite;
-      set((state) => ({
-        downloadProgresses: {
-          ...state.downloadProgresses,
-          [mediaId]: progress,
-        },
-      }));
-    };
+export async function cancelDownload(session: Session, mediaId: string) {
+  const downloadResumable = useDownloads.getState().downloadResumables[mediaId];
 
-    const downloadResumable = FileSystem.createDownloadResumable(
-      `${session.url}/${uri}`,
-      filePath,
-      { headers: { Authorization: `Bearer ${session.token}` } },
-      progressCallback,
-    );
-
-    set((state) => ({
-      downloadResumables: {
-        ...state.downloadResumables,
-        [mediaId]: downloadResumable,
-      },
-    }));
-
+  if (downloadResumable) {
     try {
-      const result = await downloadResumable.downloadAsync();
+      await downloadResumable.cancelAsync();
+    } catch (e) {
+      console.error("Error canceling download resumable:", e);
+    }
+  }
+  removeDownload(session, mediaId);
+}
 
-      if (result) {
-        console.log("Download succeeded");
-        await updateDownload(session, mediaId, { status: "ready" });
-      } else {
-        console.log("Download was canceled");
-      }
-    } catch (error) {
-      console.error("Download failed:", error);
-      await updateDownload(session, mediaId, { status: "error" });
-    } finally {
-      set((state) => {
-        const { [mediaId]: _dp, ...downloadProgresses } =
-          state.downloadProgresses;
-        const { [mediaId]: _dr, ...downloadResumables } =
-          state.downloadResumables;
-        return { downloadProgresses, downloadResumables };
-      });
-    }
-  },
-  removeDownload: async (session: Session, mediaId: string) => {
-    const download = await getDownload(session, mediaId);
-    if (download) await tryDelete(download.filePath);
-    if (download?.thumbnails) {
-      await tryDelete(download.thumbnails.extraSmall);
-      await tryDelete(download.thumbnails.small);
-      await tryDelete(download.thumbnails.medium);
-      await tryDelete(download.thumbnails.large);
-      await tryDelete(download.thumbnails.extraLarge);
-    }
-    await deleteDownload(session, mediaId);
-  },
-  cancelDownload: async (session: Session, mediaId: string) => {
-    const downloadResumable = get().downloadResumables[mediaId];
-    if (downloadResumable) {
-      try {
-        await downloadResumable.cancelAsync();
-      } catch (e) {
-        console.error("Error canceling download resumable:", e);
-      }
-    }
-    get().removeDownload(session, mediaId);
-  },
-}));
+export async function removeDownload(session: Session, mediaId: string) {
+  const download = await getDownload(session, mediaId);
+  if (download) await tryDelete(download.filePath);
+  if (download?.thumbnails) {
+    await tryDelete(download.thumbnails.extraSmall);
+    await tryDelete(download.thumbnails.small);
+    await tryDelete(download.thumbnails.medium);
+    await tryDelete(download.thumbnails.large);
+    await tryDelete(download.thumbnails.extraLarge);
+  }
+  await deleteDownload(session, mediaId);
+}
 
 async function downloadThumbnails(
   session: Session,

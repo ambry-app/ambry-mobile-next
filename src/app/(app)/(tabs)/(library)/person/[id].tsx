@@ -112,7 +112,7 @@ function PersonDetailsFlatList(props: PersonDetailsFlatListProps) {
       style={[styles.container, { opacity }]}
       data={sections}
       keyExtractor={(item) => item.id}
-      initialNumToRender={1}
+      initialNumToRender={2}
       ListHeaderComponent={<View className="h-4" />}
       ListFooterComponent={<View className="h-4" />}
       renderItem={({ item }) => {

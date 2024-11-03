@@ -3,7 +3,11 @@ import Loading from "@/src/components/Loading";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
 import TitleAuthorsNarrators from "@/src/components/TitleAuthorNarrator";
 import { useDownloadsList, type Download } from "@/src/db/downloads";
-import { useDownloads } from "@/src/stores/downloads";
+import {
+  cancelDownload,
+  removeDownload,
+  useDownloads,
+} from "@/src/stores/downloads";
 import { Session, useSession } from "@/src/stores/session";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import * as FileSystem from "expo-file-system";
@@ -62,8 +66,6 @@ function DownloadRow({ session, download }: DownloadRowProps) {
   const progress = useDownloads(
     (state) => state.downloadProgresses[download.media.id],
   );
-  const removeDownload = useDownloads((state) => state.removeDownload);
-  const cancelDownload = useDownloads((state) => state.cancelDownload);
   const [isModalVisible, setIsModalVisible] = useState(false);
 
   const navigateToBook = () => {

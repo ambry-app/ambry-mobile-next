@@ -1,5 +1,5 @@
+import { seekRelativeUnsafe } from "@/src/stores/player";
 import { StyleProp, ViewStyle } from "react-native";
-import { usePlayer } from "../stores/player";
 import IconButton from "./IconButton";
 
 type SeekButtonProps = {
@@ -12,7 +12,6 @@ type SeekButtonProps = {
 
 export default function SeekButton(props: SeekButtonProps) {
   const { icon, size, color, amount, style } = props;
-  const { seekRelativeUnsafe } = usePlayer((state) => state);
 
   return (
     <IconButton

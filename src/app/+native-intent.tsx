@@ -1,4 +1,4 @@
-import { usePlayer } from "@/src/stores/player";
+import { requestExpandPlayer } from "@/src/stores/player";
 
 type PathArgs = {
   path: string;
@@ -7,7 +7,7 @@ type PathArgs = {
 
 export function redirectSystemPath({ path }: PathArgs) {
   if (path === "trackplayer://notification.click") {
-    usePlayer.getState().requestExpandPlayer();
+    requestExpandPlayer();
     return null;
   } else {
     return path;

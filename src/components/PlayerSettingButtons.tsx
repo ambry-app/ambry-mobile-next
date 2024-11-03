@@ -6,7 +6,7 @@ import colors from "tailwindcss/colors";
 import IconButton from "./IconButton";
 
 export default function PlayerSettingButtons() {
-  const { playbackRate } = usePlayer((state) => state);
+  const playbackRate = usePlayer((state) => state.playbackRate);
   return (
     <View style={styles.container}>
       <IconButton

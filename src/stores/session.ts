@@ -3,7 +3,7 @@ import { execute, executeAuthenticated } from "@/src/graphql/client/execute";
 import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
 import { StateStorage, createJSONStorage, persist } from "zustand/middleware";
-import { usePlayer } from "./player";
+import { unloadPlayer } from "./player";
 
 const AUTH_STORAGE_KEY = "Ambry_userSessionV2";
 
@@ -17,9 +17,6 @@ interface SessionState {
   isLoading: boolean;
   error: string | null;
   session: Session | null;
-  signIn: (url: string, email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  clearError: () => void;
 }
 
 // Custom storage interface for Expo SecureStore
@@ -43,32 +40,6 @@ export const useSession = create<SessionState>()(
       isLoading: false,
       error: null,
       session: null,
-      signIn: async (url: string, email: string, password: string) => {
-        set({ isLoading: true, error: null });
-        const result = await signInAsync(url, email, password);
-        if (result.success) {
-          set({
-            isLoading: false,
-            session: { token: result.token, email, url },
-          });
-        } else {
-          set({ isLoading: false, error: result.error });
-        }
-      },
-      signOut: async () => {
-        set({ isLoading: true, error: null });
-        await usePlayer.getState().unloadPlayer();
-        const session = get().session;
-        if (session) {
-          await signOutAsync(session.url, session.token);
-          set({ isLoading: false, session: null });
-        } else {
-          set({ isLoading: false });
-        }
-      },
-      clearError: () => {
-        set({ error: null });
-      },
     }),
     {
       storage,
@@ -79,6 +50,38 @@ export const useSession = create<SessionState>()(
     },
   ),
 );
+
+export async function signIn(url: string, email: string, password: string) {
+  useSession.setState({ isLoading: true, error: null });
+  const result = await signInAsync(url, email, password);
+
+  if (result.success) {
+    useSession.setState({
+      isLoading: false,
+      session: { token: result.token, email, url },
+    });
+  } else {
+    useSession.setState({ isLoading: false, error: result.error });
+  }
+}
+
+export async function signOut() {
+  useSession.setState({ isLoading: true, error: null });
+  const session = useSession.getState().session;
+
+  await unloadPlayer();
+
+  if (session) {
+    await signOutAsync(session.url, session.token);
+    useSession.setState({ isLoading: false, session: null });
+  } else {
+    useSession.setState({ isLoading: false });
+  }
+}
+
+export function clearError() {
+  useSession.setState({ error: null });
+}
 
 interface SignInSuccess {
   success: true;
