@@ -12,11 +12,11 @@ type SeekButtonProps = {
 
 export default function SeekButton(props: SeekButtonProps) {
   const { icon, size, color, amount, style } = props;
-  const { seekRelative } = usePlayer((state) => state);
+  const { seekRelativeUnsafe } = usePlayer((state) => state);
 
   return (
     <IconButton
-      onPress={() => seekRelative(amount)}
+      onPress={() => seekRelativeUnsafe(amount)}
       size={size}
       icon={icon}
       color={color}

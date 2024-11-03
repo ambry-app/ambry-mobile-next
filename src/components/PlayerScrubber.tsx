@@ -4,7 +4,9 @@ import { usePlayer } from "../stores/player";
 import Scrubber from "./Scrubber";
 
 export default function PlayerScrubber() {
-  const { playbackRate, position, duration } = usePlayer((state) => state);
+  const { playbackRate, position, duration, chapterState } = usePlayer(
+    (state) => state,
+  );
   const theme = {
     accent: colors.lime[400],
     strong: colors.gray[100],
@@ -13,6 +15,8 @@ export default function PlayerScrubber() {
     dimmed: colors.gray[500],
     weak: colors.gray[800],
   };
+  const markers =
+    chapterState?.chapters.map((chapter) => chapter.startTime) || [];
 
   return (
     <Scrubber
@@ -20,7 +24,7 @@ export default function PlayerScrubber() {
       duration={duration}
       playbackRate={playbackRate}
       onChange={(newPosition: number) => TrackPlayer.seekTo(newPosition)}
-      markers={[]}
+      markers={markers}
       theme={theme}
     />
   );

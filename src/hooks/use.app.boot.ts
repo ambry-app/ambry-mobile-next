@@ -26,7 +26,7 @@ const useAppBoot = () => {
     console.log("[AppBoot] starting...");
     syncDown(session)
       .then(() => console.log("[AppBoot] db sync complete"))
-      .then(() => setupPlayer())
+      .then(() => setupPlayer(session))
       .then(() => loadMostRecentMedia(session))
       .then(() => console.log("[AppBoot] trackPlayer setup complete"))
       .catch((e) => console.error("[AppBoot] error", e))

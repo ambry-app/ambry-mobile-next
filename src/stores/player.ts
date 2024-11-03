@@ -8,6 +8,7 @@ import {
   getSyncedPlayerState,
   updatePlayerState,
 } from "@/src/db/playerStates";
+import * as schema from "@/src/db/schema";
 import { Platform } from "react-native";
 import TrackPlayer, {
   AndroidAudioContentType,
@@ -21,6 +22,12 @@ import TrackPlayer, {
 import { create } from "zustand";
 import { Session } from "./session";
 
+type ChapterState = {
+  chapters: schema.Chapter[];
+  currentChapter: schema.Chapter;
+  previousChapterStartTime: number;
+};
+
 interface PlayerState {
   setup: boolean;
   setupError: unknown | null;
@@ -30,13 +37,17 @@ interface PlayerState {
   playbackRate: number;
   lastPlayerExpandRequest: Date | undefined;
   streaming: boolean | undefined;
-  setupPlayer: () => Promise<void>;
+  chapterState: ChapterState | null;
+  setupPlayer: (session: Session) => Promise<void>;
   loadMostRecentMedia: (session: Session) => Promise<void>;
   loadMedia: (session: Session, mediaId: string) => Promise<void>;
   requestExpandPlayer: () => void;
   expandPlayerHandled: () => void;
   updateProgress: (position: number, duration: number) => void;
   seekRelative: (position: number) => void;
+  seekRelativeUnsafe: (position: number) => void;
+  skipToEndOfChapter: () => void;
+  skipToBeginningOfChapter: () => void;
   setPlaybackRate: (session: Session, playbackRate: number) => void;
   unloadPlayer: () => Promise<void>;
 }
@@ -47,6 +58,7 @@ interface TrackLoadResult {
   position: number;
   playbackRate: number;
   streaming: boolean;
+  chapters: schema.Chapter[];
 }
 
 export const usePlayer = create<PlayerState>()((set, get) => ({
@@ -58,13 +70,14 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
   playbackRate: 1,
   lastPlayerExpandRequest: undefined,
   streaming: undefined,
-  setupPlayer: async () => {
+  chapterState: null,
+  setupPlayer: async (session: Session) => {
     if (get().setup) {
       return;
     }
 
     try {
-      const response = await setupPlayer();
+      const response = await setupPlayer(session);
 
       if (response === true) {
         set({ setup: true });
@@ -75,6 +88,12 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
           duration: response.duration,
           position: response.position,
           playbackRate: response.playbackRate,
+          streaming: response.streaming,
+          chapterState: initializeChapterState(
+            response.chapters,
+            response.position,
+            response.duration,
+          ),
         });
       }
     } catch (error) {
@@ -93,6 +112,11 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
         position: track.position,
         playbackRate: track.playbackRate,
         streaming: track.streaming,
+        chapterState: initializeChapterState(
+          track.chapters,
+          track.position,
+          track.duration,
+        ),
       });
     }
   },
@@ -105,24 +129,69 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
       position: track.position,
       playbackRate: track.playbackRate,
       streaming: track.streaming,
+      chapterState: initializeChapterState(
+        track.chapters,
+        track.position,
+        track.duration,
+      ),
     });
   },
   requestExpandPlayer: () => set({ lastPlayerExpandRequest: new Date() }),
   expandPlayerHandled: () => set({ lastPlayerExpandRequest: undefined }),
   updateProgress: (position, duration) => {
     set({ position, duration });
+
+    const chapterState = get().chapterState;
+
+    if (chapterState) {
+      set({
+        chapterState: updateChapterState(chapterState, position, duration),
+      });
+    }
   },
   seekRelative: async (amount) => {
+    const { playbackRate, updateProgress } = get();
     const { state } = await TrackPlayer.getPlaybackState();
     if (!shouldSeek(state)) return;
     const { position, duration } = await TrackPlayer.getProgress();
 
-    let newPosition = position + amount * get().playbackRate;
+    let newPosition = position + amount * playbackRate;
     if (newPosition < 0) newPosition = 0;
     if (newPosition > duration) newPosition = duration;
 
     TrackPlayer.seekTo(newPosition);
-    set({ position: newPosition });
+    updateProgress(newPosition, duration);
+  },
+  seekRelativeUnsafe: async (amount) => {
+    const { position, duration, playbackRate, updateProgress } = get();
+    // TODO: what about checking the state?
+    let newPosition = position + amount * playbackRate;
+    if (newPosition < 0) newPosition = 0;
+    if (newPosition > duration) newPosition = duration;
+
+    updateProgress(newPosition, duration);
+    TrackPlayer.seekTo(newPosition);
+  },
+  skipToEndOfChapter: async () => {
+    const { chapterState, duration, updateProgress } = get();
+    if (!chapterState) return;
+
+    const { currentChapter } = chapterState;
+    const newPosition = currentChapter.endTime || duration;
+    updateProgress(newPosition, duration);
+    TrackPlayer.seekTo(newPosition);
+  },
+  skipToBeginningOfChapter: async () => {
+    const { chapterState, position, duration, updateProgress } = get();
+    if (!chapterState) return;
+
+    const { currentChapter, previousChapterStartTime } = chapterState;
+    const newPosition =
+      position === currentChapter.startTime
+        ? previousChapterStartTime
+        : currentChapter.startTime;
+    updateProgress(newPosition, duration);
+    TrackPlayer.seekTo(newPosition);
   },
   setPlaybackRate: async (session: Session, playbackRate: number) => {
     set({ playbackRate });
@@ -152,7 +221,7 @@ function shouldSeek(state: State): boolean {
   }
 }
 
-async function setupPlayer(): Promise<TrackLoadResult | true> {
+async function setupPlayer(session: Session): Promise<TrackLoadResult | true> {
   try {
     // just checking to see if it's already initialized
     const track = await TrackPlayer.getTrack(0);
@@ -164,7 +233,15 @@ async function setupPlayer(): Promise<TrackLoadResult | true> {
       const position = progress.position;
       const duration = progress.duration;
       const playbackRate = await TrackPlayer.getRate();
-      return { mediaId, position, duration, playbackRate, streaming };
+      const playerState = await getLocalPlayerState(session, mediaId);
+      return {
+        mediaId,
+        position,
+        duration,
+        playbackRate,
+        streaming,
+        chapters: playerState?.media.chapters || [],
+      };
     }
   } catch (error) {
     console.debug("[TrackPlayer] player not yet set up", error);
@@ -265,6 +342,7 @@ async function loadPlayerState(
     duration: parseFloat(playerState.media.duration || "0"),
     position: playerState.position,
     playbackRate: playerState.playbackRate,
+    chapters: playerState.media.chapters,
     streaming,
   };
 }
@@ -339,7 +417,15 @@ async function loadMostRecentMedia(
     const position = progress.position;
     const duration = progress.duration;
     const playbackRate = await TrackPlayer.getRate();
-    return { mediaId, position, duration, playbackRate, streaming };
+    const playerState = await getLocalPlayerState(session, mediaId);
+    return {
+      mediaId,
+      position,
+      duration,
+      playbackRate,
+      streaming,
+      chapters: playerState?.media.chapters || [],
+    };
   }
 
   const mostRecentSyncedMedia =
@@ -366,4 +452,52 @@ async function loadMostRecentMedia(
   } else {
     return loadMedia(session, mostRecentSyncedMedia.mediaId);
   }
+}
+
+function initializeChapterState(
+  chapters: schema.Chapter[],
+  position: number,
+  duration: number,
+): ChapterState | null {
+  const currentChapter = chapters.find(
+    (chapter) => position < (chapter.endTime || duration),
+  );
+
+  if (!currentChapter) return null;
+
+  const previousChapterStartTime =
+    chapters[chapters.indexOf(currentChapter) - 1]?.startTime || 0;
+
+  return { chapters, currentChapter, previousChapterStartTime };
+}
+
+function updateChapterState(
+  chapterState: ChapterState,
+  position: number,
+  duration: number,
+) {
+  const { chapters, currentChapter } = chapterState;
+
+  if (
+    position < currentChapter.startTime ||
+    (currentChapter.endTime && position >= currentChapter.endTime)
+  ) {
+    const nextChapter = chapters.find(
+      (chapter) => position < (chapter.endTime || duration),
+    );
+
+    if (nextChapter) {
+      const previousChapterStartTime =
+        chapters[chapters.indexOf(nextChapter) - 1]?.startTime || 0;
+      return {
+        chapters,
+        currentChapter: nextChapter,
+        previousChapterStartTime,
+      };
+    }
+
+    return chapterState;
+  }
+
+  return chapterState;
 }

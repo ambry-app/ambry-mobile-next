@@ -1,10 +1,17 @@
 import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
+import { usePlayer } from "../stores/player";
 import Button from "./Button";
 import IconButton from "./IconButton";
 
 export default function PlayerChapterControls() {
+  const chapterState = usePlayer((_) => _.chapterState);
+  const skipToEndOfChapter = usePlayer((_) => _.skipToEndOfChapter);
+  const skipToBeginningOfChapter = usePlayer((_) => _.skipToBeginningOfChapter);
+
+  if (!chapterState) return null;
+
   return (
     <View style={styles.container}>
       <IconButton
@@ -12,18 +19,15 @@ export default function PlayerChapterControls() {
         size={24}
         style={{ padding: 8 }}
         color="white"
-        onPress={() => {}}
+        onPress={skipToBeginningOfChapter}
       />
       <Button
         style={{ flex: 1 }}
         size={24}
-        onPress={() => {
-          router.navigate("/chapter-select");
-        }}
+        onPress={() => router.navigate("/chapter-select")}
       >
         <Text style={styles.chapterText} numberOfLines={1}>
-          Chapter 1: This is not a real chapter, but it's title is very long and
-          needs to be truncated
+          {chapterState.currentChapter.title}
         </Text>
       </Button>
       <IconButton
@@ -31,7 +35,7 @@ export default function PlayerChapterControls() {
         size={24}
         style={{ padding: 8 }}
         color="white"
-        onPress={() => {}}
+        onPress={skipToEndOfChapter}
       />
     </View>
   );
