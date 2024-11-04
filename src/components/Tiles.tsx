@@ -1,6 +1,6 @@
 import MultiThumbnailImage from "@/src/components/MultiThumbnailImage";
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
-import { useRouter } from "expo-router";
+import { router } from "expo-router";
 import {
   StyleProp,
   StyleSheet,
@@ -90,8 +90,6 @@ export function SeriesBookTile({ seriesBook, style }: SeriesBookTileProps) {
 }
 
 export function Tile({ book, media, seriesBook, style }: TileProps) {
-  const router = useRouter();
-
   const navigateToBook = () => {
     if (media.length === 1) {
       router.navigate({
@@ -145,7 +143,6 @@ export function Tile({ book, media, seriesBook, style }: TileProps) {
 
 export function PersonTile(props: PersonTileProps) {
   const { personId, name, realName, thumbnails, label } = props;
-  const router = useRouter();
 
   const navigateToPerson = () => {
     router.navigate({

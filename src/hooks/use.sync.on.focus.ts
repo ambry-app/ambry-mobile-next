@@ -1,10 +1,10 @@
 import { syncDown } from "@/src/db/sync";
-import { useSessionStore } from "@/src/stores/session";
+import { useSession } from "@/src/stores/session";
 import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
 
 export default function useSyncOnFocus() {
-  const session = useSessionStore((state) => state.session);
+  const session = useSession((state) => state.session);
 
   useFocusEffect(
     useCallback(() => {

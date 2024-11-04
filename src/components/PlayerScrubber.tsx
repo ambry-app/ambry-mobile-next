@@ -1,11 +1,16 @@
-import TrackPlayer from "react-native-track-player";
+import { seekTo, usePlayer } from "@/src/stores/player";
 import colors from "tailwindcss/colors";
-import { useTrackPlayerStore } from "../stores/trackPlayer";
+import { useShallow } from "zustand/react/shallow";
 import Scrubber from "./Scrubber";
 
 export default function PlayerScrubber() {
-  const { playbackRate, position, duration } = useTrackPlayerStore(
-    (state) => state,
+  const { playbackRate, position, duration, chapterState } = usePlayer(
+    useShallow(({ playbackRate, position, duration, chapterState }) => ({
+      playbackRate,
+      position,
+      duration,
+      chapterState,
+    })),
   );
   const theme = {
     accent: colors.lime[400],
@@ -15,14 +20,16 @@ export default function PlayerScrubber() {
     dimmed: colors.gray[500],
     weak: colors.gray[800],
   };
+  const markers =
+    chapterState?.chapters.map((chapter) => chapter.startTime) || [];
 
   return (
     <Scrubber
       position={position}
       duration={duration}
       playbackRate={playbackRate}
-      onChange={(newPosition: number) => TrackPlayer.seekTo(newPosition)}
-      markers={[]}
+      onChange={(newPosition: number) => seekTo(newPosition)}
+      markers={markers}
       theme={theme}
     />
   );

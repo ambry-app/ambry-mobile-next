@@ -1,74 +1,51 @@
-import { updatePlayerState } from "@/src/db/playerStates";
+import {
+  onPlaybackProgressUpdated,
+  onPlaybackQueueEnded,
+  onPlaybackState,
+  pause,
+  play,
+  seekRelative,
+} from "@/src/stores/player";
 import TrackPlayer, { Event } from "react-native-track-player";
-import { syncUp } from "../db/sync";
-import { useSessionStore } from "../stores/session";
-import { useTrackPlayerStore } from "../stores/trackPlayer";
-
-async function updatePlayerStateFromTrackPlayer() {
-  const progress = await TrackPlayer.getProgress();
-  const session = useSessionStore.getState().session;
-  const mediaId = useTrackPlayerStore.getState().mediaId;
-
-  if (!session || !mediaId) return;
-
-  updatePlayerState(session, mediaId, {
-    position: progress.position,
-  });
-}
 
 export const PlaybackService = async function () {
-  TrackPlayer.addEventListener(Event.PlaybackQueueEnded, () => {
-    // TODO:
-    console.debug("Service: playback queue ended");
+  TrackPlayer.addEventListener(Event.RemoteStop, () => {
+    console.debug("[TrackPlayer Service] remote stop");
+    pause();
   });
 
-  TrackPlayer.addEventListener(Event.RemoteStop, async () => {
-    console.debug("Service: stopping");
-    await TrackPlayer.pause();
-    await updatePlayerStateFromTrackPlayer();
-  });
-
-  TrackPlayer.addEventListener(Event.RemotePause, async () => {
-    console.debug("Service: pausing");
-    await TrackPlayer.pause();
-    updatePlayerStateFromTrackPlayer();
+  TrackPlayer.addEventListener(Event.RemotePause, () => {
+    console.debug("[TrackPlayer Service] remote pause");
+    pause();
   });
 
   TrackPlayer.addEventListener(Event.RemotePlay, () => {
-    console.debug("Service: playing");
-    TrackPlayer.play();
+    console.debug("[TrackPlayer Service] remote play");
+    play();
   });
 
-  TrackPlayer.addEventListener(Event.RemoteJumpBackward, (interval) => {
-    console.debug("Service: jump backward", interval);
-
-    // TODO:
-    // await seekRelative(REMOTE_JUMP_INTERVAL * -1)
-    // updatePlayerStateFromTrackPlayer();
+  TrackPlayer.addEventListener(Event.RemoteJumpBackward, ({ interval }) => {
+    console.debug("[TrackPlayer Service] remote jump backward", -interval);
+    seekRelative(-interval);
   });
 
-  TrackPlayer.addEventListener(Event.RemoteJumpForward, (interval) => {
-    console.debug("Service: jump forward", interval);
-
-    // TODO:
-    // await seekRelative(REMOTE_JUMP_INTERVAL)
-    // updatePlayerStateFromTrackPlayer();
+  TrackPlayer.addEventListener(Event.RemoteJumpForward, ({ interval }) => {
+    console.debug("[TrackPlayer Service] remote jump forward", interval);
+    seekRelative(interval);
   });
 
-  TrackPlayer.addEventListener(
-    Event.PlaybackProgressUpdated,
-    async (data): Promise<void> => {
-      console.debug("Service: playback progress updated", data);
-      const session = useSessionStore.getState().session;
-      const mediaId = useTrackPlayerStore.getState().mediaId;
+  TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (args) => {
+    const { position, duration } = args;
+    onPlaybackProgressUpdated(position, duration);
+  });
 
-      if (!session || !mediaId) return;
+  TrackPlayer.addEventListener(Event.PlaybackState, ({ state }) => {
+    console.debug("[TrackPlayer Service] playback state changed", state);
+    onPlaybackState(state);
+  });
 
-      await updatePlayerState(session, mediaId, {
-        position: data.position,
-      });
-
-      await syncUp(session);
-    },
-  );
+  TrackPlayer.addEventListener(Event.PlaybackQueueEnded, () => {
+    console.debug("[TrackPlayer Service] playback ended");
+    onPlaybackQueueEnded();
+  });
 };

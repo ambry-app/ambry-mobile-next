@@ -7,6 +7,8 @@ import m0003 from "./0003_overjoyed_typhoid_mary.sql";
 import m0004 from "./0004_tricky_leo.sql";
 import m0005 from "./0005_green_moondragon.sql";
 import m0006 from "./0006_aromatic_eternals.sql";
+import m0007 from "./0007_numerous_wong.sql";
+import m0008 from "./0008_hard_raider.sql";
 import journal from "./meta/_journal.json";
 
 export default {
@@ -19,5 +21,7 @@ export default {
     m0004,
     m0005,
     m0006,
+    m0007,
+    m0008,
   },
 };

@@ -1,11 +1,12 @@
-import { useSessionStore } from "@/src/stores/session";
-import { useRouter } from "expo-router";
+import { useSession } from "@/src/stores/session";
+import { router } from "expo-router";
 import { Button, StyleSheet, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
 
 export default function SettingsScreen() {
-  const signOut = useSessionStore((state) => state.signOut);
-  const router = useRouter();
+  const session = useSession((state) => state.session);
+
+  if (!session) return null;
 
   return (
     <View style={styles.container}>
@@ -13,12 +14,10 @@ export default function SettingsScreen() {
       <Text style={styles.text}>
         Settings, like your preferred playback speed, will be here.
       </Text>
+      <Text style={styles.text}>You are signed in as: {session.email}</Text>
       <Button
         title="Sign out"
-        onPress={() => {
-          signOut();
-          router.navigate("/");
-        }}
+        onPress={() => router.navigate("/sign-out")}
         color={colors.lime[500]}
       />
     </View>

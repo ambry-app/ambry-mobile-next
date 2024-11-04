@@ -5,14 +5,22 @@ import PlayerProgressBar from "@/src/components/PlayerProgressBar";
 import PlayerScrubber from "@/src/components/PlayerScrubber";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
 import TitleAuthorsNarrators from "@/src/components/TitleAuthorNarrator";
+import { useMediaDetails } from "@/src/db/library";
 import useBackHandler from "@/src/hooks/use.back.handler";
-import { useMediaDetails } from "@/src/hooks/use.media.details";
-import { useScreenStore } from "@/src/stores/screen";
-import { useTrackPlayerStore } from "@/src/stores/trackPlayer";
+import { expandPlayerHandled, usePlayer } from "@/src/stores/player";
+import { useScreen } from "@/src/stores/screen";
+import { Session } from "@/src/stores/session";
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { BottomTabBar, BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
@@ -23,21 +31,29 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { useProgress } from "react-native-track-player";
 import colors from "tailwindcss/colors";
+import { useShallow } from "zustand/react/shallow";
+import PlayerChapterControls from "./PlayerChapterControls";
+import PlayerSettingButtons from "./PlayerSettingButtons";
 
 export default function TabBarWithPlayer({
   state,
   descriptors,
   navigation,
   insets,
-}: BottomTabBarProps) {
-  const { mediaId, lastPlayerExpandRequest, expandPlayerHandled } =
-    useTrackPlayerStore((state) => state);
-  const { media } = useMediaDetails(mediaId);
+  session,
+  mediaId,
+}: BottomTabBarProps & { session: Session; mediaId: string }) {
+  const { lastPlayerExpandRequest, streaming } = usePlayer(
+    useShallow(({ lastPlayerExpandRequest, streaming }) => ({
+      lastPlayerExpandRequest,
+      streaming,
+    })),
+  );
+  const { data: media, opacity } = useMediaDetails(session, mediaId);
   const [expanded, setExpanded] = useState(true);
   const expansion = useSharedValue(1.0);
-  const { screenHeight, screenWidth } = useScreenStore((state) => state);
+  const { screenHeight, screenWidth } = useScreen((state) => state);
   const whereItWas = useSharedValue(0);
   const onPanEndAction = useSharedValue<"none" | "expand" | "collapse">("none");
 
@@ -64,12 +80,14 @@ export default function TabBarWithPlayer({
       expandLocal();
     }
     expandPlayerHandled();
-  }, [expandLocal, expanded, lastPlayerExpandRequest, expandPlayerHandled]);
+  }, [expandLocal, expanded, lastPlayerExpandRequest]);
 
   const tabBarHeight = 50 + insets.bottom;
   const playerHeight = 70;
-  const eightyPercentScreenWidth = screenWidth * 0.8;
-  const tenPercentScreenWidth = screenWidth * 0.1;
+  const shortScreen = screenHeight / screenWidth < 1.8;
+  const largeImageSize = shortScreen ? screenWidth * 0.6 : screenWidth * 0.8;
+  const imageGutterWidth = (screenWidth - largeImageSize) / 2;
+
   const miniControlsWidth = screenWidth - playerHeight;
 
   const debugBackgrounds = false;
@@ -125,22 +143,20 @@ export default function TabBarWithPlayer({
   });
 
   const playerStyle = useAnimatedStyle(() => {
-    const interpolatedHeight = interpolate(
-      expansion.value,
-      [0, 1],
-      [playerHeight, screenHeight],
-    );
-
-    const interpolatedBottom = interpolate(
-      expansion.value,
-      [0, 1],
-      [tabBarHeight, 0],
-    );
-
     return {
-      height: interpolatedHeight,
-      bottom: interpolatedBottom,
+      opacity: opacity.value,
+      height: interpolate(
+        expansion.value,
+        [0, 1],
+        [playerHeight, screenHeight],
+      ),
+      bottom: interpolate(expansion.value, [0, 1], [tabBarHeight, 0]),
       paddingTop: interpolate(expansion.value, [0, 1], [0, insets.top]),
+      borderTopWidth: interpolate(
+        expansion.value,
+        [0, 1],
+        [StyleSheet.hairlineWidth, 0],
+      ),
     };
   });
 
@@ -155,7 +171,7 @@ export default function TabBarWithPlayer({
       width: interpolate(
         expansion.value,
         [0, 0.75],
-        [0, tenPercentScreenWidth],
+        [0, imageGutterWidth],
         Extrapolation.CLAMP,
       ),
     };
@@ -166,12 +182,12 @@ export default function TabBarWithPlayer({
       height: interpolate(
         expansion.value,
         [0, 1],
-        [playerHeight, eightyPercentScreenWidth],
+        [playerHeight, largeImageSize],
       ),
       width: interpolate(
         expansion.value,
         [0, 1],
-        [playerHeight, eightyPercentScreenWidth],
+        [playerHeight, largeImageSize],
       ),
       padding: interpolate(expansion.value, [0, 1], [8, 0]),
     };
@@ -182,7 +198,7 @@ export default function TabBarWithPlayer({
       width: interpolate(
         expansion.value,
         [0, 1],
-        [miniControlsWidth, tenPercentScreenWidth],
+        [miniControlsWidth, imageGutterWidth],
       ),
       opacity: interpolate(
         expansion.value,
@@ -195,6 +211,12 @@ export default function TabBarWithPlayer({
 
   const controlsStyle = useAnimatedStyle(() => {
     return {
+      transform: [
+        {
+          translateY: interpolate(expansion.value, [0, 1], [256, 0]),
+        },
+      ],
+      marginBottom: interpolate(expansion.value, [0, 1], [-512, 0]),
       opacity: interpolate(
         expansion.value,
         [0.75, 1],
@@ -206,7 +228,7 @@ export default function TabBarWithPlayer({
 
   const topActionBarStyle = useAnimatedStyle(() => {
     return {
-      height: interpolate(expansion.value, [0, 0.75], [0, 64]),
+      height: interpolate(expansion.value, [0, 0.75], [0, 36]),
       opacity: interpolate(
         expansion.value,
         [0.75, 1],
@@ -218,7 +240,7 @@ export default function TabBarWithPlayer({
 
   const infoStyle = useAnimatedStyle(() => {
     return {
-      paddingTop: interpolate(expansion.value, [0.75, 1], [32, 8]),
+      paddingTop: interpolate(expansion.value, [0.75, 1], [64, 8]),
       opacity: interpolate(
         expansion.value,
         [0.75, 1],
@@ -239,7 +261,6 @@ export default function TabBarWithPlayer({
 
   return (
     <>
-      <TrackPlayerProgressSubscriber />
       <Animated.View
         style={[
           {
@@ -269,7 +290,6 @@ export default function TabBarWithPlayer({
                 position: "absolute",
                 backgroundColor: colors.zinc[900],
                 borderColor: colors.zinc[600],
-                borderTopWidth: StyleSheet.hairlineWidth,
               },
               playerStyle,
             ]}
@@ -295,12 +315,35 @@ export default function TabBarWithPlayer({
                 onPress={() => collapseLocal()}
               />
 
-              {/* <IconButton
+              {streaming !== undefined && (
+                <View
+                  style={{
+                    alignSelf: "flex-end",
+                    paddingBottom: 4,
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  <FontAwesome6
+                    size={12}
+                    name={streaming ? "cloud-arrow-down" : "download"}
+                    color={colors.zinc[700]}
+                  />
+                  <Text style={{ color: colors.zinc[700] }}>
+                    {streaming ? "streaming" : "downloaded"}
+                  </Text>
+                </View>
+              )}
+
+              <IconButton
                 size={24}
                 icon="ellipsis-vertical"
                 color={colors.zinc[100]}
                 onPress={() => console.log("TODO: context menu")}
-              /> */}
+                style={{ opacity: 0 }}
+              />
             </Animated.View>
             <View
               style={{
@@ -390,6 +433,8 @@ export default function TabBarWithPlayer({
                 {
                   display: "flex",
                   flexDirection: "row",
+                  backgroundColor: debugBackground(colors.indigo[900]),
+                  paddingTop: 8,
                 },
                 infoStyle,
               ]}
@@ -408,7 +453,7 @@ export default function TabBarWithPlayer({
                   }}
                 >
                   <TitleAuthorsNarrators
-                    baseFontSize={18}
+                    baseFontSize={16}
                     titleWeight={700}
                     title={media.book.title}
                     authors={media.book.bookAuthors.map((ba) => ba.author.name)}
@@ -423,9 +468,8 @@ export default function TabBarWithPlayer({
             <Animated.View
               style={[
                 {
-                  width: "100%",
-                  flexGrow: 1,
                   display: "flex",
+                  flexGrow: 1,
                   justifyContent: "space-between",
                   paddingBottom: insets.bottom,
                   backgroundColor: debugBackground(colors.blue[900]),
@@ -435,13 +479,22 @@ export default function TabBarWithPlayer({
             >
               <View
                 style={{
-                  paddingHorizontal: tenPercentScreenWidth,
+                  paddingHorizontal: "10%",
                   paddingTop: 16,
+                  display: "flex",
+                  justifyContent: "space-evenly",
+                  flexGrow: 1,
                 }}
               >
-                <PlayerProgressBar />
+                <View style={{ display: "flex", gap: 16 }}>
+                  <PlayerSettingButtons />
+                  <PlayerProgressBar />
+                </View>
+                <View>
+                  <PlayerButtons />
+                  <PlayerChapterControls />
+                </View>
               </View>
-              <PlayerButtons />
               <PlayerScrubber />
             </Animated.View>
           </Animated.View>
@@ -455,15 +508,4 @@ export default function TabBarWithPlayer({
       </View>
     </>
   );
-}
-
-function TrackPlayerProgressSubscriber() {
-  const { playbackRate, updateProgress } = useTrackPlayerStore(
-    (state) => state,
-  );
-  const { position, duration } = useProgress(1000 / playbackRate);
-  useEffect(() => {
-    updateProgress(position, duration);
-  }, [duration, position, updateProgress]);
-  return null;
 }

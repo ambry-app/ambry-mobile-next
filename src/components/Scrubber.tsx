@@ -1,5 +1,4 @@
 import AnimatedText from "@/src/components/AnimatedText";
-import usePrevious from "@react-hook/previous";
 import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, StyleSheet } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -175,10 +174,11 @@ export default function Scrubber(props: ScrubberProps) {
   );
   const [isScrubbing, setIsScrubbing] = useIsScrubbing();
   const maxTranslateX = timeToTranslateX(duration);
-  const previousPosition = usePrevious(positionInput);
+  // const previousPosition = usePrevious(positionInput);
 
   const startX = useSharedValue(0);
   const isAnimating = useSharedValue(false);
+  const timecodeOpacity = useSharedValue(0);
 
   const panGestureHandler = Gesture.Pan()
     .onStart((_event) => {
@@ -282,6 +282,10 @@ export default function Scrubber(props: ScrubberProps) {
     return { transform: [{ translateX: HALF_WIDTH + value }] };
   });
 
+  const animatedTimecodeStyle = useAnimatedStyle(() => {
+    return { opacity: withTiming(timecodeOpacity.value) };
+  });
+
   const timecode = useDerivedValue(() => {
     const total = clamp(translateXToTime(translateX.value), 0, duration);
     const hours = Math.floor(total / 3600).toString();
@@ -297,6 +301,7 @@ export default function Scrubber(props: ScrubberProps) {
 
   useEffect(() => {
     if (!isScrubbing) {
+      timecodeOpacity.value = 0;
       translateX.value = timeToTranslateX(positionInput);
       // if (Math.abs(positionInput - (previousPosition || 0)) <= 3) {
       //   console.log("linear");
@@ -316,15 +321,28 @@ export default function Scrubber(props: ScrubberProps) {
       //   console.log("jump");
       //   translateX.value = timeToTranslateX(positionInput);
       // }
+    } else {
+      timecodeOpacity.value = 1;
     }
-  }, [translateX, isScrubbing, positionInput, previousPosition, playbackRate]);
+  }, [
+    translateX,
+    isScrubbing,
+    positionInput,
+    // previousPosition,
+    playbackRate,
+    timecodeOpacity,
+  ]);
 
   return (
     <GestureDetector gesture={panGestureHandler}>
       <Animated.View>
         <AnimatedText
           text={timecode}
-          style={[styles.timecode, { color: theme.strong }]}
+          style={[
+            styles.timecode,
+            { color: theme.strong },
+            animatedTimecodeStyle,
+          ]}
         />
         <Svg style={styles.indicator} height="8" width="8" viewBox="0 0 8 8">
           <Path

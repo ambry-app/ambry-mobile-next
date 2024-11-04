@@ -38,6 +38,7 @@ type Media = {
   duration: string | null;
   book: Book;
   download: Download | null;
+  chapters: schema.Chapter[];
 };
 
 interface PlayerState {
@@ -74,6 +75,7 @@ export async function getSyncedPlayerState(
           mpdPath: true,
           hlsPath: true,
           duration: true,
+          chapters: true,
         },
         with: {
           download: {
@@ -118,6 +120,7 @@ export async function getLocalPlayerState(
           mpdPath: true,
           hlsPath: true,
           duration: true,
+          chapters: true,
         },
         with: {
           download: {

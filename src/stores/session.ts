@@ -16,9 +16,6 @@ interface SessionState {
   isLoading: boolean;
   error: string | null;
   session: Session | null;
-  signIn: (url: string, email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  clearError: () => void;
 }
 
 // Custom storage interface for Expo SecureStore
@@ -36,37 +33,12 @@ const secureStorage: StateStorage = {
 
 const storage = createJSONStorage(() => secureStorage);
 
-export const useSessionStore = create<SessionState>()(
+export const useSession = create<SessionState>()(
   persist(
     (set, get) => ({
       isLoading: false,
       error: null,
       session: null,
-      signIn: async (url: string, email: string, password: string) => {
-        set({ isLoading: true, error: null });
-        const result = await signInAsync(url, email, password);
-        if (result.success) {
-          set({
-            isLoading: false,
-            session: { token: result.token, email, url },
-          });
-        } else {
-          set({ isLoading: false, error: result.error });
-        }
-      },
-      signOut: async () => {
-        set({ isLoading: true, error: null });
-        const session = get().session;
-        if (session) {
-          await signOutAsync(session.url, session.token);
-          set({ isLoading: false, session: null });
-        } else {
-          set({ isLoading: false });
-        }
-      },
-      clearError: () => {
-        set({ error: null });
-      },
     }),
     {
       storage,
@@ -77,6 +49,36 @@ export const useSessionStore = create<SessionState>()(
     },
   ),
 );
+
+export async function signIn(url: string, email: string, password: string) {
+  useSession.setState({ isLoading: true, error: null });
+  const result = await signInAsync(url, email, password);
+
+  if (result.success) {
+    useSession.setState({
+      isLoading: false,
+      session: { token: result.token, email, url },
+    });
+  } else {
+    useSession.setState({ isLoading: false, error: result.error });
+  }
+}
+
+export async function signOut() {
+  useSession.setState({ isLoading: true, error: null });
+  const session = useSession.getState().session;
+
+  if (session) {
+    await signOutAsync(session.url, session.token);
+    useSession.setState({ isLoading: false, session: null });
+  } else {
+    useSession.setState({ isLoading: false });
+  }
+}
+
+export function clearError() {
+  useSession.setState({ error: null });
+}
 
 interface SignInSuccess {
   success: true;
@@ -133,7 +135,7 @@ const signOutAsync = async (url: string, token: string): Promise<boolean> => {
   try {
     const response = await executeAuthenticated(url, token, signOutMutation);
 
-    if (!response.deleteSession) {
+    if (!response?.deleteSession) {
       return false;
     }
     return response.deleteSession.deleted;

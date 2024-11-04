@@ -1,5 +1,5 @@
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
-import { useSessionStore } from "@/src/stores/session";
+import { useSession } from "@/src/stores/session";
 import { Image, ImageStyle } from "expo-image";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import colors from "tailwindcss/colors";
@@ -14,7 +14,7 @@ type ThumbnailImageProps = {
 
 export default function ThumbnailImage(props: ThumbnailImageProps) {
   const { downloadedThumbnails, thumbnails, size, style, imageStyle } = props;
-  const session = useSessionStore((state) => state.session);
+  const session = useSession((state) => state.session);
 
   if (session && downloadedThumbnails) {
     return (

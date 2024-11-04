@@ -1,15 +1,13 @@
 import Logo from "@/assets/images/logo.svg";
 import Loading from "@/src/components/Loading";
-import { useSessionStore } from "@/src/stores/session";
+import { clearError, signIn, useSession } from "@/src/stores/session";
 import { Redirect } from "expo-router";
 import { useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
 import colors from "tailwindcss/colors";
 
 export default function SignInScreen() {
-  const { session, error, isLoading, signIn, clearError } = useSessionStore(
-    (state) => state,
-  );
+  const { session, error, isLoading } = useSession((state) => state);
   const [email, setEmail] = useState(session?.email || "");
   const [host, setHost] = useState(session?.url || "");
   const [password, setPassword] = useState("");

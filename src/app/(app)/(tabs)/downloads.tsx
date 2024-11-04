@@ -1,27 +1,24 @@
 import IconButton from "@/src/components/IconButton";
 import Loading from "@/src/components/Loading";
-import ScreenCentered from "@/src/components/ScreenCentered";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
 import TitleAuthorsNarrators from "@/src/components/TitleAuthorNarrator";
-import { useLiveDownloadsList, type Download } from "@/src/db/downloads";
-import { useDownloadsStore } from "@/src/stores/downloads";
-import { Session, useSessionStore } from "@/src/stores/session";
+import { useDownloadsList, type Download } from "@/src/db/downloads";
+import {
+  cancelDownload,
+  removeDownload,
+  useDownloads,
+} from "@/src/stores/downloads";
+import { Session, useSession } from "@/src/stores/session";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import * as FileSystem from "expo-file-system";
 import { Link, router } from "expo-router";
 import { useEffect, useState } from "react";
-import {
-  FlatList,
-  Modal,
-  Pressable,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Modal, Pressable, Text, TouchableOpacity, View } from "react-native";
+import Animated from "react-native-reanimated";
 import colors from "tailwindcss/colors";
 
 export default function DownloadsScreen() {
-  const session = useSessionStore((state) => state.session);
+  const session = useSession((state) => state.session);
 
   if (!session) return null;
 
@@ -29,17 +26,9 @@ export default function DownloadsScreen() {
 }
 
 function DownloadsList({ session }: { session: Session }) {
-  const { data, updatedAt } = useLiveDownloadsList(session);
+  const { data, updatedAt, opacity } = useDownloadsList(session);
 
-  if (updatedAt === undefined) {
-    return (
-      <ScreenCentered>
-        <Loading />
-      </ScreenCentered>
-    );
-  }
-
-  if (data.length === 0) {
+  if (updatedAt !== undefined && data.length === 0) {
     return (
       <View className="flex-1 justify-center items-center">
         <Text className="text-zinc-100 text-xl">
@@ -57,8 +46,8 @@ function DownloadsList({ session }: { session: Session }) {
   }
 
   return (
-    <FlatList
-      className=""
+    <Animated.FlatList
+      style={{ opacity }}
       data={data}
       keyExtractor={(download) => download.media.id}
       renderItem={({ item }) => (
@@ -74,11 +63,9 @@ type DownloadRowProps = {
 };
 
 function DownloadRow({ session, download }: DownloadRowProps) {
-  const progress = useDownloadsStore(
+  const progress = useDownloads(
     (state) => state.downloadProgresses[download.media.id],
   );
-  const removeDownload = useDownloadsStore((state) => state.removeDownload);
-  const cancelDownload = useDownloadsStore((state) => state.cancelDownload);
   const [isModalVisible, setIsModalVisible] = useState(false);
 
   const navigateToBook = () => {

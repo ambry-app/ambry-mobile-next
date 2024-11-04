@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 import Markdown from "react-native-markdown-display";
 import colors from "tailwindcss/colors";
+import Button from "./Button";
 
 export default function Description({ description }: { description: string }) {
   const [expanded, setExpanded] = useState(false);
@@ -23,9 +24,13 @@ export default function Description({ description }: { description: string }) {
           />
         )}
       </View>
-      <TouchableOpacity onPress={() => setExpanded(!expanded)}>
+      <Button
+        size={24}
+        onPress={() => setExpanded(!expanded)}
+        style={{ alignItems: "flex-end", marginTop: expanded ? 0 : -32 }}
+      >
         <Text style={styles.moreLess}>{expanded ? "Less" : "More"}</Text>
-      </TouchableOpacity>
+      </Button>
     </View>
   );
 }
