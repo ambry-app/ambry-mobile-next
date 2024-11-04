@@ -372,7 +372,7 @@ export async function syncDown(session: Session) {
   console.log("down sync complete");
 }
 
-export async function syncUp(session: Session) {
+export async function syncUp(session: Session, force: boolean = false) {
   console.log("up syncing...");
 
   const server = await db.query.servers.findFirst({
@@ -384,7 +384,7 @@ export async function syncUp(session: Session) {
   if (lastSync) {
     const now = Date.now();
     const lastSyncTime = lastSync.getTime();
-    if (now - lastSyncTime < 60 * 1000) {
+    if (now - lastSyncTime < 60 * 1000 && !force) {
       console.log("up synced less than a minute ago, skipping sync");
       return;
     }

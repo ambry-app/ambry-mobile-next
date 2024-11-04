@@ -20,6 +20,7 @@ import TrackPlayer, {
   TrackType,
 } from "react-native-track-player";
 import { create } from "zustand";
+import { syncUp } from "../db/sync";
 import { Session, useSession } from "./session";
 
 export type ChapterState = {
@@ -33,7 +34,7 @@ export interface PlayerState {
   setupError: unknown | null;
   position: number;
   duration: number;
-  state: State;
+  state: State | undefined;
   mediaId: string | null;
   playbackRate: number;
   lastPlayerExpandRequest: Date | undefined;
@@ -55,7 +56,7 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
   setupError: null,
   position: 0,
   duration: 0,
-  state: State.None,
+  state: undefined,
   mediaId: null,
   playbackRate: 1,
   lastPlayerExpandRequest: undefined,
@@ -141,14 +142,15 @@ export function expandPlayerHandled() {
 
 export function playOrPause() {
   const { state } = usePlayer.getState();
+
   switch (state) {
     case State.Paused:
     case State.Stopped:
     case State.Ready:
     case State.Error:
-      return TrackPlayer.play();
+      return play();
     case State.Playing:
-      return TrackPlayer.pause();
+      return pause();
     case State.Buffering:
     case State.Loading:
     case State.None:
@@ -163,16 +165,27 @@ export function play() {
 
 export async function pause() {
   await TrackPlayer.pause();
-  return seekRelative(-1);
+  await seekRelative(-1);
+  return savePosition(true);
 }
 
-export function updateState(state: State) {
+export function onPlaybackProgressUpdated(position: number, duration: number) {
+  updateProgress(position, duration);
+  return savePosition();
+}
+
+export function onPlaybackState(state: State) {
   usePlayer.setState({ state });
+}
+
+export function onPlaybackQueueEnded() {
+  const { duration } = usePlayer.getState();
+  updateProgress(duration, duration);
+  return savePosition(true);
 }
 
 export function updateProgress(position: number, duration: number) {
   usePlayer.setState({ position, duration });
-  savePositionLocal();
 
   const chapterState = usePlayer.getState().chapterState;
 
@@ -183,36 +196,31 @@ export function updateProgress(position: number, duration: number) {
   }
 }
 
-export async function seekRelative(amount: number) {
-  const { position, duration, playbackRate, state } = usePlayer.getState();
-  if (!shouldSeek(state)) return;
-  let newPosition = position + amount * playbackRate;
-  if (newPosition < 0) newPosition = 0;
-  if (newPosition > duration) newPosition = duration;
-
-  updateProgress(newPosition, duration);
-  TrackPlayer.seekTo(newPosition);
-}
-
 export async function seekTo(position: number) {
-  const { duration } = usePlayer.getState();
+  const { duration, state } = usePlayer.getState();
+  if (!shouldSeek(state)) return;
   const newPosition = Math.max(0, Math.min(position, duration));
   updateProgress(newPosition, duration);
+
   return TrackPlayer.seekTo(newPosition);
+}
+
+export async function seekRelative(amount: number) {
+  const { position, playbackRate } = usePlayer.getState();
+
+  return seekTo(position + amount * playbackRate);
 }
 
 export async function skipToEndOfChapter() {
   const { chapterState, duration } = usePlayer.getState();
   if (!chapterState) return;
-
   const { currentChapter } = chapterState;
-  const newPosition = currentChapter.endTime || duration;
-  updateProgress(newPosition, duration);
-  TrackPlayer.seekTo(newPosition);
+
+  return seekTo(currentChapter.endTime || duration);
 }
 
 export async function skipToBeginningOfChapter() {
-  const { chapterState, position, duration } = usePlayer.getState();
+  const { chapterState, position } = usePlayer.getState();
   if (!chapterState) return;
 
   const { currentChapter, previousChapterStartTime } = chapterState;
@@ -220,8 +228,8 @@ export async function skipToBeginningOfChapter() {
     position === currentChapter.startTime
       ? previousChapterStartTime
       : currentChapter.startTime;
-  updateProgress(newPosition, duration);
-  TrackPlayer.seekTo(newPosition);
+
+  return seekTo(newPosition);
 }
 
 export async function setPlaybackRate(session: Session, playbackRate: number) {
@@ -233,21 +241,21 @@ export async function setPlaybackRate(session: Session, playbackRate: number) {
 }
 
 export async function unloadPlayer() {
-  await TrackPlayer.reset();
+  await savePosition(true);
+  return TrackPlayer.reset();
 }
 
-function savePositionLocal() {
+async function savePosition(force: boolean = false) {
   const session = useSession.getState().session;
   const { mediaId, position } = usePlayer.getState();
 
   if (!session || !mediaId) return;
 
-  updatePlayerState(session, mediaId, {
-    position,
-  });
+  await updatePlayerState(session, mediaId, { position });
+  return syncUp(session, force);
 }
 
-function shouldSeek(state: State): boolean {
+function shouldSeek(state: State | undefined): boolean {
   switch (state) {
     case State.Paused:
     case State.Stopped:
@@ -259,6 +267,7 @@ function shouldSeek(state: State): boolean {
       return true;
     case State.None:
     case State.Error:
+    case undefined:
       return false;
   }
 }
