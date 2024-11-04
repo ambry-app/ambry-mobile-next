@@ -57,6 +57,13 @@
       "when": 1730601887354,
       "tag": "0007_numerous_wong",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1730677947305,
+      "tag": "0008_hard_raider",
+      "breakpoints": true
     }
   ]
 }

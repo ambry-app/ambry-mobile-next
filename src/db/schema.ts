@@ -509,4 +509,7 @@ export const localUserSettings = sqliteTable("local_user_settings", {
   userEmail: text("user_email").notNull().primaryKey(),
   preferredPlaybackRate: real("preferred_playback_rate").notNull().default(1),
   sleepTimer: integer("sleep_timer").notNull().default(600),
+  sleepTimerEnabled: integer("sleep_timer_enabled", { mode: "boolean" })
+    .notNull()
+    .default(false),
 });
