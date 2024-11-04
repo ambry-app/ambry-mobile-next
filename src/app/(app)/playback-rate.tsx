@@ -69,22 +69,27 @@ export default function PlaybackRateModal() {
       <View style={styles.rateButtonRow}>
         <PlaybackRateButton
           rate={1.0}
+          active={displayPlaybackRate === 1.0}
           setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
         />
         <PlaybackRateButton
           rate={1.25}
+          active={displayPlaybackRate === 1.25}
           setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
         />
         <PlaybackRateButton
           rate={1.5}
+          active={displayPlaybackRate === 1.5}
           setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
         />
         <PlaybackRateButton
           rate={1.75}
+          active={displayPlaybackRate === 1.75}
           setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
         />
         <PlaybackRateButton
           rate={2.0}
+          active={displayPlaybackRate === 2.0}
           setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
         />
       </View>
@@ -107,19 +112,22 @@ export default function PlaybackRateModal() {
 
 type PlaybackRateButtonProps = {
   rate: number;
+  active: boolean;
   setPlaybackRateAndDisplay: (value: number) => void;
 };
 
 function PlaybackRateButton(props: PlaybackRateButtonProps) {
-  const { rate, setPlaybackRateAndDisplay } = props;
+  const { rate, active, setPlaybackRateAndDisplay } = props;
 
   return (
     <Button
       size={16}
-      style={styles.rateButton}
+      style={[styles.rateButton, active && styles.rateButtonActive]}
       onPress={() => setPlaybackRateAndDisplay(rate)}
     >
-      <Text style={styles.text}>{formatPlaybackRate(rate)}×</Text>
+      <Text style={[styles.text, active && styles.rateButtonTextActive]}>
+        {formatPlaybackRate(rate)}×
+      </Text>
     </Button>
   );
 }
@@ -149,6 +157,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 16,
     flexGrow: 1,
+  },
+  rateButtonActive: {
+    backgroundColor: colors.lime[400],
+  },
+  rateButtonTextActive: {
+    color: colors.black,
   },
   text: {
     color: colors.zinc[100],

@@ -3,22 +3,14 @@ import {
   skipToEndOfChapter,
   usePlayer,
 } from "@/src/stores/player";
-import { secondsDisplay } from "@/src/utils/time";
 import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
-import { useShallow } from "zustand/react/shallow";
 import Button from "./Button";
 import IconButton from "./IconButton";
 
 export default function PlayerChapterControls() {
-  const { chapterState, position, duration } = usePlayer(
-    useShallow(({ chapterState, position, duration }) => ({
-      chapterState,
-      position,
-      duration,
-    })),
-  );
+  const chapterState = usePlayer((state) => state.chapterState);
 
   if (!chapterState) return null;
 
@@ -49,17 +41,19 @@ export default function PlayerChapterControls() {
           onPress={skipToEndOfChapter}
         />
       </View>
-      <View style={styles.timeDisplayContainer}>
+      {/* maybe this is a bit much... */}
+      {/* <View style={styles.timeDisplayContainer}>
         <Text style={styles.timeDisplayText} numberOfLines={1}>
           {secondsDisplay(position - chapterState.currentChapter.startTime)}
         </Text>
         <Text style={styles.timeDisplayText} numberOfLines={1}>
           -
           {secondsDisplay(
-            (chapterState.currentChapter.endTime || duration) - position,
+            ((chapterState.currentChapter.endTime || duration) - position) /
+              playbackRate,
           )}
         </Text>
-      </View>
+      </View> */}
     </>
   );
 }

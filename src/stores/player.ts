@@ -265,6 +265,7 @@ export async function setPlaybackRate(session: Session, playbackRate: number) {
     TrackPlayer.setRate(playbackRate),
     updatePlayerState(session, usePlayer.getState().mediaId!, { playbackRate }),
   ]);
+  return syncUp(session, true);
 }
 
 export async function setSleepTimerState(enabled: boolean) {
@@ -319,11 +320,19 @@ export async function unloadPlayer() {
 
 async function savePosition(force: boolean = false) {
   const session = useSession.getState().session;
-  const { mediaId, position } = usePlayer.getState();
+  const { mediaId, position, duration } = usePlayer.getState();
 
   if (!session || !mediaId) return;
 
-  await updatePlayerState(session, mediaId, { position });
+  // mimic server-side logic here by computing the status
+  const status =
+    position < 60
+      ? "not_started"
+      : duration - position < 120
+        ? "finished"
+        : "in_progress";
+
+  await updatePlayerState(session, mediaId, { position, status });
   return syncUp(session, force);
 }
 
@@ -479,9 +488,14 @@ async function loadMediaIntoTrackPlayer(
   const syncedPlayerState = await getSyncedPlayerState(session, mediaId);
   const localPlayerState = await getLocalPlayerState(session, mediaId);
 
+  console.debug("[Player] Loading media into player", mediaId);
+
   if (!syncedPlayerState && !localPlayerState) {
     // neither a synced playerState nor a local playerState exists
     // create a new local playerState and load it into the player
+
+    console.debug("[Player] No state found; creating new local state", 0);
+
     const newLocalPlayerState = await createInitialPlayerState(
       session,
       mediaId,
@@ -493,6 +507,12 @@ async function loadMediaIntoTrackPlayer(
   if (syncedPlayerState && !localPlayerState) {
     // a synced playerState exists but no local playerState exists
     // create a new local playerState by copying the synced playerState
+
+    console.debug(
+      "[Player] Synced state found; creating new local state",
+      syncedPlayerState.position,
+    );
+
     const newLocalPlayerState = await createPlayerState(
       session,
       mediaId,
@@ -501,31 +521,65 @@ async function loadMediaIntoTrackPlayer(
       syncedPlayerState.status,
     );
 
+    console.debug(
+      "[Player] Loading new local state into player",
+      newLocalPlayerState.position,
+    );
+
     return loadPlayerState(session, newLocalPlayerState);
   }
 
   if (!syncedPlayerState && localPlayerState) {
     // a local playerState exists but no synced playerState exists
     // use it as is (we haven't had a chance to sync it to the server yet)
+
+    console.debug(
+      "[Player] Local state found (but no synced state); loading into player",
+      localPlayerState.position,
+    );
+
     return loadPlayerState(session, localPlayerState);
   }
 
-  // both a synced playerState and a local playerState exist
   if (!localPlayerState || !syncedPlayerState) throw new Error("Impossible");
+
+  // both a synced playerState and a local playerState exist
+  console.debug(
+    "[Player] Both synced and local states found",
+    localPlayerState.position,
+    syncedPlayerState.position,
+  );
 
   if (localPlayerState.updatedAt >= syncedPlayerState.updatedAt) {
     // the local playerState is newer
     // use it as is (the server is out of date)
+
+    console.debug(
+      "[Player] Local state is newer; loading into player",
+      localPlayerState.position,
+    );
+
     return loadPlayerState(session, localPlayerState);
   }
 
   // the synced playerState is newer
   // update the local playerState by copying the synced playerState
+
+  console.debug(
+    "[Player] Synced state is newer; updating local state",
+    syncedPlayerState.position,
+  );
+
   const updatedLocalPlayerState = await updatePlayerState(session, mediaId, {
     playbackRate: syncedPlayerState.playbackRate,
     position: syncedPlayerState.position,
     status: syncedPlayerState.status,
   });
+
+  console.debug(
+    "[Player] Loading updated local state into player",
+    updatedLocalPlayerState.position,
+  );
 
   return loadPlayerState(session, updatedLocalPlayerState);
 }

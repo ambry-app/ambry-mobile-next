@@ -8,7 +8,7 @@ import {
 import Slider from "@react-native-community/slider";
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Switch, Text, View } from "react-native";
 import colors from "tailwindcss/colors";
 
 function formatSeconds(seconds: number) {
@@ -49,34 +49,35 @@ export default function SleepTimerModal() {
           thumbTintColor={colors.lime[400]}
           minimumTrackTintColor={colors.zinc[400]}
           maximumTrackTintColor={colors.zinc[400]}
-          onValueChange={(value) => {
-            setDisplaySleepTimerSeconds(parseInt(value.toFixed(0)));
-          }}
-          onSlidingComplete={(value) => {
-            setSleepTimerSecondsAndDisplay(parseInt(value.toFixed(0)));
-          }}
+          onValueChange={(value) => setDisplaySleepTimerSeconds(value)}
+          onSlidingComplete={(value) => setSleepTimerSecondsAndDisplay(value)}
         />
       </View>
 
       <View style={styles.sleepTimerButtonRow}>
         <SleepTimerSecondsButton
           seconds={300}
+          active={displaySleepTimerSeconds === 300}
           setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
         />
         <SleepTimerSecondsButton
           seconds={600}
+          active={displaySleepTimerSeconds === 600}
           setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
         />
         <SleepTimerSecondsButton
           seconds={900}
+          active={displaySleepTimerSeconds === 900}
           setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
         />
         <SleepTimerSecondsButton
           seconds={1800}
+          active={displaySleepTimerSeconds === 1800}
           setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
         />
         <SleepTimerSecondsButton
           seconds={3600}
+          active={displaySleepTimerSeconds === 3600}
           setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
         />
       </View>
@@ -88,20 +89,17 @@ export default function SleepTimerModal() {
           justifyContent: "space-between",
         }}
       >
-        <Text style={{ color: colors.zinc[100] }}>
+        <Text style={styles.sleepTimerEnabledText}>
           Sleep Timer is {sleepTimerEnabled ? "enabled" : "disabled"}
         </Text>
-        <Button
-          size={32}
-          style={styles.sleepTimerEnabledButton}
-          onPress={() => {
-            setSleepTimerState(!sleepTimerEnabled);
+        <Switch
+          trackColor={{ false: colors.zinc[400], true: colors.lime[500] }}
+          thumbColor={colors.zinc[100]}
+          value={sleepTimerEnabled}
+          onValueChange={(value) => {
+            setSleepTimerState(value);
           }}
-        >
-          <Text style={styles.sleepTimerEnabledButtonText}>
-            {sleepTimerEnabled ? "Disable" : "Enable"}
-          </Text>
-        </Button>
+        />
       </View>
 
       <Button
@@ -117,19 +115,22 @@ export default function SleepTimerModal() {
 
 type SleepTimerSecondsButtonProps = {
   seconds: number;
+  active: boolean;
   setSleepTimerSecondsAndDisplay: (value: number) => void;
 };
 
 function SleepTimerSecondsButton(props: SleepTimerSecondsButtonProps) {
-  const { seconds, setSleepTimerSecondsAndDisplay } = props;
+  const { seconds, active, setSleepTimerSecondsAndDisplay } = props;
 
   return (
     <Button
       size={16}
-      style={styles.sleepTimerButton}
+      style={[styles.sleepTimerButton, active && styles.sleepTimerButtonActive]}
       onPress={() => setSleepTimerSecondsAndDisplay(seconds)}
     >
-      <Text style={styles.text}>{formatSeconds(seconds)}m</Text>
+      <Text style={[styles.text, active && styles.sleepTimerButtonActiveText]}>
+        {formatSeconds(seconds)}m
+      </Text>
     </Button>
   );
 }
@@ -160,13 +161,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     flexGrow: 1,
   },
-  sleepTimerEnabledButton: {
-    backgroundColor: colors.zinc[800],
-    borderRadius: 999,
+  sleepTimerButtonActive: {
+    backgroundColor: colors.lime[400],
+    color: colors.black,
   },
-  sleepTimerEnabledButtonText: {
-    fontSize: 14,
-    color: colors.zinc[100],
+  sleepTimerButtonActiveText: {
+    color: colors.black,
+  },
+  sleepTimerEnabledText: {
+    color: colors.zinc[400],
+    fontSize: 16,
   },
   text: {
     color: colors.zinc[100],

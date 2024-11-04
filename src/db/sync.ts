@@ -16,7 +16,7 @@ const deletionsTables = {
   PERSON: schema.people,
 };
 
-export async function syncDown(session: Session) {
+export async function syncDown(session: Session, force: boolean = false) {
   console.log("down syncing...");
 
   const server = await db.query.servers.findFirst({
@@ -30,7 +30,7 @@ export async function syncDown(session: Session) {
     // but it's ok because this is just a debounce
     const now = Date.now();
     const lastSyncTime = lastSync.getTime();
-    if (now - lastSyncTime < 60 * 1000) {
+    if (now - lastSyncTime < 60 * 1000 && !force) {
       console.log("down synced less than a minute ago, skipping sync");
       return;
     }
