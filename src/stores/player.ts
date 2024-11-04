@@ -20,7 +20,7 @@ import TrackPlayer, {
   TrackType,
 } from "react-native-track-player";
 import { create } from "zustand";
-import { Session } from "./session";
+import { Session, useSession } from "./session";
 
 export type ChapterState = {
   chapters: schema.Chapter[];
@@ -31,9 +31,10 @@ export type ChapterState = {
 export interface PlayerState {
   setup: boolean;
   setupError: unknown | null;
-  mediaId: string | null;
   position: number;
   duration: number;
+  state: State;
+  mediaId: string | null;
   playbackRate: number;
   lastPlayerExpandRequest: Date | undefined;
   streaming: boolean | undefined;
@@ -52,9 +53,10 @@ interface TrackLoadResult {
 export const usePlayer = create<PlayerState>()((set, get) => ({
   setup: false,
   setupError: null,
-  mediaId: null,
   position: 0,
   duration: 0,
+  state: State.None,
+  mediaId: null,
   playbackRate: 1,
   lastPlayerExpandRequest: undefined,
   streaming: undefined,
@@ -137,8 +139,40 @@ export function expandPlayerHandled() {
   usePlayer.setState({ lastPlayerExpandRequest: undefined });
 }
 
+export function playOrPause() {
+  const { state } = usePlayer.getState();
+  switch (state) {
+    case State.Paused:
+    case State.Stopped:
+    case State.Ready:
+    case State.Error:
+      return TrackPlayer.play();
+    case State.Playing:
+      return TrackPlayer.pause();
+    case State.Buffering:
+    case State.Loading:
+    case State.None:
+    case State.Ended:
+  }
+  return Promise.resolve();
+}
+
+export function play() {
+  return TrackPlayer.play();
+}
+
+export async function pause() {
+  await TrackPlayer.pause();
+  return seekRelative(-1);
+}
+
+export function updateState(state: State) {
+  usePlayer.setState({ state });
+}
+
 export function updateProgress(position: number, duration: number) {
   usePlayer.setState({ position, duration });
+  savePositionLocal();
 
   const chapterState = usePlayer.getState().chapterState;
 
@@ -150,22 +184,8 @@ export function updateProgress(position: number, duration: number) {
 }
 
 export async function seekRelative(amount: number) {
-  const { playbackRate } = usePlayer.getState();
-  const { state } = await TrackPlayer.getPlaybackState();
+  const { position, duration, playbackRate, state } = usePlayer.getState();
   if (!shouldSeek(state)) return;
-  const { position, duration } = await TrackPlayer.getProgress();
-
-  let newPosition = position + amount * playbackRate;
-  if (newPosition < 0) newPosition = 0;
-  if (newPosition > duration) newPosition = duration;
-
-  TrackPlayer.seekTo(newPosition);
-  updateProgress(newPosition, duration);
-}
-
-export async function seekRelativeUnsafe(amount: number) {
-  const { position, duration, playbackRate } = usePlayer.getState();
-  // TODO: what about checking the track player state?
   let newPosition = position + amount * playbackRate;
   if (newPosition < 0) newPosition = 0;
   if (newPosition > duration) newPosition = duration;
@@ -216,6 +236,17 @@ export async function unloadPlayer() {
   await TrackPlayer.reset();
 }
 
+function savePositionLocal() {
+  const session = useSession.getState().session;
+  const { mediaId, position } = usePlayer.getState();
+
+  if (!session || !mediaId) return;
+
+  updatePlayerState(session, mediaId, {
+    position,
+  });
+}
+
 function shouldSeek(state: State): boolean {
   switch (state) {
     case State.Paused:
@@ -223,9 +254,9 @@ function shouldSeek(state: State): boolean {
     case State.Ready:
     case State.Playing:
     case State.Ended:
-      return true;
     case State.Buffering:
     case State.Loading:
+      return true;
     case State.None:
     case State.Error:
       return false;
@@ -286,10 +317,10 @@ async function setupTrackPlayer(
     ],
     forwardJumpInterval: 10,
     backwardJumpInterval: 10,
-    progressUpdateEventInterval: 5,
+    progressUpdateEventInterval: 1,
   });
 
-  console.log("[TrackPlayer] setup succeeded");
+  console.debug("[TrackPlayer] setup succeeded");
   return true;
 }
 
@@ -300,7 +331,7 @@ async function loadPlayerState(
   session: Session,
   playerState: LocalPlayerState,
 ): Promise<TrackLoadResult> {
-  console.log("Loading player state into player...");
+  console.debug("[TrackPlayer] Loading player state into player...");
   let streaming: boolean;
 
   await TrackPlayer.reset();

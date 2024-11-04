@@ -1,8 +1,6 @@
+import { playOrPause, usePlayer } from "@/src/stores/player";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
-import TrackPlayer, {
-  State,
-  usePlaybackState,
-} from "react-native-track-player";
+import { State } from "react-native-track-player";
 import { useDebounce } from "use-debounce";
 import IconButton from "./IconButton";
 import Loading from "./Loading";
@@ -15,7 +13,7 @@ type PlayButtonProps = {
 
 export default function PlayButton(props: PlayButtonProps) {
   const { size, color, style } = props;
-  const { state } = usePlaybackState();
+  const state = usePlayer((state) => state.state);
   const [debouncedState] = useDebounce(state, 50);
   const icon = stateIcon(debouncedState);
 
@@ -32,7 +30,7 @@ export default function PlayButton(props: PlayButtonProps) {
 
   return (
     <IconButton
-      onPress={stateAction(debouncedState)}
+      onPress={playOrPause}
       size={size}
       icon={icon}
       color={color}
@@ -68,26 +66,4 @@ function stateIcon(state: State | undefined): string | undefined {
       return "circle-check";
   }
   return;
-}
-
-function stateAction(state: State | undefined): () => void {
-  switch (state) {
-    case State.Paused:
-    case State.Stopped:
-    case State.Ready:
-    case State.Error:
-      return () => {
-        TrackPlayer.play();
-      };
-    case State.Playing:
-      return () => {
-        TrackPlayer.pause();
-      };
-    case State.Buffering:
-    case State.Loading:
-    case State.None:
-    case State.Ended:
-      return () => {};
-  }
-  return () => {};
 }

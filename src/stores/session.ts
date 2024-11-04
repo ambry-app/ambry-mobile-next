@@ -3,7 +3,6 @@ import { execute, executeAuthenticated } from "@/src/graphql/client/execute";
 import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
 import { StateStorage, createJSONStorage, persist } from "zustand/middleware";
-import { unloadPlayer } from "./player";
 
 const AUTH_STORAGE_KEY = "Ambry_userSessionV2";
 
@@ -68,8 +67,6 @@ export async function signIn(url: string, email: string, password: string) {
 export async function signOut() {
   useSession.setState({ isLoading: true, error: null });
   const session = useSession.getState().session;
-
-  await unloadPlayer();
 
   if (session) {
     await signOutAsync(session.url, session.token);

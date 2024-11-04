@@ -7,11 +7,7 @@ import ThumbnailImage from "@/src/components/ThumbnailImage";
 import TitleAuthorsNarrators from "@/src/components/TitleAuthorNarrator";
 import { useMediaDetails } from "@/src/db/library";
 import useBackHandler from "@/src/hooks/use.back.handler";
-import {
-  expandPlayerHandled,
-  updateProgress,
-  usePlayer,
-} from "@/src/stores/player";
+import { expandPlayerHandled, usePlayer } from "@/src/stores/player";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
@@ -35,7 +31,6 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { useProgress } from "react-native-track-player";
 import colors from "tailwindcss/colors";
 import { useShallow } from "zustand/react/shallow";
 import PlayerChapterControls from "./PlayerChapterControls";
@@ -266,7 +261,6 @@ export default function TabBarWithPlayer({
 
   return (
     <>
-      <TrackPlayerProgressSubscriber />
       <Animated.View
         style={[
           {
@@ -514,12 +508,4 @@ export default function TabBarWithPlayer({
       </View>
     </>
   );
-}
-
-function TrackPlayerProgressSubscriber() {
-  const { position, duration } = useProgress(1000);
-  useEffect(() => {
-    updateProgress(position, duration);
-  }, [duration, position]);
-  return null;
 }

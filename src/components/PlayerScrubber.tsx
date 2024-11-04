@@ -1,7 +1,6 @@
-import TrackPlayer from "react-native-track-player";
+import { seekTo, usePlayer } from "@/src/stores/player";
 import colors from "tailwindcss/colors";
 import { useShallow } from "zustand/react/shallow";
-import { usePlayer } from "../stores/player";
 import Scrubber from "./Scrubber";
 
 export default function PlayerScrubber() {
@@ -29,7 +28,7 @@ export default function PlayerScrubber() {
       position={position}
       duration={duration}
       playbackRate={playbackRate}
-      onChange={(newPosition: number) => TrackPlayer.seekTo(newPosition)}
+      onChange={(newPosition: number) => seekTo(newPosition)}
       markers={markers}
       theme={theme}
     />

@@ -1,5 +1,7 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
+import useFadeInQuery, { fadeInTime } from "@/src/hooks/use.fade.in.query";
+import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
 import { Session } from "@/src/stores/session";
 import {
   and,
@@ -15,8 +17,6 @@ import {
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { useEffect, useState } from "react";
 import { useSharedValue, withTiming } from "react-native-reanimated";
-import useFadeInQuery, { fadeInTime } from "../hooks/use.fade.in.query";
-import { useLiveTablesQuery } from "../hooks/use.live.tables.query";
 
 export function useMediaList(session: Session) {
   const query = db.query.media.findMany({
