@@ -503,13 +503,16 @@ export const downloadsRelations = relations(downloads, ({ one }) => ({
   }),
 }));
 
+export const defaultSleepTimer = 600;
+export const defaultSleepTimerEnabled = false;
+
 // Local settings are associated to a user. If you log into a different account,
 // you will have different local settings.
 export const localUserSettings = sqliteTable("local_user_settings", {
   userEmail: text("user_email").notNull().primaryKey(),
   preferredPlaybackRate: real("preferred_playback_rate").notNull().default(1),
-  sleepTimer: integer("sleep_timer").notNull().default(600),
+  sleepTimer: integer("sleep_timer").notNull().default(defaultSleepTimer),
   sleepTimerEnabled: integer("sleep_timer_enabled", { mode: "boolean" })
     .notNull()
-    .default(false),
+    .default(defaultSleepTimerEnabled),
 });

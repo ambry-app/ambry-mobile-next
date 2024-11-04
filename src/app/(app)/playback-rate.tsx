@@ -58,11 +58,9 @@ export default function PlaybackRateModal() {
           minimumTrackTintColor={colors.zinc[400]}
           maximumTrackTintColor={colors.zinc[400]}
           onValueChange={(value) => {
-            console.log(value);
             setDisplayPlaybackRate(parseFloat(value.toFixed(2)));
           }}
           onSlidingComplete={(value) => {
-            console.log(value);
             setPlaybackRateAndDisplay(parseFloat(value.toFixed(2)));
           }}
         />

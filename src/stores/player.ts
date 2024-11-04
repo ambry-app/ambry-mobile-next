@@ -9,6 +9,12 @@ import {
   updatePlayerState,
 } from "@/src/db/playerStates";
 import * as schema from "@/src/db/schema";
+import {
+  getSleepTimerSettings,
+  setSleepTimerEnabled,
+  setSleepTimerTime,
+} from "@/src/db/settings";
+import { syncUp } from "@/src/db/sync";
 import { Platform } from "react-native";
 import TrackPlayer, {
   AndroidAudioContentType,
@@ -20,7 +26,6 @@ import TrackPlayer, {
   TrackType,
 } from "react-native-track-player";
 import { create } from "zustand";
-import { syncUp } from "../db/sync";
 import { Session, useSession } from "./session";
 
 export type ChapterState = {
@@ -40,6 +45,9 @@ export interface PlayerState {
   lastPlayerExpandRequest: Date | undefined;
   streaming: boolean | undefined;
   chapterState: ChapterState | null;
+  sleepTimer: number;
+  sleepTimerEnabled: boolean;
+  sleepTimerTriggerTime: number | null;
 }
 
 interface TrackLoadResult {
@@ -62,10 +70,14 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
   lastPlayerExpandRequest: undefined,
   streaming: undefined,
   chapterState: null,
+  sleepTimer: schema.defaultSleepTimer,
+  sleepTimerEnabled: schema.defaultSleepTimerEnabled,
+  sleepTimerTriggerTime: null,
 }));
 
 export async function setupPlayer(session: Session) {
   if (usePlayer.getState().setup) {
+    console.debug("[Player] already set up");
     return;
   }
 
@@ -73,8 +85,16 @@ export async function setupPlayer(session: Session) {
     const response = await setupTrackPlayer(session);
 
     if (response === true) {
-      usePlayer.setState({ setup: true });
+      const { sleepTimer, sleepTimerEnabled } = await getSleepTimerSettings(
+        session.email,
+      );
+
+      usePlayer.setState({ setup: true, sleepTimer, sleepTimerEnabled });
     } else {
+      const { sleepTimer, sleepTimerEnabled } = await getSleepTimerSettings(
+        session.email,
+      );
+
       usePlayer.setState({
         setup: true,
         mediaId: response.mediaId,
@@ -87,6 +107,8 @@ export async function setupPlayer(session: Session) {
           response.position,
           response.duration,
         ),
+        sleepTimer,
+        sleepTimerEnabled,
       });
     }
   } catch (error) {
@@ -160,10 +182,12 @@ export function playOrPause() {
 }
 
 export function play() {
+  maybeStartSleepTimer();
   return TrackPlayer.play();
 }
 
 export async function pause() {
+  stopSleepTimer();
   await TrackPlayer.pause();
   await seekRelative(-1);
   return savePosition(true);
@@ -171,6 +195,7 @@ export async function pause() {
 
 export function onPlaybackProgressUpdated(position: number, duration: number) {
   updateProgress(position, duration);
+  if (maybeHandleSleepTimer()) return Promise.resolve();
   return savePosition();
 }
 
@@ -179,6 +204,7 @@ export function onPlaybackState(state: State) {
 }
 
 export function onPlaybackQueueEnded() {
+  stopSleepTimer();
   const { duration } = usePlayer.getState();
   updateProgress(duration, duration);
   return savePosition(true);
@@ -197,6 +223,7 @@ export function updateProgress(position: number, duration: number) {
 }
 
 export async function seekTo(position: number) {
+  maybeResetSleepTimer();
   const { duration, state } = usePlayer.getState();
   if (!shouldSeek(state)) return;
   const newPosition = Math.max(0, Math.min(position, duration));
@@ -240,9 +267,54 @@ export async function setPlaybackRate(session: Session, playbackRate: number) {
   ]);
 }
 
+export async function setSleepTimerState(enabled: boolean) {
+  usePlayer.setState({
+    sleepTimerEnabled: enabled,
+    sleepTimerTriggerTime: null,
+  });
+
+  const session = useSession.getState().session;
+
+  if (!session) return;
+
+  await setSleepTimerEnabled(session.email, enabled);
+
+  const { state } = usePlayer.getState();
+
+  if (state === State.Playing) {
+    maybeStartSleepTimer();
+  }
+}
+
+export async function setSleepTimer(sleepTimer: number) {
+  usePlayer.setState({ sleepTimer });
+
+  const session = useSession.getState().session;
+
+  if (!session) return;
+
+  await setSleepTimerTime(session.email, sleepTimer);
+
+  const { state } = usePlayer.getState();
+
+  if (state === State.Playing) {
+    maybeResetSleepTimer();
+  }
+}
+
 export async function unloadPlayer() {
-  await savePosition(true);
-  return TrackPlayer.reset();
+  await pause();
+  await TrackPlayer.reset();
+  usePlayer.setState({
+    position: 0,
+    duration: 0,
+    state: undefined,
+    mediaId: null,
+    playbackRate: 1,
+    streaming: undefined,
+    chapterState: null,
+  });
+  return Promise.resolve();
 }
 
 async function savePosition(force: boolean = false) {
@@ -297,7 +369,7 @@ async function setupTrackPlayer(
       };
     }
   } catch (error) {
-    console.debug("[TrackPlayer] player not yet set up", error);
+    console.debug("[Player] player not yet set up", error);
     // it's ok, we'll set it up now
   }
 
@@ -329,7 +401,7 @@ async function setupTrackPlayer(
     progressUpdateEventInterval: 1,
   });
 
-  console.debug("[TrackPlayer] setup succeeded");
+  console.debug("[Player] setup succeeded");
   return true;
 }
 
@@ -340,7 +412,7 @@ async function loadPlayerState(
   session: Session,
   playerState: LocalPlayerState,
 ): Promise<TrackLoadResult> {
-  console.debug("[TrackPlayer] Loading player state into player...");
+  console.debug("[Player] Loading player state into player...");
   let streaming: boolean;
 
   await TrackPlayer.reset();
@@ -553,4 +625,46 @@ function updateChapterState(
   }
 
   return chapterState;
+}
+
+function maybeStartSleepTimer() {
+  const { sleepTimerEnabled, sleepTimerTriggerTime } = usePlayer.getState();
+
+  if (!sleepTimerEnabled || sleepTimerTriggerTime !== null) return;
+
+  _startSleepTimer();
+}
+
+function maybeResetSleepTimer() {
+  const { sleepTimerEnabled, sleepTimerTriggerTime } = usePlayer.getState();
+
+  if (!sleepTimerEnabled || sleepTimerTriggerTime === null) return;
+
+  _startSleepTimer();
+}
+
+function stopSleepTimer() {
+  usePlayer.setState({ sleepTimerTriggerTime: null });
+}
+
+function _startSleepTimer() {
+  const { sleepTimer } = usePlayer.getState();
+  const triggerTime = Date.now() + sleepTimer * 1000;
+
+  usePlayer.setState({ sleepTimerTriggerTime: triggerTime });
+}
+
+function maybeHandleSleepTimer() {
+  const { sleepTimerTriggerTime } = usePlayer.getState();
+
+  if (sleepTimerTriggerTime === null) return false;
+
+  const now = Date.now();
+
+  if (now >= sleepTimerTriggerTime) {
+    pause();
+    return true;
+  }
+
+  return false;
 }
