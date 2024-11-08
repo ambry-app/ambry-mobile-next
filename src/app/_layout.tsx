@@ -4,7 +4,7 @@ import MeasureScreenHeight from "@/src/components/MeasureScreenHeight";
 import ScreenCentered from "@/src/components/ScreenCentered";
 import { expoDb } from "@/src/db/db";
 import { useAppBoot } from "@/src/hooks/use.app.boot";
-import { ThemeProvider } from "@react-navigation/native";
+import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import * as NavigationBar from "expo-navigation-bar";
 import { Stack } from "expo-router";
@@ -17,6 +17,7 @@ import colors from "tailwindcss/colors";
 SystemUI.setBackgroundColorAsync("black");
 
 const Theme = {
+  ...DefaultTheme,
   dark: true,
   colors: {
     primary: colors.lime[400],
@@ -39,7 +40,7 @@ export default function RootStackLayout() {
   return (
     <GestureHandlerRootView>
       <MeasureScreenHeight />
-      {__DEV__ && <DrizzleStudio />}
+      {/* {__DEV__ && <DrizzleStudio />} */}
       <ThemeProvider value={Theme}>
         <Root />
       </ThemeProvider>
@@ -78,7 +79,7 @@ function Root() {
   );
 }
 
-function DrizzleStudio() {
-  useDrizzleStudio(expoDb);
-  return null;
-}
+// function DrizzleStudio() {
+//   useDrizzleStudio(expoDb);
+//   return null;
+// }

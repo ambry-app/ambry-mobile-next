@@ -14,7 +14,7 @@ export default function SignInScreen() {
 
   if (session?.token) {
     // Redirect back to library if already signed in
-    return <Redirect href="/" />;
+    return <Redirect href="/(app)/(tabs)/(library)" />;
   }
 
   return (

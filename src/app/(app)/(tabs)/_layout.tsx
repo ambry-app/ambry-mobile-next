@@ -21,6 +21,7 @@ function AppTabs({ session }: { session: Session }) {
   return (
     <Tabs
       screenOptions={{
+        animation: "shift",
         tabBarActiveTintColor: colors.lime[400],
         tabBarStyle: playerVisible ? { borderTopWidth: 0 } : {},
         tabBarLabelStyle: { paddingBottom: 4 },

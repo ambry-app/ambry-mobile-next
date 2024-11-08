@@ -9,8 +9,8 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-import { PressableScale } from "react-native-pressable-scale";
 import colors from "tailwindcss/colors";
+import { PressableScale } from "./PressableScale";
 import ThumbnailImage from "./ThumbnailImage";
 import TitleAuthorsNarrators from "./TitleAuthorNarrator";
 
