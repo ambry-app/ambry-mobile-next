@@ -80,15 +80,15 @@ export function clearError() {
   useSession.setState({ error: null });
 }
 
-interface SignInSuccess {
+type SignInSuccess = {
   success: true;
   token: string;
-}
+};
 
-interface SignInFailure {
+type SignInFailure = {
   success: false;
   error: string;
-}
+};
 
 type SignInResult = SignInSuccess | SignInFailure;
 

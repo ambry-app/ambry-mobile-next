@@ -5,6 +5,7 @@ import PlayerProgressBar from "@/src/components/PlayerProgressBar";
 import PlayerScrubber from "@/src/components/PlayerScrubber";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
 import TitleAuthorsNarrators from "@/src/components/TitleAuthorNarrator";
+import { playerHeight, tabBarBaseHeight } from "@/src/constants";
 import { useMediaDetails } from "@/src/db/library";
 import useBackHandler from "@/src/hooks/use.back.handler";
 import { expandPlayerHandled, usePlayer } from "@/src/stores/player";
@@ -36,21 +37,20 @@ import { useShallow } from "zustand/react/shallow";
 import PlayerChapterControls from "./PlayerChapterControls";
 import PlayerSettingButtons from "./PlayerSettingButtons";
 
-export default function TabBarWithPlayer({
-  state,
-  descriptors,
-  navigation,
-  insets,
-  session,
-  mediaId,
-}: BottomTabBarProps & { session: Session; mediaId: string }) {
+type TabBarWithPlayerProps = BottomTabBarProps & {
+  session: Session;
+  mediaId: string;
+};
+
+export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
+  const { state, descriptors, navigation, insets, session, mediaId } = props;
   const { lastPlayerExpandRequest, streaming } = usePlayer(
     useShallow(({ lastPlayerExpandRequest, streaming }) => ({
       lastPlayerExpandRequest,
       streaming,
     })),
   );
-  const { data: media, opacity } = useMediaDetails(session, mediaId);
+  const { media, opacity } = useMediaDetails(session, mediaId);
   const [expanded, setExpanded] = useState(true);
   const expansion = useSharedValue(1.0);
   const { screenHeight, screenWidth } = useScreen((state) => state);
@@ -82,8 +82,7 @@ export default function TabBarWithPlayer({
     expandPlayerHandled();
   }, [expandLocal, expanded, lastPlayerExpandRequest]);
 
-  const tabBarHeight = 50 + insets.bottom;
-  const playerHeight = 70;
+  const tabBarHeight = tabBarBaseHeight + insets.bottom;
   const shortScreen = screenHeight / screenWidth < 1.8;
   const largeImageSize = shortScreen ? screenWidth * 0.6 : screenWidth * 0.8;
   const imageGutterWidth = (screenWidth - largeImageSize) / 2;

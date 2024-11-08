@@ -31,7 +31,7 @@ type BookDetailsFlatListProps = {
 };
 
 function BookDetailsFlatList({ bookId, session }: BookDetailsFlatListProps) {
-  const { data: book, opacity } = useBookDetails(session, bookId);
+  const { book, opacity } = useBookDetails(session, bookId);
 
   if (!book) return null;
 
@@ -49,8 +49,7 @@ function BookDetailsFlatList({ bookId, session }: BookDetailsFlatListProps) {
   );
 }
 
-type BookProp = BookDetails;
-type HeaderProps = { book: BookProp };
+type HeaderProps = { book: BookDetails };
 
 function Header({ book }: HeaderProps) {
   return (

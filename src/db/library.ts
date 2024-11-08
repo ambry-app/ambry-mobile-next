@@ -60,7 +60,7 @@ export function useMediaList(session: Session) {
     },
   });
 
-  return useFadeInQuery(query, [
+  const { data, ...rest } = useFadeInQuery(query, [
     "media",
     "downloads",
     "media_narrators",
@@ -72,6 +72,8 @@ export function useMediaList(session: Session) {
     "series_books",
     "series",
   ]);
+
+  return { media: data, ...rest };
 }
 
 export function useMediaDetails(session: Session, mediaId: string) {
@@ -122,7 +124,7 @@ export function useMediaDetails(session: Session, mediaId: string) {
     },
   });
 
-  return useFadeInQuery(
+  const { data, ...rest } = useFadeInQuery(
     query,
     [
       "media",
@@ -138,42 +140,14 @@ export function useMediaDetails(session: Session, mediaId: string) {
     ],
     [mediaId],
   );
+
+  return { media: data, ...rest };
 }
 
-export type BookDetails = {
-  title: string;
-  published: Date;
-  publishedFormat: "full" | "year_month" | "year";
-  bookAuthors: {
-    author: {
-      id: string;
-      name: string;
-      person: {
-        id: string;
-        name: string;
-        thumbnails: schema.Thumbnails | null;
-      };
-    };
-  }[];
-  media: {
-    id: string;
-    thumbnails: schema.Thumbnails | null;
-    mediaNarrators: {
-      narrator: {
-        id: string;
-        name: string;
-        person: {
-          id: string;
-          name: string;
-          thumbnails: schema.Thumbnails | null;
-        };
-      };
-    }[];
-    download: {
-      thumbnails: schema.DownloadedThumbnails | null;
-    } | null;
-  }[];
-};
+export type BookDetails = Exclude<
+  ReturnType<typeof useBookDetails>["book"],
+  undefined
+>;
 
 export function useBookDetails(session: Session, bookId: string) {
   const query = db.query.books.findFirst({
@@ -226,7 +200,7 @@ export function useBookDetails(session: Session, bookId: string) {
     },
   });
 
-  return useFadeInQuery(
+  const { data, ...rest } = useFadeInQuery(
     query,
     [
       "books",
@@ -240,6 +214,8 @@ export function useBookDetails(session: Session, bookId: string) {
     ],
     [bookId],
   );
+
+  return { book: data, ...rest };
 }
 
 // TODO: break this up into smaller hooks
@@ -303,7 +279,7 @@ export function useSeriesDetails(session: Session, seriesId: string) {
     },
   });
 
-  return useFadeInQuery(
+  const { data, ...rest } = useFadeInQuery(
     query,
     [
       "series",
@@ -319,6 +295,8 @@ export function useSeriesDetails(session: Session, seriesId: string) {
     ],
     [seriesId],
   );
+
+  return { series: data, ...rest };
 }
 
 export function usePersonIds(session: Session, personId: string) {
@@ -338,7 +316,7 @@ export function usePersonIds(session: Session, personId: string) {
     },
   });
 
-  const { data: person, opacity } = useFadeInQuery(
+  const { data: person, ...rest } = useFadeInQuery(
     query,
     ["people", "authors", "narrators"],
     [personId],
@@ -360,7 +338,7 @@ export function usePersonIds(session: Session, personId: string) {
     });
   }, [person, personId]);
 
-  return { ids, opacity };
+  return { ids, ...rest };
 }
 
 export function usePersonHeaderInfo(session: Session, personId: string) {
@@ -375,7 +353,8 @@ export function usePersonHeaderInfo(session: Session, personId: string) {
     ),
   });
 
-  return useFadeInQuery(query, ["people"], [personId]);
+  const { data, ...rest } = useFadeInQuery(query, ["people"], [personId]);
+  return { person: data, ...rest };
 }
 
 export function usePersonDescription(session: Session, personId: string) {
@@ -387,7 +366,8 @@ export function usePersonDescription(session: Session, personId: string) {
     ),
   });
 
-  return useFadeInQuery(query, ["people"], [personId]);
+  const { data, ...rest } = useFadeInQuery(query, ["people"], [personId]);
+  return { person: data, ...rest };
 }
 
 export function useBooksByAuthor(session: Session, authorId: string) {
@@ -501,6 +481,7 @@ export function useBooksByAuthor(session: Session, authorId: string) {
     }
   }, [opacity, bookIdsUpdatedAt, authorUpdatedAt, booksUpdatedAt]);
 
+  // TODO: add updatedAt and error
   return { books, author, opacity };
 }
 
@@ -618,6 +599,7 @@ export function useMediaByNarrator(session: Session, narratorId: string) {
     }
   }, [opacity, mediaIdsUpdatedAt, narratorUpdatedAt, mediaUpdatedAt]);
 
+  // TODO: add updatedAt and error
   return { media, narrator, opacity };
 }
 
@@ -643,7 +625,7 @@ export function useMediaIds(session: Session, mediaId: string) {
     },
   });
 
-  const { data: media, opacity } = useFadeInQuery(
+  const { data: media, ...rest } = useFadeInQuery(
     query,
     ["media", "books", "book_authors", "series_books", "media_narrators"],
     [mediaId],
@@ -669,7 +651,7 @@ export function useMediaIds(session: Session, mediaId: string) {
     });
   }, [media, mediaId]);
 
-  return { ids, opacity };
+  return { ids, ...rest };
 }
 
 export function useMediaHeaderInfo(session: Session, mediaId: string) {
@@ -713,7 +695,7 @@ export function useMediaHeaderInfo(session: Session, mediaId: string) {
     },
   });
 
-  return useFadeInQuery(
+  const { data, ...rest } = useFadeInQuery(
     query,
     [
       "media",
@@ -728,6 +710,8 @@ export function useMediaHeaderInfo(session: Session, mediaId: string) {
     ],
     [mediaId],
   );
+
+  return { media: data, ...rest };
 }
 
 export function useMediaActionBarInfo(session: Session, mediaId: string) {
@@ -745,7 +729,12 @@ export function useMediaActionBarInfo(session: Session, mediaId: string) {
     },
   });
 
-  return useFadeInQuery(query, ["media", "downloads"], [mediaId]);
+  const { data, ...rest } = useFadeInQuery(
+    query,
+    ["media", "downloads"],
+    [mediaId],
+  );
+  return { media: data, ...rest };
 }
 
 export function useMediaDescription(session: Session, mediaId: string) {
@@ -765,7 +754,12 @@ export function useMediaDescription(session: Session, mediaId: string) {
     where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
   });
 
-  return useFadeInQuery(query, ["media", "books"], [mediaId]);
+  const { data, ...rest } = useFadeInQuery(
+    query,
+    ["media", "books"],
+    [mediaId],
+  );
+  return { media: data, ...rest };
 }
 
 export function useMediaAuthorsAndNarrators(session: Session, mediaId: string) {
@@ -840,6 +834,7 @@ export function useMediaAuthorsAndNarrators(session: Session, mediaId: string) {
     setNarratorSet(newNarratorSet);
   }, [media]);
 
+  // TODO: add updatedAt and error
   return { media, authorSet, narratorSet, opacity };
 }
 
@@ -925,6 +920,7 @@ export function useMediaOtherEditions(
     }
   }, [opacity, mediaIdsUpdatedAt, mediaUpdatedAt]);
 
+  // TODO: add updatedAt and error
   return { media, opacity };
 }
 
@@ -975,7 +971,7 @@ export function useOtherBooksInSeries(session: Session, seriesId: string) {
     },
   });
 
-  return useFadeInQuery(
+  const { data, ...rest } = useFadeInQuery(
     query,
     [
       "series",
@@ -990,6 +986,8 @@ export function useOtherBooksInSeries(session: Session, seriesId: string) {
     ],
     [seriesId],
   );
+
+  return { series: data, ...rest };
 }
 
 export function useOtherBooksByAuthor(
@@ -1124,6 +1122,7 @@ export function useOtherBooksByAuthor(
     }
   }, [opacity, bookIdsUpdatedAt, authorUpdatedAt, booksUpdatedAt]);
 
+  // TODO: add updatedAt and error
   return { books, author, opacity };
 }
 
@@ -1282,5 +1281,6 @@ export function useOtherMediaByNarrator(
     }
   }, [opacity, mediaIdsUpdatedAt, narratorUpdatedAt, mediaUpdatedAt]);
 
+  // TODO: add updatedAt and error
   return { media, narrator, opacity };
 }

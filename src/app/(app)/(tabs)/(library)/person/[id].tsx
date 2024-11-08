@@ -145,7 +145,7 @@ type HeaderProps = {
 };
 
 function Header({ personId, session }: HeaderProps) {
-  const { data: person, opacity } = usePersonHeaderInfo(session, personId);
+  const { person, opacity } = usePersonHeaderInfo(session, personId);
 
   if (!person) return null;
 
@@ -173,7 +173,7 @@ type PersonDescriptionProps = {
 };
 
 function PersonDescription({ personId, session }: PersonDescriptionProps) {
-  const { data: person, opacity } = usePersonDescription(session, personId);
+  const { person, opacity } = usePersonDescription(session, personId);
 
   if (!person?.description) return null;
 

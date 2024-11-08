@@ -2,7 +2,7 @@ import IconButton from "@/src/components/IconButton";
 import Loading from "@/src/components/Loading";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
 import TitleAuthorsNarrators from "@/src/components/TitleAuthorNarrator";
-import { useDownloadsList, type Download } from "@/src/db/downloads";
+import { ListedDownload, useDownloadsList } from "@/src/db/downloads";
 import {
   cancelDownload,
   removeDownload,
@@ -26,9 +26,9 @@ export default function DownloadsScreen() {
 }
 
 function DownloadsList({ session }: { session: Session }) {
-  const { data, updatedAt, opacity } = useDownloadsList(session);
+  const { downloads, updatedAt, opacity } = useDownloadsList(session);
 
-  if (updatedAt !== undefined && data.length === 0) {
+  if (updatedAt !== undefined && downloads.length === 0) {
     return (
       <View className="flex-1 justify-center items-center">
         <Text className="text-zinc-100 text-xl">
@@ -48,7 +48,7 @@ function DownloadsList({ session }: { session: Session }) {
   return (
     <Animated.FlatList
       style={{ opacity }}
-      data={data}
+      data={downloads}
       keyExtractor={(download) => download.media.id}
       renderItem={({ item }) => (
         <DownloadRow session={session} download={item} />
@@ -59,7 +59,7 @@ function DownloadsList({ session }: { session: Session }) {
 
 type DownloadRowProps = {
   session: Session;
-  download: Download;
+  download: ListedDownload;
 };
 
 function DownloadRow({ session, download }: DownloadRowProps) {
@@ -186,7 +186,7 @@ function DownloadRow({ session, download }: DownloadRowProps) {
   );
 }
 
-function FileSize({ download }: { download: Download }) {
+function FileSize({ download }: { download: ListedDownload }) {
   const [size, setSize] = useState<string | null>(null);
   const [isMissing, setIsMissing] = useState(false);
 

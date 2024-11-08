@@ -4,43 +4,9 @@ import useFadeInQuery from "@/src/hooks/use.fade.in.query";
 import { Session } from "@/src/stores/session";
 import { and, desc, eq } from "drizzle-orm";
 
-export type MediaNarrator = {
-  id: string;
-  narrator: {
-    id: string;
-    name: string;
-  };
-};
-
-export type Author = {
-  id: string;
-  name: string;
-};
-
-export type BookAuthor = {
-  id: string;
-  author: Author;
-};
-
-export type Book = {
-  id: string;
-  title: string;
-  bookAuthors: BookAuthor[];
-};
-
-export type Media = {
-  id: string;
-  thumbnails: schema.Thumbnails | null;
-  mediaNarrators: MediaNarrator[];
-  book: Book;
-};
-
-export type Download = {
-  filePath: string;
-  status: "pending" | "ready" | "error";
-  thumbnails: schema.DownloadedThumbnails | null;
-  media: Media;
-};
+export type ListedDownload = ReturnType<
+  typeof useDownloadsList
+>["downloads"][0];
 
 export function useDownloadsList(session: Session) {
   const query = db.query.downloads.findMany({
@@ -77,7 +43,7 @@ export function useDownloadsList(session: Session) {
     },
   });
 
-  return useFadeInQuery(query, [
+  const { data, ...rest } = useFadeInQuery(query, [
     "downloads",
     "media",
     "media_narrators",
@@ -86,12 +52,11 @@ export function useDownloadsList(session: Session) {
     "book_authors",
     "authors",
   ]);
+
+  return { downloads: data, ...rest };
 }
 
-export async function getDownload(
-  session: Session,
-  mediaId: string,
-): Promise<schema.Download | undefined> {
+export async function getDownload(session: Session, mediaId: string) {
   return db.query.downloads.findFirst({
     where: and(
       eq(schema.downloads.url, session.url),
@@ -104,7 +69,7 @@ export async function createDownload(
   session: Session,
   mediaId: string,
   filePath: string,
-): Promise<void> {
+) {
   const now = new Date();
 
   await db.insert(schema.downloads).values({
@@ -124,7 +89,7 @@ export async function updateDownload(
     thumbnails?: schema.DownloadedThumbnails | null;
     status?: "error" | "ready";
   },
-): Promise<void> {
+) {
   await db
     .update(schema.downloads)
     .set({
@@ -138,10 +103,7 @@ export async function updateDownload(
     );
 }
 
-export async function deleteDownload(
-  session: Session,
-  mediaId: string,
-): Promise<void> {
+export async function deleteDownload(session: Session, mediaId: string) {
   await db
     .delete(schema.downloads)
     .where(

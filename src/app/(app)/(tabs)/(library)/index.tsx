@@ -20,7 +20,7 @@ type LibraryFlatlistProps = {
 };
 
 function LibraryFlatlist({ session }: LibraryFlatlistProps) {
-  const { data: media, updatedAt, opacity } = useMediaList(session);
+  const { media, updatedAt, opacity } = useMediaList(session);
 
   if (updatedAt !== undefined && media.length === 0) {
     // TODO: there are no books on this server
