@@ -37,6 +37,7 @@ function BookDetailsFlatList({ bookId, session }: BookDetailsFlatListProps) {
 
   return (
     <Animated.FlatList
+      contentInsetAdjustmentBehavior="automatic"
       style={[styles.container, { opacity }]}
       data={book.media}
       keyExtractor={(item) => item.id}

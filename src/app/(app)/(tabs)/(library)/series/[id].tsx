@@ -99,6 +99,7 @@ function SeriesDetailsFlatList({
 
   return (
     <Animated.FlatList
+      contentInsetAdjustmentBehavior="automatic"
       style={[styles.container, { opacity }]}
       data={seriesBooks}
       keyExtractor={(item) => item.id}

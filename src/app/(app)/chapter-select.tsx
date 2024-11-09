@@ -6,7 +6,7 @@ import { secondsDisplay } from "@/src/utils/time";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 import { useCallback, useRef } from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import colors from "tailwindcss/colors";
 
@@ -102,7 +102,7 @@ function Chapter({ chapter, currentChapterId }: ChapterProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.zinc[950],
+    backgroundColor: Platform.OS === "android" ? colors.zinc[950] : undefined,
     height: "100%",
   },
   chapterList: {

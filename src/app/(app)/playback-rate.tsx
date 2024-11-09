@@ -7,11 +7,14 @@ import { secondsDisplay } from "@/src/utils/time";
 import Slider from "@react-native-community/slider";
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import colors from "tailwindcss/colors";
 import { useShallow } from "zustand/react/shallow";
 
 export default function PlaybackRateModal() {
+  const { bottom } = useSafeAreaInsets();
+
   useBackHandler(() => {
     router.back();
     return true;
@@ -44,11 +47,13 @@ export default function PlaybackRateModal() {
   if (!session) return null;
 
   return (
-    <View style={styles.container}>
-      <View>
+    <View style={{ paddingBottom: Platform.OS === "android" ? bottom : 0 }}>
+      {Platform.OS === "android" && <View style={styles.handle} />}
+      <View style={styles.container}>
         <Text style={styles.title}>
-          {formatPlaybackRate(displayPlaybackRate)}×
+          Playback Speed: {formatPlaybackRate(displayPlaybackRate)}×
         </Text>
+
         <Slider
           value={playbackRate}
           minimumValue={0.5}
@@ -64,48 +69,42 @@ export default function PlaybackRateModal() {
             setPlaybackRateAndDisplay(parseFloat(value.toFixed(2)));
           }}
         />
+
+        <View style={styles.rateButtonRow}>
+          <PlaybackRateButton
+            rate={1.0}
+            active={displayPlaybackRate === 1.0}
+            setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
+          />
+          <PlaybackRateButton
+            rate={1.25}
+            active={displayPlaybackRate === 1.25}
+            setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
+          />
+          <PlaybackRateButton
+            rate={1.5}
+            active={displayPlaybackRate === 1.5}
+            setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
+          />
+          <PlaybackRateButton
+            rate={1.75}
+            active={displayPlaybackRate === 1.75}
+            setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
+          />
+          <PlaybackRateButton
+            rate={2.0}
+            active={displayPlaybackRate === 2.0}
+            setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
+          />
+        </View>
+
+        <Text style={styles.timeLeftText}>
+          Finish in{" "}
+          {secondsDisplay(
+            Math.max(duration - position, 0) / displayPlaybackRate,
+          )}
+        </Text>
       </View>
-
-      <View style={styles.rateButtonRow}>
-        <PlaybackRateButton
-          rate={1.0}
-          active={displayPlaybackRate === 1.0}
-          setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
-        />
-        <PlaybackRateButton
-          rate={1.25}
-          active={displayPlaybackRate === 1.25}
-          setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
-        />
-        <PlaybackRateButton
-          rate={1.5}
-          active={displayPlaybackRate === 1.5}
-          setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
-        />
-        <PlaybackRateButton
-          rate={1.75}
-          active={displayPlaybackRate === 1.75}
-          setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
-        />
-        <PlaybackRateButton
-          rate={2.0}
-          active={displayPlaybackRate === 2.0}
-          setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
-        />
-      </View>
-
-      <Text style={styles.timeLeftText}>
-        Finish in{" "}
-        {secondsDisplay(Math.max(duration - position, 0) / displayPlaybackRate)}
-      </Text>
-
-      <Button
-        size={32}
-        onPress={() => router.back()}
-        style={styles.closeButton}
-      >
-        <Text style={styles.closeButtonText}>Ok</Text>
-      </Button>
     </View>
   );
 }
@@ -133,17 +132,22 @@ function PlaybackRateButton(props: PlaybackRateButtonProps) {
 }
 
 const styles = StyleSheet.create({
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: colors.zinc[500],
+    borderRadius: 999,
+    marginHorizontal: "auto",
+    marginTop: 8,
+  },
   container: {
     padding: 32,
-    backgroundColor: colors.zinc[950],
-    height: "100%",
     display: "flex",
     justifyContent: "center",
     gap: 16,
   },
   title: {
     color: colors.zinc[100],
-    margin: 16,
     fontSize: 18,
     textAlign: "center",
   },

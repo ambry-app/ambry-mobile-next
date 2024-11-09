@@ -1,5 +1,30 @@
 import { useSession } from "@/src/stores/session";
+import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { Redirect, Stack } from "expo-router";
+import { Platform, StyleSheet } from "react-native";
+import colors from "tailwindcss/colors";
+
+const styles = StyleSheet.create({
+  modalContent: {
+    backgroundColor: colors.zinc[800],
+  },
+});
+
+const modalOptions: NativeStackNavigationOptions = {
+  headerShown: false,
+  presentation: "formSheet",
+  sheetAllowedDetents: "fitToContents",
+  sheetCornerRadius: 24,
+  sheetGrabberVisible: true,
+  contentStyle: styles.modalContent,
+};
+
+// Android scrollable within formSheet is really janky, so we use a regular
+// modal for chapter select on Android.
+const chapterSelectOptions: NativeStackNavigationOptions =
+  Platform.OS === "ios"
+    ? { ...modalOptions, sheetAllowedDetents: [0.5, 1.0] }
+    : { presentation: "modal", headerTitle: "Select Chapter" };
 
 export default function AppStackLayout() {
   const session = useSession((state) => state.session);
@@ -11,18 +36,9 @@ export default function AppStackLayout() {
   return (
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="sleep-timer"
-        options={{ presentation: "modal", title: "Sleep Timer" }}
-      />
-      <Stack.Screen
-        name="playback-rate"
-        options={{ presentation: "modal", title: "Playback Speed" }}
-      />
-      <Stack.Screen
-        name="chapter-select"
-        options={{ presentation: "modal", title: "Chapter Select" }}
-      />
+      <Stack.Screen name="sleep-timer" options={modalOptions} />
+      <Stack.Screen name="playback-rate" options={modalOptions} />
+      <Stack.Screen name="chapter-select" options={chapterSelectOptions} />
     </Stack>
   );
 }

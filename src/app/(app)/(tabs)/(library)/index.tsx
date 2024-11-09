@@ -29,6 +29,7 @@ function LibraryFlatlist({ session }: LibraryFlatlistProps) {
 
   return (
     <Animated.FlatList
+      contentInsetAdjustmentBehavior="automatic"
       style={[styles.flatlist, { opacity }]}
       data={media}
       keyExtractor={(item) => item.id}

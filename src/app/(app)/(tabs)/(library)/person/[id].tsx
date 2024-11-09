@@ -109,6 +109,7 @@ function PersonDetailsFlatList(props: PersonDetailsFlatListProps) {
 
   return (
     <Animated.FlatList
+      contentInsetAdjustmentBehavior="automatic"
       style={[styles.container, { opacity }]}
       data={sections}
       keyExtractor={(item) => item.id}

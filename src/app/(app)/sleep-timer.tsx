@@ -8,7 +8,8 @@ import {
 import Slider from "@react-native-community/slider";
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Switch, Text, View } from "react-native";
+import { Platform, StyleSheet, Switch, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import colors from "tailwindcss/colors";
 
 function formatSeconds(seconds: number) {
@@ -16,6 +17,8 @@ function formatSeconds(seconds: number) {
 }
 
 export default function SleepTimerModal() {
+  const { bottom } = useSafeAreaInsets();
+
   useBackHandler(() => {
     router.back();
     return true;
@@ -36,11 +39,13 @@ export default function SleepTimerModal() {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <View>
+    <View style={{ paddingBottom: Platform.OS === "android" ? bottom : 0 }}>
+      {Platform.OS === "android" && <View style={styles.handle} />}
+      <View style={styles.container}>
         <Text style={styles.title}>
-          {formatSeconds(displaySleepTimerSeconds)}m
+          Sleep Timer: {formatSeconds(displaySleepTimerSeconds)} minutes
         </Text>
+
         <Slider
           value={sleepTimer}
           minimumValue={300}
@@ -52,63 +57,55 @@ export default function SleepTimerModal() {
           onValueChange={(value) => setDisplaySleepTimerSeconds(value)}
           onSlidingComplete={(value) => setSleepTimerSecondsAndDisplay(value)}
         />
-      </View>
 
-      <View style={styles.sleepTimerButtonRow}>
-        <SleepTimerSecondsButton
-          seconds={300}
-          active={displaySleepTimerSeconds === 300}
-          setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
-        />
-        <SleepTimerSecondsButton
-          seconds={600}
-          active={displaySleepTimerSeconds === 600}
-          setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
-        />
-        <SleepTimerSecondsButton
-          seconds={900}
-          active={displaySleepTimerSeconds === 900}
-          setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
-        />
-        <SleepTimerSecondsButton
-          seconds={1800}
-          active={displaySleepTimerSeconds === 1800}
-          setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
-        />
-        <SleepTimerSecondsButton
-          seconds={3600}
-          active={displaySleepTimerSeconds === 3600}
-          setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
-        />
-      </View>
-      <View
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Text style={styles.sleepTimerEnabledText}>
-          Sleep Timer is {sleepTimerEnabled ? "enabled" : "disabled"}
-        </Text>
-        <Switch
-          trackColor={{ false: colors.zinc[400], true: colors.lime[500] }}
-          thumbColor={colors.zinc[100]}
-          value={sleepTimerEnabled}
-          onValueChange={(value) => {
-            setSleepTimerState(value);
+        <View style={styles.sleepTimerButtonRow}>
+          <SleepTimerSecondsButton
+            seconds={300}
+            active={displaySleepTimerSeconds === 300}
+            setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
+          />
+          <SleepTimerSecondsButton
+            seconds={600}
+            active={displaySleepTimerSeconds === 600}
+            setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
+          />
+          <SleepTimerSecondsButton
+            seconds={900}
+            active={displaySleepTimerSeconds === 900}
+            setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
+          />
+          <SleepTimerSecondsButton
+            seconds={1800}
+            active={displaySleepTimerSeconds === 1800}
+            setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
+          />
+          <SleepTimerSecondsButton
+            seconds={3600}
+            active={displaySleepTimerSeconds === 3600}
+            setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
+          />
+        </View>
+        <View
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
           }}
-        />
+        >
+          <Text style={styles.sleepTimerEnabledText}>
+            Sleep Timer is {sleepTimerEnabled ? "enabled" : "disabled"}
+          </Text>
+          <Switch
+            trackColor={{ false: colors.zinc[400], true: colors.lime[500] }}
+            thumbColor={colors.zinc[100]}
+            value={sleepTimerEnabled}
+            onValueChange={(value) => {
+              setSleepTimerState(value);
+            }}
+          />
+        </View>
       </View>
-
-      <Button
-        size={32}
-        onPress={() => router.back()}
-        style={styles.closeButton}
-      >
-        <Text style={styles.closeButtonText}>Ok</Text>
-      </Button>
     </View>
   );
 }
@@ -136,17 +133,22 @@ function SleepTimerSecondsButton(props: SleepTimerSecondsButtonProps) {
 }
 
 const styles = StyleSheet.create({
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: colors.zinc[500],
+    borderRadius: 999,
+    marginHorizontal: "auto",
+    marginTop: 8,
+  },
   container: {
     padding: 32,
-    backgroundColor: colors.zinc[950],
-    height: "100%",
     display: "flex",
     justifyContent: "center",
     gap: 16,
   },
   title: {
     color: colors.zinc[100],
-    margin: 16,
     fontSize: 18,
     textAlign: "center",
   },
@@ -169,7 +171,7 @@ const styles = StyleSheet.create({
     color: colors.black,
   },
   sleepTimerEnabledText: {
-    color: colors.zinc[400],
+    color: colors.zinc[300],
     fontSize: 16,
   },
   text: {

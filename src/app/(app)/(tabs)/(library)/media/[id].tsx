@@ -186,6 +186,7 @@ function MediaDetailsFlatList({ session, mediaId }: MediaDetailsFlatListProps) {
 
   return (
     <Animated.FlatList
+      contentInsetAdjustmentBehavior="automatic"
       style={[styles.container, { opacity }]}
       data={sections}
       keyExtractor={(item) => item.id}
