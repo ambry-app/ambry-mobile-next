@@ -253,7 +253,7 @@ type HeaderProps = {
 };
 
 function Header({ mediaId, session }: HeaderProps) {
-  const { data: media, opacity } = useMediaHeaderInfo(session, mediaId);
+  const { media, opacity } = useMediaHeaderInfo(session, mediaId);
 
   if (!media) return null;
 
@@ -314,7 +314,7 @@ type ActionBarProps = {
 
 function ActionBar({ mediaId, session }: ActionBarProps) {
   const progress = useDownloads((state) => state.downloadProgresses[mediaId]);
-  const { data: media, opacity } = useMediaActionBarInfo(session, mediaId);
+  const { media, opacity } = useMediaActionBarInfo(session, mediaId);
 
   if (!media) return null;
 
@@ -426,7 +426,7 @@ type MediaDescriptionProps = {
 };
 
 function MediaDescription({ mediaId, session }: MediaDescriptionProps) {
-  const { data: media, opacity } = useMediaDescription(session, mediaId);
+  const { media, opacity } = useMediaDescription(session, mediaId);
 
   if (!media?.description) return null;
 
@@ -579,7 +579,7 @@ type OtherBooksInSeriesProps = {
 
 function OtherBooksInSeries({ seriesId, session }: OtherBooksInSeriesProps) {
   const screenWidth = useScreen((state) => state.screenWidth);
-  const { data: series, opacity } = useOtherBooksInSeries(session, seriesId);
+  const { series, opacity } = useOtherBooksInSeries(session, seriesId);
 
   if (!series) return null;
 

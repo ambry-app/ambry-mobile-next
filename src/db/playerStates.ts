@@ -3,63 +3,7 @@ import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { and, desc, eq } from "drizzle-orm";
 
-type Person = {
-  id: string;
-};
-
-type Author = {
-  id: string;
-  name: string;
-  person: Person;
-};
-
-type BookAuthor = {
-  id: string;
-  author: Author;
-};
-
-type Book = {
-  id: string;
-  title: string;
-  bookAuthors: BookAuthor[];
-};
-
-export type Download = {
-  status: string;
-  filePath: string;
-  thumbnails: schema.DownloadedThumbnails | null;
-};
-
-type Media = {
-  id: string;
-  thumbnails: schema.Thumbnails | null;
-  mpdPath: string | null;
-  hlsPath: string | null;
-  duration: string | null;
-  book: Book;
-  download: Download | null;
-  chapters: schema.Chapter[];
-};
-
-interface PlayerState {
-  url: string;
-  insertedAt: Date;
-  updatedAt: Date;
-  mediaId: string;
-  status: "not_started" | "in_progress" | "finished";
-  userEmail: string;
-  playbackRate: number;
-  position: number;
-  media: Media;
-}
-
-export interface SyncedPlayerState extends PlayerState {}
-export interface LocalPlayerState extends PlayerState {}
-
-export async function getSyncedPlayerState(
-  session: Session,
-  mediaId: string,
-): Promise<SyncedPlayerState | undefined> {
+export async function getSyncedPlayerState(session: Session, mediaId: string) {
   return db.query.playerStates.findFirst({
     where: and(
       eq(schema.playerStates.url, session.url),
@@ -101,10 +45,12 @@ export async function getSyncedPlayerState(
   });
 }
 
-export async function getLocalPlayerState(
-  session: Session,
-  mediaId: string,
-): Promise<LocalPlayerState | undefined> {
+export type LocalPlayerState = Exclude<
+  Awaited<ReturnType<typeof getLocalPlayerState>>,
+  undefined
+>;
+
+export async function getLocalPlayerState(session: Session, mediaId: string) {
   return db.query.localPlayerStates.findFirst({
     where: and(
       eq(schema.localPlayerStates.url, session.url),
@@ -149,7 +95,7 @@ export async function getLocalPlayerState(
 export async function createInitialPlayerState(
   session: Session,
   mediaId: string,
-): Promise<LocalPlayerState> {
+) {
   return createPlayerState(session, mediaId, 1, 0, "in_progress");
 }
 
@@ -158,8 +104,8 @@ export async function createPlayerState(
   mediaId: string,
   playbackRate: number,
   position: number,
-  status: PlayerState["status"],
-): Promise<LocalPlayerState> {
+  status: schema.LocalPlayerStateInsert["status"],
+) {
   const now = new Date();
 
   await db.insert(schema.localPlayerStates).values({
@@ -182,9 +128,9 @@ export async function updatePlayerState(
   attributes: {
     playbackRate?: number;
     position?: number;
-    status?: PlayerState["status"];
+    status?: schema.LocalPlayerStateInsert["status"];
   },
-): Promise<LocalPlayerState> {
+) {
   const now = new Date();
 
   await db

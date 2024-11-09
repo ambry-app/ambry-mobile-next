@@ -119,7 +119,7 @@ export function Tile({ book, media, seriesBook, style }: TileProps) {
               downloadedThumbnails: m.download?.thumbnails || null,
             }))}
             size="large"
-            style={{ aspectRatio: 1, borderRadius: 8 }}
+            style={styles.bookThumbnail}
           />
         </PressableScale>
       </View>
@@ -157,7 +157,7 @@ export function PersonTile(props: PersonTileProps) {
         <ThumbnailImage
           thumbnails={thumbnails}
           size="large"
-          style={styles.thumbnail}
+          style={styles.personThumbnail}
         />
       </PressableScale>
       <TouchableOpacity onPress={navigateToPerson}>
@@ -185,7 +185,11 @@ const styles = StyleSheet.create({
   seriesBookContainer: {
     gap: 4,
   },
-  thumbnail: {
+  bookThumbnail: {
+    aspectRatio: 1,
+    borderRadius: 8,
+  },
+  personThumbnail: {
     aspectRatio: 1,
     borderRadius: 999,
   },

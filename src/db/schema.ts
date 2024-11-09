@@ -34,23 +34,14 @@ export type Chapter = {
   endTime?: number | null;
 };
 
-type SupplementalFile = {
+export type SupplementalFile = {
   filename: string;
   label?: string | null;
   mime: string;
   path: string;
 };
 
-export type Person = typeof people.$inferSelect;
-export type Author = typeof authors.$inferSelect;
-export type Narrator = typeof narrators.$inferSelect;
-export type Book = typeof books.$inferSelect;
-export type Series = typeof series.$inferSelect;
-export type SeriesBook = typeof seriesBooks.$inferSelect;
-export type BookAuthor = typeof bookAuthors.$inferSelect;
-export type Media = typeof media.$inferSelect;
-export type MediaNarrator = typeof mediaNarrators.$inferSelect;
-export type Download = typeof downloads.$inferSelect;
+export type LocalPlayerStateInsert = typeof localPlayerStates.$inferInsert;
 
 export const people = sqliteTable(
   "people",

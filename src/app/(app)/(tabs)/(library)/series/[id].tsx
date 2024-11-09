@@ -44,7 +44,7 @@ function SeriesDetailsFlatList({
   seriesId,
   session,
 }: SeriesDetailsFlatListProps) {
-  const { data: series, opacity } = useSeriesDetails(session, seriesId);
+  const { series, opacity } = useSeriesDetails(session, seriesId);
 
   if (!series) return null;
 
