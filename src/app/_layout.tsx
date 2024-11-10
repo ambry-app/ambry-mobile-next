@@ -2,12 +2,16 @@ import "@/assets/global.css";
 import Loading from "@/src/components/Loading";
 import MeasureScreenHeight from "@/src/components/MeasureScreenHeight";
 import ScreenCentered from "@/src/components/ScreenCentered";
-import { expoDb } from "@/src/db/db";
 import { useAppBoot } from "@/src/hooks/use.app.boot";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
-import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import * as NavigationBar from "expo-navigation-bar";
 import { Stack } from "expo-router";
+import {
+  setStatusBarBackgroundColor,
+  setStatusBarStyle,
+  setStatusBarTranslucent,
+  StatusBar,
+} from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
 import { Platform, Text, View } from "react-native";
@@ -31,20 +35,28 @@ const Theme = {
 
 export default function RootStackLayout() {
   useEffect(() => {
-    if (Platform.OS === "android") {
-      NavigationBar.setBackgroundColorAsync(colors.transparent);
-      NavigationBar.setPositionAsync("absolute");
-    }
+    setTimeout(() => {
+      if (Platform.OS === "android") {
+        NavigationBar.setBackgroundColorAsync(colors.transparent);
+        NavigationBar.setPositionAsync("absolute");
+        setStatusBarStyle("light");
+        setStatusBarBackgroundColor(colors.transparent);
+        setStatusBarTranslucent(true);
+      }
+    }, 0);
   });
 
   return (
-    <GestureHandlerRootView>
-      <MeasureScreenHeight />
-      {/* {__DEV__ && <DrizzleStudio />} */}
-      <ThemeProvider value={Theme}>
-        <Root />
-      </ThemeProvider>
-    </GestureHandlerRootView>
+    <>
+      <StatusBar style="light" translucent={true} />
+      <GestureHandlerRootView>
+        <MeasureScreenHeight />
+        {/* {__DEV__ && <DrizzleStudio />} */}
+        <ThemeProvider value={Theme}>
+          <Root />
+        </ThemeProvider>
+      </GestureHandlerRootView>
+    </>
   );
 }
 

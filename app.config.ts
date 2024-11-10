@@ -33,11 +33,21 @@ export default {
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "ambry",
-    userInterfaceStyle: "dark",
     newArchEnabled: false,
+    userInterfaceStyle: "dark",
+    backgroundColor: "#27272A",
+    primaryColor: "#84cc16",
+    // icon: "TODO: add a fallback icon"
+    androidStatusBar: {
+      barStyle: "light-content",
+      translucent: true,
+    },
+    androidNavigationBar: {
+      barStyle: "light-content",
+      backgroundColor: "#00000000",
+    },
     splash: {
       image: "./assets/images/splash.png",
-      resizeMode: "contain",
       backgroundColor: "#27272A",
     },
     ios: {
