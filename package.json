@@ -18,6 +18,20 @@
     "codegen-watch": "bunx graphql-codegen --config codegen.ts --watch",
     "generate-migrations": "bunx drizzle-kit generate"
   },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-track-player",
+          "@react-hook/previous",
+          "drizzle-orm",
+          "expo-drizzle-studio-plugin",
+          "tailwindcss",
+          "use-debounce"
+        ]
+      }
+    }
+  },
   "jest": {
     "preset": "jest-expo"
   },
