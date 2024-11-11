@@ -6,12 +6,7 @@ import { useAppBoot } from "@/src/hooks/use.app.boot";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import * as NavigationBar from "expo-navigation-bar";
 import { Stack } from "expo-router";
-import {
-  setStatusBarBackgroundColor,
-  setStatusBarStyle,
-  setStatusBarTranslucent,
-  StatusBar,
-} from "expo-status-bar";
+import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
 import { Platform, Text, View } from "react-native";
@@ -35,15 +30,10 @@ const Theme = {
 
 export default function RootStackLayout() {
   useEffect(() => {
-    setTimeout(() => {
-      if (Platform.OS === "android") {
-        NavigationBar.setBackgroundColorAsync(colors.transparent);
-        NavigationBar.setPositionAsync("absolute");
-        setStatusBarStyle("light");
-        setStatusBarBackgroundColor(colors.transparent);
-        setStatusBarTranslucent(true);
-      }
-    }, 0);
+    if (Platform.OS === "android") {
+      NavigationBar.setBackgroundColorAsync(colors.transparent);
+      NavigationBar.setPositionAsync("absolute");
+    }
   });
 
   return (

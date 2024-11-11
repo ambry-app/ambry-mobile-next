@@ -35,20 +35,15 @@ export default {
     scheme: "ambry",
     newArchEnabled: false,
     userInterfaceStyle: "dark",
-    backgroundColor: "#27272A",
+    backgroundColor: "#18181b",
     primaryColor: "#84cc16",
-    // icon: "TODO: add a fallback icon"
-    androidStatusBar: {
-      barStyle: "light-content",
-      translucent: true,
-    },
     androidNavigationBar: {
       barStyle: "light-content",
-      backgroundColor: "#00000000",
+      backgroundColor: "#18181b",
     },
     splash: {
       image: "./assets/images/splash.png",
-      backgroundColor: "#27272A",
+      backgroundColor: "#18181b",
     },
     ios: {
       supportsTablet: false,
