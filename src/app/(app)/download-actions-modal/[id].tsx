@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   container: {
-    paddingHorizontal: 16,
+    padding: 32,
     display: "flex",
     justifyContent: "center",
     gap: 16,
