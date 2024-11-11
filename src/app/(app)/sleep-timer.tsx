@@ -1,12 +1,10 @@
 import Button from "@/src/components/Button";
-import useBackHandler from "@/src/hooks/use.back.handler";
 import {
   setSleepTimer,
   setSleepTimerState,
   usePlayer,
 } from "@/src/stores/player";
 import Slider from "@react-native-community/slider";
-import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Platform, StyleSheet, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,11 +16,6 @@ function formatSeconds(seconds: number) {
 
 export default function SleepTimerModal() {
   const { bottom } = useSafeAreaInsets();
-
-  useBackHandler(() => {
-    router.back();
-    return true;
-  });
 
   const { sleepTimer, sleepTimerEnabled } = usePlayer((state) => state);
 

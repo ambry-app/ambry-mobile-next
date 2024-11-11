@@ -39,6 +39,7 @@ export default function AppStackLayout() {
       <Stack.Screen name="sleep-timer" options={modalOptions} />
       <Stack.Screen name="playback-rate" options={modalOptions} />
       <Stack.Screen name="chapter-select" options={chapterSelectOptions} />
+      <Stack.Screen name="download-actions-modal/[id]" options={modalOptions} />
     </Stack>
   );
 }

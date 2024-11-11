@@ -1,11 +1,9 @@
 import Button from "@/src/components/Button";
-import useBackHandler from "@/src/hooks/use.back.handler";
 import { setPlaybackRate, usePlayer } from "@/src/stores/player";
 import { useSession } from "@/src/stores/session";
 import { formatPlaybackRate } from "@/src/utils/rate";
 import { secondsDisplay } from "@/src/utils/time";
 import Slider from "@react-native-community/slider";
-import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,11 +12,6 @@ import { useShallow } from "zustand/react/shallow";
 
 export default function PlaybackRateModal() {
   const { bottom } = useSafeAreaInsets();
-
-  useBackHandler(() => {
-    router.back();
-    return true;
-  });
 
   const session = useSession((state) => state.session);
 

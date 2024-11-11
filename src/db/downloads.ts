@@ -56,6 +56,21 @@ export function useDownloadsList(session: Session) {
   return { downloads: data, ...rest };
 }
 
+export type Download = ReturnType<typeof useDownload>["download"];
+
+export function useDownload(session: Session, mediaId: string) {
+  const query = db.query.downloads.findFirst({
+    where: and(
+      eq(schema.downloads.url, session.url),
+      eq(schema.downloads.mediaId, mediaId),
+    ),
+  });
+
+  const { data: download, ...rest } = useFadeInQuery(query, ["downloads"]);
+
+  return { download, ...rest };
+}
+
 export async function getDownload(session: Session, mediaId: string) {
   return db.query.downloads.findFirst({
     where: and(

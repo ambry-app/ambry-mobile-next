@@ -3,17 +3,13 @@ import Loading from "@/src/components/Loading";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
 import TitleAuthorsNarrators from "@/src/components/TitleAuthorNarrator";
 import { ListedDownload, useDownloadsList } from "@/src/db/downloads";
-import {
-  cancelDownload,
-  removeDownload,
-  useDownloads,
-} from "@/src/stores/downloads";
+import { useDownloads } from "@/src/stores/downloads";
 import { Session, useSession } from "@/src/stores/session";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import * as FileSystem from "expo-file-system";
 import { Link, router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Modal, Pressable, Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import Animated from "react-native-reanimated";
 import colors from "tailwindcss/colors";
 
@@ -66,7 +62,6 @@ function DownloadRow({ session, download }: DownloadRowProps) {
   const progress = useDownloads(
     (state) => state.downloadProgresses[download.media.id],
   );
-  const [isModalVisible, setIsModalVisible] = useState(false);
 
   const navigateToBook = () => {
     router.navigate({
@@ -74,6 +69,15 @@ function DownloadRow({ session, download }: DownloadRowProps) {
       params: {
         id: download.media.id,
         title: download.media.book.title,
+      },
+    });
+  };
+
+  const openModal = () => {
+    router.navigate({
+      pathname: "/download-actions-modal/[id]",
+      params: {
+        id: download.media.id,
       },
     });
   };
@@ -119,7 +123,7 @@ function DownloadRow({ session, download }: DownloadRowProps) {
             size={16}
             icon="ellipsis-vertical"
             color={colors.zinc[100]}
-            onPress={() => setIsModalVisible(true)}
+            onPress={openModal}
           />
         </View>
       </View>
@@ -128,59 +132,6 @@ function DownloadRow({ session, download }: DownloadRowProps) {
           className="absolute h-1 bg-lime-400 left-0 bottom-0"
           style={{ width: `${progress * 100}%` }}
         />
-      )}
-      {isModalVisible && (
-        <Modal
-          animationType="fade"
-          transparent={true}
-          visible={isModalVisible}
-          statusBarTranslucent={true}
-        >
-          <Pressable onPress={() => setIsModalVisible(false)}>
-            <View className="bg-black/80 w-full h-full">
-              <View className="bg-zinc-800 rounded-lg absolute top-1/2 left-4 right-4">
-                {download.status === "ready" && (
-                  <Pressable
-                    onPress={() => {
-                      setIsModalVisible(false);
-                      removeDownload(session, download.media.id);
-                    }}
-                  >
-                    <View className="flex flex-row gap-6 items-center px-6">
-                      <FontAwesome6
-                        size={20}
-                        name="trash"
-                        color={colors.zinc[100]}
-                      />
-                      <Text className="text-zinc-100 p-6 rounded-lg">
-                        Delete downloaded files
-                      </Text>
-                    </View>
-                  </Pressable>
-                )}
-                {download.status !== "ready" && (
-                  <Pressable
-                    onPress={() => {
-                      setIsModalVisible(false);
-                      cancelDownload(session, download.media.id);
-                    }}
-                  >
-                    <View className="flex flex-row gap-6 items-center px-6">
-                      <FontAwesome6
-                        size={20}
-                        name="xmark"
-                        color={colors.zinc[100]}
-                      />
-                      <Text className="text-zinc-100 p-6 rounded-lg">
-                        Cancel download
-                      </Text>
-                    </View>
-                  </Pressable>
-                )}
-              </View>
-            </View>
-          </Pressable>
-        </Modal>
       )}
     </View>
   );
