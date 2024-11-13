@@ -1,0 +1,25 @@
+diff --git a/build/ExpoRoot.js b/build/ExpoRoot.js
+index 2505c0267aaf137ded6bac782202aa3ceb3110ae..0cb063f59dfe85e0294bd7eaa267a57528a97583 100644
+--- a/build/ExpoRoot.js
++++ b/build/ExpoRoot.js
+@@ -55,8 +55,6 @@ function ExpoRoot({ wrapper: ParentWrapper = react_1.Fragment, ...props }) {
+         <react_native_safe_area_context_1.SafeAreaProvider 
+         // SSR support
+         initialMetrics={INITIAL_METRICS}>
+-          {/* Users can override this by adding another StatusBar element anywhere higher in the component tree. */}
+-          {!statusbar_1.hasViewControllerBasedStatusBarAppearance && <AutoStatusBar />}
+           {children}
+         </react_native_safe_area_context_1.SafeAreaProvider>
+       </ParentWrapper>);
+diff --git a/build/views/Sitemap.js b/build/views/Sitemap.js
+index 1a0e56453e6aa9c0726740f606573108f1de8260..4a2e7b0d5b5ec83ba28e0405c44d27ea43adf0d1 100644
+--- a/build/views/Sitemap.js
++++ b/build/views/Sitemap.js
+@@ -51,7 +51,6 @@ function getNavOptions() {
+ exports.getNavOptions = getNavOptions;
+ function Sitemap() {
+     return (<react_native_1.View style={styles.container}>
+-      {!statusbar_1.hasViewControllerBasedStatusBarAppearance && <react_native_1.StatusBar barStyle="light-content"/>}
+       <react_native_1.ScrollView contentContainerStyle={styles.scroll}>
+         <FileSystemView />
+       </react_native_1.ScrollView>

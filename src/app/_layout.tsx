@@ -4,16 +4,12 @@ import MeasureScreenHeight from "@/src/components/MeasureScreenHeight";
 import ScreenCentered from "@/src/components/ScreenCentered";
 import { useAppBoot } from "@/src/hooks/use.app.boot";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
-import * as NavigationBar from "expo-navigation-bar";
 import { Stack } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import * as SystemUI from "expo-system-ui";
+import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { Platform, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import colors from "tailwindcss/colors";
-
-SystemUI.setBackgroundColorAsync("black");
 
 const Theme = {
   ...DefaultTheme,
@@ -29,16 +25,8 @@ const Theme = {
 };
 
 export default function RootStackLayout() {
-  useEffect(() => {
-    if (Platform.OS === "android") {
-      NavigationBar.setBackgroundColorAsync(colors.transparent);
-      NavigationBar.setPositionAsync("absolute");
-    }
-  });
-
   return (
     <>
-      <StatusBar style="light" translucent={true} />
       <GestureHandlerRootView>
         <MeasureScreenHeight />
         {/* {__DEV__ && <DrizzleStudio />} */}
@@ -52,6 +40,12 @@ export default function RootStackLayout() {
 
 function Root() {
   const { isReady, migrateError } = useAppBoot();
+
+  useEffect(() => {
+    if (isReady) {
+      SplashScreen.hideAsync();
+    }
+  }, [isReady]);
 
   if (migrateError) {
     return (

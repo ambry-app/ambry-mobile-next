@@ -35,16 +35,8 @@ export default {
     scheme: "ambry",
     newArchEnabled: false,
     userInterfaceStyle: "dark",
-    backgroundColor: "#18181b",
+    backgroundColor: "#000000",
     primaryColor: "#84cc16",
-    androidNavigationBar: {
-      barStyle: "light-content",
-      backgroundColor: "#18181b",
-    },
-    splash: {
-      image: "./assets/images/splash.png",
-      backgroundColor: "#18181b",
-    },
     ios: {
       supportsTablet: false,
       bundleIdentifier: getUniqueIdentifier(),
@@ -59,7 +51,20 @@ export default {
       },
       package: getUniqueIdentifier(),
     },
-    plugins: ["expo-router", "expo-secure-store", "expo-build-properties"],
+    plugins: [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          image: "./assets/images/splash-icon.png",
+          imageWidth: 200,
+          resizeMode: "contain",
+          backgroundColor: "#18181b",
+        },
+      ],
+      "react-native-edge-to-edge",
+    ],
     experiments: {
       typedRoutes: true,
     },
