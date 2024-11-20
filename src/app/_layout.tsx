@@ -2,8 +2,10 @@ import "@/assets/global.css";
 import Loading from "@/src/components/Loading";
 import MeasureScreenHeight from "@/src/components/MeasureScreenHeight";
 import ScreenCentered from "@/src/components/ScreenCentered";
+import { expoDb } from "@/src/db/db";
 import { useAppBoot } from "@/src/hooks/use.app.boot";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
@@ -29,7 +31,7 @@ export default function RootStackLayout() {
     <>
       <GestureHandlerRootView>
         <MeasureScreenHeight />
-        {/* {__DEV__ && <DrizzleStudio />} */}
+        {__DEV__ && <DrizzleStudio />}
         <ThemeProvider value={Theme}>
           <Root />
         </ThemeProvider>
@@ -75,7 +77,7 @@ function Root() {
   );
 }
 
-// function DrizzleStudio() {
-//   useDrizzleStudio(expoDb);
-//   return null;
-// }
+function DrizzleStudio() {
+  useDrizzleStudio(expoDb);
+  return null;
+}
