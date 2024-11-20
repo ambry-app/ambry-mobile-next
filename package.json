@@ -101,6 +101,7 @@
   },
   "private": true,
   "patchedDependencies": {
-    "drizzle-orm@0.36.1": "patches/drizzle-orm@0.36.1.patch"
+    "drizzle-orm@0.36.1": "patches/drizzle-orm@0.36.1.patch",
+    "react-native-screens@4.1.0": "patches/react-native-screens@4.1.0.patch"
   }
 }
