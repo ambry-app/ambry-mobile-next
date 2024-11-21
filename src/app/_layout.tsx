@@ -9,8 +9,9 @@ import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { Text, View } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 import colors from "tailwindcss/colors";
 
 const Theme = {
@@ -28,7 +29,7 @@ const Theme = {
 
 export default function RootStackLayout() {
   return (
-    <>
+    <KeyboardProvider>
       <GestureHandlerRootView>
         <MeasureScreenHeight />
         {__DEV__ && <DrizzleStudio />}
@@ -36,7 +37,7 @@ export default function RootStackLayout() {
           <Root />
         </ThemeProvider>
       </GestureHandlerRootView>
-    </>
+    </KeyboardProvider>
   );
 }
 
@@ -51,12 +52,12 @@ function Root() {
 
   if (migrateError) {
     return (
-      <View className="flex h-full items-center justify-center">
-        <Text className="text-zinc-100">
+      <ScreenCentered>
+        <Text style={styles.text}>
           The app failed to initialize in an irrecoverable way. Please delete
           the app's data and start fresh.
         </Text>
-      </View>
+      </ScreenCentered>
     );
   }
 
@@ -81,3 +82,9 @@ function DrizzleStudio() {
   useDrizzleStudio(expoDb);
   return null;
 }
+
+const styles = StyleSheet.create({
+  text: {
+    color: colors.zinc[100],
+  },
+});
