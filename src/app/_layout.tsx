@@ -72,8 +72,8 @@ function Root() {
   return (
     <Stack>
       <Stack.Screen name="(app)" options={{ headerShown: false }} />
-      <Stack.Screen name="sign-in" options={{ title: "Sign In" }} />
-      <Stack.Screen name="sign-out" options={{ title: "Signing out..." }} />
+      <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+      <Stack.Screen name="sign-out" options={{ headerShown: false }} />
     </Stack>
   );
 }
