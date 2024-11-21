@@ -10,7 +10,7 @@ export default function SignOutScreen() {
     (async function () {
       await unloadPlayer();
       await signOut();
-      router.navigate("/sign-in");
+      router.replace("/sign-in");
     })();
   });
 

@@ -17,7 +17,7 @@ export default function SettingsScreen() {
       <Text style={styles.text}>You are signed in as: {session.email}</Text>
       <Button
         title="Sign out"
-        onPress={() => router.navigate("/sign-out")}
+        onPress={() => router.replace("/sign-out")}
         color={colors.lime[500]}
       />
     </View>
