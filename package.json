@@ -98,7 +98,6 @@
   },
   "private": true,
   "patchedDependencies": {
-    "react-native-screens@4.1.0": "patches/react-native-screens@4.1.0.patch",
-    "react-native-track-player@4.1.1": "patches/react-native-track-player@4.1.1.patch"
+    "react-native-screens@4.1.0": "patches/react-native-screens@4.1.0.patch"
   }
 }
