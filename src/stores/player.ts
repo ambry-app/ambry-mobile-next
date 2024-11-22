@@ -303,18 +303,23 @@ export async function setSleepTimer(sleepTimer: number) {
   }
 }
 
-export async function unloadPlayer() {
-  await pause();
-  await TrackPlayer.reset();
-  usePlayer.setState({
-    position: 0,
-    duration: 0,
-    state: undefined,
-    mediaId: null,
-    playbackRate: 1,
-    streaming: undefined,
-    chapterState: null,
-  });
+export async function tryUnloadPlayer() {
+  try {
+    await pause();
+    await TrackPlayer.reset();
+    usePlayer.setState({
+      position: 0,
+      duration: 0,
+      state: undefined,
+      mediaId: null,
+      playbackRate: 1,
+      streaming: undefined,
+      chapterState: null,
+    });
+  } catch (error) {
+    console.warn("[Player] tryUnloadPlayer error", error);
+  }
+
   return Promise.resolve();
 }
 

@@ -1,10 +1,11 @@
 import "@/assets/global.css";
+import migrations from "@/drizzle/migrations";
 import Loading from "@/src/components/Loading";
 import MeasureScreenHeight from "@/src/components/MeasureScreenHeight";
 import ScreenCentered from "@/src/components/ScreenCentered";
-import { expoDb } from "@/src/db/db";
-import { useAppBoot } from "@/src/hooks/use.app.boot";
+import { db, expoDb } from "@/src/db/db";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -42,15 +43,15 @@ export default function RootStackLayout() {
 }
 
 function Root() {
-  const { isReady, migrateError } = useAppBoot();
+  const { success, error } = useMigrations(db, migrations);
 
   useEffect(() => {
-    if (isReady) {
+    if (success) {
       SplashScreen.hideAsync();
     }
-  }, [isReady]);
+  }, [success]);
 
-  if (migrateError) {
+  if (error) {
     return (
       <ScreenCentered>
         <Text style={styles.text}>
@@ -61,7 +62,7 @@ function Root() {
     );
   }
 
-  if (!isReady) {
+  if (!success) {
     return (
       <ScreenCentered>
         <Loading />

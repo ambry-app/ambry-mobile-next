@@ -1,3 +1,6 @@
+import Loading from "@/src/components/Loading";
+import ScreenCentered from "@/src/components/ScreenCentered";
+import { useAppBoot } from "@/src/hooks/use.app.boot";
 import { useSession } from "@/src/stores/session";
 import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { Redirect, Stack } from "expo-router";
@@ -28,9 +31,18 @@ const chapterSelectOptions: NativeStackNavigationOptions =
 
 export default function AppStackLayout() {
   const session = useSession((state) => state.session);
+  const { isReady } = useAppBoot();
 
   if (!session) {
     return <Redirect href="/sign-in" />;
+  }
+
+  if (!isReady) {
+    return (
+      <ScreenCentered>
+        <Loading />
+      </ScreenCentered>
+    );
   }
 
   return (

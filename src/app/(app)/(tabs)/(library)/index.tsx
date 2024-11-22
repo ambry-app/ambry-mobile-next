@@ -1,8 +1,11 @@
+import Loading from "@/src/components/Loading";
+import ScreenCentered from "@/src/components/ScreenCentered";
 import { MediaTile } from "@/src/components/Tiles";
 import { useMediaList } from "@/src/db/library";
+import { useLastDownSync } from "@/src/db/sync";
 import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
 import { Session, useSession } from "@/src/stores/session";
-import { StyleSheet } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import Animated from "react-native-reanimated";
 import colors from "tailwindcss/colors";
 
@@ -21,10 +24,25 @@ type LibraryFlatlistProps = {
 
 function LibraryFlatlist({ session }: LibraryFlatlistProps) {
   const { media, updatedAt, opacity } = useMediaList(session);
+  const lastDownSync = useLastDownSync(session);
 
-  if (updatedAt !== undefined && media.length === 0) {
-    // TODO: there are no books on this server
-    return null;
+  if (!lastDownSync || !updatedAt) {
+    return (
+      <ScreenCentered>
+        <Loading />
+      </ScreenCentered>
+    );
+  }
+
+  if (updatedAt && lastDownSync && media.length === 0) {
+    return (
+      <ScreenCentered>
+        <Text style={styles.text}>
+          Your library is empty. Log into the server on the web and add some
+          audiobooks to get started!
+        </Text>
+      </ScreenCentered>
+    );
   }
 
   return (
@@ -40,6 +58,9 @@ function LibraryFlatlist({ session }: LibraryFlatlistProps) {
 }
 
 const styles = StyleSheet.create({
+  text: {
+    color: colors.zinc[100],
+  },
   flatlist: {
     padding: 8,
   },
