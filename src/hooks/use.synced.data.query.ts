@@ -43,11 +43,6 @@ export default function useSyncedDataQuery<
       setUpdatedAt(new Date());
     };
 
-    console.debug(
-      "[useSyncedDataQuery] lastSyncedAt changed:",
-      lastSyncedAt,
-      "running query...",
-    );
     query.then(handleData).catch(setError);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastSyncedAt, ...additionalDeps]);

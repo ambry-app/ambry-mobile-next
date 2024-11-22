@@ -33,7 +33,7 @@ export default {
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "ambry",
-    newArchEnabled: false,
+    newArchEnabled: true,
     userInterfaceStyle: "dark",
     backgroundColor: "#000000",
     primaryColor: "#84cc16",
