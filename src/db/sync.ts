@@ -35,7 +35,7 @@ const deletionsTables = {
 };
 
 export async function syncDown(session: Session, force: boolean = false) {
-  console.debug("[Sync] down syncing...");
+  console.debug("[SyncDown] syncing...");
 
   const server = await db.query.servers.findFirst({
     where: and(
@@ -52,7 +52,7 @@ export async function syncDown(session: Session, force: boolean = false) {
     const now = Date.now();
     const lastSyncTime = lastSync.getTime();
     if (now - lastSyncTime < 60 * 1000 && !force) {
-      console.debug("[Sync] down synced less than a minute ago, skipping sync");
+      console.debug("[SyncDown] synced less than a minute ago, skipping sync");
       return;
     }
   }
@@ -219,7 +219,7 @@ export async function syncDown(session: Session, force: boolean = false) {
 
   await db.transaction(async (tx) => {
     if (peopleValues.length !== 0) {
-      console.debug("[Sync] inserting", peopleValues.length, "people...");
+      console.debug("[SyncDown] inserting", peopleValues.length, "people...");
       await tx
         .insert(schema.people)
         .values(peopleValues)
@@ -232,11 +232,11 @@ export async function syncDown(session: Session, force: boolean = false) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[Sync] people inserted");
+      console.debug("[SyncDown] people inserted");
     }
 
     if (authorValues.length !== 0) {
-      console.debug("[Sync] inserting", authorValues.length, "authors...");
+      console.debug("[SyncDown] inserting", authorValues.length, "authors...");
       await tx
         .insert(schema.authors)
         .values(authorValues)
@@ -247,11 +247,15 @@ export async function syncDown(session: Session, force: boolean = false) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[Sync] authors inserted");
+      console.debug("[SyncDown] authors inserted");
     }
 
     if (narratorValues.length !== 0) {
-      console.debug("[Sync] inserting", narratorValues.length, "narrators...");
+      console.debug(
+        "[SyncDown] inserting",
+        narratorValues.length,
+        "narrators...",
+      );
       await tx
         .insert(schema.narrators)
         .values(narratorValues)
@@ -262,11 +266,11 @@ export async function syncDown(session: Session, force: boolean = false) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[Sync] narrators inserted");
+      console.debug("[SyncDown] narrators inserted");
     }
 
     if (booksValues.length !== 0) {
-      console.debug("[Sync] inserting", booksValues.length, "books...");
+      console.debug("[SyncDown] inserting", booksValues.length, "books...");
       await tx
         .insert(schema.books)
         .values(booksValues)
@@ -279,12 +283,12 @@ export async function syncDown(session: Session, force: boolean = false) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[Sync] books inserted");
+      console.debug("[SyncDown] books inserted");
     }
 
     if (bookAuthorsValues.length !== 0) {
       console.debug(
-        "[Sync] inserting",
+        "[SyncDown] inserting",
         bookAuthorsValues.length,
         "book authors...",
       );
@@ -297,11 +301,11 @@ export async function syncDown(session: Session, force: boolean = false) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[Sync] book authors inserted");
+      console.debug("[SyncDown] book authors inserted");
     }
 
     if (seriesValues.length !== 0) {
-      console.debug("[Sync] inserting", seriesValues.length, "series...");
+      console.debug("[SyncDown] inserting", seriesValues.length, "series...");
       await tx
         .insert(schema.series)
         .values(seriesValues)
@@ -312,12 +316,12 @@ export async function syncDown(session: Session, force: boolean = false) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[Sync] series inserted");
+      console.debug("[SyncDown] series inserted");
     }
 
     if (seriesBooksValues.length !== 0) {
       console.debug(
-        "[Sync] inserting",
+        "[SyncDown] inserting",
         seriesBooksValues.length,
         "series books...",
       );
@@ -331,11 +335,11 @@ export async function syncDown(session: Session, force: boolean = false) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[Sync] series books inserted");
+      console.debug("[SyncDown] series books inserted");
     }
 
     if (mediaValues.length !== 0) {
-      console.debug("[Sync] inserting", mediaValues.length, "media...");
+      console.debug("[SyncDown] inserting", mediaValues.length, "media...");
       await tx
         .insert(schema.media)
         .values(mediaValues)
@@ -361,12 +365,12 @@ export async function syncDown(session: Session, force: boolean = false) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[Sync] media inserted");
+      console.debug("[SyncDown] media inserted");
     }
 
     if (mediaNarratorsValues.length !== 0) {
       console.debug(
-        "[Sync] inserting",
+        "[SyncDown] inserting",
         mediaNarratorsValues.length,
         "media narrators...",
       );
@@ -379,12 +383,12 @@ export async function syncDown(session: Session, force: boolean = false) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[Sync] media narrators inserted");
+      console.debug("[SyncDown] media narrators inserted");
     }
 
     if (playerStatesValues.length !== 0) {
       console.debug(
-        "[Sync] inserting",
+        "[SyncDown] inserting",
         playerStatesValues.length,
         "player states...",
       );
@@ -400,20 +404,20 @@ export async function syncDown(session: Session, force: boolean = false) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[Sync] player states inserted");
+      console.debug("[SyncDown] player states inserted");
     }
 
     for (const [deletionType, table] of Object.entries(deletionsTables)) {
       if (deletionIds[deletionType]) {
         console.debug(
-          "[Sync] deleting",
+          "[SyncDown] deleting",
           deletionIds[deletionType].length,
           deletionType,
         );
         await tx
           .delete(table)
           .where(inArray(table.id, deletionIds[deletionType]));
-        console.debug("[Sync] deleted", deletionType);
+        console.debug("[SyncDown] deleted", deletionType);
       }
     }
 
@@ -432,11 +436,11 @@ export async function syncDown(session: Session, force: boolean = false) {
       });
   });
 
-  console.debug("[Sync] down sync complete");
+  console.debug("[SyncDown] sync complete");
 }
 
 export async function syncUp(session: Session, force: boolean = false) {
-  console.debug("[Sync] up syncing...");
+  console.debug("[SyncUp] syncing...");
 
   const server = await db.query.servers.findFirst({
     where: and(
@@ -451,7 +455,7 @@ export async function syncUp(session: Session, force: boolean = false) {
     const now = Date.now();
     const lastSyncTime = lastSync.getTime();
     if (now - lastSyncTime < 60 * 1000 && !force) {
-      console.debug("up synced less than a minute ago, skipping sync");
+      console.debug("[SyncUp] synced less than a minute ago, skipping sync");
       return;
     }
   }
@@ -467,7 +471,11 @@ export async function syncUp(session: Session, force: boolean = false) {
     ),
   });
 
-  console.debug("[Sync] syncing", changedPlayerStates.length, "player states");
+  console.debug(
+    "[SyncUp] syncing",
+    changedPlayerStates.length,
+    "player states",
+  );
 
   for (const playerState of changedPlayerStates) {
     await updatePlayerState(
@@ -478,7 +486,7 @@ export async function syncUp(session: Session, force: boolean = false) {
     );
   }
 
-  console.debug("[Sync] server request(s) complete");
+  console.debug("[SyncUp] server request(s) complete");
 
   await db
     .insert(schema.servers)
@@ -494,7 +502,7 @@ export async function syncUp(session: Session, force: boolean = false) {
       },
     });
 
-  console.debug("[Sync] up sync complete");
+  console.debug("[SyncUp] sync complete");
 }
 
 const groupBy = <T, K extends keyof any, V>(

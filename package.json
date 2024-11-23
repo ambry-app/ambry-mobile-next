@@ -96,8 +96,5 @@
     "react-test-renderer": "18.3.1",
     "typescript": "^5.7.2"
   },
-  "private": true,
-  "patchedDependencies": {
-    "react-native-screens@4.1.0": "patches/react-native-screens@4.1.0.patch"
-  }
+  "private": true
 }
