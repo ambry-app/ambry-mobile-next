@@ -20,7 +20,7 @@ import {
   useOtherBooksInSeries,
   useOtherMediaByNarrator,
 } from "@/src/db/library";
-import { syncDown } from "@/src/db/sync";
+import { syncDownUser } from "@/src/db/sync";
 import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
 import { startDownload, useDownloads } from "@/src/stores/downloads";
 import { loadMedia, requestExpandPlayer } from "@/src/stores/player";
@@ -351,7 +351,7 @@ function ActionBar({ mediaId, session }: ActionBarProps) {
               style={{ padding: 8 }}
               color={colors.zinc[100]}
               onPress={async () => {
-                await syncDown(session, true);
+                await syncDownUser(session, true);
                 await loadMedia(session, media.id);
                 requestExpandPlayer();
               }}
@@ -379,7 +379,7 @@ function ActionBar({ mediaId, session }: ActionBarProps) {
               style={{ padding: 8 }}
               color={colors.zinc[100]}
               onPress={async () => {
-                await syncDown(session, true);
+                await syncDownUser(session, true);
                 await loadMedia(session, media.id);
                 requestExpandPlayer();
               }}

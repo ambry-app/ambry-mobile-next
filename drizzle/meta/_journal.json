@@ -64,6 +64,13 @@
       "when": 1730677947305,
       "tag": "0008_hard_raider",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1732385138048,
+      "tag": "0009_aberrant_sprite",
+      "breakpoints": true
     }
   ]
 }

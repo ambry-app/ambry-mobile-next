@@ -1,20 +1,19 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
-import { getChangesSince, updatePlayerState } from "@/src/graphql/api";
+import {
+  getLibraryChangesSince,
+  getUserChangesSince,
+  updatePlayerState,
+} from "@/src/graphql/api";
 import { Session } from "@/src/stores/session";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 
 export function useLastDownSync(session: Session) {
   const query = db
-    .select({ lastDownSync: schema.servers.lastDownSync })
-    .from(schema.servers)
-    .where(
-      and(
-        eq(schema.servers.url, session.url),
-        eq(schema.servers.userEmail, session.email),
-      ),
-    )
+    .select({ lastDownSync: schema.syncedServers.lastDownSync })
+    .from(schema.syncedServers)
+    .where(eq(schema.syncedServers.url, session.url))
     .limit(1);
 
   const { data } = useLiveQuery(query);
@@ -35,16 +34,23 @@ const deletionsTables = {
 };
 
 export async function syncDown(session: Session, force: boolean = false) {
-  console.debug("[SyncDown] syncing...");
+  return Promise.all([
+    syncDownLibrary(session, force),
+    syncDownUser(session, force),
+  ]);
+}
 
-  const server = await db.query.servers.findFirst({
-    where: and(
-      eq(schema.servers.url, session.url),
-      eq(schema.servers.userEmail, session.email),
-    ),
+export async function syncDownLibrary(
+  session: Session,
+  force: boolean = false,
+) {
+  console.debug("[SyncDown] syncing library...");
+
+  const syncedServer = await db.query.syncedServers.findFirst({
+    where: eq(schema.syncedServers.url, session.url),
   });
 
-  const lastSync = server?.lastDownSync;
+  const lastSync = syncedServer?.lastDownSync;
 
   if (lastSync) {
     // WARNING: treating server-time and client-time as the same
@@ -52,16 +58,18 @@ export async function syncDown(session: Session, force: boolean = false) {
     const now = Date.now();
     const lastSyncTime = lastSync.getTime();
     if (now - lastSyncTime < 60 * 1000 && !force) {
-      console.debug("[SyncDown] synced less than a minute ago, skipping sync");
+      console.debug(
+        "[SyncDown] library synced less than a minute ago, skipping sync",
+      );
       return;
     }
   }
 
-  const allChanges = await getChangesSince(session, lastSync);
+  const changes = await getLibraryChangesSince(session, lastSync);
 
-  if (!allChanges) return;
+  if (!changes) return;
 
-  const peopleValues = allChanges.peopleChangedSince.map((person) => {
+  const peopleValues = changes.peopleChangedSince.map((person) => {
     return {
       url: session.url,
       id: person.id,
@@ -73,7 +81,7 @@ export async function syncDown(session: Session, force: boolean = false) {
     };
   });
 
-  const authorValues = allChanges.authorsChangedSince.map((author) => {
+  const authorValues = changes.authorsChangedSince.map((author) => {
     return {
       url: session.url,
       id: author.id,
@@ -84,7 +92,7 @@ export async function syncDown(session: Session, force: boolean = false) {
     };
   });
 
-  const narratorValues = allChanges.narratorsChangedSince.map((narrator) => {
+  const narratorValues = changes.narratorsChangedSince.map((narrator) => {
     return {
       url: session.url,
       id: narrator.id,
@@ -95,7 +103,7 @@ export async function syncDown(session: Session, force: boolean = false) {
     };
   });
 
-  const booksValues = allChanges.booksChangedSince.map((book) => {
+  const booksValues = changes.booksChangedSince.map((book) => {
     return {
       url: session.url,
       id: book.id,
@@ -110,7 +118,7 @@ export async function syncDown(session: Session, force: boolean = false) {
     };
   });
 
-  const bookAuthorsValues = allChanges.bookAuthorsChangedSince.map(
+  const bookAuthorsValues = changes.bookAuthorsChangedSince.map(
     (bookAuthor) => {
       return {
         url: session.url,
@@ -123,7 +131,7 @@ export async function syncDown(session: Session, force: boolean = false) {
     },
   );
 
-  const seriesValues = allChanges.seriesChangedSince.map((series) => {
+  const seriesValues = changes.seriesChangedSince.map((series) => {
     return {
       url: session.url,
       id: series.id,
@@ -133,7 +141,7 @@ export async function syncDown(session: Session, force: boolean = false) {
     };
   });
 
-  const seriesBooksValues = allChanges.seriesBooksChangedSince.map(
+  const seriesBooksValues = changes.seriesBooksChangedSince.map(
     (seriesBook) => {
       return {
         url: session.url,
@@ -147,7 +155,7 @@ export async function syncDown(session: Session, force: boolean = false) {
     },
   );
 
-  const mediaValues = allChanges.mediaChangedSince.map((media) => {
+  const mediaValues = changes.mediaChangedSince.map((media) => {
     return {
       url: session.url,
       id: media.id,
@@ -179,7 +187,7 @@ export async function syncDown(session: Session, force: boolean = false) {
     };
   });
 
-  const mediaNarratorsValues = allChanges.mediaNarratorsChangedSince.map(
+  const mediaNarratorsValues = changes.mediaNarratorsChangedSince.map(
     (mediaNarrator) => {
       return {
         url: session.url,
@@ -192,27 +200,8 @@ export async function syncDown(session: Session, force: boolean = false) {
     },
   );
 
-  const playerStatesValues = allChanges.playerStatesChangedSince.map(
-    (playerState) => {
-      return {
-        url: session.url,
-        id: playerState.id,
-        userEmail: session.email,
-        mediaId: playerState.media.id,
-        status: playerState.status.toLowerCase() as
-          | "not_started"
-          | "in_progress"
-          | "finished",
-        playbackRate: playerState.playbackRate,
-        position: playerState.position,
-        insertedAt: new Date(playerState.insertedAt),
-        updatedAt: new Date(playerState.updatedAt),
-      };
-    },
-  );
-
   const deletionIds = groupBy(
-    allChanges.deletionsSince,
+    changes.deletionsSince,
     (deletion) => deletion.type as string,
     (deletion) => deletion.recordId,
   );
@@ -386,6 +375,107 @@ export async function syncDown(session: Session, force: boolean = false) {
       console.debug("[SyncDown] media narrators inserted");
     }
 
+    for (const [deletionType, table] of Object.entries(deletionsTables)) {
+      if (deletionIds[deletionType]) {
+        console.debug(
+          "[SyncDown] deleting",
+          deletionIds[deletionType].length,
+          deletionType,
+        );
+        await tx
+          .delete(table)
+          .where(inArray(table.id, deletionIds[deletionType]));
+        console.debug("[SyncDown] deleted", deletionType);
+      }
+    }
+
+    const serverTime = new Date(changes.serverTime);
+
+    const countChanges =
+      changes.authorsChangedSince.length +
+      changes.bookAuthorsChangedSince.length +
+      changes.booksChangedSince.length +
+      changes.deletionsSince.length +
+      changes.mediaChangedSince.length +
+      changes.mediaNarratorsChangedSince.length +
+      changes.narratorsChangedSince.length +
+      changes.peopleChangedSince.length +
+      changes.seriesBooksChangedSince.length +
+      changes.seriesChangedSince.length;
+
+    const newDataAsOf =
+      countChanges > 0 || syncedServer === undefined
+        ? serverTime
+        : syncedServer.newDataAsOf;
+
+    await tx
+      .insert(schema.syncedServers)
+      .values({
+        url: session.url,
+        lastDownSync: serverTime,
+        newDataAsOf: newDataAsOf,
+      })
+      .onConflictDoUpdate({
+        target: [schema.syncedServers.url],
+        set: {
+          lastDownSync: sql`excluded.last_down_sync`,
+          newDataAsOf: sql`excluded.new_data_as_of`,
+        },
+      });
+  });
+
+  console.debug("[SyncDown] library sync complete");
+}
+
+export async function syncDownUser(session: Session, force: boolean = false) {
+  console.debug("[SyncDown] syncing user player states...");
+
+  const serverProfile = await db.query.serverProfiles.findFirst({
+    where: and(
+      eq(schema.serverProfiles.url, session.url),
+      eq(schema.serverProfiles.userEmail, session.email),
+    ),
+  });
+
+  const lastSync = serverProfile?.lastDownSync;
+
+  if (lastSync) {
+    // WARNING: treating server-time and client-time as the same
+    // but it's ok because this is just a debounce
+    const now = Date.now();
+    const lastSyncTime = lastSync.getTime();
+    if (now - lastSyncTime < 60 * 1000 && !force) {
+      console.debug(
+        "[SyncDown] user player states synced less than a minute ago, skipping sync",
+      );
+      return;
+    }
+  }
+
+  const changes = await getUserChangesSince(session, lastSync);
+
+  if (!changes) return;
+
+  const playerStatesValues = changes.playerStatesChangedSince.map(
+    (playerState) => {
+      return {
+        url: session.url,
+        id: playerState.id,
+        userEmail: session.email,
+        mediaId: playerState.media.id,
+        status: playerState.status.toLowerCase() as
+          | "not_started"
+          | "in_progress"
+          | "finished",
+        playbackRate: playerState.playbackRate,
+        position: playerState.position,
+        insertedAt: new Date(playerState.insertedAt),
+        updatedAt: new Date(playerState.updatedAt),
+      };
+    },
+  );
+
+  await db.transaction(async (tx) => {
     if (playerStatesValues.length !== 0) {
       console.debug(
         "[SyncDown] inserting",
@@ -407,45 +497,42 @@ export async function syncDown(session: Session, force: boolean = false) {
       console.debug("[SyncDown] player states inserted");
     }
 
-    for (const [deletionType, table] of Object.entries(deletionsTables)) {
-      if (deletionIds[deletionType]) {
-        console.debug(
-          "[SyncDown] deleting",
-          deletionIds[deletionType].length,
-          deletionType,
-        );
-        await tx
-          .delete(table)
-          .where(inArray(table.id, deletionIds[deletionType]));
-        console.debug("[SyncDown] deleted", deletionType);
-      }
-    }
+    const serverTime = new Date(changes.serverTime);
+
+    const countChanges = changes.playerStatesChangedSince.length;
+
+    const newDataAsOf =
+      countChanges > 0 || serverProfile === undefined
+        ? serverTime
+        : serverProfile.newDataAsOf;
 
     await tx
-      .insert(schema.servers)
+      .insert(schema.serverProfiles)
       .values({
         url: session.url,
         userEmail: session.email,
-        lastDownSync: new Date(allChanges.serverTime),
+        lastDownSync: serverTime,
+        newDataAsOf: newDataAsOf,
       })
       .onConflictDoUpdate({
-        target: [schema.servers.url, schema.servers.userEmail],
+        target: [schema.serverProfiles.url, schema.serverProfiles.userEmail],
         set: {
           lastDownSync: sql`excluded.last_down_sync`,
+          newDataAsOf: sql`excluded.new_data_as_of`,
         },
       });
   });
 
-  console.debug("[SyncDown] sync complete");
+  console.debug("[SyncDown] user player state sync complete");
 }
 
 export async function syncUp(session: Session, force: boolean = false) {
   console.debug("[SyncUp] syncing...");
 
-  const server = await db.query.servers.findFirst({
+  const server = await db.query.serverProfiles.findFirst({
     where: and(
-      eq(schema.servers.url, session.url),
-      eq(schema.servers.userEmail, session.email),
+      eq(schema.serverProfiles.url, session.url),
+      eq(schema.serverProfiles.userEmail, session.email),
     ),
   });
 
@@ -489,14 +576,14 @@ export async function syncUp(session: Session, force: boolean = false) {
   console.debug("[SyncUp] server request(s) complete");
 
   await db
-    .insert(schema.servers)
+    .insert(schema.serverProfiles)
     .values({
       url: session.url,
       userEmail: session.email,
       lastUpSync: now,
     })
     .onConflictDoUpdate({
-      target: [schema.servers.url, schema.servers.userEmail],
+      target: [schema.serverProfiles.url, schema.serverProfiles.userEmail],
       set: {
         lastUpSync: sql`excluded.last_up_sync`,
       },

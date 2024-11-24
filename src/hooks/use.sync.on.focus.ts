@@ -1,4 +1,4 @@
-import { syncDown } from "@/src/db/sync";
+import { syncDownLibrary } from "@/src/db/sync";
 import { useSession } from "@/src/stores/session";
 import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
@@ -12,8 +12,8 @@ export default function useSyncOnFocus() {
 
       // sync in background
       // if network is down, we just ignore the error
-      syncDown(session).catch((error) => {
-        console.error("sync error:", error);
+      syncDownLibrary(session).catch((error) => {
+        console.warn("[useSyncOnFocus] sync error:", error);
       });
     }, [session]),
   );
