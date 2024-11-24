@@ -3,15 +3,18 @@ import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { eq, is } from "drizzle-orm";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
-import { AnySQLiteSelect } from "drizzle-orm/sqlite-core";
 import { SQLiteRelationalQuery } from "drizzle-orm/sqlite-core/query-builders/query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
-export default function useSyncedDataQuery<
-  T extends
-    | Pick<AnySQLiteSelect, "_" | "then">
-    | SQLiteRelationalQuery<"sync", unknown>,
->(session: Session, query: T, additionalDeps: unknown[] = []) {
+type LiveQueryParams = Parameters<typeof useLiveQuery>;
+type Query = LiveQueryParams[0];
+type Deps = LiveQueryParams[1];
+
+export default function useSyncedDataQuery<T extends Query>(
+  session: Session,
+  query: T,
+  additionalDeps: Deps = [],
+) {
   const syncedServersQuery = db
     .select({ newDataAsOf: schema.syncedServers.newDataAsOf })
     .from(schema.syncedServers)

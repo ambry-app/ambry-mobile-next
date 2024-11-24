@@ -43,15 +43,7 @@ export function useDownloadsList(session: Session) {
     },
   });
 
-  const { data, ...rest } = useFadeInQuery(query, [
-    "downloads",
-    "media",
-    "media_narrators",
-    "narrators",
-    "books",
-    "book_authors",
-    "authors",
-  ]);
+  const { data, ...rest } = useFadeInQuery(query);
 
   return { downloads: data, ...rest };
 }
@@ -66,7 +58,7 @@ export function useDownload(session: Session, mediaId: string) {
     ),
   });
 
-  const { data: download, ...rest } = useFadeInQuery(query, ["downloads"]);
+  const { data: download, ...rest } = useFadeInQuery(query);
 
   return { download, ...rest };
 }
