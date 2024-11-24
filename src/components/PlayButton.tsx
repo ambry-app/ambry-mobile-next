@@ -14,7 +14,7 @@ type PlayButtonProps = {
 export default function PlayButton(props: PlayButtonProps) {
   const { size, color, style } = props;
   const state = usePlayer((state) => state.state);
-  const [debouncedState] = useDebounce(state, 50);
+  const [debouncedState] = useDebounce(state, 100);
   const icon = stateIcon(debouncedState);
 
   if (!debouncedState || !icon || icon === "spinner") {
