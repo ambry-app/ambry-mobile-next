@@ -3,7 +3,7 @@ import Loading from "@/src/components/Loading";
 import { useScreen } from "@/src/stores/screen";
 import { clearError, signIn, useSession } from "@/src/stores/session";
 import { Redirect } from "expo-router";
-import React, { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import colors from "tailwindcss/colors";

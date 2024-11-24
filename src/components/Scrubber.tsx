@@ -1,5 +1,5 @@
 import AnimatedText from "@/src/components/AnimatedText";
-import React, { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, StyleSheet } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {

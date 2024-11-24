@@ -41,7 +41,6 @@ export default function useSyncedDataQuery<T extends Query>(
       setUpdatedAt(new Date());
     };
 
-    console.debug("[useSyncedDataQuery] executing query");
     query.then(handleData).catch(setError);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps

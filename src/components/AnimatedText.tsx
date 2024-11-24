@@ -1,7 +1,6 @@
 // yanked from react-native-redash:
 // https://github.com/wcandillon/react-native-redash/blob/fd0b0ddb3b4c10ae88cf1f8a95890c7c5eb3c475/src/ReText.tsx
 
-import React from "react";
 import type { TextProps as RNTextProps, TextInputProps } from "react-native";
 import { StyleSheet, TextInput } from "react-native";
 import Animated, {
