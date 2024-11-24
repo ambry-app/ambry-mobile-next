@@ -19,6 +19,11 @@
     "generate-migrations": "bunx drizzle-kit generate"
   },
   "expo": {
+    "install": {
+      "exclude": [
+        "react-native-screens"
+      ]
+    },
     "doctor": {
       "reactNativeDirectoryCheck": {
         "exclude": [
