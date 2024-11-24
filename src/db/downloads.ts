@@ -111,6 +111,7 @@ export async function updateDownload(
 }
 
 export async function deleteDownload(session: Session, mediaId: string) {
+  console.debug("[Downloads] Deleting download from database", mediaId);
   await db
     .delete(schema.downloads)
     .where(

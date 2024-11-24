@@ -1,5 +1,6 @@
 import IconButton from "@/src/components/IconButton";
 import Loading from "@/src/components/Loading";
+import ScreenCentered from "@/src/components/ScreenCentered";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
 import TitleAuthorsNarrators from "@/src/components/TitleAuthorNarrator";
 import { ListedDownload, useDownloadsList } from "@/src/db/downloads";
@@ -9,7 +10,7 @@ import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import * as FileSystem from "expo-file-system";
 import { Link, router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Animated from "react-native-reanimated";
 import colors from "tailwindcss/colors";
 
@@ -26,18 +27,21 @@ function DownloadsList({ session }: { session: Session }) {
 
   if (updatedAt !== undefined && downloads.length === 0) {
     return (
-      <View className="flex-1 justify-center items-center">
-        <Text className="text-zinc-100 text-xl">
+      <ScreenCentered>
+        <Text style={styles.noDownloadsText}>
           You have no downloaded audiobooks.
         </Text>
-        <Text className="text-zinc-100 text-xl">
+        <Text style={styles.noDownloadsText}>
           Go to the{" "}
-          <Link href="/(app)/(tabs)/(library)" className="text-lime-400">
+          <Link
+            href="/(app)/(tabs)/(library)"
+            style={styles.noDownloadsLinkText}
+          >
             library
           </Link>{" "}
           to download some!
         </Text>
-      </View>
+      </ScreenCentered>
     );
   }
 
@@ -46,19 +50,16 @@ function DownloadsList({ session }: { session: Session }) {
       style={{ opacity }}
       data={downloads}
       keyExtractor={(download) => download.media.id}
-      renderItem={({ item }) => (
-        <DownloadRow session={session} download={item} />
-      )}
+      renderItem={({ item }) => <DownloadRow download={item} />}
     />
   );
 }
 
 type DownloadRowProps = {
-  session: Session;
   download: ListedDownload;
 };
 
-function DownloadRow({ session, download }: DownloadRowProps) {
+function DownloadRow({ download }: DownloadRowProps) {
   const progress = useDownloads(
     (state) => state.downloadProgresses[download.media.id],
   );
@@ -83,8 +84,8 @@ function DownloadRow({ session, download }: DownloadRowProps) {
   };
 
   return (
-    <View>
-      <View className="p-4 flex flex-row items-center gap-4 border-b-[0.25px] border-zinc-600">
+    <>
+      <View style={styles.downloadRowContainer}>
         <TouchableOpacity onPress={navigateToBook}>
           <ThumbnailImage
             downloadedThumbnails={download.thumbnails}
@@ -93,7 +94,7 @@ function DownloadRow({ session, download }: DownloadRowProps) {
             style={{ width: 70, height: 70, borderRadius: 6 }}
           />
         </TouchableOpacity>
-        <View className="flex-1">
+        <View style={styles.downloadRowDetails}>
           <TouchableOpacity onPress={navigateToBook}>
             <TitleAuthorsNarrators
               baseFontSize={14}
@@ -128,12 +129,9 @@ function DownloadRow({ session, download }: DownloadRowProps) {
         </View>
       </View>
       {progress !== undefined && (
-        <View
-          className="absolute h-1 bg-lime-400 left-0 bottom-0"
-          style={{ width: `${progress * 100}%` }}
-        />
+        <View style={[styles.progressBar, { width: `${progress * 100}%` }]} />
       )}
-    </View>
+    </>
   );
 }
 
@@ -153,15 +151,16 @@ function FileSize({ download }: { download: ListedDownload }) {
     })();
   }, [download.filePath]);
 
-  if (!size) return null;
-  if (isMissing)
-    return (
-      <Text className="text-xs text-red-500 leading-tight">
-        file is missing!
-      </Text>
-    );
+  if (isMissing) return <Text style={styles.errorText}>file is missing!</Text>;
 
-  return <Text className="text-xs text-zinc-400 leading-tight">{size}</Text>;
+  if (!size) return null;
+
+  return (
+    <Text style={styles.fileSizeText} numberOfLines={1}>
+      {size} and some more text here and some more text here and some more text
+      here and some more text here and some more text here
+    </Text>
+  );
 }
 
 function formatBytes(bytes: number, decimals = 2) {
@@ -185,3 +184,43 @@ function formatBytes(bytes: number, decimals = 2) {
 
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }
+
+const styles = StyleSheet.create({
+  noDownloadsText: {
+    color: colors.zinc[100],
+    fontSize: 18,
+    textAlign: "center",
+  },
+  noDownloadsLinkText: {
+    color: colors.lime[400],
+  },
+  errorText: {
+    color: colors.red[500],
+    fontSize: 10,
+  },
+  fileSizeText: {
+    color: colors.zinc[400],
+    fontSize: 10,
+  },
+  progressBar: {
+    position: "absolute",
+    height: 4,
+    backgroundColor: colors.lime[400],
+    left: 0,
+    bottom: 0,
+  },
+  downloadRowContainer: {
+    padding: 14,
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.zinc[600],
+  },
+  downloadRowDetails: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+  },
+});
