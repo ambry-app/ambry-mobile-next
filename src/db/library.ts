@@ -29,7 +29,7 @@ export function useMediaList(session: Session) {
     orderBy: desc(schema.media.insertedAt),
     with: {
       download: {
-        columns: { status: true, thumbnails: true },
+        columns: { thumbnails: true },
       },
       mediaNarrators: {
         columns: { id: true },
@@ -82,7 +82,7 @@ export function useMediaDetails(session: Session, mediaId: string) {
     where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
     with: {
       download: {
-        columns: { status: true, thumbnails: true },
+        columns: { thumbnails: true },
       },
       mediaNarrators: {
         columns: { id: true },
@@ -619,6 +619,11 @@ export function useMediaHeaderInfo(session: Session, mediaId: string) {
   return { media: data, ...rest };
 }
 
+export type ActionBarMedia = Exclude<
+  ReturnType<typeof useMediaActionBarInfo>["media"],
+  undefined
+>;
+
 export function useMediaActionBarInfo(session: Session, mediaId: string) {
   const query = db.query.media.findFirst({
     columns: {
@@ -627,11 +632,6 @@ export function useMediaActionBarInfo(session: Session, mediaId: string) {
       mp4Path: true,
     },
     where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
-    with: {
-      download: {
-        columns: { status: true },
-      },
-    },
   });
 
   const { data, ...rest } = useFadeInSyncedDataQuery(session, query);
