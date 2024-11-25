@@ -1,8 +1,8 @@
 import NamesList from "@/src/components/NamesList";
 import { BookDetails } from "@/src/db/library";
+import { Colors } from "@/src/styles";
 import { formatPublished } from "@/src/utils/date";
 import { StyleSheet, Text, View } from "react-native";
-import colors from "tailwindcss/colors";
 
 type HeaderProps = { book: BookDetails };
 
@@ -37,14 +37,14 @@ const styles = StyleSheet.create({
   authorsList: {
     fontSize: 18,
     fontWeight: 500,
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
   },
   publishedText: {
-    color: colors.zinc[300],
+    color: Colors.zinc[300],
   },
   editionsText: {
     fontSize: 22,
     fontWeight: 500,
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
   },
 });

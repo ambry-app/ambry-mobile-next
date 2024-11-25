@@ -2,13 +2,13 @@ import Button from "@/src/components/Button";
 import * as schema from "@/src/db/schema";
 import useBackHandler from "@/src/hooks/use.back.handler";
 import { seekTo, usePlayer } from "@/src/stores/player";
+import { Colors } from "@/src/styles";
 import { secondsDisplay } from "@/src/utils/time";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 import { useCallback, useRef } from "react";
 import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import colors from "tailwindcss/colors";
 
 const chapterRowHeight = 54;
 
@@ -84,7 +84,7 @@ function Chapter({ chapter, currentChapterId }: ChapterProps) {
               <FontAwesome6
                 name="volume-high"
                 size={16}
-                color={colors.zinc[100]}
+                color={Colors.zinc[100]}
               />
             )}
           </View>
@@ -102,7 +102,7 @@ function Chapter({ chapter, currentChapterId }: ChapterProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Platform.OS === "android" ? colors.zinc[950] : undefined,
+    backgroundColor: Platform.OS === "android" ? Colors.zinc[950] : undefined,
     height: "100%",
   },
   chapterList: {
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   },
   chapterButton: {
     paddingVertical: 16,
-    borderColor: colors.zinc[600],
+    borderColor: Colors.zinc[600],
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   chapterRow: {
@@ -124,10 +124,10 @@ const styles = StyleSheet.create({
   chapterTitle: {
     flex: 1,
     fontSize: 16,
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
   },
   chapterTime: {
-    color: colors.zinc[400],
+    color: Colors.zinc[400],
   },
   iconContainer: {
     height: 16,

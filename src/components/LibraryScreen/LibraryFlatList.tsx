@@ -4,9 +4,9 @@ import { MediaTile } from "@/src/components/Tiles";
 import { useMediaList } from "@/src/db/library";
 import { useLastDownSync } from "@/src/db/sync";
 import { Session } from "@/src/stores/session";
+import { Colors } from "@/src/styles";
 import { StyleSheet, Text } from "react-native";
 import Animated from "react-native-reanimated";
-import colors from "tailwindcss/colors";
 
 type LibraryFlatlistProps = {
   session: Session;
@@ -49,7 +49,7 @@ export default function LibraryFlatlist({ session }: LibraryFlatlistProps) {
 
 const styles = StyleSheet.create({
   text: {
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
   },
   flatlist: {
     padding: 8,

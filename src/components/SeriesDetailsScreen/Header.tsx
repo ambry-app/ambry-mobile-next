@@ -1,6 +1,6 @@
 import NamesList from "@/src/components/NamesList";
+import { Colors } from "@/src/styles";
 import { StyleSheet, View } from "react-native";
-import colors from "tailwindcss/colors";
 import { AuthorOrNarrator } from "./SeriesDetailsFlatList";
 
 type HeaderProps = {
@@ -34,10 +34,10 @@ const styles = StyleSheet.create({
   authors: {
     fontSize: 18,
     fontWeight: "500",
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
   },
   narrators: {
     fontSize: 14,
-    color: colors.zinc[300],
+    color: Colors.zinc[300],
   },
 });

@@ -1,5 +1,5 @@
+import { Colors } from "@/src/styles";
 import { StyleSheet, Text } from "react-native";
-import colors from "tailwindcss/colors";
 import NamesList from "./NamesList";
 
 type TitleAuthorsNarratorsProps = {
@@ -49,12 +49,12 @@ export default function TitleAuthorsNarrators(
 
 const styles = StyleSheet.create({
   title: {
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
   },
   authors: {
-    color: colors.zinc[300],
+    color: Colors.zinc[300],
   },
   narrators: {
-    color: colors.zinc[400],
+    color: Colors.zinc[400],
   },
 });

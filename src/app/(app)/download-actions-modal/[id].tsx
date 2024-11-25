@@ -1,8 +1,8 @@
 import DownloadActions from "@/src/components/DownloadActionsModal/DownloadActions";
 import { useSession } from "@/src/stores/session";
+import { Colors } from "@/src/styles";
 import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import colors from "tailwindcss/colors";
 
 export default function DownloadActionsModal() {
   const { bottom } = useSafeAreaInsets();
@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: colors.zinc[500],
+    backgroundColor: Colors.zinc[500],
     borderRadius: 999,
     marginHorizontal: "auto",
     marginTop: 8,

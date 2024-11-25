@@ -2,9 +2,9 @@ import TabBar from "@/src/components/TabBar";
 import TabBarWithPlayer from "@/src/components/TabBarWithPlayer";
 import { usePlayer } from "@/src/stores/player";
 import { Session, useSession } from "@/src/stores/session";
+import { Colors } from "@/src/styles";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { Tabs } from "expo-router";
-import colors from "tailwindcss/colors";
 
 export default function AppTabLayout() {
   const session = useSession((state) => state.session);
@@ -22,7 +22,7 @@ function AppTabs({ session }: { session: Session }) {
     <Tabs
       screenOptions={{
         animation: "shift",
-        tabBarActiveTintColor: colors.lime[400],
+        tabBarActiveTintColor: Colors.lime[400],
         tabBarStyle: playerVisible ? { borderTopWidth: 0 } : {},
         tabBarLabelStyle: { paddingBottom: 4 },
       }}

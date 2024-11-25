@@ -2,10 +2,10 @@ import NamesList from "@/src/components/NamesList";
 import ThumbnailImage from "@/src/components/ThumbnailImage";
 import { useMediaHeaderInfo } from "@/src/db/library";
 import { Session } from "@/src/stores/session";
+import { Colors } from "@/src/styles";
 import { durationDisplay } from "@/src/utils/time";
 import { StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
-import colors from "tailwindcss/colors";
 
 type HeaderProps = {
   mediaId: string;
@@ -69,23 +69,23 @@ const styles = StyleSheet.create({
   },
   titleText: {
     fontSize: 22,
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
     fontWeight: "bold",
   },
   seriesText: {
     fontSize: 16,
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
   },
   authorsText: {
     fontSize: 16,
-    color: colors.zinc[300],
+    color: Colors.zinc[300],
   },
   narratorText: {
     fontSize: 14,
-    color: colors.zinc[400],
+    color: Colors.zinc[400],
   },
   durationText: {
-    color: colors.zinc[500],
+    color: Colors.zinc[500],
     fontStyle: "italic",
   },
 });

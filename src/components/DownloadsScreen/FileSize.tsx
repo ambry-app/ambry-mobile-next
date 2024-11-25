@@ -1,8 +1,8 @@
 import { ListedDownload } from "@/src/db/downloads";
+import { Colors } from "@/src/styles";
 import * as FileSystem from "expo-file-system";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text } from "react-native";
-import colors from "tailwindcss/colors";
 
 export default function FileSize({ download }: { download: ListedDownload }) {
   const [size, setSize] = useState<string | null>(null);
@@ -56,11 +56,11 @@ function formatBytes(bytes: number, decimals = 2) {
 
 const styles = StyleSheet.create({
   text: {
-    color: colors.zinc[400],
+    color: Colors.zinc[400],
     fontSize: 10,
   },
   errorText: {
-    color: colors.red[500],
+    color: Colors.red[500],
     fontSize: 10,
   },
 });

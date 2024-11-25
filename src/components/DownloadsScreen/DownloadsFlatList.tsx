@@ -2,10 +2,10 @@ import DownloadRow from "@/src/components/DownloadsScreen/DownloadRow";
 import ScreenCentered from "@/src/components/ScreenCentered";
 import { useDownloadsList } from "@/src/db/downloads";
 import { Session } from "@/src/stores/session";
+import { Colors } from "@/src/styles";
 import { Link } from "expo-router";
 import { StyleSheet, Text } from "react-native";
 import Animated from "react-native-reanimated";
-import colors from "tailwindcss/colors";
 
 export default function DownloadsFlatList({ session }: { session: Session }) {
   const { downloads, updatedAt, opacity } = useDownloadsList(session);
@@ -42,11 +42,11 @@ export default function DownloadsFlatList({ session }: { session: Session }) {
 
 const styles = StyleSheet.create({
   noDownloadsText: {
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
     fontSize: 18,
     textAlign: "center",
   },
   noDownloadsLinkText: {
-    color: colors.lime[400],
+    color: Colors.lime[400],
   },
 });

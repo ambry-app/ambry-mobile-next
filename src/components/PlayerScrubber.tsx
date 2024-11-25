@@ -1,5 +1,5 @@
 import { seekTo, usePlayer } from "@/src/stores/player";
-import colors from "tailwindcss/colors";
+import { Colors } from "@/src/styles";
 import { useShallow } from "zustand/react/shallow";
 import Scrubber from "./Scrubber";
 
@@ -13,12 +13,12 @@ export default function PlayerScrubber() {
     })),
   );
   const theme = {
-    accent: colors.lime[400],
-    strong: colors.gray[100],
-    emphasized: colors.gray[200],
-    normal: colors.gray[400],
-    dimmed: colors.gray[500],
-    weak: colors.gray[800],
+    accent: Colors.lime[400],
+    strong: Colors.zinc[100],
+    emphasized: Colors.zinc[200],
+    normal: Colors.zinc[400],
+    dimmed: Colors.zinc[500],
+    weak: Colors.zinc[800],
   };
   const markers =
     chapterState?.chapters.map((chapter) => chapter.startTime) || [];

@@ -5,10 +5,10 @@ import { syncDownUser } from "@/src/db/sync";
 import { startDownload, useDownloads } from "@/src/stores/downloads";
 import { loadMedia, requestExpandPlayer } from "@/src/stores/player";
 import { Session } from "@/src/stores/session";
+import { Colors } from "@/src/styles";
 import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
-import colors from "tailwindcss/colors";
 
 type ActionBarProps = {
   mediaId: string;
@@ -48,7 +48,7 @@ export default function ActionBar({ mediaId, session }: ActionBarProps) {
               icon="play-circle"
               size={32}
               style={styles.button}
-              color={colors.zinc[100]}
+              color={Colors.zinc[100]}
               onPress={async () => {
                 await syncDownUser(session, true);
                 await loadMedia(session, media.id);
@@ -74,7 +74,7 @@ export default function ActionBar({ mediaId, session }: ActionBarProps) {
               icon="play-circle"
               size={32}
               style={styles.button}
-              color={colors.zinc[100]}
+              color={Colors.zinc[100]}
               onPress={async () => {
                 await syncDownUser(session, true);
                 await loadMedia(session, media.id);
@@ -89,7 +89,7 @@ export default function ActionBar({ mediaId, session }: ActionBarProps) {
               icon="download"
               size={32}
               style={styles.button}
-              color={colors.zinc[100]}
+              color={Colors.zinc[100]}
               onPress={() => {
                 if (!media.mp4Path) return;
                 startDownload(
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   inProgressContainer: {
     display: "flex",
     flexDirection: "row",
-    backgroundColor: colors.zinc[900],
+    backgroundColor: Colors.zinc[900],
     borderRadius: 12,
     alignItems: "center",
     marginTop: 32,
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   },
   inProgressButtonLabel: {
     fontSize: 16,
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
   },
   container: {
     gap: 8,
@@ -146,19 +146,19 @@ const styles = StyleSheet.create({
   buttonOuterContainer: {
     display: "flex",
     flexDirection: "row",
-    backgroundColor: colors.zinc[900],
+    backgroundColor: Colors.zinc[900],
     borderRadius: 12,
     alignItems: "center",
   },
   buttonLabel: {
     fontSize: 16,
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
     marginTop: 8,
     lineHeight: 16,
   },
   explanationText: {
     fontSize: 12,
-    color: colors.zinc[500],
+    color: Colors.zinc[500],
   },
   buttonContainer: {
     flexGrow: 1,
@@ -168,6 +168,6 @@ const styles = StyleSheet.create({
   },
   borderRight: {
     borderRightWidth: 1,
-    borderRightColor: colors.zinc[800],
+    borderRightColor: Colors.zinc[800],
   },
 });

@@ -2,14 +2,14 @@ import Loading from "@/src/components/Loading";
 import ScreenCentered from "@/src/components/ScreenCentered";
 import { useAppBoot } from "@/src/hooks/use.app.boot";
 import { useSession } from "@/src/stores/session";
+import { Colors } from "@/src/styles";
 import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { Redirect, Stack } from "expo-router";
 import { Platform, StyleSheet } from "react-native";
-import colors from "tailwindcss/colors";
 
 const styles = StyleSheet.create({
   modalContent: {
-    backgroundColor: colors.zinc[800],
+    backgroundColor: Colors.zinc[800],
   },
 });
 

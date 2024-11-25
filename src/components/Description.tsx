@@ -1,7 +1,7 @@
+import { Colors } from "@/src/styles";
 import { useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import Markdown from "react-native-markdown-display";
-import colors from "tailwindcss/colors";
 import Button from "./Button";
 
 export default function Description({ description }: { description: string }) {
@@ -37,7 +37,7 @@ export default function Description({ description }: { description: string }) {
 
 const markdownStyles = StyleSheet.create({
   body: {
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
     fontSize: 16,
   },
 });
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   moreLess: {
-    color: colors.zinc[300],
+    color: Colors.zinc[300],
     fontSize: 16,
     textAlign: "right",
   },

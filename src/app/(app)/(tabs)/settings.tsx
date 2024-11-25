@@ -1,7 +1,7 @@
 import { useSession } from "@/src/stores/session";
+import { Colors } from "@/src/styles";
 import { router } from "expo-router";
 import { Button, StyleSheet, Text, View } from "react-native";
-import colors from "tailwindcss/colors";
 
 export default function SettingsScreen() {
   const session = useSession((state) => state.session);
@@ -18,7 +18,7 @@ export default function SettingsScreen() {
       <Button
         title="Sign out"
         onPress={() => router.replace("/sign-out")}
-        color={colors.lime[500]}
+        color={Colors.lime[500]}
       />
     </View>
   );
@@ -32,6 +32,6 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   text: {
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
   },
 });

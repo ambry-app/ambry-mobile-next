@@ -1,5 +1,5 @@
+import { Colors } from "@/src/styles";
 import { ActivityIndicator, StyleProp, ViewStyle } from "react-native";
-import colors from "tailwindcss/colors";
 
 type LoadingProps = {
   style?: StyleProp<ViewStyle>;
@@ -8,7 +8,7 @@ type LoadingProps = {
 };
 
 export default function Loading(props: LoadingProps) {
-  const { style, color = colors.zinc[100], size = "large" } = props;
+  const { style, color = Colors.zinc[100], size = "large" } = props;
 
   return (
     <ActivityIndicator

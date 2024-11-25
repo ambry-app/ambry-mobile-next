@@ -1,7 +1,7 @@
 import { PersonTile } from "@/src/components/Tiles";
 import { useScreen } from "@/src/stores/screen";
+import { Colors } from "@/src/styles";
 import { FlatList, StyleSheet, Text, View } from "react-native";
-import colors from "tailwindcss/colors";
 import { AuthorOrNarrator } from "./SeriesDetailsFlatList";
 
 type FooterProps = {
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 22,
     fontWeight: "500",
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
   },
   list: {
     paddingVertical: 8,

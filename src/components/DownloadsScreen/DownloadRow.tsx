@@ -5,10 +5,10 @@ import ThumbnailImage from "@/src/components/ThumbnailImage";
 import TitleAuthorsNarrators from "@/src/components/TitleAuthorNarrator";
 import { ListedDownload } from "@/src/db/downloads";
 import { useDownloads } from "@/src/stores/downloads";
+import { Colors } from "@/src/styles";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
-import colors from "tailwindcss/colors";
 
 type DownloadRowProps = {
   download: ListedDownload;
@@ -69,7 +69,7 @@ export default function DownloadRow({ download }: DownloadRowProps) {
             <FontAwesome6
               size={24}
               name="circle-exclamation"
-              color={colors.red[400]}
+              color={Colors.red[400]}
             />
           )}
         </View>
@@ -78,7 +78,7 @@ export default function DownloadRow({ download }: DownloadRowProps) {
           <IconButton
             size={16}
             icon="ellipsis-vertical"
-            color={colors.zinc[100]}
+            color={Colors.zinc[100]}
             onPress={openModal}
           />
         </View>
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.zinc[600],
+    borderBottomColor: Colors.zinc[600],
   },
   details: {
     flexGrow: 1,
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   progressBar: {
     position: "absolute",
     height: 4,
-    backgroundColor: colors.lime[400],
+    backgroundColor: Colors.lime[400],
     left: 0,
     bottom: 0,
   },

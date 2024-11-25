@@ -2,10 +2,10 @@ import IconButton from "@/src/components/IconButton";
 import { useDownload } from "@/src/db/downloads";
 import { cancelDownload, removeDownload } from "@/src/stores/downloads";
 import { Session } from "@/src/stores/session";
+import { Colors } from "@/src/styles";
 import { router, useLocalSearchParams } from "expo-router";
 import { StyleSheet, Text } from "react-native";
 import Animated from "react-native-reanimated";
-import colors from "tailwindcss/colors";
 
 export default function DownloadActions({ session }: { session: Session }) {
   const { id: mediaId } = useLocalSearchParams<{ id: string }>();
@@ -32,7 +32,7 @@ function DeleteButton({ session, mediaId }: ButtonProps) {
     <IconButton
       icon="trash"
       size={16}
-      color={colors.zinc[100]}
+      color={Colors.zinc[100]}
       style={styles.button}
       onPress={() => {
         removeDownload(session, mediaId);
@@ -49,7 +49,7 @@ function CancelButton({ session, mediaId }: ButtonProps) {
     <IconButton
       icon="xmark"
       size={16}
-      color={colors.zinc[100]}
+      color={Colors.zinc[100]}
       style={styles.button}
       onPress={() => {
         cancelDownload(session, mediaId);
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     gap: 24,
   },
   buttonText: {
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
     fontSize: 18,
     textAlign: "center",
   },

@@ -3,9 +3,9 @@ import {
   skipToEndOfChapter,
   usePlayer,
 } from "@/src/stores/player";
+import { Colors } from "@/src/styles";
 import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
-import colors from "tailwindcss/colors";
 import Button from "./Button";
 import IconButton from "./IconButton";
 
@@ -65,12 +65,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginHorizontal: -12, // or -20 if the below is used
-    // backgroundColor: colors.zinc[800],
+    // backgroundColor: Colors.zinc[800],
     // borderRadius: 999,
     // paddingHorizontal: 8,
   },
   chapterText: {
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
   },
   timeDisplayContainer: {
     display: "flex",
@@ -82,6 +82,6 @@ const styles = StyleSheet.create({
   },
   timeDisplayText: {
     fontSize: 12,
-    color: colors.zinc[600],
+    color: Colors.zinc[600],
   },
 });

@@ -4,11 +4,11 @@ import {
   setSleepTimerState,
   usePlayer,
 } from "@/src/stores/player";
+import { Colors } from "@/src/styles";
 import Slider from "@react-native-community/slider";
 import { useCallback, useEffect, useState } from "react";
 import { Platform, StyleSheet, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import colors from "tailwindcss/colors";
 
 function formatSeconds(seconds: number) {
   return Math.round(seconds / 60);
@@ -44,9 +44,9 @@ export default function SleepTimerModal() {
           minimumValue={300}
           maximumValue={5400}
           step={300}
-          thumbTintColor={colors.lime[400]}
-          minimumTrackTintColor={colors.zinc[400]}
-          maximumTrackTintColor={colors.zinc[400]}
+          thumbTintColor={Colors.lime[400]}
+          minimumTrackTintColor={Colors.zinc[400]}
+          maximumTrackTintColor={Colors.zinc[400]}
           onValueChange={(value) => setDisplaySleepTimerSeconds(value)}
           onSlidingComplete={(value) => setSleepTimerSecondsAndDisplay(value)}
         />
@@ -90,8 +90,8 @@ export default function SleepTimerModal() {
             Sleep Timer is {sleepTimerEnabled ? "enabled" : "disabled"}
           </Text>
           <Switch
-            trackColor={{ false: colors.zinc[400], true: colors.lime[500] }}
-            thumbColor={colors.zinc[100]}
+            trackColor={{ false: Colors.zinc[400], true: Colors.lime[500] }}
+            thumbColor={Colors.zinc[100]}
             value={sleepTimerEnabled}
             onValueChange={(value) => {
               setSleepTimerState(value);
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: colors.zinc[500],
+    backgroundColor: Colors.zinc[500],
     borderRadius: 999,
     marginHorizontal: "auto",
     marginTop: 8,
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   title: {
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
     fontSize: 18,
     textAlign: "center",
   },
@@ -151,30 +151,30 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   sleepTimerButton: {
-    backgroundColor: colors.zinc[800],
+    backgroundColor: Colors.zinc[800],
     borderRadius: 999,
     paddingHorizontal: 16,
     flexGrow: 1,
   },
   sleepTimerButtonActive: {
-    backgroundColor: colors.lime[400],
-    color: colors.black,
+    backgroundColor: Colors.lime[400],
+    color: Colors.black,
   },
   sleepTimerButtonActiveText: {
-    color: colors.black,
+    color: Colors.black,
   },
   sleepTimerEnabledText: {
-    color: colors.zinc[300],
+    color: Colors.zinc[300],
     fontSize: 16,
   },
   text: {
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
     fontSize: 12,
   },
   closeButton: {
     marginTop: 32,
   },
   closeButtonText: {
-    color: colors.lime[400],
+    color: Colors.lime[400],
   },
 });

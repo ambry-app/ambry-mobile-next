@@ -1,8 +1,8 @@
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 import { useSession } from "@/src/stores/session";
+import { Colors } from "@/src/styles";
 import { Image, ImageStyle } from "expo-image";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
-import colors from "tailwindcss/colors";
 
 type ThumbnailImageProps = {
   downloadedThumbnails?: DownloadedThumbnails | null;
@@ -57,7 +57,7 @@ export default function ThumbnailImage(props: ThumbnailImageProps) {
 const styles = StyleSheet.create({
   container: {
     overflow: "hidden",
-    backgroundColor: colors.zinc[800],
+    backgroundColor: Colors.zinc[800],
   },
   image: {
     width: "100%",

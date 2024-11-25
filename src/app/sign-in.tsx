@@ -2,11 +2,11 @@ import Logo from "@/assets/images/logo.svg";
 import Loading from "@/src/components/Loading";
 import { useScreen } from "@/src/stores/screen";
 import { clearError, signIn, useSession } from "@/src/stores/session";
+import { Colors } from "@/src/styles";
 import { Redirect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import colors from "tailwindcss/colors";
 import FocusableTextInput from "../components/FocusableTextInput";
 import IconButton from "../components/IconButton";
 
@@ -49,7 +49,7 @@ export default function SignInScreen() {
         <FocusableTextInput
           style={styles.input}
           focusedStyle={styles.inputFocused}
-          placeholderTextColor={colors.zinc[500]}
+          placeholderTextColor={Colors.zinc[500]}
           placeholder="Host"
           value={host}
           autoCapitalize="none"
@@ -68,7 +68,7 @@ export default function SignInScreen() {
           inputRef={emailInputRef}
           style={styles.input}
           focusedStyle={styles.inputFocused}
-          placeholderTextColor={colors.zinc[500]}
+          placeholderTextColor={Colors.zinc[500]}
           placeholder="Email"
           value={email}
           autoCapitalize="none"
@@ -86,7 +86,7 @@ export default function SignInScreen() {
           inputRef={passwordInputRef}
           style={styles.input}
           focusedStyle={styles.inputFocused}
-          placeholderTextColor={colors.zinc[500]}
+          placeholderTextColor={Colors.zinc[500]}
           placeholder="Password"
           value={password}
           onChangeText={(password: string) => {
@@ -104,7 +104,7 @@ export default function SignInScreen() {
         style={styles.button}
         icon="arrow-right"
         size={24}
-        color={colors.zinc[900]}
+        color={Colors.zinc[900]}
         onPress={doSignIn}
       >
         <Text style={styles.buttonText}>Sign in</Text>
@@ -128,34 +128,34 @@ const styles = StyleSheet.create({
   logoText: {
     fontSize: 16,
     fontWeight: "bold",
-    color: colors.zinc[400],
+    color: Colors.zinc[400],
     textAlign: "center",
   },
   errorText: {
-    color: colors.red[500],
+    color: Colors.red[500],
     textAlign: "center",
   },
   buttonText: {
-    color: colors.zinc[900],
+    color: Colors.zinc[900],
     fontWeight: "bold",
   },
   button: {
     flexDirection: "row-reverse",
     gap: 8,
-    backgroundColor: colors.lime[400],
+    backgroundColor: Colors.lime[400],
     borderRadius: 999,
   },
   inputsContainer: {
     gap: 16,
   },
   input: {
-    color: colors.zinc[200],
-    backgroundColor: colors.zinc[800],
+    color: Colors.zinc[200],
+    backgroundColor: Colors.zinc[800],
     borderRadius: 4,
     padding: 16,
     borderWidth: 2,
   },
   inputFocused: {
-    borderColor: colors.zinc[700],
+    borderColor: Colors.zinc[700],
   },
 });

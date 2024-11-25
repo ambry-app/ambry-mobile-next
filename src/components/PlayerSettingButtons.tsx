@@ -1,10 +1,10 @@
 import { setSleepTimerState, usePlayer } from "@/src/stores/player";
+import { Colors } from "@/src/styles";
 import { formatPlaybackRate } from "@/src/utils/rate";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import colors from "tailwindcss/colors";
 import { secondsDisplayMinutesOnly } from "../utils/time";
 import IconButton from "./IconButton";
 
@@ -32,7 +32,7 @@ export default function PlayerSettingButtons() {
       <IconButton
         icon="stopwatch"
         size={16}
-        color={colors.zinc[100]}
+        color={Colors.zinc[100]}
         style={styles.button}
         onPress={() => {
           router.navigate("/sleep-timer");
@@ -51,7 +51,7 @@ export default function PlayerSettingButtons() {
       <IconButton
         icon="gauge"
         size={16}
-        color={colors.zinc[100]}
+        color={Colors.zinc[100]}
         style={styles.button}
         onPress={() => {
           router.navigate("/playback-rate");
@@ -98,13 +98,13 @@ const styles = StyleSheet.create({
     marginHorizontal: -20,
   },
   button: {
-    backgroundColor: colors.zinc[800],
+    backgroundColor: Colors.zinc[800],
     borderRadius: 999,
     paddingHorizontal: 16,
     flexDirection: "row",
     gap: 4,
   },
   sleepTimerText: {
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
   },
 });

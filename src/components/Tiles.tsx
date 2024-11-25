@@ -1,5 +1,6 @@
 import MultiThumbnailImage from "@/src/components/MultiThumbnailImage";
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
+import { Colors } from "@/src/styles";
 import { router } from "expo-router";
 import {
   StyleProp,
@@ -9,7 +10,6 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-import colors from "tailwindcss/colors";
 import { PressableScale } from "./PressableScale";
 import ThumbnailImage from "./ThumbnailImage";
 import TitleAuthorsNarrators from "./TitleAuthorNarrator";
@@ -197,22 +197,22 @@ const styles = StyleSheet.create({
   bookNumber: {
     fontSize: 16,
     fontWeight: 500,
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
   },
   name: {
     fontSize: 16,
     fontWeight: 500,
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
     textAlign: "center",
   },
   realName: {
     fontSize: 14,
-    color: colors.zinc[300],
+    color: Colors.zinc[300],
     textAlign: "center",
   },
   label: {
     fontSize: 12,
-    color: colors.zinc[400],
+    color: Colors.zinc[400],
     textAlign: "center",
   },
 });

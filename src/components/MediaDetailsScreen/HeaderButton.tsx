@@ -1,6 +1,6 @@
 import IconButton from "@/src/components/IconButton";
+import { Colors } from "@/src/styles";
 import { StyleSheet, Text } from "react-native";
-import colors from "tailwindcss/colors";
 
 type HeaderButtonProps = {
   label: string;
@@ -12,7 +12,7 @@ export default function HeaderButton({ label, onPress }: HeaderButtonProps) {
     <IconButton
       icon="chevron-right"
       size={16}
-      color={colors.zinc[100]}
+      color={Colors.zinc[100]}
       style={styles.button}
       onPress={onPress}
     >
@@ -33,6 +33,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 22,
     fontWeight: "500",
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
   },
 });

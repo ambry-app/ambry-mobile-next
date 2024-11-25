@@ -1,10 +1,10 @@
 import Description from "@/src/components/Description";
 import { useMediaDescription } from "@/src/db/library";
 import { Session } from "@/src/stores/session";
+import { Colors } from "@/src/styles";
 import { formatPublished } from "@/src/utils/date";
 import { StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
-import colors from "tailwindcss/colors";
 
 type MediaDescriptionProps = {
   mediaId: string;
@@ -51,6 +51,6 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 12,
-    color: colors.zinc[400],
+    color: Colors.zinc[400],
   },
 });

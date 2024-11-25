@@ -1,9 +1,9 @@
 import { MediaTile } from "@/src/components/Tiles";
 import { useMediaByNarrator } from "@/src/db/library";
 import { Session } from "@/src/stores/session";
+import { Colors } from "@/src/styles";
 import { FlatList, StyleSheet, Text } from "react-native";
 import Animated from "react-native-reanimated";
-import colors from "tailwindcss/colors";
 
 type MediaByNarratorProps = {
   narratorId: string;
@@ -48,7 +48,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 22,
     fontWeight: "500",
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
   },
   list: {
     marginHorizontal: -8,

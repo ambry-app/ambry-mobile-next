@@ -2,9 +2,9 @@ import { PersonTile } from "@/src/components/Tiles";
 import { useMediaAuthorsAndNarrators } from "@/src/db/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
+import { Colors } from "@/src/styles";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
-import colors from "tailwindcss/colors";
 
 type AuthorsAndNarratorsProps = {
   mediaId: string;
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 22,
     fontWeight: "500",
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
     marginBottom: 8,
   },
   list: {

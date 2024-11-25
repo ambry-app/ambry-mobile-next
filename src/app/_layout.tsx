@@ -4,6 +4,7 @@ import Loading from "@/src/components/Loading";
 import MeasureScreenHeight from "@/src/components/MeasureScreenHeight";
 import ScreenCentered from "@/src/components/ScreenCentered";
 import { db, expoDb } from "@/src/db/db";
+import { Colors } from "@/src/styles";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
@@ -13,18 +14,17 @@ import { useEffect } from "react";
 import { StyleSheet, Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
-import colors from "tailwindcss/colors";
 
 const Theme = {
   ...DefaultTheme,
   dark: true,
   colors: {
-    primary: colors.lime[400],
-    background: colors.black,
-    card: colors.zinc[900],
-    text: colors.zinc[100],
-    border: colors.zinc[600],
-    notification: colors.red[400],
+    primary: Colors.lime[400],
+    background: Colors.black,
+    card: Colors.zinc[900],
+    text: Colors.zinc[100],
+    border: Colors.zinc[600],
+    notification: Colors.red[400],
   },
 };
 
@@ -86,6 +86,6 @@ function DrizzleStudio() {
 
 const styles = StyleSheet.create({
   text: {
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
   },
 });

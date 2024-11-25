@@ -11,6 +11,7 @@ import useBackHandler from "@/src/hooks/use.back.handler";
 import { expandPlayerHandled, usePlayer } from "@/src/stores/player";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
+import { Colors } from "@/src/styles";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { BottomTabBar, BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { router } from "expo-router";
@@ -32,7 +33,6 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import colors from "tailwindcss/colors";
 import { useShallow } from "zustand/react/shallow";
 import PlayerChapterControls from "./PlayerChapterControls";
 import PlayerSettingButtons from "./PlayerSettingButtons";
@@ -276,7 +276,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
         style={{
           display: "flex",
           justifyContent: "flex-end",
-          backgroundColor: colors.zinc[900],
+          backgroundColor: Colors.zinc[900],
           height: tabBarHeight + playerHeight,
         }}
       >
@@ -287,8 +287,8 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                 display: "flex",
                 width: "100%",
                 position: "absolute",
-                backgroundColor: colors.zinc[900],
-                borderColor: colors.zinc[600],
+                backgroundColor: Colors.zinc[900],
+                borderColor: Colors.zinc[600],
               },
               playerStyle,
             ]}
@@ -302,7 +302,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                   justifyContent: "space-between",
                   overflow: "hidden",
                   paddingHorizontal: 16,
-                  backgroundColor: debugBackground(colors.emerald[900]),
+                  backgroundColor: debugBackground("emerald"),
                 },
                 topActionBarStyle,
               ]}
@@ -310,7 +310,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
               <IconButton
                 size={24}
                 icon="chevron-down"
-                color={colors.zinc[100]}
+                color={Colors.zinc[100]}
                 onPress={() => collapseLocal()}
               />
 
@@ -328,9 +328,9 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                   <FontAwesome6
                     size={12}
                     name={streaming ? "cloud-arrow-down" : "download"}
-                    color={colors.zinc[700]}
+                    color={Colors.zinc[700]}
                   />
-                  <Text style={{ color: colors.zinc[700] }}>
+                  <Text style={{ color: Colors.zinc[700] }}>
                     {streaming ? "streaming" : "downloaded"}
                   </Text>
                 </View>
@@ -339,7 +339,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
               <IconButton
                 size={24}
                 icon="ellipsis-vertical"
-                color={colors.zinc[100]}
+                color={Colors.zinc[100]}
                 onPress={() => console.log("TODO: context menu")}
                 style={{ opacity: 0 }}
               />
@@ -353,7 +353,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
               <Animated.View
                 style={[
                   {
-                    backgroundColor: debugBackground(colors.cyan[900]),
+                    backgroundColor: debugBackground("cyan"),
                   },
                   leftGutterStyle,
                 ]}
@@ -363,7 +363,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                   {
                     alignSelf: "center",
                     overflow: "hidden",
-                    backgroundColor: debugBackground(colors.green[900]),
+                    backgroundColor: debugBackground("green"),
                   },
                   imageStyle,
                 ]}
@@ -403,7 +403,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                     flexDirection: "row",
                     alignItems: "center",
                     paddingLeft: 8,
-                    backgroundColor: debugBackground(colors.red[900]),
+                    backgroundColor: debugBackground(Colors.red[900]),
                   },
                   miniControlsStyle,
                 ]}
@@ -429,7 +429,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                   </Pressable>
                 </View>
                 <View style={{ pointerEvents: expanded ? "none" : "auto" }}>
-                  <PlayButton size={32} color={colors.zinc[100]} />
+                  <PlayButton size={32} color={Colors.zinc[100]} />
                 </View>
               </Animated.View>
             </View>
@@ -438,7 +438,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                 {
                   display: "flex",
                   flexDirection: "row",
-                  backgroundColor: debugBackground(colors.indigo[900]),
+                  backgroundColor: debugBackground("indigo"),
                   paddingTop: 8,
                 },
                 infoStyle,
@@ -477,7 +477,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                   flexGrow: 1,
                   justifyContent: "space-between",
                   paddingBottom: insets.bottom,
-                  backgroundColor: debugBackground(colors.blue[900]),
+                  backgroundColor: debugBackground("blue"),
                 },
                 controlsStyle,
               ]}

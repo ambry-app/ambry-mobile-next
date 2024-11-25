@@ -1,13 +1,13 @@
 import Button from "@/src/components/Button";
 import { setPlaybackRate, usePlayer } from "@/src/stores/player";
 import { useSession } from "@/src/stores/session";
+import { Colors } from "@/src/styles";
 import { formatPlaybackRate } from "@/src/utils/rate";
 import { secondsDisplay } from "@/src/utils/time";
 import Slider from "@react-native-community/slider";
 import { useCallback, useEffect, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import colors from "tailwindcss/colors";
 import { useShallow } from "zustand/react/shallow";
 
 export default function PlaybackRateModal() {
@@ -52,9 +52,9 @@ export default function PlaybackRateModal() {
           minimumValue={0.5}
           maximumValue={3.0}
           step={0.05}
-          thumbTintColor={colors.lime[400]}
-          minimumTrackTintColor={colors.zinc[400]}
-          maximumTrackTintColor={colors.zinc[400]}
+          thumbTintColor={Colors.lime[400]}
+          minimumTrackTintColor={Colors.zinc[400]}
+          maximumTrackTintColor={Colors.zinc[400]}
           onValueChange={(value) => {
             setDisplayPlaybackRate(parseFloat(value.toFixed(2)));
           }}
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: colors.zinc[500],
+    backgroundColor: Colors.zinc[500],
     borderRadius: 999,
     marginHorizontal: "auto",
     marginTop: 8,
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   title: {
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
     fontSize: 18,
     textAlign: "center",
   },
@@ -150,29 +150,29 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   rateButton: {
-    backgroundColor: colors.zinc[800],
+    backgroundColor: Colors.zinc[800],
     borderRadius: 999,
     paddingHorizontal: 16,
     flexGrow: 1,
   },
   rateButtonActive: {
-    backgroundColor: colors.lime[400],
+    backgroundColor: Colors.lime[400],
   },
   rateButtonTextActive: {
-    color: colors.black,
+    color: Colors.black,
   },
   text: {
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
     fontSize: 12,
   },
   timeLeftText: {
-    color: colors.zinc[400],
+    color: Colors.zinc[400],
     textAlign: "center",
   },
   closeButton: {
     marginTop: 32,
   },
   closeButtonText: {
-    color: colors.lime[400],
+    color: Colors.lime[400],
   },
 });
