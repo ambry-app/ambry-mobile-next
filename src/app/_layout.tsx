@@ -1,4 +1,3 @@
-import "@/assets/global.css";
 import migrations from "@/drizzle/migrations";
 import Loading from "@/src/components/Loading";
 import MeasureScreenHeight from "@/src/components/MeasureScreenHeight";
