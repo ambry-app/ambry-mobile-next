@@ -1,5 +1,5 @@
 import IconButton from "@/src/components/IconButton";
-import { Text } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import colors from "tailwindcss/colors";
 
 type HeaderButtonProps = {
@@ -13,17 +13,26 @@ export default function HeaderButton({ label, onPress }: HeaderButtonProps) {
       icon="chevron-right"
       size={16}
       color={colors.zinc[100]}
-      style={{
-        flexDirection: "row-reverse",
-        justifyContent: "space-between",
-        paddingLeft: 0,
-        paddingRight: 16,
-      }}
+      style={styles.button}
       onPress={onPress}
     >
-      <Text className="text-2xl font-medium text-zinc-100" numberOfLines={1}>
+      <Text style={styles.label} numberOfLines={1}>
         {label}
       </Text>
     </IconButton>
   );
 }
+
+const styles = StyleSheet.create({
+  button: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    paddingLeft: 0,
+    paddingRight: 16,
+  },
+  label: {
+    fontSize: 22,
+    fontWeight: "500",
+    color: colors.zinc[100],
+  },
+});

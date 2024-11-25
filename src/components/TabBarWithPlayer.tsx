@@ -408,7 +408,13 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                   miniControlsStyle,
                 ]}
               >
-                <View className="flex-1">
+                <View
+                  style={{
+                    flexGrow: 1,
+                    flexShrink: 1,
+                    flexBasis: 0,
+                  }}
+                >
                   <Pressable onPress={() => expandLocal()}>
                     <TitleAuthorsNarrators
                       baseFontSize={14}

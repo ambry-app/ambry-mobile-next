@@ -93,8 +93,8 @@ export default function PersonDetailsFlatList(
       data={sections}
       keyExtractor={(item) => item.id}
       initialNumToRender={2}
-      ListHeaderComponent={<View className="h-4" />}
-      ListFooterComponent={<View className="h-4" />}
+      ListHeaderComponent={<View style={styles.listSpacer} />}
+      ListFooterComponent={<View style={styles.listSpacer} />}
       renderItem={({ item }) => {
         switch (item.type) {
           case "header":
@@ -122,5 +122,8 @@ export default function PersonDetailsFlatList(
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
+  },
+  listSpacer: {
+    height: 16,
   },
 });

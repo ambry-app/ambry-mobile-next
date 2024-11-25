@@ -1,5 +1,7 @@
 import { PersonTile } from "@/src/components/Tiles";
-import { FlatList, Text, View } from "react-native";
+import { useScreen } from "@/src/stores/screen";
+import { FlatList, StyleSheet, Text, View } from "react-native";
+import colors from "tailwindcss/colors";
 import { AuthorOrNarrator } from "./SeriesDetailsFlatList";
 
 type FooterProps = {
@@ -8,17 +10,16 @@ type FooterProps = {
 };
 
 export default function Footer({ authors, narrators }: FooterProps) {
+  const screenWidth = useScreen((state) => state.screenWidth);
+
   return (
-    <View className="mt-8">
-      <Text
-        className="text-2xl font-medium text-zinc-100 mb-2"
-        numberOfLines={1}
-      >
+    <View style={styles.container}>
+      <Text style={styles.header} numberOfLines={1}>
         Author{authors.length > 1 && "s"} & Narrator
         {narrators.length > 1 && "s"}
       </Text>
       <FlatList
-        className="py-2"
+        style={styles.list}
         data={[...authors, ...narrators]}
         keyExtractor={(item) => item.id}
         horizontal={true}
@@ -26,24 +27,41 @@ export default function Footer({ authors, narrators }: FooterProps) {
           if (item.type === "skip") return null;
 
           return (
-            <View className="w-48 mr-4">
-              <PersonTile
-                label={
-                  item.type === "both"
-                    ? "Author & Narrator"
-                    : item.type === "author"
-                      ? "Author"
-                      : "Narrator"
-                }
-                personId={item.person.id}
-                name={item.name}
-                realName={item.person.name}
-                thumbnails={item.person.thumbnails}
-              />
-            </View>
+            <PersonTile
+              style={[styles.tile, { width: screenWidth / 2.5 }]}
+              label={
+                item.type === "both"
+                  ? "Author & Narrator"
+                  : item.type === "author"
+                    ? "Author"
+                    : "Narrator"
+              }
+              personId={item.person.id}
+              name={item.name}
+              realName={item.person.name}
+              thumbnails={item.person.thumbnails}
+            />
           );
         }}
       />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    marginTop: 32,
+    gap: 8,
+  },
+  header: {
+    fontSize: 22,
+    fontWeight: "500",
+    color: colors.zinc[100],
+  },
+  list: {
+    paddingVertical: 8,
+  },
+  tile: {
+    marginRight: 16,
+  },
+});

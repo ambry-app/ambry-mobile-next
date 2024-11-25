@@ -4,7 +4,7 @@ import { useOtherMediaByNarrator } from "@/src/db/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
-import { FlatList } from "react-native";
+import { FlatList, StyleSheet } from "react-native";
 import Animated from "react-native-reanimated";
 
 type OtherMediaByNarratorProps = {
@@ -43,20 +43,20 @@ export default function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
   };
 
   return (
-    <Animated.View style={{ opacity }} className="mt-8">
+    <Animated.View style={[styles.container, { opacity }]}>
       <HeaderButton
         label={`More by ${narrator.name}`}
         onPress={navigateToPerson}
       />
       <FlatList
-        className="py-2"
+        style={styles.list}
         data={media}
         keyExtractor={(item) => item.id}
         horizontal={true}
         renderItem={({ item }) => {
           return (
             <MediaTile
-              style={{ width: screenWidth / 2.5, marginRight: 16 }}
+              style={[styles.tile, { width: screenWidth / 2.5 }]}
               media={item}
             />
           );
@@ -65,3 +65,15 @@ export default function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
     </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    marginTop: 32,
+  },
+  list: {
+    paddingVertical: 8,
+  },
+  tile: {
+    marginRight: 16,
+  },
+});

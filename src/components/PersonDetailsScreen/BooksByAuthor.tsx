@@ -3,6 +3,7 @@ import { useBooksByAuthor } from "@/src/db/library";
 import { Session } from "@/src/stores/session";
 import { FlatList, StyleSheet, Text } from "react-native";
 import Animated from "react-native-reanimated";
+import colors from "tailwindcss/colors";
 
 type BooksByAuthorProps = {
   authorId: string;
@@ -19,18 +20,15 @@ export default function BooksByAuthor({
   if (books.length === 0) return null;
 
   return (
-    <Animated.View style={[styles.spacingTop, { opacity }]}>
-      <Text
-        className="mb-2 text-2xl font-medium text-zinc-100"
-        numberOfLines={1}
-      >
+    <Animated.View style={[styles.container, { opacity }]}>
+      <Text style={styles.header} numberOfLines={1}>
         {author.name === author.person.name
           ? `By ${author.name}`
           : `As ${author.name}`}
       </Text>
 
       <FlatList
-        className="-mx-2"
+        style={styles.list}
         data={books}
         keyExtractor={(item) => item.id}
         numColumns={2}
@@ -43,8 +41,17 @@ export default function BooksByAuthor({
 }
 
 const styles = StyleSheet.create({
-  spacingTop: {
+  container: {
     marginTop: 32,
+    gap: 8,
+  },
+  header: {
+    fontSize: 22,
+    fontWeight: "500",
+    color: colors.zinc[100],
+  },
+  list: {
+    marginHorizontal: -8,
   },
   tile: {
     padding: 8,

@@ -27,7 +27,7 @@ export default function Description({ description }: { description: string }) {
       <Button
         size={24}
         onPress={() => setExpanded(!expanded)}
-        style={{ alignItems: "flex-end", marginTop: expanded ? 0 : -32 }}
+        style={{ alignItems: "flex-end", marginTop: expanded ? 0 : -16 }}
       >
         <Text style={styles.moreLess}>{expanded ? "Less" : "More"}</Text>
       </Button>

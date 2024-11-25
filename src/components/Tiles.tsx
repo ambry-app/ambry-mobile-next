@@ -66,6 +66,7 @@ type PersonTileProps = {
   realName: string;
   thumbnails: Thumbnails | null;
   label: string;
+  style?: StyleProp<ViewStyle>;
 };
 
 export function MediaTile({ media, style }: MediaTileProps) {
@@ -142,7 +143,7 @@ export function Tile({ book, media, seriesBook, style }: TileProps) {
 }
 
 export function PersonTile(props: PersonTileProps) {
-  const { personId, name, realName, thumbnails, label } = props;
+  const { personId, name, realName, thumbnails, label, style } = props;
 
   const navigateToPerson = () => {
     router.navigate({
@@ -152,7 +153,7 @@ export function PersonTile(props: PersonTileProps) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       <PressableScale weight="light" onPress={navigateToPerson}>
         <ThumbnailImage
           thumbnails={thumbnails}

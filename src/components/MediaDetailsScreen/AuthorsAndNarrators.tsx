@@ -2,8 +2,9 @@ import { PersonTile } from "@/src/components/Tiles";
 import { useMediaAuthorsAndNarrators } from "@/src/db/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
-import { FlatList, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
+import colors from "tailwindcss/colors";
 
 type AuthorsAndNarratorsProps = {
   mediaId: string;
@@ -21,16 +22,13 @@ export default function AuthorsAndNarrators({
   if (!media) return null;
 
   return (
-    <Animated.View style={{ opacity }} className="mt-8">
-      <Text
-        className="text-2xl font-medium text-zinc-100 mb-2"
-        numberOfLines={1}
-      >
+    <Animated.View style={[styles.container, { opacity }]}>
+      <Text style={styles.header} numberOfLines={1}>
         Author{media.book.bookAuthors.length > 1 && "s"} & Narrator
         {media.mediaNarrators.length > 1 && "s"}
       </Text>
       <FlatList
-        className="py-2"
+        style={styles.list}
         data={[...media.book.bookAuthors, ...media.mediaNarrators]}
         keyExtractor={(item) => item.id}
         horizontal={true}
@@ -77,3 +75,18 @@ export default function AuthorsAndNarrators({
     </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    marginTop: 32,
+  },
+  header: {
+    fontSize: 22,
+    fontWeight: "500",
+    color: colors.zinc[100],
+    marginBottom: 8,
+  },
+  list: {
+    paddingVertical: 8,
+  },
+});

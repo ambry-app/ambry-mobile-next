@@ -2,8 +2,9 @@ import Description from "@/src/components/Description";
 import { useMediaDescription } from "@/src/db/library";
 import { Session } from "@/src/stores/session";
 import { formatPublished } from "@/src/utils/date";
-import { Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
+import colors from "tailwindcss/colors";
 
 type MediaDescriptionProps = {
   mediaId: string;
@@ -19,28 +20,37 @@ export default function MediaDescription({
   if (!media?.description) return null;
 
   return (
-    <Animated.View style={{ opacity }} className="gap-1 mt-8">
+    <Animated.View style={[styles.container, { opacity }]}>
       <Description description={media.description} />
       <View>
         {media.book.published && (
-          <Text className="text-sm text-zinc-400">
+          <Text style={styles.text}>
             First published{" "}
             {formatPublished(media.book.published, media.book.publishedFormat)}
           </Text>
         )}
         {media.published && (
-          <Text className="text-sm text-zinc-400">
+          <Text style={styles.text}>
             This edition published{" "}
             {formatPublished(media.published, media.publishedFormat)}
           </Text>
         )}
         {media.publisher && (
-          <Text className="text-sm text-zinc-400">by {media.publisher}</Text>
+          <Text style={styles.text}>by {media.publisher}</Text>
         )}
-        {media.notes && (
-          <Text className="text-sm text-zinc-400">Note: {media.notes}</Text>
-        )}
+        {media.notes && <Text style={styles.text}>Note: {media.notes}</Text>}
       </View>
     </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    marginTop: 32,
+    gap: 4,
+  },
+  text: {
+    fontSize: 12,
+    color: colors.zinc[400],
+  },
+});
