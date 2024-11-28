@@ -1,13 +1,13 @@
-import AnimatedText from "@/src/components/AnimatedText";
 import usePrevious from "@react-hook/previous";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, StyleSheet } from "react-native";
+import AnimateableText from "react-native-animateable-text";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
   runOnJS,
+  useAnimatedProps,
   useAnimatedStyle,
-  useDerivedValue,
   useSharedValue,
   withDecay,
   withTiming,
@@ -288,22 +288,24 @@ export default function Scrubber(props: ScrubberProps) {
     return { opacity: withTiming(timecodeOpacity.value) };
   });
 
-  const timecode = useDerivedValue(() => {
+  const animatedTimecodeProps = useAnimatedProps(() => {
     const total = clamp(translateXToTime(translateX.value), 0, duration);
     const hours = Math.floor(total / 3600).toString();
     const minutes = Math.floor((total % 3600) / 60).toString();
     const seconds = Math.floor((total % 3600) % 60).toString();
 
     if (hours === "0") {
-      return `${minutes}:${seconds.padStart(2, "0")}`;
+      return { text: `${minutes}:${seconds.padStart(2, "0")}` };
     } else {
-      return `${hours}:${minutes.padStart(2, "0")}:${seconds.padStart(2, "0")}`;
+      return {
+        text: `${hours}:${minutes.padStart(2, "0")}:${seconds.padStart(2, "0")}`,
+      };
     }
   });
 
   useEffect(() => {
-    timecodeOpacity.value = isScrubbing ? 1 : 0;
-  }, [isScrubbing, timecodeOpacity]);
+    timecodeOpacity.value = isScrubbing || isJumping ? 1 : 0;
+  }, [isScrubbing, isJumping, timecodeOpacity]);
 
   useEffect(() => {
     if (isScrubbing) return;
@@ -342,8 +344,8 @@ export default function Scrubber(props: ScrubberProps) {
   return (
     <GestureDetector gesture={panGestureHandler}>
       <Animated.View>
-        <AnimatedText
-          text={timecode}
+        <AnimateableText
+          animatedProps={animatedTimecodeProps}
           style={[
             styles.timecode,
             { color: theme.strong },
