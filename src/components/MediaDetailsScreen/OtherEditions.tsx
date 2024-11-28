@@ -36,6 +36,7 @@ export default function OtherEditions(props: OtherEditionsProps) {
       <HeaderButton label="Other Editions" onPress={navigateToBook} />
       <FlatList
         style={styles.list}
+        showsHorizontalScrollIndicator={false}
         data={media}
         keyExtractor={(item) => item.id}
         horizontal={true}

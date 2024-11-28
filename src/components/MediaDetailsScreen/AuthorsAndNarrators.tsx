@@ -29,6 +29,7 @@ export default function AuthorsAndNarrators({
       </Text>
       <FlatList
         style={styles.list}
+        showsHorizontalScrollIndicator={false}
         data={[...media.book.bookAuthors, ...media.mediaNarrators]}
         keyExtractor={(item) => item.id}
         horizontal={true}

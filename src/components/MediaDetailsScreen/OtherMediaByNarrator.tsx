@@ -50,6 +50,7 @@ export default function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
       />
       <FlatList
         style={styles.list}
+        showsHorizontalScrollIndicator={false}
         data={media}
         keyExtractor={(item) => item.id}
         horizontal={true}

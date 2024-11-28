@@ -42,6 +42,7 @@ export default function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
       />
       <FlatList
         style={styles.list}
+        showsHorizontalScrollIndicator={false}
         data={books}
         keyExtractor={(item) => item.id}
         horizontal={true}

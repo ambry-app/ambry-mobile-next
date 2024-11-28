@@ -20,6 +20,7 @@ export default function Footer({ authors, narrators }: FooterProps) {
       </Text>
       <FlatList
         style={styles.list}
+        showsHorizontalScrollIndicator={false}
         data={[...authors, ...narrators]}
         keyExtractor={(item) => item.id}
         horizontal={true}

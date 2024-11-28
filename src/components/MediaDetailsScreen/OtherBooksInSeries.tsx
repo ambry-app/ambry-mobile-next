@@ -33,6 +33,7 @@ export default function OtherBooksInSeries({
       <HeaderButton label={series.name} onPress={navigateToSeries} />
       <FlatList
         style={styles.list}
+        showsHorizontalScrollIndicator={false}
         data={series.seriesBooks}
         keyExtractor={(item) => item.id}
         horizontal={true}
