@@ -500,7 +500,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                   <PlayerChapterControls />
                 </View>
               </View>
-              {/* <PlayerScrubber /> */}
+              <PlayerScrubber />
             </Animated.View>
           </Animated.View>
         </GestureDetector>

@@ -1,4 +1,5 @@
 import AnimatedText from "@/src/components/AnimatedText";
+import usePrevious from "@react-hook/previous";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, StyleSheet } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -173,8 +174,9 @@ export default function Scrubber(props: ScrubberProps) {
     timeToTranslateX(Math.round(positionInput)),
   );
   const [isScrubbing, setIsScrubbing] = useIsScrubbing();
+  const [isJumping, setIsJumping] = useState(false);
   const maxTranslateX = timeToTranslateX(duration);
-  // const previousPosition = usePrevious(positionInput);
+  const previousPosition = usePrevious(positionInput);
 
   const startX = useSharedValue(0);
   const isAnimating = useSharedValue(false);
@@ -300,37 +302,41 @@ export default function Scrubber(props: ScrubberProps) {
   });
 
   useEffect(() => {
-    if (!isScrubbing) {
-      timecodeOpacity.value = 0;
-      translateX.value = timeToTranslateX(positionInput);
-      // if (Math.abs(positionInput - (previousPosition || 0)) <= 3) {
-      //   console.log("linear");
-      //   translateX.value = withTiming(timeToTranslateX(positionInput), {
-      //     duration: 1000 / playbackRate,
-      //     easing: Easing.linear,
-      //   });
-      // } else if (
-      //   Math.abs(positionInput - translateXToTime(translateX.value)) <= 120
-      // ) {
-      //   console.log("exp");
-      //   translateX.value = withTiming(timeToTranslateX(positionInput), {
-      //     duration: 400,
-      //     easing: Easing.out(Easing.exp),
-      //   });
-      // } else {
-      //   console.log("jump");
-      //   translateX.value = timeToTranslateX(positionInput);
-      // }
+    timecodeOpacity.value = isScrubbing ? 1 : 0;
+  }, [isScrubbing, timecodeOpacity]);
+
+  useEffect(() => {
+    if (isScrubbing) return;
+
+    const isJump = Math.abs(positionInput - (previousPosition || 0)) > 3;
+
+    if (!isJump && isJumping) return;
+
+    if (isJump) {
+      // jump / exponential animation
+      setIsJumping(true);
+      translateX.value = withTiming(
+        timeToTranslateX(positionInput),
+        {
+          duration: 400,
+          easing: Easing.out(Easing.exp),
+        },
+        (completed) => completed && runOnJS(setIsJumping)(false),
+      );
     } else {
-      timecodeOpacity.value = 1;
+      // playing / linear animation
+      translateX.value = withTiming(timeToTranslateX(positionInput), {
+        duration: 1000 / playbackRate,
+        easing: Easing.linear,
+      });
     }
   }, [
     translateX,
     isScrubbing,
     positionInput,
-    // previousPosition,
+    previousPosition,
     playbackRate,
-    timecodeOpacity,
+    isJumping,
   ]);
 
   return (
