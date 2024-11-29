@@ -1,8 +1,8 @@
-import { ThumbnailImage } from "@/src/components";
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 import { Colors } from "@/src/styles";
 import { ImageStyle } from "expo-image";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import ThumbnailImage from "./ThumbnailImage";
 
 type MultiThumbnailImageProps = {
   thumbnailPairs: {

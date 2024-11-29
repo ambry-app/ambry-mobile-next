@@ -3,6 +3,7 @@ import PlaybackControls from "./PlaybackControls";
 import PlayerScrubber from "./PlayerScrubber";
 import PlayerSettingButtons from "./PlayerSettingButtons";
 import ProgressBar from "./ProgressBar";
+import TabBarWithPlayer from "./TabBarWithPlayer";
 
 export {
   ChapterControls,
@@ -10,4 +11,5 @@ export {
   PlayerScrubber,
   PlayerSettingButtons,
   ProgressBar,
+  TabBarWithPlayer,
 };

@@ -1,18 +1,16 @@
-import {
-  ActionBar,
-  AuthorsAndNarrators,
-  Header,
-  MediaDescription,
-  OtherBooksByAuthor,
-  OtherBooksInSeries,
-  OtherEditions,
-  OtherMediaByNarrator,
-} from "@/src/components/MediaDetailsScreen";
 import { useMediaIds } from "@/src/db/library";
 import { Session } from "@/src/stores/session";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated from "react-native-reanimated";
+import ActionBar from "./ActionBar";
+import AuthorsAndNarrators from "./AuthorsAndNarrators";
+import Header from "./Header";
+import MediaDescription from "./MediaDescription";
+import OtherBooksByAuthor from "./OtherBooksByAuthor";
+import OtherBooksInSeries from "./OtherBooksInSeries";
+import OtherEditions from "./OtherEditions";
+import OtherMediaByNarrator from "./OtherMediaByNarrator";
 
 type HeaderSection = {
   id: string;

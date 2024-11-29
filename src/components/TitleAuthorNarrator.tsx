@@ -1,6 +1,6 @@
-import { NamesList } from "@/src/components";
 import { Colors } from "@/src/styles";
 import { StyleSheet, Text } from "react-native";
+import NamesList from "./NamesList";
 
 type TitleAuthorsNarratorsProps = {
   title: string;

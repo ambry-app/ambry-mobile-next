@@ -1,9 +1,9 @@
 import { Tile } from "@/src/components";
-import { Header } from "@/src/components/BookDetailsScreen";
 import { useBookDetails } from "@/src/db/library";
 import { Session } from "@/src/stores/session";
 import { StyleSheet } from "react-native";
 import Animated from "react-native-reanimated";
+import Header from "./Header";
 
 type BookDetailsFlatListProps = {
   bookId: string;

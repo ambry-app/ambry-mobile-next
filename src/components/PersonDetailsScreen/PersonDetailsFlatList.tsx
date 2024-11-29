@@ -1,14 +1,12 @@
-import {
-  BooksByAuthor,
-  Header,
-  MediaByNarrator,
-  PersonDescription,
-} from "@/src/components/PersonDetailsScreen";
 import { usePersonIds } from "@/src/db/library";
 import { Session } from "@/src/stores/session";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated from "react-native-reanimated";
+import BooksByAuthor from "./BooksByAuthor";
+import Header from "./Header";
+import MediaByNarrator from "./MediaByNarrator";
+import PersonDescription from "./PersonDescription";
 
 type HeaderSection = {
   id: string;

@@ -4,13 +4,13 @@ import {
   ThumbnailImage,
   TitleAuthorsNarrators,
 } from "@/src/components";
-import { FileSize } from "@/src/components/DownloadsScreen";
 import { ListedDownload } from "@/src/db/downloads";
 import { useDownloads } from "@/src/stores/downloads";
 import { Colors } from "@/src/styles";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
+import FileSize from "./FileSize";
 
 type DownloadRowProps = {
   download: ListedDownload;

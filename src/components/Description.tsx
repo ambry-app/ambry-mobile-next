@@ -1,8 +1,8 @@
-import { Button } from "@/src/components";
 import { Colors } from "@/src/styles";
 import { useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import Markdown from "react-native-markdown-display";
+import Button from "./Button";
 
 export default function Description({ description }: { description: string }) {
   const [expanded, setExpanded] = useState(false);

@@ -12,7 +12,6 @@ import ScreenCentered from "./ScreenCentered";
 import Scrubber from "./Scrubber";
 import SeekButton from "./SeekButton";
 import TabBar from "./TabBar";
-import TabBarWithPlayer from "./TabBarWithPlayer";
 import ThumbnailImage from "./ThumbnailImage";
 import { BookTile, MediaTile, PersonTile, SeriesBookTile, Tile } from "./Tiles";
 import TitleAuthorsNarrators from "./TitleAuthorNarrator";
@@ -36,7 +35,6 @@ export {
   SeekButton,
   SeriesBookTile,
   TabBar,
-  TabBarWithPlayer,
   ThumbnailImage,
   Tile,
   TitleAuthorsNarrators,

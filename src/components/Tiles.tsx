@@ -1,9 +1,3 @@
-import {
-  MultiThumbnailImage,
-  PressableScale,
-  ThumbnailImage,
-  TitleAuthorsNarrators,
-} from "@/src/components";
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 import { Colors } from "@/src/styles";
 import { router } from "expo-router";
@@ -15,6 +9,10 @@ import {
   View,
   ViewStyle,
 } from "react-native";
+import MultiThumbnailImage from "./MultiThumbnailImage";
+import { PressableScale } from "./PressableScale";
+import ThumbnailImage from "./ThumbnailImage";
+import TitleAuthorsNarrators from "./TitleAuthorNarrator";
 
 type Media = {
   id: string;

@@ -1,11 +1,11 @@
 import { ScreenCentered } from "@/src/components";
-import { DownloadRow } from "@/src/components/DownloadsScreen";
 import { useDownloadsList } from "@/src/db/downloads";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { Link } from "expo-router";
 import { StyleSheet, Text } from "react-native";
 import Animated from "react-native-reanimated";
+import DownloadRow from "./DownloadRow";
 
 export default function DownloadsFlatList({ session }: { session: Session }) {
   const { downloads, updatedAt, opacity } = useDownloadsList(session);

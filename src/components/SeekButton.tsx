@@ -1,6 +1,6 @@
-import { IconButton } from "@/src/components";
 import { seekRelative } from "@/src/stores/player";
 import { StyleProp, ViewStyle } from "react-native";
+import IconButton from "./IconButton";
 
 type SeekButtonProps = {
   icon: string;

@@ -1,16 +1,3 @@
-import {
-  IconButton,
-  PlayButton,
-  ThumbnailImage,
-  TitleAuthorsNarrators,
-} from "@/src/components";
-import {
-  ChapterControls,
-  PlaybackControls,
-  PlayerScrubber,
-  PlayerSettingButtons,
-  ProgressBar,
-} from "@/src/components/Player";
 import { playerHeight, tabBarBaseHeight } from "@/src/constants";
 import { useMediaDetails } from "@/src/db/library";
 import useBackHandler from "@/src/hooks/use.back.handler";
@@ -40,6 +27,15 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
+import IconButton from "../IconButton";
+import PlayButton from "../PlayButton";
+import ThumbnailImage from "../ThumbnailImage";
+import TitleAuthorsNarrators from "../TitleAuthorNarrator";
+import ChapterControls from "./ChapterControls";
+import PlaybackControls from "./PlaybackControls";
+import PlayerScrubber from "./PlayerScrubber";
+import PlayerSettingButtons from "./PlayerSettingButtons";
+import ProgressBar from "./ProgressBar";
 
 type TabBarWithPlayerProps = BottomTabBarProps & {
   session: Session;

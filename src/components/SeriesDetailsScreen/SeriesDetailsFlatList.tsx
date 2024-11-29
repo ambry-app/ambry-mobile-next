@@ -1,10 +1,11 @@
 import { SeriesBookTile } from "@/src/components";
-import { Footer, Header } from "@/src/components/SeriesDetailsScreen";
 import { useSeriesDetails } from "@/src/db/library";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { StyleSheet } from "react-native";
 import Animated from "react-native-reanimated";
+import Footer from "./Footer";
+import Header from "./Header";
 
 export type AuthorOrNarrator = {
   id: string;

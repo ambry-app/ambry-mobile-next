@@ -1,11 +1,11 @@
 import { MediaTile } from "@/src/components";
-import { HeaderButton } from "@/src/components/MediaDetailsScreen";
 import { useOtherMediaByNarrator } from "@/src/db/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet } from "react-native";
 import Animated from "react-native-reanimated";
+import HeaderButton from "./HeaderButton";
 
 type OtherMediaByNarratorProps = {
   narratorId: string;
