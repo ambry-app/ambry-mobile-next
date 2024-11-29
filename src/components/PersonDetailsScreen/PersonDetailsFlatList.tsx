@@ -1,7 +1,9 @@
-import BooksByAuthor from "@/src/components/PersonDetailsScreen/BooksByAuthor";
-import Header from "@/src/components/PersonDetailsScreen/Header";
-import MediaByNarrator from "@/src/components/PersonDetailsScreen/MediaByNarrator";
-import PersonDescription from "@/src/components/PersonDetailsScreen/PersonDescription";
+import {
+  BooksByAuthor,
+  Header,
+  MediaByNarrator,
+  PersonDescription,
+} from "@/src/components/PersonDetailsScreen";
 import { usePersonIds } from "@/src/db/library";
 import { Session } from "@/src/stores/session";
 import { useEffect, useState } from "react";

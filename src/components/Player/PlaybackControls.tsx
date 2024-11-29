@@ -1,9 +1,8 @@
+import { PlayButton, SeekButton } from "@/src/components";
 import { Colors } from "@/src/styles";
 import { StyleSheet, View } from "react-native";
-import PlayButton from "./PlayButton";
-import SeekButton from "./SeekButton";
 
-export default function PlayerButtons() {
+export default function PlaybackControls() {
   return (
     <View style={styles.container}>
       <SeekButton
@@ -42,6 +41,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginHorizontal: -12,
-    // backgroundColor: "yellow",
   },
 });

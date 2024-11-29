@@ -1,5 +1,5 @@
-import HeaderButton from "@/src/components/MediaDetailsScreen/HeaderButton";
-import { SeriesBookTile } from "@/src/components/Tiles";
+import { SeriesBookTile } from "@/src/components";
+import { HeaderButton } from "@/src/components/MediaDetailsScreen/";
 import { useOtherBooksInSeries } from "@/src/db/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";

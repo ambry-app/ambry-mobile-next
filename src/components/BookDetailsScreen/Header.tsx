@@ -1,4 +1,4 @@
-import NamesList from "@/src/components/NamesList";
+import { NamesList } from "@/src/components";
 import { BookDetails } from "@/src/db/library";
 import { Colors } from "@/src/styles";
 import { formatPublished } from "@/src/utils/date";

@@ -1,4 +1,4 @@
-import DownloadActions from "@/src/components/DownloadActionsModal/DownloadActions";
+import { DownloadActions } from "@/src/components/DownloadActionsModal";
 import { useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { Platform, StyleSheet, View } from "react-native";

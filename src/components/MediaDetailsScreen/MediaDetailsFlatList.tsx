@@ -1,11 +1,13 @@
-import ActionBar from "@/src/components/MediaDetailsScreen/ActionBar";
-import AuthorsAndNarrators from "@/src/components/MediaDetailsScreen/AuthorsAndNarrators";
-import Header from "@/src/components/MediaDetailsScreen/Header";
-import MediaDescription from "@/src/components/MediaDetailsScreen/MediaDescription";
-import OtherBooksByAuthor from "@/src/components/MediaDetailsScreen/OtherBooksByAuthor";
-import OtherBooksInSeries from "@/src/components/MediaDetailsScreen/OtherBooksInSeries";
-import OtherEditions from "@/src/components/MediaDetailsScreen/OtherEditions";
-import OtherMediaByNarrator from "@/src/components/MediaDetailsScreen/OtherMediaByNarrator";
+import {
+  ActionBar,
+  AuthorsAndNarrators,
+  Header,
+  MediaDescription,
+  OtherBooksByAuthor,
+  OtherBooksInSeries,
+  OtherEditions,
+  OtherMediaByNarrator,
+} from "@/src/components/MediaDetailsScreen";
 import { useMediaIds } from "@/src/db/library";
 import { Session } from "@/src/stores/session";
 import { useEffect, useState } from "react";

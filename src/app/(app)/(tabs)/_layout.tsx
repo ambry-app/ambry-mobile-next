@@ -1,5 +1,4 @@
-import TabBar from "@/src/components/TabBar";
-import TabBarWithPlayer from "@/src/components/TabBarWithPlayer";
+import { TabBar, TabBarWithPlayer } from "@/src/components";
 import { usePlayer } from "@/src/stores/player";
 import { Session, useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";

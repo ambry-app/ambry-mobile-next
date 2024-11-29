@@ -1,5 +1,5 @@
 import Logo from "@/assets/images/logo.svg";
-import Loading from "@/src/components/Loading";
+import { FocusableTextInput, IconButton, Loading } from "@/src/components";
 import { useScreen } from "@/src/stores/screen";
 import { clearError, signIn, useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
@@ -7,8 +7,6 @@ import { Redirect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import FocusableTextInput from "../components/FocusableTextInput";
-import IconButton from "../components/IconButton";
 
 export default function SignInScreen() {
   const { session, error, isLoading } = useSession((state) => state);

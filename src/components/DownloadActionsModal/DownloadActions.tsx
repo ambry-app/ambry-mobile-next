@@ -1,4 +1,4 @@
-import IconButton from "@/src/components/IconButton";
+import { IconButton } from "@/src/components";
 import { useDownload } from "@/src/db/downloads";
 import { cancelDownload, removeDownload } from "@/src/stores/downloads";
 import { Session } from "@/src/stores/session";

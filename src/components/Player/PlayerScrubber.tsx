@@ -1,7 +1,7 @@
+import { Scrubber } from "@/src/components";
 import { seekTo, usePlayer } from "@/src/stores/player";
 import { Colors } from "@/src/styles";
 import { useShallow } from "zustand/react/shallow";
-import Scrubber from "./Scrubber";
 
 export default function PlayerScrubber() {
   const { playbackRate, position, duration, chapterState } = usePlayer(

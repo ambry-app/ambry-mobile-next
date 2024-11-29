@@ -1,5 +1,4 @@
-import NamesList from "@/src/components/NamesList";
-import ThumbnailImage from "@/src/components/ThumbnailImage";
+import { NamesList, ThumbnailImage } from "@/src/components";
 import { useMediaHeaderInfo } from "@/src/db/library";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";

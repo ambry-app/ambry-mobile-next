@@ -1,4 +1,4 @@
-import NamesList from "@/src/components/NamesList";
+import { NamesList } from "@/src/components";
 import { Colors } from "@/src/styles";
 import { StyleSheet, View } from "react-native";
 import { AuthorOrNarrator } from "./SeriesDetailsFlatList";

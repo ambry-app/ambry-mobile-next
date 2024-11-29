@@ -1,11 +1,11 @@
-import { MediaTile } from "@/src/components/Tiles";
+import { MediaTile } from "@/src/components";
+import { HeaderButton } from "@/src/components/MediaDetailsScreen";
 import { useMediaOtherEditions } from "@/src/db/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet } from "react-native";
 import Animated from "react-native-reanimated";
-import HeaderButton from "./HeaderButton";
 
 type OtherEditionsProps = {
   bookId: string;

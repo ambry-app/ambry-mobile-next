@@ -1,4 +1,4 @@
-import { PersonTile } from "@/src/components/Tiles";
+import { PersonTile } from "@/src/components";
 import { useScreen } from "@/src/stores/screen";
 import { Colors } from "@/src/styles";
 import { FlatList, StyleSheet, View } from "react-native";

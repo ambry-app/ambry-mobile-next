@@ -1,4 +1,4 @@
-import Button from "@/src/components/Button";
+import { Button } from "@/src/components";
 import * as schema from "@/src/db/schema";
 import useBackHandler from "@/src/hooks/use.back.handler";
 import { seekTo, usePlayer } from "@/src/stores/player";

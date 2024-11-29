@@ -1,4 +1,4 @@
-import LibraryFlatlist from "@/src/components/LibraryScreen/LibraryFlatList";
+import { LibraryFlatlist } from "@/src/components/LibraryScreen";
 import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
 import { useSession } from "@/src/stores/session";
 

@@ -1,4 +1,4 @@
-import ThumbnailImage from "@/src/components/ThumbnailImage";
+import { ThumbnailImage } from "@/src/components";
 import { usePersonHeaderInfo } from "@/src/db/library";
 import { Session } from "@/src/stores/session";
 import Animated from "react-native-reanimated";

@@ -17,7 +17,7 @@ import Reanimated, {
 
 const PRESSABLE_IN_LIST_DELAY = 130; // react-native uses 130ms for this
 
-export interface PressableScaleProps
+interface PressableScaleProps
   extends ViewProps,
     Partial<Omit<WithSpringConfig, "mass">> {
   children: React.ReactNode;

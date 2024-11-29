@@ -1,8 +1,10 @@
-import FileSize from "@/src/components/DownloadsScreen/FileSize";
-import IconButton from "@/src/components/IconButton";
-import Loading from "@/src/components/Loading";
-import ThumbnailImage from "@/src/components/ThumbnailImage";
-import TitleAuthorsNarrators from "@/src/components/TitleAuthorNarrator";
+import {
+  IconButton,
+  Loading,
+  ThumbnailImage,
+  TitleAuthorsNarrators,
+} from "@/src/components";
+import { FileSize } from "@/src/components/DownloadsScreen";
 import { ListedDownload } from "@/src/db/downloads";
 import { useDownloads } from "@/src/stores/downloads";
 import { Colors } from "@/src/styles";

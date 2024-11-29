@@ -1,5 +1,5 @@
-import HeaderButton from "@/src/components/MediaDetailsScreen/HeaderButton";
-import { MediaTile } from "@/src/components/Tiles";
+import { MediaTile } from "@/src/components";
+import { HeaderButton } from "@/src/components/MediaDetailsScreen";
 import { useOtherMediaByNarrator } from "@/src/db/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";

@@ -1,4 +1,4 @@
-import Button from "@/src/components/Button";
+import { Button } from "@/src/components";
 import { setPlaybackRate, usePlayer } from "@/src/stores/player";
 import { useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";

@@ -1,4 +1,4 @@
-import { PersonTile } from "@/src/components/Tiles";
+import { PersonTile } from "@/src/components";
 import { useMediaAuthorsAndNarrators } from "@/src/db/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";

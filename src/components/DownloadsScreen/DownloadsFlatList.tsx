@@ -1,5 +1,5 @@
-import DownloadRow from "@/src/components/DownloadsScreen/DownloadRow";
-import ScreenCentered from "@/src/components/ScreenCentered";
+import { ScreenCentered } from "@/src/components";
+import { DownloadRow } from "@/src/components/DownloadsScreen";
 import { useDownloadsList } from "@/src/db/downloads";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";

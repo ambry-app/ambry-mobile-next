@@ -1,3 +1,4 @@
+import { Button, IconButton } from "@/src/components";
 import {
   skipToBeginningOfChapter,
   skipToEndOfChapter,
@@ -6,10 +7,8 @@ import {
 import { Colors } from "@/src/styles";
 import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
-import Button from "./Button";
-import IconButton from "./IconButton";
 
-export default function PlayerChapterControls() {
+export default function ChapterControls() {
   const chapterState = usePlayer((state) => state.chapterState);
 
   if (!chapterState) return null;

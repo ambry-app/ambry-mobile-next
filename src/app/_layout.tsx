@@ -1,7 +1,5 @@
 import migrations from "@/drizzle/migrations";
-import Loading from "@/src/components/Loading";
-import MeasureScreenHeight from "@/src/components/MeasureScreenHeight";
-import ScreenCentered from "@/src/components/ScreenCentered";
+import { Loading, MeasureScreenHeight, ScreenCentered } from "@/src/components";
 import { db, expoDb } from "@/src/db/db";
 import { Colors } from "@/src/styles";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";

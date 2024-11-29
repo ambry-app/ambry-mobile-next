@@ -1,4 +1,4 @@
-import IconButton from "@/src/components/IconButton";
+import { IconButton } from "@/src/components";
 import { Download, useDownload } from "@/src/db/downloads";
 import { ActionBarMedia, useMediaActionBarInfo } from "@/src/db/library";
 import { syncDownUser } from "@/src/db/sync";

@@ -1,4 +1,4 @@
-import IconButton from "@/src/components/IconButton";
+import { IconButton } from "@/src/components";
 import { Colors } from "@/src/styles";
 import { StyleSheet, Text } from "react-native";
 

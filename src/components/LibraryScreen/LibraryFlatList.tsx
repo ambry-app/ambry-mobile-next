@@ -1,6 +1,4 @@
-import Loading from "@/src/components/Loading";
-import ScreenCentered from "@/src/components/ScreenCentered";
-import { MediaTile } from "@/src/components/Tiles";
+import { Loading, MediaTile, ScreenCentered } from "@/src/components";
 import { useMediaList } from "@/src/db/library";
 import { useLastDownSync } from "@/src/db/sync";
 import { Session } from "@/src/stores/session";

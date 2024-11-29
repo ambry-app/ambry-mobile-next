@@ -1,5 +1,4 @@
-import Loading from "@/src/components/Loading";
-import ScreenCentered from "@/src/components/ScreenCentered";
+import { Loading, ScreenCentered } from "@/src/components";
 import { useAppBoot } from "@/src/hooks/use.app.boot";
 import { useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";

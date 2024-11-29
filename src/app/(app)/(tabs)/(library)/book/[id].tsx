@@ -1,4 +1,4 @@
-import BookDetailsFlatList from "@/src/components/BookDetailsScreen/BookDetailsFlatList";
+import { BookDetailsFlatList } from "@/src/components/BookDetailsScreen";
 import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
 import { useSession } from "@/src/stores/session";
 import { RouterParams } from "@/src/types/router";

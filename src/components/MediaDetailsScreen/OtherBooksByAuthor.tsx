@@ -1,5 +1,5 @@
-import HeaderButton from "@/src/components/MediaDetailsScreen/HeaderButton";
-import { BookTile } from "@/src/components/Tiles";
+import { BookTile } from "@/src/components";
+import { HeaderButton } from "@/src/components/MediaDetailsScreen/";
 import { useOtherBooksByAuthor } from "@/src/db/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";

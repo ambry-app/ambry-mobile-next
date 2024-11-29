@@ -1,4 +1,4 @@
-import Description from "@/src/components/Description";
+import { Description } from "@/src/components";
 import { usePersonDescription } from "@/src/db/library";
 import { Session } from "@/src/stores/session";
 import { StyleSheet } from "react-native";

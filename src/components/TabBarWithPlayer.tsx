@@ -1,10 +1,16 @@
-import IconButton from "@/src/components/IconButton";
-import PlayButton from "@/src/components/PlayButton";
-import PlayerButtons from "@/src/components/PlayerButtons";
-import PlayerProgressBar from "@/src/components/PlayerProgressBar";
-import PlayerScrubber from "@/src/components/PlayerScrubber";
-import ThumbnailImage from "@/src/components/ThumbnailImage";
-import TitleAuthorsNarrators from "@/src/components/TitleAuthorNarrator";
+import {
+  IconButton,
+  PlayButton,
+  ThumbnailImage,
+  TitleAuthorsNarrators,
+} from "@/src/components";
+import {
+  ChapterControls,
+  PlaybackControls,
+  PlayerScrubber,
+  PlayerSettingButtons,
+  ProgressBar,
+} from "@/src/components/Player";
 import { playerHeight, tabBarBaseHeight } from "@/src/constants";
 import { useMediaDetails } from "@/src/db/library";
 import useBackHandler from "@/src/hooks/use.back.handler";
@@ -34,8 +40,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
-import PlayerChapterControls from "./PlayerChapterControls";
-import PlayerSettingButtons from "./PlayerSettingButtons";
 
 type TabBarWithPlayerProps = BottomTabBarProps & {
   session: Session;
@@ -493,11 +497,11 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
               >
                 <View style={{ display: "flex", gap: 16 }}>
                   <PlayerSettingButtons />
-                  <PlayerProgressBar />
+                  <ProgressBar />
                 </View>
                 <View>
-                  <PlayerButtons />
-                  <PlayerChapterControls />
+                  <PlaybackControls />
+                  <ChapterControls />
                 </View>
               </View>
               <PlayerScrubber />

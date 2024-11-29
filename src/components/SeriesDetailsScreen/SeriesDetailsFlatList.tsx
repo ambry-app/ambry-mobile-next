@@ -1,6 +1,5 @@
-import Footer from "@/src/components/SeriesDetailsScreen/Footer";
-import Header from "@/src/components/SeriesDetailsScreen/Header";
-import { SeriesBookTile } from "@/src/components/Tiles";
+import { SeriesBookTile } from "@/src/components";
+import { Footer, Header } from "@/src/components/SeriesDetailsScreen";
 import { useSeriesDetails } from "@/src/db/library";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";

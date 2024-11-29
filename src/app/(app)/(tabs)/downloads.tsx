@@ -1,4 +1,4 @@
-import DownloadsFlatList from "@/src/components/DownloadsScreen/DownloadsFlatList";
+import { DownloadsFlatList } from "@/src/components/DownloadsScreen";
 import { useSession } from "@/src/stores/session";
 
 export default function DownloadsScreen() {

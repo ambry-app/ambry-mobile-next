@@ -4,7 +4,7 @@ import { secondsDisplay } from "@/src/utils/time";
 import { StyleSheet, Text, View } from "react-native";
 import { useShallow } from "zustand/react/shallow";
 
-export default function PlayerProgressBar() {
+export default function ProgressBar() {
   const { position, duration, playbackRate } = usePlayer(
     useShallow(({ position, duration, playbackRate }) => ({
       position,

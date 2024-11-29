@@ -1,4 +1,4 @@
-import Description from "@/src/components/Description";
+import { Description } from "@/src/components";
 import { useMediaDescription } from "@/src/db/library";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";

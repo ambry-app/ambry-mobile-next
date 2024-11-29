@@ -1,5 +1,4 @@
-import Loading from "@/src/components/Loading";
-import ScreenCentered from "@/src/components/ScreenCentered";
+import { Loading, ScreenCentered } from "@/src/components";
 import { tryUnloadPlayer } from "@/src/stores/player";
 import { signOut } from "@/src/stores/session";
 import { router } from "expo-router";

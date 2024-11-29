@@ -1,5 +1,5 @@
-import Header from "@/src/components/BookDetailsScreen/Header";
-import { Tile } from "@/src/components/Tiles";
+import { Tile } from "@/src/components";
+import { Header } from "@/src/components/BookDetailsScreen";
 import { useBookDetails } from "@/src/db/library";
 import { Session } from "@/src/stores/session";
 import { StyleSheet } from "react-native";

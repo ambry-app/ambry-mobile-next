@@ -1,4 +1,4 @@
-import MediaDetailsFlatList from "@/src/components/MediaDetailsScreen/MediaDetailsFlatList";
+import { MediaDetailsFlatList } from "@/src/components/MediaDetailsScreen";
 import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
 import { useSession } from "@/src/stores/session";
 import { RouterParams } from "@/src/types/router";
