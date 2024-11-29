@@ -3,7 +3,7 @@ import { useMediaAuthorsAndNarrators } from "@/src/db/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import Animated from "react-native-reanimated";
 
 type AuthorsAndNarratorsProps = {
@@ -23,10 +23,6 @@ export default function AuthorsAndNarrators({
 
   return (
     <Animated.View style={[styles.container, { opacity }]}>
-      <Text style={styles.header} numberOfLines={1}>
-        Author{media.book.bookAuthors.length > 1 && "s"} & Narrator
-        {media.mediaNarrators.length > 1 && "s"}
-      </Text>
       <FlatList
         style={styles.list}
         showsHorizontalScrollIndicator={false}

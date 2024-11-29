@@ -1,7 +1,7 @@
 import { PersonTile } from "@/src/components/Tiles";
 import { useScreen } from "@/src/stores/screen";
 import { Colors } from "@/src/styles";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import { AuthorOrNarrator } from "./SeriesDetailsFlatList";
 
 type FooterProps = {
@@ -14,10 +14,6 @@ export default function Footer({ authors, narrators }: FooterProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header} numberOfLines={1}>
-        Author{authors.length > 1 && "s"} & Narrator
-        {narrators.length > 1 && "s"}
-      </Text>
       <FlatList
         style={styles.list}
         showsHorizontalScrollIndicator={false}
