@@ -15,6 +15,7 @@ export default function SettingsScreen() {
         Settings, like your preferred playback speed, will be here.
       </Text>
       <Text style={styles.text}>You are signed in as: {session.email}</Text>
+      <Text style={styles.text}>to server: {session.url}</Text>
       <Button
         title="Sign out"
         onPress={() => router.replace("/sign-out")}

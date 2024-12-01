@@ -3,7 +3,11 @@ import { Download, useDownload } from "@/src/db/downloads";
 import { ActionBarMedia, useMediaActionBarInfo } from "@/src/db/library";
 import { syncDownUser } from "@/src/db/sync";
 import { startDownload, useDownloads } from "@/src/stores/downloads";
-import { loadMedia, requestExpandPlayer } from "@/src/stores/player";
+import {
+  loadMedia,
+  prepareToLoadMedia,
+  requestExpandPlayer,
+} from "@/src/stores/player";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { router } from "expo-router";
@@ -22,9 +26,12 @@ export default function ActionBar({ mediaId, session }: ActionBarProps) {
   if (!media) return null;
 
   const onPressPlay = async () => {
-    await syncDownUser(session, true);
-    await loadMedia(session, media.id);
     requestExpandPlayer();
+    prepareToLoadMedia();
+    setTimeout(async () => {
+      await syncDownUser(session, true);
+      await loadMedia(session, media.id);
+    }, 400);
   };
 
   return (

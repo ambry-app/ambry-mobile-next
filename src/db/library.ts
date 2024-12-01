@@ -114,7 +114,7 @@ export function useMediaDetails(session: Session, mediaId: string) {
     },
   });
 
-  const { data, ...rest } = useFadeInSyncedDataQuery(session, query);
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [mediaId]);
 
   return { media: data, ...rest };
 }
@@ -175,7 +175,7 @@ export function useBookDetails(session: Session, bookId: string) {
     },
   });
 
-  const { data, ...rest } = useFadeInSyncedDataQuery(session, query);
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [bookId]);
 
   return { book: data, ...rest };
 }
@@ -241,7 +241,9 @@ export function useSeriesDetails(session: Session, seriesId: string) {
     },
   });
 
-  const { data, ...rest } = useFadeInSyncedDataQuery(session, query);
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [
+    seriesId,
+  ]);
 
   return { series: data, ...rest };
 }
@@ -263,7 +265,9 @@ export function usePersonIds(session: Session, personId: string) {
     },
   });
 
-  const { data: person, ...rest } = useFadeInSyncedDataQuery(session, query);
+  const { data: person, ...rest } = useFadeInSyncedDataQuery(session, query, [
+    personId,
+  ]);
 
   const [ids, setIds] = useState<{
     personId: string;
@@ -296,7 +300,9 @@ export function usePersonHeaderInfo(session: Session, personId: string) {
     ),
   });
 
-  const { data, ...rest } = useFadeInSyncedDataQuery(session, query);
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [
+    personId,
+  ]);
   return { person: data, ...rest };
 }
 
@@ -309,7 +315,9 @@ export function usePersonDescription(session: Session, personId: string) {
     ),
   });
 
-  const { data, ...rest } = useFadeInSyncedDataQuery(session, query);
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [
+    personId,
+  ]);
   return { person: data, ...rest };
 }
 
@@ -338,6 +346,7 @@ export function useBooksByAuthor(session: Session, authorId: string) {
   const { data: bookIds, updatedAt: bookIdsUpdatedAt } = useSyncedDataQuery(
     session,
     bookIdsQuery,
+    [authorId],
   );
 
   const authorQuery = db.query.authors.findFirst({
@@ -356,6 +365,7 @@ export function useBooksByAuthor(session: Session, authorId: string) {
   const { data: author, updatedAt: authorUpdatedAt } = useSyncedDataQuery(
     session,
     authorQuery,
+    [authorId],
   );
 
   const booksQuery = db.query.books.findMany({
@@ -446,6 +456,7 @@ export function useMediaByNarrator(session: Session, narratorId: string) {
   const { data: mediaIds, updatedAt: mediaIdsUpdatedAt } = useSyncedDataQuery(
     session,
     mediaIdsQuery,
+    [narratorId],
   );
 
   const narratorQuery = db.query.narrators.findFirst({
@@ -548,7 +559,9 @@ export function useMediaIds(session: Session, mediaId: string) {
     },
   });
 
-  const { data: media, ...rest } = useFadeInSyncedDataQuery(session, query);
+  const { data: media, ...rest } = useFadeInSyncedDataQuery(session, query, [
+    mediaId,
+  ]);
 
   const [ids, setIds] = useState<{
     mediaId: string;
@@ -614,7 +627,7 @@ export function useMediaHeaderInfo(session: Session, mediaId: string) {
     },
   });
 
-  const { data, ...rest } = useFadeInSyncedDataQuery(session, query);
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [mediaId]);
 
   return { media: data, ...rest };
 }
@@ -634,7 +647,7 @@ export function useMediaActionBarInfo(session: Session, mediaId: string) {
     where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
   });
 
-  const { data, ...rest } = useFadeInSyncedDataQuery(session, query);
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [mediaId]);
   return { media: data, ...rest };
 }
 
@@ -655,7 +668,7 @@ export function useMediaDescription(session: Session, mediaId: string) {
     where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
   });
 
-  const { data, ...rest } = useFadeInSyncedDataQuery(session, query);
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [mediaId]);
   return { media: data, ...rest };
 }
 
@@ -696,7 +709,9 @@ export function useMediaAuthorsAndNarrators(session: Session, mediaId: string) {
     },
   });
 
-  const { data: media, opacity } = useFadeInSyncedDataQuery(session, query);
+  const { data: media, opacity } = useFadeInSyncedDataQuery(session, query, [
+    mediaId,
+  ]);
 
   const [authorSet, setAuthorSet] = useState<Set<string>>(new Set<string>());
   const [narratorSet, setNarratorSet] = useState<Set<string>>(
@@ -743,6 +758,7 @@ export function useMediaOtherEditions(
   const { data: mediaIds, updatedAt: mediaIdsUpdatedAt } = useSyncedDataQuery(
     session,
     mediaIdsQuery,
+    [bookId, withoutMediaId],
   );
 
   const mediaQuery = db.query.media.findMany({
@@ -848,7 +864,9 @@ export function useOtherBooksInSeries(session: Session, seriesId: string) {
     },
   });
 
-  const { data, ...rest } = useFadeInSyncedDataQuery(session, query);
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [
+    seriesId,
+  ]);
 
   return { series: data, ...rest };
 }
@@ -899,6 +917,7 @@ export function useOtherBooksByAuthor(
   const { data: bookIds, updatedAt: bookIdsUpdatedAt } = useSyncedDataQuery(
     session,
     bookIdsQuery,
+    [authorId, withoutBookId, withoutSeriesIds],
   );
 
   const authorQuery = db.query.authors.findFirst({
@@ -917,6 +936,7 @@ export function useOtherBooksByAuthor(
   const { data: author, updatedAt: authorUpdatedAt } = useSyncedDataQuery(
     session,
     authorQuery,
+    [authorId],
   );
 
   const booksQuery = db.query.books.findMany({
@@ -1041,6 +1061,7 @@ export function useOtherMediaByNarrator(
   const { data: mediaIds, updatedAt: mediaIdsUpdatedAt } = useSyncedDataQuery(
     session,
     mediaIdsQuery,
+    [narratorId, withoutMediaId, withoutAuthorIds, withoutSeriesIds],
   );
 
   const narratorQuery = db.query.narrators.findFirst({
@@ -1059,6 +1080,7 @@ export function useOtherMediaByNarrator(
   const { data: narrator, updatedAt: narratorUpdatedAt } = useSyncedDataQuery(
     session,
     narratorQuery,
+    [narratorId],
   );
 
   const mediaQuery = db.query.media.findMany({

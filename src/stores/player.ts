@@ -48,6 +48,7 @@ export interface PlayerState {
   sleepTimer: number;
   sleepTimerEnabled: boolean;
   sleepTimerTriggerTime: number | null;
+  loadingNewMedia: boolean;
 }
 
 interface TrackLoadResult {
@@ -73,6 +74,7 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
   sleepTimer: schema.defaultSleepTimer,
   sleepTimerEnabled: schema.defaultSleepTimerEnabled,
   sleepTimerTriggerTime: null,
+  loadingNewMedia: false,
 }));
 
 export async function setupPlayer(session: Session) {
@@ -116,6 +118,10 @@ export async function setupPlayer(session: Session) {
   }
 }
 
+export function prepareToLoadMedia() {
+  usePlayer.setState({ loadingNewMedia: true });
+}
+
 export async function loadMostRecentMedia(session: Session) {
   if (!usePlayer.getState().setup) return;
 
@@ -123,6 +129,7 @@ export async function loadMostRecentMedia(session: Session) {
 
   if (track) {
     usePlayer.setState({
+      loadingNewMedia: false,
       mediaId: track.mediaId,
       duration: track.duration,
       position: track.position,
@@ -141,6 +148,7 @@ export async function loadMedia(session: Session, mediaId: string) {
   const track = await loadMediaIntoTrackPlayer(session, mediaId);
 
   usePlayer.setState({
+    loadingNewMedia: false,
     mediaId: track.mediaId,
     duration: track.duration,
     position: track.position,
