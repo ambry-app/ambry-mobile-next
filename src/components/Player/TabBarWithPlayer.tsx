@@ -27,10 +27,10 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
+import BookDetailsText from "../BookDetailsText";
 import IconButton from "../IconButton";
 import PlayButton from "../PlayButton";
 import ThumbnailImage from "../ThumbnailImage";
-import TitleAuthorsNarrators from "../TitleAuthorNarrator";
 import ChapterControls from "./ChapterControls";
 import PlaybackControls from "./PlaybackControls";
 import PlayerScrubber from "./PlayerScrubber";
@@ -53,7 +53,9 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
   const { media, opacity } = useMediaDetails(session, mediaId);
   const [expanded, setExpanded] = useState(true);
   const expansion = useSharedValue(1.0);
-  const { screenHeight, screenWidth } = useScreen((state) => state);
+  const { screenHeight, screenWidth, shortScreen } = useScreen(
+    (state) => state,
+  );
   const whereItWas = useSharedValue(0);
   const onPanEndAction = useSharedValue<"none" | "expand" | "collapse">("none");
 
@@ -83,7 +85,6 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
   }, [expandLocal, expanded, lastPlayerExpandRequest]);
 
   const tabBarHeight = tabBarBaseHeight + insets.bottom;
-  const shortScreen = screenHeight / screenWidth < 1.8;
   const largeImageSize = shortScreen ? screenWidth * 0.6 : screenWidth * 0.8;
   const imageGutterWidth = (screenWidth - largeImageSize) / 2;
 
@@ -416,7 +417,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                   }}
                 >
                   <Pressable onPress={() => expandLocal()}>
-                    <TitleAuthorsNarrators
+                    <BookDetailsText
                       baseFontSize={14}
                       title={media.book.title}
                       authors={media.book.bookAuthors.map(
@@ -457,7 +458,8 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                     }, 400);
                   }}
                 >
-                  <TitleAuthorsNarrators
+                  <BookDetailsText
+                    textStyle={{ textAlign: "center" }}
                     baseFontSize={16}
                     titleWeight={700}
                     title={media.book.title}

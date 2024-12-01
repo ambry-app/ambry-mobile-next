@@ -17,6 +17,7 @@ type IconButtonProps = {
   onPress: () => void;
   onLongPress?: () => void;
   children?: React.ReactNode;
+  solid?: boolean;
 };
 
 export default function IconButton(props: IconButtonProps) {
@@ -29,6 +30,7 @@ export default function IconButton(props: IconButtonProps) {
     onLongPress,
     children,
     iconStyle,
+    solid = false,
   } = props;
 
   return (
@@ -43,7 +45,7 @@ export default function IconButton(props: IconButtonProps) {
             iconStyle,
           ]}
         >
-          <Icon size={size} name={icon} color={color} />
+          <Icon size={size} name={icon} color={color} solid={solid} />
         </View>
         {children}
       </View>
@@ -55,14 +57,15 @@ type IconProps = {
   size: number;
   name: string;
   color: string;
+  solid: boolean;
 };
 
-function Icon({ size, name, color }: IconProps) {
+function Icon({ size, name, color, solid }: IconProps) {
   if (name === "loading") {
     return <Loading size={size} color={color} />;
   }
 
-  return <FontAwesome6 size={size} name={name} color={color} solid />;
+  return <FontAwesome6 size={size} name={name} color={color} solid={solid} />;
 }
 
 const styles = StyleSheet.create({

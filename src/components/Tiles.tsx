@@ -9,10 +9,10 @@ import {
   View,
   ViewStyle,
 } from "react-native";
+import BookDetailsText from "./BookDetailsText";
 import MultiThumbnailImage from "./MultiThumbnailImage";
 import { PressableScale } from "./PressableScale";
 import ThumbnailImage from "./ThumbnailImage";
-import TitleAuthorsNarrators from "./TitleAuthorNarrator";
 
 type Media = {
   id: string;
@@ -126,7 +126,7 @@ export function Tile({ book, media, seriesBook, style }: TileProps) {
       </View>
       <TouchableOpacity onPress={navigateToBook}>
         <View>
-          <TitleAuthorsNarrators
+          <BookDetailsText
             baseFontSize={16}
             title={book.title}
             authors={book.bookAuthors.map((ba) => ba.author.name)}

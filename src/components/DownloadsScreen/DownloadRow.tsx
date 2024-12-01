@@ -1,8 +1,8 @@
 import {
+  BookDetailsText,
   IconButton,
   Loading,
   ThumbnailImage,
-  TitleAuthorsNarrators,
 } from "@/src/components";
 import { ListedDownload } from "@/src/db/downloads";
 import { useDownloads } from "@/src/stores/downloads";
@@ -53,7 +53,7 @@ export default function DownloadRow({ download }: DownloadRowProps) {
         </TouchableOpacity>
         <View style={styles.details}>
           <TouchableOpacity onPress={navigateToBook}>
-            <TitleAuthorsNarrators
+            <BookDetailsText
               baseFontSize={14}
               title={download.media.book.title}
               authors={download.media.book.bookAuthors.map(

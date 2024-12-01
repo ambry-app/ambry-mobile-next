@@ -7,7 +7,7 @@ import { loadMedia, requestExpandPlayer } from "@/src/stores/player";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { router } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { Alert, Share, StyleSheet, View } from "react-native";
 import Animated from "react-native-reanimated";
 
 type ActionBarProps = {
@@ -31,13 +31,18 @@ export default function ActionBar({ mediaId, session }: ActionBarProps) {
     <Animated.View style={[styles.container, { opacity }]}>
       <View style={styles.buttonsContainer}>
         <DownloadButton media={media} download={download} session={session} />
-        {/* <IconButton
+        <IconButton
           icon="heart"
           size={24}
           style={styles.button}
           color={Colors.zinc[100]}
-          onPress={() => {}}
-        /> */}
+          onPress={() => {
+            Alert.alert(
+              "Coming soon",
+              "You will be able to like audiobooks soon.",
+            );
+          }}
+        />
         <IconButton
           icon="play"
           size={32}
@@ -46,23 +51,31 @@ export default function ActionBar({ mediaId, session }: ActionBarProps) {
           color={Colors.black}
           onPress={onPressPlay}
         />
-        {/* <IconButton
+        <IconButton
           icon="share"
           size={24}
           style={styles.button}
           color={Colors.zinc[100]}
-          onPress={() => {}}
-        /> */}
-        {/* this one is just made invisible so it takes up space for now */}
+          onPress={async () => {
+            const mediaURL =
+              session.url + "/audiobooks/" + atob(mediaId).split(":")[1];
+            Share.share({ message: mediaURL });
+          }}
+        />
         <IconButton
           icon="ellipsis-vertical"
           size={24}
-          style={[styles.button, { opacity: 0 }]}
+          style={styles.button}
           color={Colors.zinc[100]}
-          onPress={() => {}}
+          onPress={() => {
+            Alert.alert(
+              "Coming soon",
+              "This will show a list of additional actions you can take with this audiobook.",
+            );
+          }}
         />
       </View>
-      <ExplanationText download={download} />
+      {/* <ExplanationText download={download} /> */}
     </Animated.View>
   );
 }
@@ -96,6 +109,7 @@ function DownloadButton({ media, download, session }: DownloadButtonProps) {
         style={styles.button}
         color={Colors.zinc[100]}
         onPress={() => router.navigate("/downloads")}
+        solid
       />
     );
   }
@@ -115,27 +129,27 @@ function DownloadButton({ media, download, session }: DownloadButtonProps) {
   );
 }
 
-type ExplanationTextProps = {
-  download: Download;
-};
+// type ExplanationTextProps = {
+//   download: Download;
+// };
 
-function ExplanationText({ download }: ExplanationTextProps) {
-  if (download && download.status === "ready") {
-    return (
-      <Text style={styles.explanationText}>
-        You have this audiobook downloaded, it will play from your device and
-        not require an internet connection.
-      </Text>
-    );
-  } else {
-    return (
-      <Text style={styles.explanationText}>
-        Playing this audiobook will stream it and require an internet connection
-        and may use your data plan.
-      </Text>
-    );
-  }
-}
+// function ExplanationText({ download }: ExplanationTextProps) {
+//   if (download && download.status === "ready") {
+//     return (
+//       <Text style={styles.explanationText}>
+//         You have this audiobook downloaded, it will play from your device and
+//         not require an internet connection.
+//       </Text>
+//     );
+//   } else {
+//     return (
+//       <Text style={styles.explanationText}>
+//         Playing this audiobook will stream it and require an internet connection
+//         and may use your data plan.
+//       </Text>
+//     );
+//   }
+// }
 
 const styles = StyleSheet.create({
   container: {

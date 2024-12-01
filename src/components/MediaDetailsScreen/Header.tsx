@@ -1,5 +1,6 @@
-import { NamesList, ThumbnailImage } from "@/src/components";
+import { BookDetailsText, ThumbnailImage } from "@/src/components";
 import { useMediaHeaderInfo } from "@/src/db/library";
+import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { durationDisplay } from "@/src/utils/time";
@@ -12,6 +13,7 @@ type HeaderProps = {
 };
 
 export default function Header({ mediaId, session }: HeaderProps) {
+  const shortScreen = useScreen((state) => state.shortScreen);
   const { media, opacity } = useMediaHeaderInfo(session, mediaId);
 
   if (!media) return null;
@@ -22,34 +24,25 @@ export default function Header({ mediaId, session }: HeaderProps) {
         thumbnails={media.thumbnails}
         downloadedThumbnails={media.download?.thumbnails}
         size="extraLarge"
-        style={{ width: "100%", aspectRatio: 1, borderRadius: 12 }}
+        style={{
+          width: shortScreen ? "60%" : "90%",
+          aspectRatio: 1,
+          borderRadius: 12,
+        }}
       />
       <View>
-        <Text style={styles.titleText}>{media.book.title}</Text>
-        {media.book.seriesBooks.length !== 0 && (
-          <NamesList
-            names={media.book.seriesBooks.map(
-              (sb) => `${sb.series.name} #${sb.bookNumber}`,
-            )}
-            style={styles.seriesText}
-          />
-        )}
-        <NamesList
-          names={media.book.bookAuthors.map((ba) => ba.author.name)}
-          style={styles.authorsText}
+        <BookDetailsText
+          textStyle={{ textAlign: "center" }}
+          baseFontSize={16}
+          titleWeight={700}
+          title={media.book.title}
+          series={media.book.seriesBooks.map(
+            (sb) => `${sb.series.name} #${sb.bookNumber}`,
+          )}
+          authors={media.book.bookAuthors.map((ba) => ba.author.name)}
+          narrators={media.mediaNarrators.map((mn) => mn.narrator.name)}
+          fullCast={media.fullCast}
         />
-        {media.mediaNarrators.length > 0 && (
-          <NamesList
-            prefix={
-              media.fullCast ? "Read by a full cast including" : "Read by"
-            }
-            names={media.mediaNarrators.map((mn) => mn.narrator.name)}
-            style={styles.narratorText}
-          />
-        )}
-        {media.mediaNarrators.length === 0 && media.fullCast && (
-          <Text style={styles.narratorText}>Read by a full cast</Text>
-        )}
       </View>
       {media.duration && (
         <View>
@@ -64,6 +57,7 @@ export default function Header({ mediaId, session }: HeaderProps) {
 
 const styles = StyleSheet.create({
   container: {
+    alignItems: "center",
     gap: 8,
   },
   titleText: {

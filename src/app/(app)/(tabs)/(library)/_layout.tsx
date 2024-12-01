@@ -8,7 +8,7 @@ const getId = ({ params }: { params?: Record<string, any> | undefined }) =>
 const headerOptions: NativeStackNavigationOptions =
   Platform.OS === "ios"
     ? {
-        headerLargeTitle: true,
+        // headerLargeTitle: true,
         headerTransparent: true,
         headerBlurEffect: "systemChromeMaterialDark",
       }

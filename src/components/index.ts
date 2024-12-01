@@ -1,3 +1,4 @@
+import BookDetailsText from "./BookDetailsText";
 import Button from "./Button";
 import Description from "./Description";
 import FocusableTextInput from "./FocusableTextInput";
@@ -14,9 +15,9 @@ import SeekButton from "./SeekButton";
 import TabBar from "./TabBar";
 import ThumbnailImage from "./ThumbnailImage";
 import { BookTile, MediaTile, PersonTile, SeriesBookTile, Tile } from "./Tiles";
-import TitleAuthorsNarrators from "./TitleAuthorNarrator";
 
 export {
+  BookDetailsText,
   BookTile,
   Button,
   Description,
@@ -37,5 +38,4 @@ export {
   TabBar,
   ThumbnailImage,
   Tile,
-  TitleAuthorsNarrators,
 };
