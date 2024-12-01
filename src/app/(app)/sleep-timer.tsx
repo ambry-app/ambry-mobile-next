@@ -1,4 +1,4 @@
-import { Button } from "@/src/components";
+import { Button, IconButton } from "@/src/components";
 import {
   setSleepTimer,
   setSleepTimerState,
@@ -39,17 +39,43 @@ export default function SleepTimerModal() {
           Sleep Timer: {formatSeconds(displaySleepTimerSeconds)} minutes
         </Text>
 
-        <Slider
-          value={sleepTimer}
-          minimumValue={300}
-          maximumValue={5400}
-          step={300}
-          thumbTintColor={Colors.lime[400]}
-          minimumTrackTintColor={Colors.zinc[400]}
-          maximumTrackTintColor={Colors.zinc[400]}
-          onValueChange={(value) => setDisplaySleepTimerSeconds(value)}
-          onSlidingComplete={(value) => setSleepTimerSecondsAndDisplay(value)}
-        />
+        <View style={styles.sliderRowContainer}>
+          <IconButton
+            icon="minus"
+            color={Colors.zinc[100]}
+            size={16}
+            onPress={() => {
+              const newSleepTimer = Math.max(300, sleepTimer - 300);
+              setSleepTimerSecondsAndDisplay(newSleepTimer);
+            }}
+            style={styles.plusMinusButton}
+          />
+          <View style={styles.sliderContainer}>
+            <Slider
+              value={sleepTimer}
+              minimumValue={300}
+              maximumValue={5400}
+              step={300}
+              thumbTintColor={Colors.lime[400]}
+              minimumTrackTintColor={Colors.zinc[400]}
+              maximumTrackTintColor={Colors.zinc[400]}
+              onValueChange={(value) => setDisplaySleepTimerSeconds(value)}
+              onSlidingComplete={(value) =>
+                setSleepTimerSecondsAndDisplay(value)
+              }
+            />
+          </View>
+          <IconButton
+            icon="plus"
+            color={Colors.zinc[100]}
+            size={16}
+            onPress={() => {
+              const newSleepTimer = Math.min(5400, sleepTimer + 300);
+              setSleepTimerSecondsAndDisplay(newSleepTimer);
+            }}
+            style={styles.plusMinusButton}
+          />
+        </View>
 
         <View style={styles.sleepTimerButtonRow}>
           <SleepTimerSecondsButton
@@ -138,7 +164,7 @@ const styles = StyleSheet.create({
     padding: 32,
     display: "flex",
     justifyContent: "center",
-    gap: 16,
+    gap: 24,
   },
   title: {
     color: Colors.zinc[100],
@@ -157,7 +183,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   sleepTimerButtonActive: {
-    backgroundColor: Colors.lime[400],
+    backgroundColor: Colors.zinc[100],
     color: Colors.black,
   },
   sleepTimerButtonActiveText: {
@@ -171,10 +197,16 @@ const styles = StyleSheet.create({
     color: Colors.zinc[100],
     fontSize: 12,
   },
-  closeButton: {
-    marginTop: 32,
+  sliderRowContainer: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
   },
-  closeButtonText: {
-    color: Colors.lime[400],
+  sliderContainer: {
+    flexGrow: 1,
+  },
+  plusMinusButton: {
+    backgroundColor: Colors.zinc[800],
+    borderRadius: 999,
   },
 });

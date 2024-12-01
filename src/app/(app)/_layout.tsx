@@ -4,11 +4,11 @@ import { useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { Redirect, Stack } from "expo-router";
-import { Platform, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 
 const styles = StyleSheet.create({
   modalContent: {
-    backgroundColor: Colors.zinc[800],
+    backgroundColor: Colors.zinc[900],
   },
 });
 
@@ -16,17 +16,15 @@ const modalOptions: NativeStackNavigationOptions = {
   headerShown: false,
   presentation: "formSheet",
   sheetAllowedDetents: "fitToContents",
-  sheetCornerRadius: 24,
   sheetGrabberVisible: true,
   contentStyle: styles.modalContent,
 };
 
-// Android scrollable within formSheet is really janky, so we use a regular
-// modal for chapter select on Android.
-const chapterSelectOptions: NativeStackNavigationOptions =
-  Platform.OS === "ios"
-    ? { ...modalOptions, sheetAllowedDetents: [0.5, 1.0] }
-    : { presentation: "modal", headerTitle: "Select Chapter" };
+const chapterSelectOptions: NativeStackNavigationOptions = {
+  presentation: "modal",
+  headerTitle: "Select Chapter",
+  contentStyle: styles.modalContent,
+};
 
 export default function AppStackLayout() {
   const session = useSession((state) => state.session);

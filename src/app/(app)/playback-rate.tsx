@@ -1,4 +1,4 @@
-import { Button } from "@/src/components";
+import { Button, IconButton } from "@/src/components";
 import { setPlaybackRate, usePlayer } from "@/src/stores/player";
 import { useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
@@ -47,21 +47,45 @@ export default function PlaybackRateModal() {
           Playback Speed: {formatPlaybackRate(displayPlaybackRate)}×
         </Text>
 
-        <Slider
-          value={playbackRate}
-          minimumValue={0.5}
-          maximumValue={3.0}
-          step={0.05}
-          thumbTintColor={Colors.lime[400]}
-          minimumTrackTintColor={Colors.zinc[400]}
-          maximumTrackTintColor={Colors.zinc[400]}
-          onValueChange={(value) => {
-            setDisplayPlaybackRate(parseFloat(value.toFixed(2)));
-          }}
-          onSlidingComplete={(value) => {
-            setPlaybackRateAndDisplay(parseFloat(value.toFixed(2)));
-          }}
-        />
+        <View style={styles.sliderRowContainer}>
+          <IconButton
+            icon="minus"
+            color={Colors.zinc[100]}
+            size={16}
+            onPress={() => {
+              const newPlaybackRate = Math.max(0.5, playbackRate - 0.05);
+              setPlaybackRateAndDisplay(parseFloat(newPlaybackRate.toFixed(2)));
+            }}
+            style={styles.plusMinusButton}
+          />
+          <View style={styles.sliderContainer}>
+            <Slider
+              value={playbackRate}
+              minimumValue={0.5}
+              maximumValue={3.0}
+              step={0.05}
+              thumbTintColor={Colors.lime[400]}
+              minimumTrackTintColor={Colors.zinc[400]}
+              maximumTrackTintColor={Colors.zinc[400]}
+              onValueChange={(value) => {
+                setDisplayPlaybackRate(parseFloat(value.toFixed(2)));
+              }}
+              onSlidingComplete={(value) => {
+                setPlaybackRateAndDisplay(parseFloat(value.toFixed(2)));
+              }}
+            />
+          </View>
+          <IconButton
+            icon="plus"
+            color={Colors.zinc[100]}
+            size={16}
+            onPress={() => {
+              const newPlaybackRate = Math.min(3.0, playbackRate + 0.05);
+              setPlaybackRateAndDisplay(parseFloat(newPlaybackRate.toFixed(2)));
+            }}
+            style={styles.plusMinusButton}
+          />
+        </View>
 
         <View style={styles.rateButtonRow}>
           <PlaybackRateButton
@@ -137,7 +161,7 @@ const styles = StyleSheet.create({
     padding: 32,
     display: "flex",
     justifyContent: "center",
-    gap: 16,
+    gap: 24,
   },
   title: {
     color: Colors.zinc[100],
@@ -156,7 +180,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   rateButtonActive: {
-    backgroundColor: Colors.lime[400],
+    backgroundColor: Colors.zinc[100],
   },
   rateButtonTextActive: {
     color: Colors.black,
@@ -169,10 +193,16 @@ const styles = StyleSheet.create({
     color: Colors.zinc[400],
     textAlign: "center",
   },
-  closeButton: {
-    marginTop: 32,
+  sliderRowContainer: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
   },
-  closeButtonText: {
-    color: Colors.lime[400],
+  sliderContainer: {
+    flexGrow: 1,
+  },
+  plusMinusButton: {
+    backgroundColor: Colors.zinc[800],
+    borderRadius: 999,
   },
 });

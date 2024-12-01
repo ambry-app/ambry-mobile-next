@@ -39,7 +39,7 @@ export default function ActionBar({ mediaId, session }: ActionBarProps) {
           onPress={() => {
             Alert.alert(
               "Coming soon",
-              "You will be able to like audiobooks soon.",
+              "This will allow you to add audiobooks to a list liked audiobooks.",
             );
           }}
         />
