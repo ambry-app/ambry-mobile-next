@@ -1,6 +1,7 @@
 import {
   BookDetailsText,
   IconButton,
+  Loading,
   PlayButton,
   ThumbnailImage,
 } from "@/src/components";
@@ -180,6 +181,12 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
     };
   });
 
+  const playerLoadingStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(playerOpacity.value, [0, 1], [1, 0]),
+    };
+  });
+
   const backgroundStyle = useAnimatedStyle(() => {
     return {
       opacity: expansion.value,
@@ -314,6 +321,22 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
               playerContainerStyle,
             ]}
           >
+            <Animated.View
+              style={[
+                {
+                  position: "absolute",
+                  top: 0,
+                  bottom: 0,
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                },
+                playerLoadingStyle,
+              ]}
+            >
+              <Loading />
+            </Animated.View>
             <Animated.View
               style={[{ display: "flex", height: "100%" }, playerStyle]}
             >
