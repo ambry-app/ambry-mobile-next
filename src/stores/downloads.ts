@@ -8,6 +8,7 @@ import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 import { documentDirectoryFilePath } from "@/src/utils/paths";
 import * as FileSystem from "expo-file-system";
 import { create } from "zustand";
+import { loadMedia, usePlayer } from "./player";
 import { Session } from "./session";
 
 export type DownloadProgresses = Partial<Record<string, number>>;
@@ -87,6 +88,10 @@ export async function startDownload(
     if (result) {
       console.debug("[Downloads] Download succeeded");
       await updateDownload(session, mediaId, { status: "ready" });
+      // reload player if the download is for the currently loaded media
+      if (usePlayer.getState().mediaId === mediaId) {
+        loadMedia(session, mediaId);
+      }
     } else {
       console.debug("[Downloads] Download was canceled");
     }
@@ -136,6 +141,11 @@ export async function removeDownload(session: Session, mediaId: string) {
     await tryDelete(download.thumbnails.extraLarge);
   }
   await deleteDownload(session, mediaId);
+
+  // reload player if the download is for the currently loaded media
+  if (usePlayer.getState().mediaId === mediaId) {
+    loadMedia(session, mediaId);
+  }
 }
 
 async function downloadThumbnails(

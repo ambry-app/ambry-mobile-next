@@ -17,8 +17,8 @@ type DownloadRowProps = {
 };
 
 export default function DownloadRow({ download }: DownloadRowProps) {
-  const progress = useDownloads(
-    (state) => state.downloadProgresses[download.media.id],
+  const inProgress = useDownloads(
+    (state) => download.media.id in state.downloadProgresses,
   );
 
   const navigateToBook = () => {
@@ -75,7 +75,7 @@ export default function DownloadRow({ download }: DownloadRowProps) {
             />
           )}
         </View>
-        <View>{progress !== undefined && <Loading size={24} />}</View>
+        <View>{inProgress && <Loading size={24} />}</View>
         <View>
           <IconButton
             size={16}
@@ -85,11 +85,19 @@ export default function DownloadRow({ download }: DownloadRowProps) {
           />
         </View>
       </View>
-      {progress !== undefined && (
-        <View style={[styles.progressBar, { width: `${progress * 100}%` }]} />
-      )}
+      <DownloadProgressBar download={download} />
     </>
   );
+}
+
+function DownloadProgressBar({ download }: { download: ListedDownload }) {
+  const progress = useDownloads(
+    (state) => state.downloadProgresses[download.media.id],
+  );
+
+  if (!progress) return null;
+
+  return <View style={[styles.progressBar, { width: `${progress * 100}%` }]} />;
 }
 
 const styles = StyleSheet.create({

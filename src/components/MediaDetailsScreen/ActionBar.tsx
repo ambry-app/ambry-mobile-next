@@ -94,9 +94,11 @@ type DownloadButtonProps = {
 };
 
 function DownloadButton({ media, download, session }: DownloadButtonProps) {
-  const progress = useDownloads((state) => state.downloadProgresses[media.id]);
+  const inProgress = useDownloads(
+    (state) => media.id in state.downloadProgresses,
+  );
 
-  if (progress) {
+  if (inProgress) {
     return (
       <IconButton
         icon="loading"
