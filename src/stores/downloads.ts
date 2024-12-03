@@ -5,6 +5,7 @@ import {
   updateDownload,
 } from "@/src/db/downloads";
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
+import { documentDirectoryFilePath } from "@/src/utils/paths";
 import * as FileSystem from "expo-file-system";
 import { create } from "zustand";
 import { Session } from "./session";
@@ -37,11 +38,12 @@ export async function startDownload(
     },
   }));
 
-  const filePath = FileSystem.documentDirectory + `${mediaId}.mp4`;
+  const destinationFilePath = FileSystem.documentDirectory + `${mediaId}.mp4`;
 
-  console.debug("[Downloads] Downloading to", filePath);
+  console.debug("[Downloads] Downloading to", destinationFilePath);
 
-  await createDownload(session, mediaId, filePath);
+  // FIXME: stored file paths should be relative, not absolute
+  await createDownload(session, mediaId, destinationFilePath);
   if (thumbnails) {
     const downloadedThumbnails = await downloadThumbnails(
       session,
@@ -67,7 +69,7 @@ export async function startDownload(
 
   const downloadResumable = FileSystem.createDownloadResumable(
     `${session.url}/${uri}`,
-    filePath,
+    destinationFilePath,
     { headers: { Authorization: `Bearer ${session.token}` } },
     progressCallback,
   );
@@ -120,8 +122,9 @@ export async function removeDownload(session: Session, mediaId: string) {
   const download = await getDownload(session, mediaId);
 
   if (download) {
-    console.debug("[Downloads] deleting file:", download.filePath);
-    await tryDelete(download.filePath);
+    const pathToDelete = documentDirectoryFilePath(download.filePath);
+    console.debug("[Downloads] deleting file:", pathToDelete);
+    await tryDelete(pathToDelete);
   }
 
   if (download?.thumbnails) {

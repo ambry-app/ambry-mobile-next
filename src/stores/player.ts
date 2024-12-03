@@ -15,6 +15,7 @@ import {
   setSleepTimerTime,
 } from "@/src/db/settings";
 import { syncUp } from "@/src/db/sync";
+import { documentDirectoryFilePath } from "@/src/utils/paths";
 import { Platform } from "react-native";
 import TrackPlayer, {
   AndroidAudioContentType,
@@ -442,7 +443,7 @@ async function loadPlayerState(
     // the media is downloaded, load the local file
     streaming = false;
     await TrackPlayer.add({
-      url: playerState.media.download.filePath,
+      url: documentDirectoryFilePath(playerState.media.download.filePath),
       pitchAlgorithm: PitchAlgorithm.Voice,
       duration: playerState.media.duration
         ? parseFloat(playerState.media.duration)

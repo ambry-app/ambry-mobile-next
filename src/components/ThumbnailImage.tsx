@@ -1,6 +1,7 @@
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 import { useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
+import { documentDirectoryFilePath } from "@/src/utils/paths";
 import { Image, ImageStyle } from "expo-image";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 
@@ -21,7 +22,7 @@ export default function ThumbnailImage(props: ThumbnailImageProps) {
       <View style={[styles.container, style]}>
         <Image
           source={{
-            uri: downloadedThumbnails[size],
+            uri: documentDirectoryFilePath(downloadedThumbnails[size]),
           }}
           style={styles.image}
           placeholder={{ thumbhash: downloadedThumbnails.thumbhash }}

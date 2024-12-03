@@ -1,5 +1,6 @@
 import { ListedDownload } from "@/src/db/downloads";
 import { Colors } from "@/src/styles";
+import { documentDirectoryFilePath } from "@/src/utils/paths";
 import * as FileSystem from "expo-file-system";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text } from "react-native";
@@ -10,7 +11,9 @@ export default function FileSize({ download }: { download: ListedDownload }) {
 
   useEffect(() => {
     (async function () {
-      const info = await FileSystem.getInfoAsync(download.filePath);
+      const info = await FileSystem.getInfoAsync(
+        documentDirectoryFilePath(download.filePath),
+      );
       if (!info.exists) {
         setIsMissing(true);
       }
@@ -26,8 +29,7 @@ export default function FileSize({ download }: { download: ListedDownload }) {
 
   return (
     <Text style={styles.text} numberOfLines={1}>
-      {size} and some more text here and some more text here and some more text
-      here and some more text here and some more text here
+      {size}
     </Text>
   );
 }
