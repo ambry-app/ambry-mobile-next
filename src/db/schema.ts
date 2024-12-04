@@ -438,12 +438,27 @@ export const localPlayerStatesRelations = relations(
   }),
 );
 
-export const servers = sqliteTable(
-  "servers",
+// data related to servers that we have synced with, but unrelated to any
+// specific user account
+export const syncedServers = sqliteTable("synced_servers", {
+  url: text("url").notNull().primaryKey(),
+  // the last time we checked the server for new data (library)
+  lastDownSync: integer("last_down_sync", { mode: "timestamp" }),
+  // the last time data was actually updated locally
+  newDataAsOf: integer("new_data_as_of", { mode: "timestamp" }),
+});
+
+// data related to user accounts on specific servers
+export const serverProfiles = sqliteTable(
+  "server_profiles",
   {
     url: text("url").notNull(),
     userEmail: text("user_email").notNull(),
+    // the last time we checked the server for new data (player states)
     lastDownSync: integer("last_down_sync", { mode: "timestamp" }),
+    // the last time data was actually updated locally
+    newDataAsOf: integer("new_data_as_of", { mode: "timestamp" }),
+    // the last time we sent data to the server (player states)
     lastUpSync: integer("last_up_sync", { mode: "timestamp" }),
   },
   (table) => {

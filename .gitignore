@@ -12,6 +12,10 @@ web-build/
 *.apk
 *.aab
 
+# prebuild
+/android
+/ios
+
 # macOS
 .DS_Store
 
@@ -20,6 +24,3 @@ web-build/
 
 expo-env.d.ts
 # @end expo-cli
-
-/android
-/ios

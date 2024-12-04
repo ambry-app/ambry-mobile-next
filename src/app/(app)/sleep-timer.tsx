@@ -1,25 +1,21 @@
-import Button from "@/src/components/Button";
-import useBackHandler from "@/src/hooks/use.back.handler";
+import { Button, IconButton } from "@/src/components";
 import {
   setSleepTimer,
   setSleepTimerState,
   usePlayer,
 } from "@/src/stores/player";
+import { Colors } from "@/src/styles";
 import Slider from "@react-native-community/slider";
-import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Switch, Text, View } from "react-native";
-import colors from "tailwindcss/colors";
+import { Platform, StyleSheet, Switch, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function formatSeconds(seconds: number) {
   return Math.round(seconds / 60);
 }
 
 export default function SleepTimerModal() {
-  useBackHandler(() => {
-    router.back();
-    return true;
-  });
+  const { bottom } = useSafeAreaInsets();
 
   const { sleepTimer, sleepTimerEnabled } = usePlayer((state) => state);
 
@@ -36,79 +32,99 @@ export default function SleepTimerModal() {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <View>
+    <View style={{ paddingBottom: Platform.OS === "android" ? bottom : 0 }}>
+      {Platform.OS === "android" && <View style={styles.handle} />}
+      <View style={styles.container}>
         <Text style={styles.title}>
-          {formatSeconds(displaySleepTimerSeconds)}m
+          Sleep Timer: {formatSeconds(displaySleepTimerSeconds)} minutes
         </Text>
-        <Slider
-          value={sleepTimer}
-          minimumValue={300}
-          maximumValue={5400}
-          step={300}
-          thumbTintColor={colors.lime[400]}
-          minimumTrackTintColor={colors.zinc[400]}
-          maximumTrackTintColor={colors.zinc[400]}
-          onValueChange={(value) => setDisplaySleepTimerSeconds(value)}
-          onSlidingComplete={(value) => setSleepTimerSecondsAndDisplay(value)}
-        />
-      </View>
 
-      <View style={styles.sleepTimerButtonRow}>
-        <SleepTimerSecondsButton
-          seconds={300}
-          active={displaySleepTimerSeconds === 300}
-          setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
-        />
-        <SleepTimerSecondsButton
-          seconds={600}
-          active={displaySleepTimerSeconds === 600}
-          setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
-        />
-        <SleepTimerSecondsButton
-          seconds={900}
-          active={displaySleepTimerSeconds === 900}
-          setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
-        />
-        <SleepTimerSecondsButton
-          seconds={1800}
-          active={displaySleepTimerSeconds === 1800}
-          setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
-        />
-        <SleepTimerSecondsButton
-          seconds={3600}
-          active={displaySleepTimerSeconds === 3600}
-          setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
-        />
-      </View>
-      <View
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Text style={styles.sleepTimerEnabledText}>
-          Sleep Timer is {sleepTimerEnabled ? "enabled" : "disabled"}
-        </Text>
-        <Switch
-          trackColor={{ false: colors.zinc[400], true: colors.lime[500] }}
-          thumbColor={colors.zinc[100]}
-          value={sleepTimerEnabled}
-          onValueChange={(value) => {
-            setSleepTimerState(value);
+        <View style={styles.sliderRowContainer}>
+          <IconButton
+            icon="minus"
+            color={Colors.zinc[100]}
+            size={16}
+            onPress={() => {
+              const newSleepTimer = Math.max(300, sleepTimer - 300);
+              setSleepTimerSecondsAndDisplay(newSleepTimer);
+            }}
+            style={styles.plusMinusButton}
+          />
+          <View style={styles.sliderContainer}>
+            <Slider
+              value={sleepTimer}
+              minimumValue={300}
+              maximumValue={5400}
+              step={300}
+              thumbTintColor={Colors.lime[400]}
+              minimumTrackTintColor={Colors.zinc[400]}
+              maximumTrackTintColor={Colors.zinc[400]}
+              onValueChange={(value) => setDisplaySleepTimerSeconds(value)}
+              onSlidingComplete={(value) =>
+                setSleepTimerSecondsAndDisplay(value)
+              }
+            />
+          </View>
+          <IconButton
+            icon="plus"
+            color={Colors.zinc[100]}
+            size={16}
+            onPress={() => {
+              const newSleepTimer = Math.min(5400, sleepTimer + 300);
+              setSleepTimerSecondsAndDisplay(newSleepTimer);
+            }}
+            style={styles.plusMinusButton}
+          />
+        </View>
+
+        <View style={styles.sleepTimerButtonRow}>
+          <SleepTimerSecondsButton
+            seconds={300}
+            active={displaySleepTimerSeconds === 300}
+            setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
+          />
+          <SleepTimerSecondsButton
+            seconds={600}
+            active={displaySleepTimerSeconds === 600}
+            setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
+          />
+          <SleepTimerSecondsButton
+            seconds={900}
+            active={displaySleepTimerSeconds === 900}
+            setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
+          />
+          <SleepTimerSecondsButton
+            seconds={1800}
+            active={displaySleepTimerSeconds === 1800}
+            setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
+          />
+          <SleepTimerSecondsButton
+            seconds={3600}
+            active={displaySleepTimerSeconds === 3600}
+            setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
+          />
+        </View>
+        <View
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
           }}
-        />
+        >
+          <Text style={styles.sleepTimerEnabledText}>
+            Sleep Timer is {sleepTimerEnabled ? "enabled" : "disabled"}
+          </Text>
+          <Switch
+            trackColor={{ false: Colors.zinc[400], true: Colors.lime[500] }}
+            thumbColor={Colors.zinc[100]}
+            value={sleepTimerEnabled}
+            onValueChange={(value) => {
+              setSleepTimerState(value);
+            }}
+          />
+        </View>
       </View>
-
-      <Button
-        size={32}
-        onPress={() => router.back()}
-        style={styles.closeButton}
-      >
-        <Text style={styles.closeButtonText}>Ok</Text>
-      </Button>
     </View>
   );
 }
@@ -136,17 +152,22 @@ function SleepTimerSecondsButton(props: SleepTimerSecondsButtonProps) {
 }
 
 const styles = StyleSheet.create({
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: Colors.zinc[500],
+    borderRadius: 999,
+    marginHorizontal: "auto",
+    marginTop: 8,
+  },
   container: {
     padding: 32,
-    backgroundColor: colors.zinc[950],
-    height: "100%",
     display: "flex",
     justifyContent: "center",
-    gap: 16,
+    gap: 24,
   },
   title: {
-    color: colors.zinc[100],
-    margin: 16,
+    color: Colors.zinc[100],
     fontSize: 18,
     textAlign: "center",
   },
@@ -156,30 +177,36 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   sleepTimerButton: {
-    backgroundColor: colors.zinc[800],
+    backgroundColor: Colors.zinc[800],
     borderRadius: 999,
     paddingHorizontal: 16,
     flexGrow: 1,
   },
   sleepTimerButtonActive: {
-    backgroundColor: colors.lime[400],
-    color: colors.black,
+    backgroundColor: Colors.zinc[100],
+    color: Colors.black,
   },
   sleepTimerButtonActiveText: {
-    color: colors.black,
+    color: Colors.black,
   },
   sleepTimerEnabledText: {
-    color: colors.zinc[400],
+    color: Colors.zinc[300],
     fontSize: 16,
   },
   text: {
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
     fontSize: 12,
   },
-  closeButton: {
-    marginTop: 32,
+  sliderRowContainer: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
   },
-  closeButtonText: {
-    color: colors.lime[400],
+  sliderContainer: {
+    flexGrow: 1,
+  },
+  plusMinusButton: {
+    backgroundColor: Colors.zinc[800],
+    borderRadius: 999,
   },
 });

@@ -1,5 +1,5 @@
+import { Colors } from "@/src/styles";
 import { StyleSheet, Text, View } from "react-native";
-import colors from "tailwindcss/colors";
 
 export default function ShelfScreen() {
   return (
@@ -20,6 +20,6 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   text: {
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
   },
 });

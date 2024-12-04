@@ -5,8 +5,10 @@ import {
   updateDownload,
 } from "@/src/db/downloads";
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
+import { documentDirectoryFilePath } from "@/src/utils/paths";
 import * as FileSystem from "expo-file-system";
 import { create } from "zustand";
+import { loadMedia, usePlayer } from "./player";
 import { Session } from "./session";
 
 export type DownloadProgresses = Partial<Record<string, number>>;
@@ -37,11 +39,12 @@ export async function startDownload(
     },
   }));
 
-  const filePath = FileSystem.documentDirectory + `${mediaId}.mp4`;
+  const destinationFilePath = FileSystem.documentDirectory + `${mediaId}.mp4`;
 
-  console.log("Downloading to", filePath);
+  console.debug("[Downloads] Downloading to", destinationFilePath);
 
-  await createDownload(session, mediaId, filePath);
+  // FIXME: stored file paths should be relative, not absolute
+  await createDownload(session, mediaId, destinationFilePath);
   if (thumbnails) {
     const downloadedThumbnails = await downloadThumbnails(
       session,
@@ -67,7 +70,7 @@ export async function startDownload(
 
   const downloadResumable = FileSystem.createDownloadResumable(
     `${session.url}/${uri}`,
-    filePath,
+    destinationFilePath,
     { headers: { Authorization: `Bearer ${session.token}` } },
     progressCallback,
   );
@@ -83,13 +86,17 @@ export async function startDownload(
     const result = await downloadResumable.downloadAsync();
 
     if (result) {
-      console.log("Download succeeded");
+      console.debug("[Downloads] Download succeeded");
       await updateDownload(session, mediaId, { status: "ready" });
+      // reload player if the download is for the currently loaded media
+      if (usePlayer.getState().mediaId === mediaId) {
+        loadMedia(session, mediaId);
+      }
     } else {
-      console.log("Download was canceled");
+      console.debug("[Downloads] Download was canceled");
     }
   } catch (error) {
-    console.error("Download failed:", error);
+    console.warn("[Downloads] Download failed:", error);
     await updateDownload(session, mediaId, { status: "error" });
   } finally {
     useDownloads.setState((state) => {
@@ -109,16 +116,24 @@ export async function cancelDownload(session: Session, mediaId: string) {
     try {
       await downloadResumable.cancelAsync();
     } catch (e) {
-      console.error("Error canceling download resumable:", e);
+      console.warn("[Downloads] Error canceling download resumable:", e);
     }
   }
   removeDownload(session, mediaId);
 }
 
 export async function removeDownload(session: Session, mediaId: string) {
+  console.debug("[Downloads] Removing download for media:", mediaId);
   const download = await getDownload(session, mediaId);
-  if (download) await tryDelete(download.filePath);
+
+  if (download) {
+    const pathToDelete = documentDirectoryFilePath(download.filePath);
+    console.debug("[Downloads] deleting file:", pathToDelete);
+    await tryDelete(pathToDelete);
+  }
+
   if (download?.thumbnails) {
+    console.debug("[Downloads] deleting thumbnails:", download.thumbnails);
     await tryDelete(download.thumbnails.extraSmall);
     await tryDelete(download.thumbnails.small);
     await tryDelete(download.thumbnails.medium);
@@ -126,6 +141,11 @@ export async function removeDownload(session: Session, mediaId: string) {
     await tryDelete(download.thumbnails.extraLarge);
   }
   await deleteDownload(session, mediaId);
+
+  // reload player if the download is for the currently loaded media
+  if (usePlayer.getState().mediaId === mediaId) {
+    loadMedia(session, mediaId);
+  }
 }
 
 async function downloadThumbnails(
@@ -144,7 +164,7 @@ async function downloadThumbnails(
     thumbhash: thumbnails.thumbhash,
   };
 
-  console.log("downloading:", downloadedThumbnails);
+  console.debug("[Downloads] Downloading thumbnails:", downloadedThumbnails);
 
   await Promise.all([
     FileSystem.downloadAsync(
@@ -174,7 +194,7 @@ async function downloadThumbnails(
     ),
   ]);
 
-  console.log("done downloading thumbnails!");
+  console.debug("[Downloads] Finished downloading thumbnails");
 
   return downloadedThumbnails;
 }
@@ -183,6 +203,6 @@ async function tryDelete(path: string): Promise<void> {
   try {
     await FileSystem.deleteAsync(path);
   } catch (e) {
-    console.error("Failed to delete file:", e);
+    console.warn("[Downloads] Failed to delete file:", e);
   }
 }

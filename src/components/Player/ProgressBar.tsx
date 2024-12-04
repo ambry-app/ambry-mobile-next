@@ -1,10 +1,10 @@
 import { usePlayer } from "@/src/stores/player";
+import { Colors } from "@/src/styles";
 import { secondsDisplay } from "@/src/utils/time";
 import { StyleSheet, Text, View } from "react-native";
-import colors from "tailwindcss/colors";
 import { useShallow } from "zustand/react/shallow";
 
-export default function PlayerProgressBar() {
+export default function ProgressBar() {
   const { position, duration, playbackRate } = usePlayer(
     useShallow(({ position, duration, playbackRate }) => ({
       position,
@@ -37,11 +37,11 @@ const styles = StyleSheet.create({
   progressBar: {
     height: progressBarHeight,
     width: "100%",
-    backgroundColor: colors.zinc[700],
+    backgroundColor: Colors.zinc[700],
   },
   progressBarFill: {
     height: progressBarHeight,
-    backgroundColor: colors.lime[400],
+    backgroundColor: Colors.lime[400],
   },
   timeDisplayRow: {
     display: "flex",
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   timeDisplayText: {
-    color: colors.zinc[400],
+    color: Colors.zinc[400],
   },
   percentText: {
     position: "absolute",

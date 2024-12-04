@@ -43,17 +43,24 @@ export function useDownloadsList(session: Session) {
     },
   });
 
-  const { data, ...rest } = useFadeInQuery(query, [
-    "downloads",
-    "media",
-    "media_narrators",
-    "narrators",
-    "books",
-    "book_authors",
-    "authors",
-  ]);
+  const { data, ...rest } = useFadeInQuery(query);
 
   return { downloads: data, ...rest };
+}
+
+export type Download = ReturnType<typeof useDownload>["download"];
+
+export function useDownload(session: Session, mediaId: string) {
+  const query = db.query.downloads.findFirst({
+    where: and(
+      eq(schema.downloads.url, session.url),
+      eq(schema.downloads.mediaId, mediaId),
+    ),
+  });
+
+  const { data: download, ...rest } = useFadeInQuery(query);
+
+  return { download, ...rest };
 }
 
 export async function getDownload(session: Session, mediaId: string) {
@@ -104,6 +111,7 @@ export async function updateDownload(
 }
 
 export async function deleteDownload(session: Session, mediaId: string) {
+  console.debug("[Downloads] Deleting download from database", mediaId);
   await db
     .delete(schema.downloads)
     .where(

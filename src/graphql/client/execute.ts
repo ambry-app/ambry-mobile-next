@@ -21,7 +21,7 @@ export async function executeAuthenticated<TResult, TVariables>(
   });
 
   if (response.status === 401) {
-    return router.navigate("/sign-out");
+    return router.replace("/sign-out");
   }
 
   if (!response.ok) {

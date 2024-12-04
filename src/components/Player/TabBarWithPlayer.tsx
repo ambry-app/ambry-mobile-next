@@ -1,16 +1,17 @@
-import IconButton from "@/src/components/IconButton";
-import PlayButton from "@/src/components/PlayButton";
-import PlayerButtons from "@/src/components/PlayerButtons";
-import PlayerProgressBar from "@/src/components/PlayerProgressBar";
-import PlayerScrubber from "@/src/components/PlayerScrubber";
-import ThumbnailImage from "@/src/components/ThumbnailImage";
-import TitleAuthorsNarrators from "@/src/components/TitleAuthorNarrator";
+import {
+  BookDetailsText,
+  IconButton,
+  Loading,
+  PlayButton,
+  ThumbnailImage,
+} from "@/src/components";
 import { playerHeight, tabBarBaseHeight } from "@/src/constants";
 import { useMediaDetails } from "@/src/db/library";
 import useBackHandler from "@/src/hooks/use.back.handler";
 import { expandPlayerHandled, usePlayer } from "@/src/stores/player";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
+import { Colors } from "@/src/styles";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { BottomTabBar, BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { router } from "expo-router";
@@ -32,10 +33,12 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import colors from "tailwindcss/colors";
 import { useShallow } from "zustand/react/shallow";
-import PlayerChapterControls from "./PlayerChapterControls";
+import ChapterControls from "./ChapterControls";
+import PlaybackControls from "./PlaybackControls";
+import PlayerScrubber from "./PlayerScrubber";
 import PlayerSettingButtons from "./PlayerSettingButtons";
+import ProgressBar from "./ProgressBar";
 
 type TabBarWithPlayerProps = BottomTabBarProps & {
   session: Session;
@@ -44,16 +47,19 @@ type TabBarWithPlayerProps = BottomTabBarProps & {
 
 export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
   const { state, descriptors, navigation, insets, session, mediaId } = props;
-  const { lastPlayerExpandRequest, streaming } = usePlayer(
-    useShallow(({ lastPlayerExpandRequest, streaming }) => ({
+  const { lastPlayerExpandRequest, streaming, loadingNewMedia } = usePlayer(
+    useShallow(({ lastPlayerExpandRequest, streaming, loadingNewMedia }) => ({
       lastPlayerExpandRequest,
       streaming,
+      loadingNewMedia,
     })),
   );
-  const { media, opacity } = useMediaDetails(session, mediaId);
+  const { media } = useMediaDetails(session, mediaId);
   const [expanded, setExpanded] = useState(true);
   const expansion = useSharedValue(1.0);
-  const { screenHeight, screenWidth } = useScreen((state) => state);
+  const { screenHeight, screenWidth, shortScreen } = useScreen(
+    (state) => state,
+  );
   const whereItWas = useSharedValue(0);
   const onPanEndAction = useSharedValue<"none" | "expand" | "collapse">("none");
 
@@ -83,7 +89,6 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
   }, [expandLocal, expanded, lastPlayerExpandRequest]);
 
   const tabBarHeight = tabBarBaseHeight + insets.bottom;
-  const shortScreen = screenHeight / screenWidth < 1.8;
   const largeImageSize = shortScreen ? screenWidth * 0.6 : screenWidth * 0.8;
   const imageGutterWidth = (screenWidth - largeImageSize) / 2;
 
@@ -141,9 +146,8 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
     };
   });
 
-  const playerStyle = useAnimatedStyle(() => {
+  const playerContainerStyle = useAnimatedStyle(() => {
     return {
-      opacity: opacity.value,
       height: interpolate(
         expansion.value,
         [0, 1],
@@ -159,9 +163,33 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
     };
   });
 
+  const playerOpacity = useSharedValue(0.0);
+
+  useEffect(() => {
+    if (loadingNewMedia) {
+      playerOpacity.value = withTiming(0.0, { duration: 400 });
+    } else {
+      setTimeout(() => {
+        playerOpacity.value = withTiming(1.0, { duration: 200 });
+      }, 200);
+    }
+  }, [loadingNewMedia, playerOpacity]);
+
+  const playerStyle = useAnimatedStyle(() => {
+    return {
+      opacity: playerOpacity.value,
+    };
+  });
+
+  const playerLoadingStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(playerOpacity.value, [0, 1], [1, 0]),
+    };
+  });
+
   const backgroundStyle = useAnimatedStyle(() => {
     return {
-      opacity: interpolate(expansion.value, [0, 1], [0, 0.95]),
+      opacity: expansion.value,
     };
   });
 
@@ -276,7 +304,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
         style={{
           display: "flex",
           justifyContent: "flex-end",
-          backgroundColor: colors.zinc[900],
+          backgroundColor: Colors.zinc[900],
           height: tabBarHeight + playerHeight,
         }}
       >
@@ -287,92 +315,186 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                 display: "flex",
                 width: "100%",
                 position: "absolute",
-                backgroundColor: colors.zinc[900],
-                borderColor: colors.zinc[600],
+                backgroundColor: Colors.zinc[900],
+                borderColor: Colors.zinc[600],
               },
-              playerStyle,
+              playerContainerStyle,
             ]}
           >
             <Animated.View
               style={[
                 {
+                  position: "absolute",
+                  top: 0,
+                  bottom: 0,
+                  width: "100%",
                   display: "flex",
-                  flexDirection: "row",
                   alignItems: "center",
-                  justifyContent: "space-between",
-                  overflow: "hidden",
-                  paddingHorizontal: 16,
-                  backgroundColor: debugBackground(colors.emerald[900]),
+                  justifyContent: "center",
                 },
-                topActionBarStyle,
+                playerLoadingStyle,
               ]}
             >
-              <IconButton
-                size={24}
-                icon="chevron-down"
-                color={colors.zinc[100]}
-                onPress={() => collapseLocal()}
-              />
-
-              {streaming !== undefined && (
-                <View
-                  style={{
-                    alignSelf: "flex-end",
-                    paddingBottom: 4,
+              <Loading />
+            </Animated.View>
+            <Animated.View
+              style={[{ display: "flex", height: "100%" }, playerStyle]}
+            >
+              <Animated.View
+                style={[
+                  {
                     display: "flex",
                     flexDirection: "row",
                     alignItems: "center",
-                    gap: 4,
-                  }}
-                >
-                  <FontAwesome6
-                    size={12}
-                    name={streaming ? "cloud-arrow-down" : "download"}
-                    color={colors.zinc[700]}
-                  />
-                  <Text style={{ color: colors.zinc[700] }}>
-                    {streaming ? "streaming" : "downloaded"}
-                  </Text>
-                </View>
-              )}
-
-              <IconButton
-                size={24}
-                icon="ellipsis-vertical"
-                color={colors.zinc[100]}
-                onPress={() => console.log("TODO: context menu")}
-                style={{ opacity: 0 }}
-              />
-            </Animated.View>
-            <View
-              style={{
-                display: "flex",
-                flexDirection: "row",
-              }}
-            >
-              <Animated.View
-                style={[
-                  {
-                    backgroundColor: debugBackground(colors.cyan[900]),
-                  },
-                  leftGutterStyle,
-                ]}
-              ></Animated.View>
-              <Animated.View
-                style={[
-                  {
-                    alignSelf: "center",
+                    justifyContent: "space-between",
                     overflow: "hidden",
-                    backgroundColor: debugBackground(colors.green[900]),
+                    paddingHorizontal: 16,
+                    backgroundColor: debugBackground("emerald"),
                   },
-                  imageStyle,
+                  topActionBarStyle,
                 ]}
               >
-                <Pressable
-                  onPress={() => {
-                    if (expansion.value === 0.0) {
-                      expandLocal();
-                    } else {
+                <IconButton
+                  size={24}
+                  icon="chevron-down"
+                  color={Colors.zinc[100]}
+                  onPress={() => collapseLocal()}
+                />
+
+                {streaming !== undefined && (
+                  <View
+                    style={{
+                      alignSelf: "flex-end",
+                      paddingBottom: 4,
+                      display: "flex",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    <FontAwesome6
+                      size={12}
+                      name={streaming ? "cloud-arrow-down" : "download"}
+                      color={Colors.zinc[700]}
+                    />
+                    <Text style={{ color: Colors.zinc[700] }}>
+                      {streaming ? "streaming" : "downloaded"}
+                    </Text>
+                  </View>
+                )}
+
+                <IconButton
+                  size={24}
+                  icon="ellipsis-vertical"
+                  color={Colors.zinc[100]}
+                  onPress={() => console.log("TODO: context menu")}
+                  style={{ opacity: 0 }}
+                />
+              </Animated.View>
+              <View
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                }}
+              >
+                <Animated.View
+                  style={[
+                    {
+                      backgroundColor: debugBackground("cyan"),
+                    },
+                    leftGutterStyle,
+                  ]}
+                ></Animated.View>
+                <Animated.View
+                  style={[
+                    {
+                      alignSelf: "center",
+                      overflow: "hidden",
+                      backgroundColor: debugBackground("green"),
+                    },
+                    imageStyle,
+                  ]}
+                >
+                  <Pressable
+                    onPress={() => {
+                      if (expansion.value === 0.0) {
+                        expandLocal();
+                      } else {
+                        collapseLocal();
+                        setTimeout(() => {
+                          router.navigate({
+                            pathname: "/media/[id]",
+                            params: { id: media.id, title: media.book.title },
+                          });
+                        }, 400);
+                      }
+                    }}
+                  >
+                    <ThumbnailImage
+                      downloadedThumbnails={media.download?.thumbnails}
+                      thumbnails={media.thumbnails}
+                      size="extraLarge"
+                      style={{
+                        width: "100%",
+                        aspectRatio: 1,
+                        borderRadius: 6,
+                      }}
+                    />
+                  </Pressable>
+                </Animated.View>
+                <Animated.View
+                  style={[
+                    {
+                      height: playerHeight,
+                      display: "flex",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingLeft: 8,
+                      backgroundColor: debugBackground(Colors.red[900]),
+                    },
+                    miniControlsStyle,
+                  ]}
+                >
+                  <View
+                    style={{
+                      flexGrow: 1,
+                      flexShrink: 1,
+                      flexBasis: 0,
+                    }}
+                  >
+                    <Pressable onPress={() => expandLocal()}>
+                      <BookDetailsText
+                        baseFontSize={14}
+                        title={media.book.title}
+                        authors={media.book.bookAuthors.map(
+                          (ba) => ba.author.name,
+                        )}
+                        narrators={media.mediaNarrators.map(
+                          (mn) => mn.narrator.name,
+                        )}
+                      />
+                    </Pressable>
+                  </View>
+                  <View style={{ pointerEvents: expanded ? "none" : "auto" }}>
+                    <PlayButton size={32} color={Colors.zinc[100]} />
+                  </View>
+                </Animated.View>
+              </View>
+              <Animated.View
+                style={[
+                  {
+                    display: "flex",
+                    flexDirection: "row",
+                    backgroundColor: debugBackground("indigo"),
+                    paddingTop: 8,
+                  },
+                  infoStyle,
+                ]}
+              >
+                <View style={{ width: "10%" }}></View>
+                <View style={{ width: "80%" }}>
+                  <TouchableOpacity
+                    onPress={() => {
                       collapseLocal();
                       setTimeout(() => {
                         router.navigate({
@@ -380,38 +502,12 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                           params: { id: media.id, title: media.book.title },
                         });
                       }, 400);
-                    }
-                  }}
-                >
-                  <ThumbnailImage
-                    downloadedThumbnails={media.download?.thumbnails}
-                    thumbnails={media.thumbnails}
-                    size="extraLarge"
-                    style={{
-                      width: "100%",
-                      aspectRatio: 1,
-                      borderRadius: 6,
                     }}
-                  />
-                </Pressable>
-              </Animated.View>
-              <Animated.View
-                style={[
-                  {
-                    height: playerHeight,
-                    display: "flex",
-                    flexDirection: "row",
-                    alignItems: "center",
-                    paddingLeft: 8,
-                    backgroundColor: debugBackground(colors.red[900]),
-                  },
-                  miniControlsStyle,
-                ]}
-              >
-                <View className="flex-1">
-                  <Pressable onPress={() => expandLocal()}>
-                    <TitleAuthorsNarrators
-                      baseFontSize={14}
+                  >
+                    <BookDetailsText
+                      textStyle={{ textAlign: "center" }}
+                      baseFontSize={16}
+                      titleWeight={700}
                       title={media.book.title}
                       authors={media.book.bookAuthors.map(
                         (ba) => ba.author.name,
@@ -420,81 +516,42 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                         (mn) => mn.narrator.name,
                       )}
                     />
-                  </Pressable>
+                  </TouchableOpacity>
                 </View>
-                <View style={{ pointerEvents: expanded ? "none" : "auto" }}>
-                  <PlayButton size={32} color={colors.zinc[100]} />
-                </View>
+                <View style={{ width: "10%" }}></View>
               </Animated.View>
-            </View>
-            <Animated.View
-              style={[
-                {
-                  display: "flex",
-                  flexDirection: "row",
-                  backgroundColor: debugBackground(colors.indigo[900]),
-                  paddingTop: 8,
-                },
-                infoStyle,
-              ]}
-            >
-              <View style={{ width: "10%" }}></View>
-              <View style={{ width: "80%" }}>
-                <TouchableOpacity
-                  onPress={() => {
-                    collapseLocal();
-                    setTimeout(() => {
-                      router.navigate({
-                        pathname: "/media/[id]",
-                        params: { id: media.id, title: media.book.title },
-                      });
-                    }, 400);
+              <Animated.View
+                style={[
+                  {
+                    display: "flex",
+                    flexGrow: 1,
+                    justifyContent: "space-between",
+                    paddingBottom: insets.bottom,
+                    backgroundColor: debugBackground("blue"),
+                  },
+                  controlsStyle,
+                ]}
+              >
+                <View
+                  style={{
+                    paddingHorizontal: "10%",
+                    paddingTop: 16,
+                    display: "flex",
+                    justifyContent: "space-evenly",
+                    flexGrow: 1,
                   }}
                 >
-                  <TitleAuthorsNarrators
-                    baseFontSize={16}
-                    titleWeight={700}
-                    title={media.book.title}
-                    authors={media.book.bookAuthors.map((ba) => ba.author.name)}
-                    narrators={media.mediaNarrators.map(
-                      (mn) => mn.narrator.name,
-                    )}
-                  />
-                </TouchableOpacity>
-              </View>
-              <View style={{ width: "10%" }}></View>
-            </Animated.View>
-            <Animated.View
-              style={[
-                {
-                  display: "flex",
-                  flexGrow: 1,
-                  justifyContent: "space-between",
-                  paddingBottom: insets.bottom,
-                  backgroundColor: debugBackground(colors.blue[900]),
-                },
-                controlsStyle,
-              ]}
-            >
-              <View
-                style={{
-                  paddingHorizontal: "10%",
-                  paddingTop: 16,
-                  display: "flex",
-                  justifyContent: "space-evenly",
-                  flexGrow: 1,
-                }}
-              >
-                <View style={{ display: "flex", gap: 16 }}>
-                  <PlayerSettingButtons />
-                  <PlayerProgressBar />
+                  <View style={{ display: "flex", gap: 16 }}>
+                    <PlayerSettingButtons />
+                    <ProgressBar />
+                  </View>
+                  <View>
+                    <PlaybackControls />
+                    <ChapterControls />
+                  </View>
                 </View>
-                <View>
-                  <PlayerButtons />
-                  <PlayerChapterControls />
-                </View>
-              </View>
-              <PlayerScrubber />
+                <PlayerScrubber />
+              </Animated.View>
             </Animated.View>
           </Animated.View>
         </GestureDetector>

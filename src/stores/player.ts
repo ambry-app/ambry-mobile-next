@@ -15,6 +15,7 @@ import {
   setSleepTimerTime,
 } from "@/src/db/settings";
 import { syncUp } from "@/src/db/sync";
+import { documentDirectoryFilePath } from "@/src/utils/paths";
 import { Platform } from "react-native";
 import TrackPlayer, {
   AndroidAudioContentType,
@@ -48,6 +49,7 @@ export interface PlayerState {
   sleepTimer: number;
   sleepTimerEnabled: boolean;
   sleepTimerTriggerTime: number | null;
+  loadingNewMedia: boolean;
 }
 
 interface TrackLoadResult {
@@ -73,6 +75,7 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
   sleepTimer: schema.defaultSleepTimer,
   sleepTimerEnabled: schema.defaultSleepTimerEnabled,
   sleepTimerTriggerTime: null,
+  loadingNewMedia: false,
 }));
 
 export async function setupPlayer(session: Session) {
@@ -116,6 +119,10 @@ export async function setupPlayer(session: Session) {
   }
 }
 
+export function prepareToLoadMedia() {
+  usePlayer.setState({ loadingNewMedia: true });
+}
+
 export async function loadMostRecentMedia(session: Session) {
   if (!usePlayer.getState().setup) return;
 
@@ -123,6 +130,7 @@ export async function loadMostRecentMedia(session: Session) {
 
   if (track) {
     usePlayer.setState({
+      loadingNewMedia: false,
       mediaId: track.mediaId,
       duration: track.duration,
       position: track.position,
@@ -141,6 +149,7 @@ export async function loadMedia(session: Session, mediaId: string) {
   const track = await loadMediaIntoTrackPlayer(session, mediaId);
 
   usePlayer.setState({
+    loadingNewMedia: false,
     mediaId: track.mediaId,
     duration: track.duration,
     position: track.position,
@@ -303,18 +312,23 @@ export async function setSleepTimer(sleepTimer: number) {
   }
 }
 
-export async function unloadPlayer() {
-  await pause();
-  await TrackPlayer.reset();
-  usePlayer.setState({
-    position: 0,
-    duration: 0,
-    state: undefined,
-    mediaId: null,
-    playbackRate: 1,
-    streaming: undefined,
-    chapterState: null,
-  });
+export async function tryUnloadPlayer() {
+  try {
+    await pause();
+    await TrackPlayer.reset();
+    usePlayer.setState({
+      position: 0,
+      duration: 0,
+      state: undefined,
+      mediaId: null,
+      playbackRate: 1,
+      streaming: undefined,
+      chapterState: null,
+    });
+  } catch (error) {
+    console.warn("[Player] tryUnloadPlayer error", error);
+  }
+
   return Promise.resolve();
 }
 
@@ -429,7 +443,7 @@ async function loadPlayerState(
     // the media is downloaded, load the local file
     streaming = false;
     await TrackPlayer.add({
-      url: playerState.media.download.filePath,
+      url: documentDirectoryFilePath(playerState.media.download.filePath),
       pitchAlgorithm: PitchAlgorithm.Voice,
       duration: playerState.media.duration
         ? parseFloat(playerState.media.duration)

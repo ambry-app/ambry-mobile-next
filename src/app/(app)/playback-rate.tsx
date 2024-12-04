@@ -1,21 +1,17 @@
-import Button from "@/src/components/Button";
-import useBackHandler from "@/src/hooks/use.back.handler";
+import { Button, IconButton } from "@/src/components";
 import { setPlaybackRate, usePlayer } from "@/src/stores/player";
 import { useSession } from "@/src/stores/session";
+import { Colors } from "@/src/styles";
 import { formatPlaybackRate } from "@/src/utils/rate";
 import { secondsDisplay } from "@/src/utils/time";
 import Slider from "@react-native-community/slider";
-import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
-import colors from "tailwindcss/colors";
+import { Platform, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
 
 export default function PlaybackRateModal() {
-  useBackHandler(() => {
-    router.back();
-    return true;
-  });
+  const { bottom } = useSafeAreaInsets();
 
   const session = useSession((state) => state.session);
 
@@ -44,68 +40,88 @@ export default function PlaybackRateModal() {
   if (!session) return null;
 
   return (
-    <View style={styles.container}>
-      <View>
+    <View style={{ paddingBottom: Platform.OS === "android" ? bottom : 0 }}>
+      {Platform.OS === "android" && <View style={styles.handle} />}
+      <View style={styles.container}>
         <Text style={styles.title}>
-          {formatPlaybackRate(displayPlaybackRate)}×
+          Playback Speed: {formatPlaybackRate(displayPlaybackRate)}×
         </Text>
-        <Slider
-          value={playbackRate}
-          minimumValue={0.5}
-          maximumValue={3.0}
-          step={0.05}
-          thumbTintColor={colors.lime[400]}
-          minimumTrackTintColor={colors.zinc[400]}
-          maximumTrackTintColor={colors.zinc[400]}
-          onValueChange={(value) => {
-            setDisplayPlaybackRate(parseFloat(value.toFixed(2)));
-          }}
-          onSlidingComplete={(value) => {
-            setPlaybackRateAndDisplay(parseFloat(value.toFixed(2)));
-          }}
-        />
+
+        <View style={styles.sliderRowContainer}>
+          <IconButton
+            icon="minus"
+            color={Colors.zinc[100]}
+            size={16}
+            onPress={() => {
+              const newPlaybackRate = Math.max(0.5, playbackRate - 0.05);
+              setPlaybackRateAndDisplay(parseFloat(newPlaybackRate.toFixed(2)));
+            }}
+            style={styles.plusMinusButton}
+          />
+          <View style={styles.sliderContainer}>
+            <Slider
+              value={playbackRate}
+              minimumValue={0.5}
+              maximumValue={3.0}
+              step={0.05}
+              thumbTintColor={Colors.lime[400]}
+              minimumTrackTintColor={Colors.zinc[400]}
+              maximumTrackTintColor={Colors.zinc[400]}
+              onValueChange={(value) => {
+                setDisplayPlaybackRate(parseFloat(value.toFixed(2)));
+              }}
+              onSlidingComplete={(value) => {
+                setPlaybackRateAndDisplay(parseFloat(value.toFixed(2)));
+              }}
+            />
+          </View>
+          <IconButton
+            icon="plus"
+            color={Colors.zinc[100]}
+            size={16}
+            onPress={() => {
+              const newPlaybackRate = Math.min(3.0, playbackRate + 0.05);
+              setPlaybackRateAndDisplay(parseFloat(newPlaybackRate.toFixed(2)));
+            }}
+            style={styles.plusMinusButton}
+          />
+        </View>
+
+        <View style={styles.rateButtonRow}>
+          <PlaybackRateButton
+            rate={1.0}
+            active={displayPlaybackRate === 1.0}
+            setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
+          />
+          <PlaybackRateButton
+            rate={1.25}
+            active={displayPlaybackRate === 1.25}
+            setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
+          />
+          <PlaybackRateButton
+            rate={1.5}
+            active={displayPlaybackRate === 1.5}
+            setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
+          />
+          <PlaybackRateButton
+            rate={1.75}
+            active={displayPlaybackRate === 1.75}
+            setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
+          />
+          <PlaybackRateButton
+            rate={2.0}
+            active={displayPlaybackRate === 2.0}
+            setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
+          />
+        </View>
+
+        <Text style={styles.timeLeftText}>
+          Finish in{" "}
+          {secondsDisplay(
+            Math.max(duration - position, 0) / displayPlaybackRate,
+          )}
+        </Text>
       </View>
-
-      <View style={styles.rateButtonRow}>
-        <PlaybackRateButton
-          rate={1.0}
-          active={displayPlaybackRate === 1.0}
-          setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
-        />
-        <PlaybackRateButton
-          rate={1.25}
-          active={displayPlaybackRate === 1.25}
-          setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
-        />
-        <PlaybackRateButton
-          rate={1.5}
-          active={displayPlaybackRate === 1.5}
-          setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
-        />
-        <PlaybackRateButton
-          rate={1.75}
-          active={displayPlaybackRate === 1.75}
-          setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
-        />
-        <PlaybackRateButton
-          rate={2.0}
-          active={displayPlaybackRate === 2.0}
-          setPlaybackRateAndDisplay={setPlaybackRateAndDisplay}
-        />
-      </View>
-
-      <Text style={styles.timeLeftText}>
-        Finish in{" "}
-        {secondsDisplay(Math.max(duration - position, 0) / displayPlaybackRate)}
-      </Text>
-
-      <Button
-        size={32}
-        onPress={() => router.back()}
-        style={styles.closeButton}
-      >
-        <Text style={styles.closeButtonText}>Ok</Text>
-      </Button>
     </View>
   );
 }
@@ -133,17 +149,22 @@ function PlaybackRateButton(props: PlaybackRateButtonProps) {
 }
 
 const styles = StyleSheet.create({
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: Colors.zinc[500],
+    borderRadius: 999,
+    marginHorizontal: "auto",
+    marginTop: 8,
+  },
   container: {
     padding: 32,
-    backgroundColor: colors.zinc[950],
-    height: "100%",
     display: "flex",
     justifyContent: "center",
-    gap: 16,
+    gap: 24,
   },
   title: {
-    color: colors.zinc[100],
-    margin: 16,
+    color: Colors.zinc[100],
     fontSize: 18,
     textAlign: "center",
   },
@@ -153,29 +174,35 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   rateButton: {
-    backgroundColor: colors.zinc[800],
+    backgroundColor: Colors.zinc[800],
     borderRadius: 999,
     paddingHorizontal: 16,
     flexGrow: 1,
   },
   rateButtonActive: {
-    backgroundColor: colors.lime[400],
+    backgroundColor: Colors.zinc[100],
   },
   rateButtonTextActive: {
-    color: colors.black,
+    color: Colors.black,
   },
   text: {
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
     fontSize: 12,
   },
   timeLeftText: {
-    color: colors.zinc[400],
+    color: Colors.zinc[400],
     textAlign: "center",
   },
-  closeButton: {
-    marginTop: 32,
+  sliderRowContainer: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
   },
-  closeButtonText: {
-    color: colors.lime[400],
+  sliderContainer: {
+    flexGrow: 1,
+  },
+  plusMinusButton: {
+    backgroundColor: Colors.zinc[800],
+    borderRadius: 999,
   },
 });

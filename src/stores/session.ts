@@ -65,14 +65,12 @@ export async function signIn(url: string, email: string, password: string) {
 }
 
 export async function signOut() {
-  useSession.setState({ isLoading: true, error: null });
   const session = useSession.getState().session;
 
   if (session) {
+    useSession.setState({ isLoading: true, error: null });
     await signOutAsync(session.url, session.token);
     useSession.setState({ isLoading: false, session: null });
-  } else {
-    useSession.setState({ isLoading: false });
   }
 }
 
@@ -140,7 +138,7 @@ const signOutAsync = async (url: string, token: string): Promise<boolean> => {
     }
     return response.deleteSession.deleted;
   } catch (error) {
-    console.error("Sign out network request failed:", error);
+    console.warn("[Session] Sign out network request failed:", error);
     return false;
   }
 };

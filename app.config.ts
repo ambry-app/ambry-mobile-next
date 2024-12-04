@@ -33,13 +33,12 @@ export default {
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "ambry",
+    newArchEnabled: false,
     userInterfaceStyle: "dark",
-    splash: {
-      resizeMode: "contain",
-      backgroundColor: "#27272A",
-    },
+    backgroundColor: "#000000",
+    primaryColor: "#84cc16",
     ios: {
-      supportsTablet: true,
+      supportsTablet: false,
       bundleIdentifier: getUniqueIdentifier(),
       infoPlist: {
         UIBackgroundModes: ["audio"],
@@ -52,23 +51,19 @@ export default {
       },
       package: getUniqueIdentifier(),
     },
-    web: {
-      bundler: "metro",
-      output: "static",
-      favicon: "./assets/images/favicon.png",
-    },
     plugins: [
       "expo-router",
       "expo-secure-store",
       [
-        "expo-build-properties",
+        "expo-splash-screen",
         {
-          android: {
-            minSdkVersion: 24,
-            usesCleartextTraffic: true,
-          },
+          image: "./assets/images/splash-icon.png",
+          imageWidth: 200,
+          resizeMode: "contain",
+          backgroundColor: "#18181b",
         },
       ],
+      "react-native-edge-to-edge",
     ],
     experiments: {
       typedRoutes: true,

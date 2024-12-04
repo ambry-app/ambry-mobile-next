@@ -2,8 +2,8 @@ import { graphql } from "@/src/graphql/client";
 import { executeAuthenticated } from "@/src/graphql/client/execute";
 import { Session } from "@/src/stores/session";
 
-const allChangesSinceQuery = graphql(`
-  query AllChangesSince($since: DateTime) {
+const libraryChangesSinceQuery = graphql(`
+  query LibraryChangesSince($since: DateTime) {
     peopleChangedSince(since: $since) {
       id
       name
@@ -125,6 +125,30 @@ const allChangesSinceQuery = graphql(`
       insertedAt
       updatedAt
     }
+    deletionsSince(since: $since) {
+      type
+      recordId
+    }
+    serverTime
+  }
+`);
+
+export function getLibraryChangesSince(
+  session: Session,
+  since: Date | null | undefined,
+) {
+  return executeAuthenticated(
+    session.url,
+    session.token,
+    libraryChangesSinceQuery,
+    {
+      since,
+    },
+  );
+}
+
+const userChangesSinceQuery = graphql(`
+  query UserChangesSince($since: DateTime) {
     playerStatesChangedSince(since: $since) {
       id
       media {
@@ -136,22 +160,18 @@ const allChangesSinceQuery = graphql(`
       insertedAt
       updatedAt
     }
-    deletionsSince(since: $since) {
-      type
-      recordId
-    }
     serverTime
   }
 `);
 
-export function getChangesSince(
+export function getUserChangesSince(
   session: Session,
   since: Date | null | undefined,
 ) {
   return executeAuthenticated(
     session.url,
     session.token,
-    allChangesSinceQuery,
+    userChangesSinceQuery,
     {
       since,
     },

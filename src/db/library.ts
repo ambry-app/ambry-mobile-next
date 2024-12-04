@@ -1,7 +1,9 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
-import useFadeInQuery, { fadeInTime } from "@/src/hooks/use.fade.in.query";
-import { useLiveTablesQuery } from "@/src/hooks/use.live.tables.query";
+import useFadeInSyncedDataQuery, {
+  fadeInTime,
+} from "@/src/hooks/use.fade.in.synced.data.query";
+import useSyncedDataQuery from "@/src/hooks/use.synced.data.query";
 import { Session } from "@/src/stores/session";
 import {
   and,
@@ -14,7 +16,6 @@ import {
   or,
   sql,
 } from "drizzle-orm";
-import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { useEffect, useState } from "react";
 import { useSharedValue, withTiming } from "react-native-reanimated";
 
@@ -28,7 +29,7 @@ export function useMediaList(session: Session) {
     orderBy: desc(schema.media.insertedAt),
     with: {
       download: {
-        columns: { status: true, thumbnails: true },
+        columns: { thumbnails: true },
       },
       mediaNarrators: {
         columns: { id: true },
@@ -60,18 +61,7 @@ export function useMediaList(session: Session) {
     },
   });
 
-  const { data, ...rest } = useFadeInQuery(query, [
-    "media",
-    "downloads",
-    "media_narrators",
-    "narrators",
-    "people",
-    "books",
-    "book_authors",
-    "authors",
-    "series_books",
-    "series",
-  ]);
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query);
 
   return { media: data, ...rest };
 }
@@ -92,7 +82,7 @@ export function useMediaDetails(session: Session, mediaId: string) {
     where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
     with: {
       download: {
-        columns: { status: true, thumbnails: true },
+        columns: { thumbnails: true },
       },
       mediaNarrators: {
         columns: { id: true },
@@ -124,22 +114,7 @@ export function useMediaDetails(session: Session, mediaId: string) {
     },
   });
 
-  const { data, ...rest } = useFadeInQuery(
-    query,
-    [
-      "media",
-      "downloads",
-      "media_narrators",
-      "narrators",
-      "people",
-      "books",
-      "book_authors",
-      "authors",
-      "series_books",
-      "series",
-    ],
-    [mediaId],
-  );
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [mediaId]);
 
   return { media: data, ...rest };
 }
@@ -200,20 +175,7 @@ export function useBookDetails(session: Session, bookId: string) {
     },
   });
 
-  const { data, ...rest } = useFadeInQuery(
-    query,
-    [
-      "books",
-      "book_authors",
-      "authors",
-      "people",
-      "media",
-      "media_narrators",
-      "narrators",
-      "downloads",
-    ],
-    [bookId],
-  );
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [bookId]);
 
   return { book: data, ...rest };
 }
@@ -279,22 +241,9 @@ export function useSeriesDetails(session: Session, seriesId: string) {
     },
   });
 
-  const { data, ...rest } = useFadeInQuery(
-    query,
-    [
-      "series",
-      "series_books",
-      "books",
-      "book_authors",
-      "authors",
-      "people",
-      "media",
-      "media_narrators",
-      "narrators",
-      "downloads",
-    ],
-    [seriesId],
-  );
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [
+    seriesId,
+  ]);
 
   return { series: data, ...rest };
 }
@@ -316,11 +265,9 @@ export function usePersonIds(session: Session, personId: string) {
     },
   });
 
-  const { data: person, ...rest } = useFadeInQuery(
-    query,
-    ["people", "authors", "narrators"],
-    [personId],
-  );
+  const { data: person, ...rest } = useFadeInSyncedDataQuery(session, query, [
+    personId,
+  ]);
 
   const [ids, setIds] = useState<{
     personId: string;
@@ -353,7 +300,9 @@ export function usePersonHeaderInfo(session: Session, personId: string) {
     ),
   });
 
-  const { data, ...rest } = useFadeInQuery(query, ["people"], [personId]);
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [
+    personId,
+  ]);
   return { person: data, ...rest };
 }
 
@@ -366,7 +315,9 @@ export function usePersonDescription(session: Session, personId: string) {
     ),
   });
 
-  const { data, ...rest } = useFadeInQuery(query, ["people"], [personId]);
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [
+    personId,
+  ]);
   return { person: data, ...rest };
 }
 
@@ -392,9 +343,9 @@ export function useBooksByAuthor(session: Session, authorId: string) {
       and(eq(schema.authors.url, session.url), eq(schema.authors.id, authorId)),
     );
 
-  const { data: bookIds, updatedAt: bookIdsUpdatedAt } = useLiveTablesQuery(
+  const { data: bookIds, updatedAt: bookIdsUpdatedAt } = useSyncedDataQuery(
+    session,
     bookIdsQuery,
-    ["authors", "book_authors", "books"],
     [authorId],
   );
 
@@ -411,9 +362,9 @@ export function useBooksByAuthor(session: Session, authorId: string) {
     },
   });
 
-  const { data: author, updatedAt: authorUpdatedAt } = useLiveTablesQuery(
+  const { data: author, updatedAt: authorUpdatedAt } = useSyncedDataQuery(
+    session,
     authorQuery,
-    ["authors", "people"],
     [authorId],
   );
 
@@ -455,17 +406,9 @@ export function useBooksByAuthor(session: Session, authorId: string) {
     },
   });
 
-  const { data: books, updatedAt: booksUpdatedAt } = useLiveTablesQuery(
+  const { data: books, updatedAt: booksUpdatedAt } = useSyncedDataQuery(
+    session,
     booksQuery,
-    [
-      "books",
-      "book_authors",
-      "authors",
-      "media",
-      "media_narrators",
-      "narrators",
-      "downloads",
-    ],
     [bookIds],
   );
 
@@ -510,9 +453,9 @@ export function useMediaByNarrator(session: Session, narratorId: string) {
       ),
     );
 
-  const { data: mediaIds, updatedAt: mediaIdsUpdatedAt } = useLiveTablesQuery(
+  const { data: mediaIds, updatedAt: mediaIdsUpdatedAt } = useSyncedDataQuery(
+    session,
     mediaIdsQuery,
-    ["narrators", "media_narrators", "media", "books"],
     [narratorId],
   );
 
@@ -529,10 +472,9 @@ export function useMediaByNarrator(session: Session, narratorId: string) {
     },
   });
 
-  const { data: narrator, updatedAt: narratorUpdatedAt } = useLiveTablesQuery(
+  const { data: narrator, updatedAt: narratorUpdatedAt } = useSyncedDataQuery(
+    session,
     narratorQuery,
-    ["narrators", "people"],
-    [narratorId],
   );
 
   const mediaQuery = db.query.media.findMany({
@@ -573,17 +515,9 @@ export function useMediaByNarrator(session: Session, narratorId: string) {
     },
   });
 
-  const { data: media, updatedAt: mediaUpdatedAt } = useLiveTablesQuery(
+  const { data: media, updatedAt: mediaUpdatedAt } = useSyncedDataQuery(
+    session,
     mediaQuery,
-    [
-      "media",
-      "media_narrators",
-      "narrators",
-      "downloads",
-      "books",
-      "book_authors",
-      "authors",
-    ],
     [mediaIds],
   );
 
@@ -625,11 +559,9 @@ export function useMediaIds(session: Session, mediaId: string) {
     },
   });
 
-  const { data: media, ...rest } = useFadeInQuery(
-    query,
-    ["media", "books", "book_authors", "series_books", "media_narrators"],
-    [mediaId],
-  );
+  const { data: media, ...rest } = useFadeInSyncedDataQuery(session, query, [
+    mediaId,
+  ]);
 
   const [ids, setIds] = useState<{
     mediaId: string;
@@ -695,24 +627,15 @@ export function useMediaHeaderInfo(session: Session, mediaId: string) {
     },
   });
 
-  const { data, ...rest } = useFadeInQuery(
-    query,
-    [
-      "media",
-      "downloads",
-      "media_narrators",
-      "narrators",
-      "books",
-      "book_authors",
-      "authors",
-      "series_books",
-      "series",
-    ],
-    [mediaId],
-  );
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [mediaId]);
 
   return { media: data, ...rest };
 }
+
+export type ActionBarMedia = Exclude<
+  ReturnType<typeof useMediaActionBarInfo>["media"],
+  undefined
+>;
 
 export function useMediaActionBarInfo(session: Session, mediaId: string) {
   const query = db.query.media.findFirst({
@@ -722,18 +645,9 @@ export function useMediaActionBarInfo(session: Session, mediaId: string) {
       mp4Path: true,
     },
     where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
-    with: {
-      download: {
-        columns: { status: true },
-      },
-    },
   });
 
-  const { data, ...rest } = useFadeInQuery(
-    query,
-    ["media", "downloads"],
-    [mediaId],
-  );
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [mediaId]);
   return { media: data, ...rest };
 }
 
@@ -754,11 +668,7 @@ export function useMediaDescription(session: Session, mediaId: string) {
     where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
   });
 
-  const { data, ...rest } = useFadeInQuery(
-    query,
-    ["media", "books"],
-    [mediaId],
-  );
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [mediaId]);
   return { media: data, ...rest };
 }
 
@@ -799,19 +709,9 @@ export function useMediaAuthorsAndNarrators(session: Session, mediaId: string) {
     },
   });
 
-  const { data: media, opacity } = useFadeInQuery(
-    query,
-    [
-      "media",
-      "books",
-      "book_authors",
-      "authors",
-      "people",
-      "media_narrators",
-      "narrators",
-    ],
-    [mediaId],
-  );
+  const { data: media, opacity } = useFadeInSyncedDataQuery(session, query, [
+    mediaId,
+  ]);
 
   const [authorSet, setAuthorSet] = useState<Set<string>>(new Set<string>());
   const [narratorSet, setNarratorSet] = useState<Set<string>>(
@@ -855,7 +755,8 @@ export function useMediaOtherEditions(
       ),
     );
 
-  const { data: mediaIds, updatedAt: mediaIdsUpdatedAt } = useLiveQuery(
+  const { data: mediaIds, updatedAt: mediaIdsUpdatedAt } = useSyncedDataQuery(
+    session,
     mediaIdsQuery,
     [bookId, withoutMediaId],
   );
@@ -898,17 +799,9 @@ export function useMediaOtherEditions(
     },
   });
 
-  const { data: media, updatedAt: mediaUpdatedAt } = useLiveTablesQuery(
+  const { data: media, updatedAt: mediaUpdatedAt } = useSyncedDataQuery(
+    session,
     mediaQuery,
-    [
-      "media",
-      "downloads",
-      "media_narrators",
-      "narrators",
-      "books",
-      "book_authors",
-      "authors",
-    ],
     [mediaIds],
   );
 
@@ -971,21 +864,9 @@ export function useOtherBooksInSeries(session: Session, seriesId: string) {
     },
   });
 
-  const { data, ...rest } = useFadeInQuery(
-    query,
-    [
-      "series",
-      "series_books",
-      "books",
-      "book_authors",
-      "authors",
-      "media",
-      "media_narrators",
-      "narrators",
-      "downloads",
-    ],
-    [seriesId],
-  );
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [
+    seriesId,
+  ]);
 
   return { series: data, ...rest };
 }
@@ -1033,9 +914,9 @@ export function useOtherBooksByAuthor(
       ),
     );
 
-  const { data: bookIds, updatedAt: bookIdsUpdatedAt } = useLiveTablesQuery(
+  const { data: bookIds, updatedAt: bookIdsUpdatedAt } = useSyncedDataQuery(
+    session,
     bookIdsQuery,
-    ["authors", "book_authors", "books", "series_books"],
     [authorId, withoutBookId, withoutSeriesIds],
   );
 
@@ -1052,9 +933,9 @@ export function useOtherBooksByAuthor(
     },
   });
 
-  const { data: author, updatedAt: authorUpdatedAt } = useLiveTablesQuery(
+  const { data: author, updatedAt: authorUpdatedAt } = useSyncedDataQuery(
+    session,
     authorQuery,
-    ["authors", "people"],
     [authorId],
   );
 
@@ -1096,17 +977,9 @@ export function useOtherBooksByAuthor(
     },
   });
 
-  const { data: books, updatedAt: booksUpdatedAt } = useLiveTablesQuery(
+  const { data: books, updatedAt: booksUpdatedAt } = useSyncedDataQuery(
+    session,
     booksQuery,
-    [
-      "books",
-      "book_authors",
-      "authors",
-      "media",
-      "media_narrators",
-      "narrators",
-      "downloads",
-    ],
     [bookIds],
   );
 
@@ -1185,17 +1058,10 @@ export function useOtherMediaByNarrator(
       ),
     );
 
-  const { data: mediaIds, updatedAt: mediaIdsUpdatedAt } = useLiveTablesQuery(
+  const { data: mediaIds, updatedAt: mediaIdsUpdatedAt } = useSyncedDataQuery(
+    session,
     mediaIdsQuery,
-    [
-      "narrators",
-      "media_narrators",
-      "media",
-      "books",
-      "book_authors",
-      "series_books",
-    ],
-    [narratorId, withoutMediaId, withoutSeriesIds, withoutAuthorIds],
+    [narratorId, withoutMediaId, withoutAuthorIds, withoutSeriesIds],
   );
 
   const narratorQuery = db.query.narrators.findFirst({
@@ -1211,9 +1077,9 @@ export function useOtherMediaByNarrator(
     },
   });
 
-  const { data: narrator, updatedAt: narratorUpdatedAt } = useLiveTablesQuery(
+  const { data: narrator, updatedAt: narratorUpdatedAt } = useSyncedDataQuery(
+    session,
     narratorQuery,
-    ["narrators", "people"],
     [narratorId],
   );
 
@@ -1255,17 +1121,9 @@ export function useOtherMediaByNarrator(
     },
   });
 
-  const { data: media, updatedAt: mediaUpdatedAt } = useLiveTablesQuery(
+  const { data: media, updatedAt: mediaUpdatedAt } = useSyncedDataQuery(
+    session,
     mediaQuery,
-    [
-      "media",
-      "downloads",
-      "media_narrators",
-      "narrators",
-      "books",
-      "book_authors",
-      "authors",
-    ],
     [mediaIds],
   );
 

@@ -62,8 +62,6 @@ export async function getSleepTimerSettings(userEmail: string) {
     where: eq(schema.localUserSettings.userEmail, userEmail),
   });
 
-  console.log("settings response", response);
-
   if (response) {
     return response;
   } else {

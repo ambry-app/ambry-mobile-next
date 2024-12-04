@@ -10,13 +10,9 @@
         "name": "@0no-co/graphqlsp",
         "schema": "./src/graphql/schema.graphql"
       }
-    ]
+    ],
+    // remove this if it's ever fixed in TSC
+    "jsx": "react-jsx"
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts",
-    "nativewind-env.d.ts"
-  ]
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
 }

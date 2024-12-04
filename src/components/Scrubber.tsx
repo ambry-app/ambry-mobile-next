@@ -1,12 +1,13 @@
-import AnimatedText from "@/src/components/AnimatedText";
-import React, { memo, useCallback, useEffect, useRef, useState } from "react";
+import usePrevious from "@react-hook/previous";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, StyleSheet } from "react-native";
+import AnimateableText from "react-native-animateable-text";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
   runOnJS,
+  useAnimatedProps,
   useAnimatedStyle,
-  useDerivedValue,
   useSharedValue,
   withDecay,
   withTiming,
@@ -173,8 +174,9 @@ export default function Scrubber(props: ScrubberProps) {
     timeToTranslateX(Math.round(positionInput)),
   );
   const [isScrubbing, setIsScrubbing] = useIsScrubbing();
+  const [isJumping, setIsJumping] = useState(false);
   const maxTranslateX = timeToTranslateX(duration);
-  // const previousPosition = usePrevious(positionInput);
+  const previousPosition = usePrevious(positionInput);
 
   const startX = useSharedValue(0);
   const isAnimating = useSharedValue(false);
@@ -286,58 +288,64 @@ export default function Scrubber(props: ScrubberProps) {
     return { opacity: withTiming(timecodeOpacity.value) };
   });
 
-  const timecode = useDerivedValue(() => {
+  const animatedTimecodeProps = useAnimatedProps(() => {
     const total = clamp(translateXToTime(translateX.value), 0, duration);
     const hours = Math.floor(total / 3600).toString();
     const minutes = Math.floor((total % 3600) / 60).toString();
     const seconds = Math.floor((total % 3600) % 60).toString();
 
     if (hours === "0") {
-      return `${minutes}:${seconds.padStart(2, "0")}`;
+      return { text: `${minutes}:${seconds.padStart(2, "0")}` };
     } else {
-      return `${hours}:${minutes.padStart(2, "0")}:${seconds.padStart(2, "0")}`;
+      return {
+        text: `${hours}:${minutes.padStart(2, "0")}:${seconds.padStart(2, "0")}`,
+      };
     }
   });
 
   useEffect(() => {
-    if (!isScrubbing) {
-      timecodeOpacity.value = 0;
-      translateX.value = timeToTranslateX(positionInput);
-      // if (Math.abs(positionInput - (previousPosition || 0)) <= 3) {
-      //   console.log("linear");
-      //   translateX.value = withTiming(timeToTranslateX(positionInput), {
-      //     duration: 1000 / playbackRate,
-      //     easing: Easing.linear,
-      //   });
-      // } else if (
-      //   Math.abs(positionInput - translateXToTime(translateX.value)) <= 120
-      // ) {
-      //   console.log("exp");
-      //   translateX.value = withTiming(timeToTranslateX(positionInput), {
-      //     duration: 400,
-      //     easing: Easing.out(Easing.exp),
-      //   });
-      // } else {
-      //   console.log("jump");
-      //   translateX.value = timeToTranslateX(positionInput);
-      // }
+    timecodeOpacity.value = isScrubbing || isJumping ? 1 : 0;
+  }, [isScrubbing, isJumping, timecodeOpacity]);
+
+  useEffect(() => {
+    if (isScrubbing) return;
+
+    const isJump = Math.abs(positionInput - (previousPosition || 0)) > 3;
+
+    if (!isJump && isJumping) return;
+
+    if (isJump) {
+      // jump / exponential animation
+      setIsJumping(true);
+      translateX.value = withTiming(
+        timeToTranslateX(positionInput),
+        {
+          duration: 400,
+          easing: Easing.out(Easing.exp),
+        },
+        (completed) => completed && runOnJS(setIsJumping)(false),
+      );
     } else {
-      timecodeOpacity.value = 1;
+      // playing / linear animation
+      translateX.value = withTiming(timeToTranslateX(positionInput), {
+        duration: 1000 / playbackRate,
+        easing: Easing.linear,
+      });
     }
   }, [
     translateX,
     isScrubbing,
     positionInput,
-    // previousPosition,
+    previousPosition,
     playbackRate,
-    timecodeOpacity,
+    isJumping,
   ]);
 
   return (
     <GestureDetector gesture={panGestureHandler}>
       <Animated.View>
-        <AnimatedText
-          text={timecode}
+        <AnimateableText
+          animatedProps={animatedTimecodeProps}
           style={[
             styles.timecode,
             { color: theme.strong },

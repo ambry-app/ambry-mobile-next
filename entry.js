@@ -12,5 +12,4 @@ import TrackPlayer from "react-native-track-player";
 // should be added here.
 renderRootComponent(App);
 
-// not sure if this is allowed given the warnings above, but we'll give it a try...
 TrackPlayer.registerPlaybackService(() => PlaybackService);

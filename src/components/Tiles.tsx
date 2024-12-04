@@ -1,5 +1,5 @@
-import MultiThumbnailImage from "@/src/components/MultiThumbnailImage";
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
+import { Colors } from "@/src/styles";
 import { router } from "expo-router";
 import {
   StyleProp,
@@ -9,10 +9,10 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-import { PressableScale } from "react-native-pressable-scale";
-import colors from "tailwindcss/colors";
+import BookDetailsText from "./BookDetailsText";
+import MultiThumbnailImage from "./MultiThumbnailImage";
+import { PressableScale } from "./PressableScale";
 import ThumbnailImage from "./ThumbnailImage";
-import TitleAuthorsNarrators from "./TitleAuthorNarrator";
 
 type Media = {
   id: string;
@@ -66,6 +66,7 @@ type PersonTileProps = {
   realName: string;
   thumbnails: Thumbnails | null;
   label: string;
+  style?: StyleProp<ViewStyle>;
 };
 
 export function MediaTile({ media, style }: MediaTileProps) {
@@ -125,7 +126,7 @@ export function Tile({ book, media, seriesBook, style }: TileProps) {
       </View>
       <TouchableOpacity onPress={navigateToBook}>
         <View>
-          <TitleAuthorsNarrators
+          <BookDetailsText
             baseFontSize={16}
             title={book.title}
             authors={book.bookAuthors.map((ba) => ba.author.name)}
@@ -142,7 +143,7 @@ export function Tile({ book, media, seriesBook, style }: TileProps) {
 }
 
 export function PersonTile(props: PersonTileProps) {
-  const { personId, name, realName, thumbnails, label } = props;
+  const { personId, name, realName, thumbnails, label, style } = props;
 
   const navigateToPerson = () => {
     router.navigate({
@@ -152,7 +153,7 @@ export function PersonTile(props: PersonTileProps) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       <PressableScale weight="light" onPress={navigateToPerson}>
         <ThumbnailImage
           thumbnails={thumbnails}
@@ -196,22 +197,22 @@ const styles = StyleSheet.create({
   bookNumber: {
     fontSize: 16,
     fontWeight: 500,
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
   },
   name: {
     fontSize: 16,
     fontWeight: 500,
-    color: colors.zinc[100],
+    color: Colors.zinc[100],
     textAlign: "center",
   },
   realName: {
     fontSize: 14,
-    color: colors.zinc[300],
+    color: Colors.zinc[300],
     textAlign: "center",
   },
   label: {
     fontSize: 12,
-    color: colors.zinc[400],
+    color: Colors.zinc[400],
     textAlign: "center",
   },
 });
