@@ -1,10 +1,5 @@
-import {
-  StyleProp,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-  ViewStyle,
-} from "react-native";
+import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import { TouchableOpacity } from "react-native-gesture-handler";
 
 type ButtonProps = {
   size: number;

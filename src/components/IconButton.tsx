@@ -1,11 +1,6 @@
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import {
-  StyleProp,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-  ViewStyle,
-} from "react-native";
+import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import { TouchableOpacity } from "react-native-gesture-handler";
 import Loading from "./Loading";
 
 type IconButtonProps = {
