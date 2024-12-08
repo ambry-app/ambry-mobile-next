@@ -44,6 +44,8 @@ export interface PlayerState {
   mediaId: string | null;
   playbackRate: number;
   lastPlayerExpandRequest: Date | undefined;
+  isFullyExpanded: boolean;
+  isFullyCollapsed: boolean;
   streaming: boolean | undefined;
   chapterState: ChapterState | null;
   sleepTimer: number;
@@ -61,7 +63,7 @@ interface TrackLoadResult {
   chapters: schema.Chapter[];
 }
 
-export const usePlayer = create<PlayerState>()((set, get) => ({
+export const usePlayer = create<PlayerState>()(() => ({
   setup: false,
   setupError: null,
   position: 0,
@@ -70,6 +72,8 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
   mediaId: null,
   playbackRate: 1,
   lastPlayerExpandRequest: undefined,
+  isFullyExpanded: true,
+  isFullyCollapsed: false,
   streaming: undefined,
   chapterState: null,
   sleepTimer: schema.defaultSleepTimer,
@@ -169,6 +173,14 @@ export function requestExpandPlayer() {
 
 export function expandPlayerHandled() {
   usePlayer.setState({ lastPlayerExpandRequest: undefined });
+}
+
+export function setIsFullyExpanded(expanded: boolean) {
+  usePlayer.setState({ isFullyExpanded: expanded });
+}
+
+export function setIsFullyCollapsed(collapsed: boolean) {
+  usePlayer.setState({ isFullyCollapsed: collapsed });
 }
 
 export function playOrPause() {

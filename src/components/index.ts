@@ -2,6 +2,8 @@ import BookDetailsText from "./BookDetailsText";
 import Button from "./Button";
 import Description from "./Description";
 import FocusableTextInput from "./FocusableTextInput";
+import FreezeOnCollapsedPlayer from "./FreezeOnCollapsedPlayer";
+import FreezeOnExpandedPlayer from "./FreezeOnExpandedPlayer";
 import IconButton from "./IconButton";
 import Loading from "./Loading";
 import MeasureScreenHeight from "./MeasureScreenHeight";
@@ -22,6 +24,8 @@ export {
   Button,
   Description,
   FocusableTextInput,
+  FreezeOnCollapsedPlayer,
+  FreezeOnExpandedPlayer,
   IconButton,
   Loading,
   MeasureScreenHeight,
