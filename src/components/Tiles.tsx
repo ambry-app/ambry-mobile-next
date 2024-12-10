@@ -1,8 +1,14 @@
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 import { Colors } from "@/src/styles";
 import { router } from "expo-router";
-import { StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
-import { TouchableOpacity } from "react-native-gesture-handler";
+import {
+  StyleProp,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ViewStyle,
+} from "react-native";
 import BookDetailsText from "./BookDetailsText";
 import MultiThumbnailImage from "./MultiThumbnailImage";
 import { PressableScale } from "./PressableScale";

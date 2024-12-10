@@ -23,13 +23,14 @@ import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { BottomTabBar, BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
 import {
-  Gesture,
-  GestureDetector,
   Pressable,
+  StyleSheet,
+  Text,
   TouchableOpacity,
-} from "react-native-gesture-handler";
+  View,
+} from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
   Extrapolation,

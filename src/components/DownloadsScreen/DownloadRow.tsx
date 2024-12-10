@@ -9,8 +9,7 @@ import { useDownloads } from "@/src/stores/downloads";
 import { Colors } from "@/src/styles";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
-import { StyleSheet, View } from "react-native";
-import { TouchableOpacity } from "react-native-gesture-handler";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 import FileSize from "./FileSize";
 
 type DownloadRowProps = {
