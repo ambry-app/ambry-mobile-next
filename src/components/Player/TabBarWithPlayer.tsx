@@ -40,6 +40,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
+import BlurredImage from "../BlurredImage";
 import ChapterControls from "./ChapterControls";
 import PlaybackControls from "./PlaybackControls";
 import PlayerScrubber from "./PlayerScrubber";
@@ -205,6 +206,12 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
     };
   });
 
+  const playerBackgroundStyle = useAnimatedStyle(() => {
+    return {
+      opacity: expansion.value,
+    };
+  });
+
   const backgroundStyle = useAnimatedStyle(() => {
     return {
       opacity: expansion.value,
@@ -339,6 +346,32 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
               playerContainerStyle,
             ]}
           >
+            <Animated.View
+              style={[
+                {
+                  position: "absolute",
+                  top: 0,
+                  bottom: 0,
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: "black",
+                },
+                playerBackgroundStyle,
+              ]}
+            >
+              <BlurredImage
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  opacity: 0.125,
+                }}
+                thumbnails={media.thumbnails}
+                downloadedThumbnails={media.download?.thumbnails}
+                size="extraSmall"
+              />
+            </Animated.View>
             <Animated.View
               style={[
                 {
