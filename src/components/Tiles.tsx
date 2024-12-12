@@ -1,6 +1,7 @@
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 import { Colors } from "@/src/styles";
 import { router } from "expo-router";
+import { useCallback } from "react";
 import {
   StyleProp,
   StyleSheet,
@@ -60,6 +61,17 @@ type TileProps = {
   style?: StyleProp<ViewStyle>;
 };
 
+type TileImageProps = {
+  book: Book;
+  media: Media[];
+  seriesBook?: SeriesBook;
+};
+
+type TileTextProps = {
+  book: Book;
+  media: Media[];
+};
+
 type PersonTileProps = {
   personId: string;
   name: string;
@@ -91,7 +103,62 @@ export function SeriesBookTile({ seriesBook, style }: SeriesBookTileProps) {
 }
 
 export function Tile({ book, media, seriesBook, style }: TileProps) {
-  const navigateToBook = () => {
+  return (
+    <View style={[styles.container, style]}>
+      <TileImage book={book} media={media} seriesBook={seriesBook} />
+      <TileText book={book} media={media} />
+    </View>
+  );
+}
+
+export function TileImage(props: TileImageProps) {
+  const { book, media, seriesBook } = props;
+  const navigateToBook = useNavigateToBookCallback(book, media);
+
+  return (
+    <View style={styles.seriesBookContainer}>
+      {seriesBook && (
+        <Text style={styles.bookNumber} numberOfLines={1}>
+          Book {seriesBook.bookNumber}
+        </Text>
+      )}
+      <PressableScale weight="light" onPress={navigateToBook}>
+        <MultiThumbnailImage
+          thumbnailPairs={media.map((m) => ({
+            thumbnails: m.thumbnails,
+            downloadedThumbnails: m.download?.thumbnails || null,
+          }))}
+          size="large"
+          style={styles.bookThumbnail}
+        />
+      </PressableScale>
+    </View>
+  );
+}
+
+export function TileText({ book, media }: TileTextProps) {
+  const navigateToBook = useNavigateToBookCallback(book, media);
+
+  return (
+    <TouchableOpacity onPress={navigateToBook}>
+      <View>
+        <BookDetailsText
+          baseFontSize={16}
+          title={book.title}
+          authors={book.bookAuthors.map((ba) => ba.author.name)}
+          narrators={
+            media.length === 1
+              ? media[0].mediaNarrators.map((mn) => mn.narrator.name)
+              : undefined
+          }
+        />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function useNavigateToBookCallback(book: Book, media: Media[]) {
+  return useCallback(() => {
     if (media.length === 1) {
       router.navigate({
         pathname: "/media/[id]",
@@ -103,43 +170,7 @@ export function Tile({ book, media, seriesBook, style }: TileProps) {
         params: { id: book.id, title: book.title },
       });
     }
-  };
-
-  return (
-    <View style={[styles.container, style]}>
-      <View style={styles.seriesBookContainer}>
-        {seriesBook && (
-          <Text style={styles.bookNumber} numberOfLines={1}>
-            Book {seriesBook.bookNumber}
-          </Text>
-        )}
-        <PressableScale weight="light" onPress={navigateToBook}>
-          <MultiThumbnailImage
-            thumbnailPairs={media.map((m) => ({
-              thumbnails: m.thumbnails,
-              downloadedThumbnails: m.download?.thumbnails || null,
-            }))}
-            size="large"
-            style={styles.bookThumbnail}
-          />
-        </PressableScale>
-      </View>
-      <TouchableOpacity onPress={navigateToBook}>
-        <View>
-          <BookDetailsText
-            baseFontSize={16}
-            title={book.title}
-            authors={book.bookAuthors.map((ba) => ba.author.name)}
-            narrators={
-              media.length === 1
-                ? media[0].mediaNarrators.map((mn) => mn.narrator.name)
-                : undefined
-            }
-          />
-        </View>
-      </TouchableOpacity>
-    </View>
-  );
+  }, [book, media]);
 }
 
 export function PersonTile(props: PersonTileProps) {

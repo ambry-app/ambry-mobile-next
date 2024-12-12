@@ -16,7 +16,15 @@ import Scrubber from "./Scrubber";
 import SeekButton from "./SeekButton";
 import TabBar from "./TabBar";
 import ThumbnailImage from "./ThumbnailImage";
-import { BookTile, MediaTile, PersonTile, SeriesBookTile, Tile } from "./Tiles";
+import {
+  BookTile,
+  MediaTile,
+  PersonTile,
+  SeriesBookTile,
+  Tile,
+  TileImage,
+  TileText,
+} from "./Tiles";
 
 export {
   BookDetailsText,
@@ -42,4 +50,6 @@ export {
   TabBar,
   ThumbnailImage,
   Tile,
+  TileImage,
+  TileText,
 };
