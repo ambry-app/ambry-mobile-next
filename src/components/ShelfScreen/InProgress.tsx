@@ -1,10 +1,10 @@
+import { PlayerStateTile } from "@/src/components";
 import { useInProgressMedia } from "@/src/db/playerStates";
 import { usePlayer } from "@/src/stores/player";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { FlatList, StyleSheet, Text } from "react-native";
 import Animated from "react-native-reanimated";
-import { MediaTile } from "../Tiles";
 
 type InProgressProps = {
   session: Session;
@@ -40,7 +40,9 @@ function InProgressFlatList({ session, media }: InProgressFlatListProps) {
       keyExtractor={(item) => item.id}
       numColumns={2}
       renderItem={({ item }) => {
-        return <MediaTile style={styles.tile} media={item} />;
+        return (
+          <PlayerStateTile style={styles.tile} media={item} session={session} />
+        );
       }}
     />
   );

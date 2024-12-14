@@ -1,5 +1,5 @@
 import { TileImage, TileText } from "@/src/components";
-import { ProgressBar } from "@/src/components/Player";
+import { PlayerProgressBar } from "@/src/components/Player";
 import { useMediaDetails } from "@/src/db/library";
 import { usePlayer } from "@/src/stores/player";
 import { Session } from "@/src/stores/session";
@@ -41,7 +41,7 @@ function NowPlayingDetails({ session, mediaId }: NowPlayingDetailsProps) {
         <View style={styles.rightContainer}>
           <TileText media={[media]} book={media.book} />
           <View style={styles.spacer} />
-          <ProgressBar />
+          <PlayerProgressBar />
         </View>
       </View>
     </Animated.View>

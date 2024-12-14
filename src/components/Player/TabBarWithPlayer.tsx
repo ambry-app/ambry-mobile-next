@@ -1,4 +1,5 @@
 import {
+  BlurredImage,
   BookDetailsText,
   FreezeOnCollapsedPlayer,
   FreezeOnExpandedPlayer,
@@ -41,12 +42,11 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
-import BlurredImage from "../BlurredImage";
 import ChapterControls from "./ChapterControls";
 import PlaybackControls from "./PlaybackControls";
+import PlayerProgressBar from "./PlayerProgressBar";
 import PlayerScrubber from "./PlayerScrubber";
 import PlayerSettingButtons from "./PlayerSettingButtons";
-import ProgressBar from "./ProgressBar";
 
 type TabBarWithPlayerProps = BottomTabBarProps & {
   session: Session;
@@ -598,7 +598,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                   >
                     <View style={{ display: "flex", gap: 16 }}>
                       <PlayerSettingButtons />
-                      <ProgressBar />
+                      <PlayerProgressBar />
                     </View>
                     <View>
                       <PlaybackControls />

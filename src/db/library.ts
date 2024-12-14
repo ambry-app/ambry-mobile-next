@@ -68,7 +68,7 @@ export function useMediaList(session: Session) {
 
 export function useMediaListByIds(session: Session, mediaIds: string[]) {
   const query = db.query.media.findMany({
-    columns: { id: true, thumbnails: true },
+    columns: { id: true, thumbnails: true, duration: true },
     where: and(
       eq(schema.media.url, session.url),
       eq(schema.media.status, "ready"),

@@ -1,4 +1,11 @@
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
+import { syncDownUser } from "@/src/db/sync";
+import {
+  loadMedia,
+  prepareToLoadMedia,
+  requestExpandPlayer,
+} from "@/src/stores/player";
+import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { router } from "expo-router";
 import { useCallback } from "react";
@@ -13,6 +20,7 @@ import {
 import BookDetailsText from "./BookDetailsText";
 import MultiThumbnailImage from "./MultiThumbnailImage";
 import { PressableScale } from "./PressableScale";
+import ProgressBar from "./ProgressBar";
 import ThumbnailImage from "./ThumbnailImage";
 
 type Media = {
@@ -43,14 +51,28 @@ type SeriesBook = {
   bookNumber: string;
 };
 
+type PlayerState = {
+  position: number;
+  playbackRate: number;
+};
+
 type MediaProp = Media & { book: Book };
 type BookProp = Book & { media: Media[] };
 type SeriesBookProp = SeriesBook & { book: BookProp };
+type MediaWithPlayerStateProp = MediaProp & {
+  playerState: PlayerState;
+  duration: string | null;
+};
 
 type MediaTileProps = { media: MediaProp; style?: StyleProp<ViewStyle> };
 type BookTileProps = { book: BookProp; style?: StyleProp<ViewStyle> };
 type SeriesBookTileProps = {
   seriesBook: SeriesBookProp;
+  style?: StyleProp<ViewStyle>;
+};
+type PlayerStateTileProps = {
+  session: Session;
+  media: MediaWithPlayerStateProp;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -116,7 +138,7 @@ export function TileImage(props: TileImageProps) {
   const navigateToBook = useNavigateToBookCallback(book, media);
 
   return (
-    <View style={styles.seriesBookContainer}>
+    <View style={styles.tileImageContainer}>
       {seriesBook && (
         <Text style={styles.bookNumber} numberOfLines={1}>
           Book {seriesBook.bookNumber}
@@ -209,17 +231,60 @@ export function PersonTile(props: PersonTileProps) {
   );
 }
 
+export function PlayerStateTile(props: PlayerStateTileProps) {
+  const { media, style, session } = props;
+  const loadBookIntoPlayer = async () => {
+    requestExpandPlayer();
+    prepareToLoadMedia();
+    setTimeout(async () => {
+      await syncDownUser(session, true);
+      await loadMedia(session, media.id);
+    }, 400);
+  };
+  const duration = media.duration ? Number(media.duration) : false;
+
+  return (
+    <View style={[styles.container, style]}>
+      <PressableScale weight="light" onPress={loadBookIntoPlayer}>
+        <View style={styles.playerStateThumbnailContainer}>
+          <ThumbnailImage
+            thumbnails={media.thumbnails}
+            downloadedThumbnails={media.download?.thumbnails}
+            size="large"
+            style={styles.playerStateThumbnail}
+          />
+          {duration && (
+            <ProgressBar
+              position={media.playerState.position}
+              duration={duration}
+            />
+          )}
+        </View>
+      </PressableScale>
+      <TileText book={media.book} media={[media]} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     display: "flex",
     gap: 12,
   },
-  seriesBookContainer: {
+  tileImageContainer: {
     gap: 4,
   },
   bookThumbnail: {
     aspectRatio: 1,
     borderRadius: 8,
+  },
+  playerStateThumbnailContainer: {
+    display: "flex",
+  },
+  playerStateThumbnail: {
+    aspectRatio: 1,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
   },
   personThumbnail: {
     aspectRatio: 1,
