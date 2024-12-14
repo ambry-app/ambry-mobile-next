@@ -1,5 +1,5 @@
 import InProgress from "./InProgress";
 import NowPlaying from "./NowPlaying";
-import ShelfScrollView from "./ShelfScrollView";
+import ShelfFlatList from "./ShelfFlatList";
 
-export { InProgress, NowPlaying, ShelfScrollView };
+export { InProgress, NowPlaying, ShelfFlatList };

@@ -1,4 +1,4 @@
-import { ShelfScrollView } from "@/src/components/ShelfScreen";
+import { ShelfFlatList } from "@/src/components/ShelfScreen";
 import useSyncOnFocus from "@/src/hooks/use.sync.on.focus";
 import { useSession } from "@/src/stores/session";
 
@@ -8,5 +8,5 @@ export default function ShelfScreen() {
 
   if (!session) return null;
 
-  return <ShelfScrollView session={session} />;
+  return <ShelfFlatList session={session} />;
 }

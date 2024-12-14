@@ -5,6 +5,7 @@ import { usePlayer } from "@/src/stores/player";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 
 type NowPlayingProps = {
   session: Session;
@@ -15,14 +16,7 @@ export default function NowPlaying({ session }: NowPlayingProps) {
 
   if (!mediaId) return null;
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.label} numberOfLines={1}>
-        Now Playing
-      </Text>
-      <NowPlayingDetails session={session} mediaId={mediaId} />
-    </View>
-  );
+  return <NowPlayingDetails session={session} mediaId={mediaId} />;
 }
 
 type NowPlayingDetailsProps = {
@@ -31,28 +25,33 @@ type NowPlayingDetailsProps = {
 };
 
 function NowPlayingDetails({ session, mediaId }: NowPlayingDetailsProps) {
-  const { media } = useMediaDetails(session, mediaId);
+  const { media, opacity } = useMediaDetails(session, mediaId);
 
   if (!media) return null;
 
   return (
-    <View style={styles.rowContainer}>
-      <View style={styles.leftContainer}>
-        <TileImage media={[media]} book={media.book} />
+    <Animated.View style={[styles.container, { opacity }]}>
+      <Text style={styles.label} numberOfLines={1}>
+        Now Playing
+      </Text>
+      <View style={styles.rowContainer}>
+        <View style={styles.leftContainer}>
+          <TileImage media={[media]} book={media.book} />
+        </View>
+        <View style={styles.rightContainer}>
+          <TileText media={[media]} book={media.book} />
+          <View style={styles.spacer} />
+          <ProgressBar />
+        </View>
       </View>
-      <View style={styles.rightContainer}>
-        <TileText media={[media]} book={media.book} />
-        <View style={styles.spacer} />
-        <ProgressBar />
-      </View>
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     display: "flex",
-    gap: 8,
+    gap: 12,
   },
   rowContainer: {
     display: "flex",

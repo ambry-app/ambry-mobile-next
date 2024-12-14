@@ -66,6 +66,56 @@ export function useMediaList(session: Session) {
   return { media: data, ...rest };
 }
 
+export function useMediaListByIds(session: Session, mediaIds: string[]) {
+  const query = db.query.media.findMany({
+    columns: { id: true, thumbnails: true },
+    where: and(
+      eq(schema.media.url, session.url),
+      eq(schema.media.status, "ready"),
+      inArray(schema.media.id, mediaIds),
+    ),
+    orderBy: desc(schema.media.insertedAt),
+    with: {
+      download: {
+        columns: { thumbnails: true },
+      },
+      mediaNarrators: {
+        columns: { id: true },
+        with: {
+          narrator: {
+            columns: { id: true, name: true },
+            with: { person: { columns: { id: true } } },
+          },
+        },
+      },
+      book: {
+        columns: { id: true, title: true },
+        with: {
+          bookAuthors: {
+            columns: { id: true },
+            with: {
+              author: {
+                columns: { id: true, name: true },
+                with: { person: { columns: { id: true } } },
+              },
+            },
+          },
+          seriesBooks: {
+            columns: { id: true, bookNumber: true },
+            with: { series: { columns: { id: true, name: true } } },
+          },
+        },
+      },
+    },
+  });
+
+  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [
+    mediaIds.join(","),
+  ]);
+
+  return { media: data, ...rest };
+}
+
 export function useMediaDetails(session: Session, mediaId: string) {
   const query = db.query.media.findFirst({
     columns: {
