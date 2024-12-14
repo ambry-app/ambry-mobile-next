@@ -1,8 +1,6 @@
 import {
   BlurredImage,
   BookDetailsText,
-  FreezeOnCollapsedPlayer,
-  FreezeOnExpandedPlayer,
   IconButton,
   Loading,
   PlayButton,
@@ -494,45 +492,43 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                     />
                   </Pressable>
                 </Animated.View>
-                <FreezeOnExpandedPlayer>
-                  <Animated.View
-                    style={[
-                      {
-                        height: playerHeight,
-                        display: "flex",
-                        flexDirection: "row",
-                        alignItems: "center",
-                        paddingLeft: 8,
-                        backgroundColor: debugBackground(Colors.red[900]),
-                      },
-                      miniControlsStyle,
-                    ]}
+                <Animated.View
+                  style={[
+                    {
+                      height: playerHeight,
+                      display: "flex",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingLeft: 8,
+                      backgroundColor: debugBackground(Colors.red[900]),
+                    },
+                    miniControlsStyle,
+                  ]}
+                >
+                  <View
+                    style={{
+                      flexGrow: 1,
+                      flexShrink: 1,
+                      flexBasis: 0,
+                    }}
                   >
-                    <View
-                      style={{
-                        flexGrow: 1,
-                        flexShrink: 1,
-                        flexBasis: 0,
-                      }}
-                    >
-                      <Pressable onPress={() => expandLocal()}>
-                        <BookDetailsText
-                          baseFontSize={14}
-                          title={media.book.title}
-                          authors={media.book.bookAuthors.map(
-                            (ba) => ba.author.name,
-                          )}
-                          narrators={media.mediaNarrators.map(
-                            (mn) => mn.narrator.name,
-                          )}
-                        />
-                      </Pressable>
-                    </View>
-                    <View style={{ pointerEvents: expanded ? "none" : "auto" }}>
-                      <PlayButton size={32} color={Colors.zinc[100]} />
-                    </View>
-                  </Animated.View>
-                </FreezeOnExpandedPlayer>
+                    <Pressable onPress={() => expandLocal()}>
+                      <BookDetailsText
+                        baseFontSize={14}
+                        title={media.book.title}
+                        authors={media.book.bookAuthors.map(
+                          (ba) => ba.author.name,
+                        )}
+                        narrators={media.mediaNarrators.map(
+                          (mn) => mn.narrator.name,
+                        )}
+                      />
+                    </Pressable>
+                  </View>
+                  <View style={{ pointerEvents: expanded ? "none" : "auto" }}>
+                    <PlayButton size={32} color={Colors.zinc[100]} />
+                  </View>
+                </Animated.View>
               </View>
               <Animated.View
                 style={[
@@ -574,40 +570,38 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                 </View>
                 <View style={{ width: "10%" }}></View>
               </Animated.View>
-              <FreezeOnCollapsedPlayer>
-                <Animated.View
-                  style={[
-                    {
-                      display: "flex",
-                      flexGrow: 1,
-                      justifyContent: "space-between",
-                      paddingBottom: insets.bottom,
-                      backgroundColor: debugBackground("blue"),
-                    },
-                    controlsStyle,
-                  ]}
+              <Animated.View
+                style={[
+                  {
+                    display: "flex",
+                    flexGrow: 1,
+                    justifyContent: "space-between",
+                    paddingBottom: insets.bottom,
+                    backgroundColor: debugBackground("blue"),
+                  },
+                  controlsStyle,
+                ]}
+              >
+                <View
+                  style={{
+                    paddingHorizontal: "10%",
+                    paddingTop: 16,
+                    display: "flex",
+                    justifyContent: "space-evenly",
+                    flexGrow: 1,
+                  }}
                 >
-                  <View
-                    style={{
-                      paddingHorizontal: "10%",
-                      paddingTop: 16,
-                      display: "flex",
-                      justifyContent: "space-evenly",
-                      flexGrow: 1,
-                    }}
-                  >
-                    <View style={{ display: "flex", gap: 16 }}>
-                      <PlayerSettingButtons />
-                      <PlayerProgressBar />
-                    </View>
-                    <View>
-                      <PlaybackControls />
-                      <ChapterControls />
-                    </View>
+                  <View style={{ display: "flex", gap: 16 }}>
+                    <PlayerSettingButtons />
+                    <PlayerProgressBar />
                   </View>
-                  <PlayerScrubber />
-                </Animated.View>
-              </FreezeOnCollapsedPlayer>
+                  <View>
+                    <PlaybackControls />
+                    <ChapterControls />
+                  </View>
+                </View>
+                <PlayerScrubber />
+              </Animated.View>
             </Animated.View>
           </Animated.View>
         </GestureDetector>
