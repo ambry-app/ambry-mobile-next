@@ -1,14 +1,8 @@
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
-import { syncDownUser } from "@/src/db/sync";
-import {
-  loadMedia,
-  prepareToLoadMedia,
-  requestExpandPlayer,
-} from "@/src/stores/player";
+import useLoadMediaCallback from "@/src/hooks/use.load.media.callback";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { router } from "expo-router";
-import { useCallback } from "react";
 import {
   StyleProp,
   StyleSheet,
@@ -17,6 +11,7 @@ import {
   View,
   ViewStyle,
 } from "react-native";
+import useNavigateToBookCallback from "../hooks/use.navigate.to.book.callback";
 import BookDetailsText from "./BookDetailsText";
 import IconButton from "./IconButton";
 import MultiThumbnailImage from "./MultiThumbnailImage";
@@ -88,11 +83,13 @@ type TileImageProps = {
   book: Book;
   media: Media[];
   seriesBook?: SeriesBook;
+  onPress: () => void;
 };
 
 type TileTextProps = {
   book: Book;
   media: Media[];
+  onPress: () => void;
 };
 
 type PersonTileProps = {
@@ -126,17 +123,23 @@ export function SeriesBookTile({ seriesBook, style }: SeriesBookTileProps) {
 }
 
 export function Tile({ book, media, seriesBook, style }: TileProps) {
+  const navigateToBook = useNavigateToBookCallback(book, media);
+
   return (
     <View style={[styles.container, style]}>
-      <TileImage book={book} media={media} seriesBook={seriesBook} />
-      <TileText book={book} media={media} />
+      <TileImage
+        book={book}
+        media={media}
+        seriesBook={seriesBook}
+        onPress={navigateToBook}
+      />
+      <TileText book={book} media={media} onPress={navigateToBook} />
     </View>
   );
 }
 
 export function TileImage(props: TileImageProps) {
-  const { book, media, seriesBook } = props;
-  const navigateToBook = useNavigateToBookCallback(book, media);
+  const { media, seriesBook, onPress } = props;
 
   return (
     <View style={styles.tileImageContainer}>
@@ -145,7 +148,7 @@ export function TileImage(props: TileImageProps) {
           Book {seriesBook.bookNumber}
         </Text>
       )}
-      <PressableScale weight="light" onPress={navigateToBook}>
+      <PressableScale weight="light" onPress={onPress}>
         <MultiThumbnailImage
           thumbnailPairs={media.map((m) => ({
             thumbnails: m.thumbnails,
@@ -159,11 +162,9 @@ export function TileImage(props: TileImageProps) {
   );
 }
 
-export function TileText({ book, media }: TileTextProps) {
-  const navigateToBook = useNavigateToBookCallback(book, media);
-
+export function TileText({ book, media, onPress }: TileTextProps) {
   return (
-    <TouchableOpacity onPress={navigateToBook}>
+    <TouchableOpacity onPress={onPress}>
       <View>
         <BookDetailsText
           baseFontSize={16}
@@ -178,22 +179,6 @@ export function TileText({ book, media }: TileTextProps) {
       </View>
     </TouchableOpacity>
   );
-}
-
-function useNavigateToBookCallback(book: Book, media: Media[]) {
-  return useCallback(() => {
-    if (media.length === 1) {
-      router.navigate({
-        pathname: "/media/[id]",
-        params: { id: media[0].id, title: book.title },
-      });
-    } else {
-      router.navigate({
-        pathname: "/book/[id]",
-        params: { id: book.id, title: book.title },
-      });
-    }
-  }, [book, media]);
 }
 
 export function PersonTile(props: PersonTileProps) {
@@ -234,14 +219,7 @@ export function PersonTile(props: PersonTileProps) {
 
 export function PlayerStateTile(props: PlayerStateTileProps) {
   const { media, style, session } = props;
-  const loadBookIntoPlayer = async () => {
-    requestExpandPlayer();
-    prepareToLoadMedia();
-    setTimeout(async () => {
-      await syncDownUser(session, true);
-      await loadMedia(session, media.id);
-    }, 400);
-  };
+  const loadMedia = useLoadMediaCallback(session, media.id);
   const duration = media.duration ? Number(media.duration) : false;
   const percent = duration
     ? (media.playerState.position / duration) * 100
@@ -249,7 +227,7 @@ export function PlayerStateTile(props: PlayerStateTileProps) {
 
   return (
     <View style={[styles.playerStateTileContainer, style]}>
-      <PressableScale weight="light" onPress={loadBookIntoPlayer}>
+      <PressableScale weight="light" onPress={loadMedia}>
         <View style={styles.playerStateThumbnailContainer}>
           <ThumbnailImage
             thumbnails={media.thumbnails}
@@ -277,7 +255,7 @@ export function PlayerStateTile(props: PlayerStateTileProps) {
           </Text>
         )}
       </PressableScale>
-      <TileText book={media.book} media={[media]} />
+      <TileText book={media.book} media={[media]} onPress={loadMedia} />
     </View>
   );
 }

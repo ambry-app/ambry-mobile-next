@@ -1,7 +1,7 @@
 import { TileImage, TileText } from "@/src/components";
 import { PlayerProgressBar } from "@/src/components/Player";
 import { useMediaDetails } from "@/src/db/library";
-import { usePlayer } from "@/src/stores/player";
+import { requestExpandPlayer, usePlayer } from "@/src/stores/player";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { StyleSheet, Text, View } from "react-native";
@@ -26,6 +26,7 @@ type NowPlayingDetailsProps = {
 
 function NowPlayingDetails({ session, mediaId }: NowPlayingDetailsProps) {
   const { media, opacity } = useMediaDetails(session, mediaId);
+  const expandPlayer = () => requestExpandPlayer();
 
   if (!media) return null;
 
@@ -36,10 +37,10 @@ function NowPlayingDetails({ session, mediaId }: NowPlayingDetailsProps) {
       </Text>
       <View style={styles.rowContainer}>
         <View style={styles.leftContainer}>
-          <TileImage media={[media]} book={media.book} />
+          <TileImage media={[media]} book={media.book} onPress={expandPlayer} />
         </View>
         <View style={styles.rightContainer}>
-          <TileText media={[media]} book={media.book} />
+          <TileText media={[media]} book={media.book} onPress={expandPlayer} />
           <View style={styles.spacer} />
           <PlayerProgressBar />
         </View>
