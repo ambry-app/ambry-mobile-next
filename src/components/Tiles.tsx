@@ -18,6 +18,7 @@ import {
   ViewStyle,
 } from "react-native";
 import BookDetailsText from "./BookDetailsText";
+import IconButton from "./IconButton";
 import MultiThumbnailImage from "./MultiThumbnailImage";
 import { PressableScale } from "./PressableScale";
 import ProgressBar from "./ProgressBar";
@@ -242,9 +243,12 @@ export function PlayerStateTile(props: PlayerStateTileProps) {
     }, 400);
   };
   const duration = media.duration ? Number(media.duration) : false;
+  const percent = duration
+    ? (media.playerState.position / duration) * 100
+    : false;
 
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.playerStateTileContainer, style]}>
       <PressableScale weight="light" onPress={loadBookIntoPlayer}>
         <View style={styles.playerStateThumbnailContainer}>
           <ThumbnailImage
@@ -253,13 +257,25 @@ export function PlayerStateTile(props: PlayerStateTileProps) {
             size="large"
             style={styles.playerStateThumbnail}
           />
-          {duration && (
-            <ProgressBar
-              position={media.playerState.position}
-              duration={duration}
-            />
-          )}
+          <IconButton
+            icon="play"
+            size={32}
+            style={styles.playButton}
+            iconStyle={styles.playButtonIcon}
+            color={Colors.zinc[100]}
+          />
         </View>
+        {duration && (
+          <ProgressBar
+            position={media.playerState.position}
+            duration={duration}
+          />
+        )}
+        {percent && (
+          <Text style={styles.progressText} numberOfLines={1}>
+            {percent.toFixed(1)}%
+          </Text>
+        )}
       </PressableScale>
       <TileText book={media.book} media={[media]} />
     </View>
@@ -271,6 +287,10 @@ const styles = StyleSheet.create({
     display: "flex",
     gap: 12,
   },
+  playerStateTileContainer: {
+    display: "flex",
+    gap: 4,
+  },
   tileImageContainer: {
     gap: 4,
   },
@@ -279,12 +299,33 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   playerStateThumbnailContainer: {
+    position: "relative",
+    width: "100%",
+    aspectRatio: 1,
     display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
   },
   playerStateThumbnail: {
+    position: "absolute",
+    width: "100%",
     aspectRatio: 1,
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
+  },
+  playButton: {
+    elevation: 4,
+    backgroundColor: Colors.zinc[900],
+    borderRadius: 999,
+  },
+  playButtonIcon: {
+    // play button looks off center, so we need to adjust it a bit
+    transform: [{ translateX: 2 }],
+  },
+  progressText: {
+    fontSize: 14,
+    color: Colors.zinc[400],
+    textAlign: "center",
   },
   personThumbnail: {
     aspectRatio: 1,
