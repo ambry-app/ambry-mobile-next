@@ -1,4 +1,5 @@
 import {
+  BlurredImage,
   BookDetailsText,
   IconButton,
   Loading,
@@ -8,7 +9,12 @@ import {
 import { playerHeight, tabBarBaseHeight } from "@/src/constants";
 import { useMediaDetails } from "@/src/db/library";
 import useBackHandler from "@/src/hooks/use.back.handler";
-import { expandPlayerHandled, usePlayer } from "@/src/stores/player";
+import {
+  expandPlayerHandled,
+  setIsFullyCollapsed,
+  setIsFullyExpanded,
+  usePlayer,
+} from "@/src/stores/player";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
@@ -36,9 +42,9 @@ import Animated, {
 import { useShallow } from "zustand/react/shallow";
 import ChapterControls from "./ChapterControls";
 import PlaybackControls from "./PlaybackControls";
+import PlayerProgressBar from "./PlayerProgressBar";
 import PlayerScrubber from "./PlayerScrubber";
 import PlayerSettingButtons from "./PlayerSettingButtons";
-import ProgressBar from "./ProgressBar";
 
 type TabBarWithPlayerProps = BottomTabBarProps & {
   session: Session;
@@ -65,19 +71,29 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
 
   const expandLocal = useCallback(() => {
     "worklet";
+    runOnJS(setIsFullyCollapsed)(false);
+
     expansion.value = withTiming(
       1.0,
       { duration: 400, easing: Easing.out(Easing.exp) },
-      () => runOnJS(setExpanded)(true),
+      () => {
+        runOnJS(setExpanded)(true);
+        runOnJS(setIsFullyExpanded)(true);
+      },
     );
   }, [expansion]);
 
   const collapseLocal = () => {
     "worklet";
+    runOnJS(setIsFullyExpanded)(false);
+
     expansion.value = withTiming(
       0.0,
       { duration: 400, easing: Easing.out(Easing.exp) },
-      () => runOnJS(setExpanded)(false),
+      () => {
+        runOnJS(setExpanded)(false);
+        runOnJS(setIsFullyCollapsed)(true);
+      },
     );
   };
 
@@ -101,6 +117,8 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
 
   const panGesture = Gesture.Pan()
     .onStart((e) => {
+      runOnJS(setIsFullyExpanded)(false);
+      runOnJS(setIsFullyCollapsed)(false);
       whereItWas.value = expansion.value;
     })
     .onUpdate((e) => {
@@ -184,6 +202,12 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
   const playerLoadingStyle = useAnimatedStyle(() => {
     return {
       opacity: interpolate(playerOpacity.value, [0, 1], [1, 0]),
+    };
+  });
+
+  const playerBackgroundStyle = useAnimatedStyle(() => {
+    return {
+      opacity: expansion.value,
     };
   });
 
@@ -331,6 +355,32 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  backgroundColor: "black",
+                },
+                playerBackgroundStyle,
+              ]}
+            >
+              <BlurredImage
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  opacity: 0.125,
+                }}
+                thumbnails={media.thumbnails}
+                downloadedThumbnails={media.download?.thumbnails}
+                size="extraSmall"
+              />
+            </Animated.View>
+            <Animated.View
+              style={[
+                {
+                  position: "absolute",
+                  top: 0,
+                  bottom: 0,
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 },
                 playerLoadingStyle,
               ]}
@@ -417,7 +467,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                 >
                   <Pressable
                     onPress={() => {
-                      if (expansion.value === 0.0) {
+                      if (!expanded) {
                         expandLocal();
                       } else {
                         collapseLocal();
@@ -543,7 +593,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                 >
                   <View style={{ display: "flex", gap: 16 }}>
                     <PlayerSettingButtons />
-                    <ProgressBar />
+                    <PlayerProgressBar />
                   </View>
                   <View>
                     <PlaybackControls />

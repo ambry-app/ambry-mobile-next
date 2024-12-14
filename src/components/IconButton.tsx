@@ -14,7 +14,7 @@ type IconButtonProps = {
   color: string;
   style?: StyleProp<ViewStyle>;
   iconStyle?: StyleProp<ViewStyle>;
-  onPress: () => void;
+  onPress?: () => void;
   onLongPress?: () => void;
   children?: React.ReactNode;
   solid?: boolean;

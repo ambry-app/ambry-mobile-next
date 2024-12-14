@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     marginHorizontal: -20,
   },
   button: {
-    backgroundColor: Colors.zinc[800],
+    backgroundColor: Colors.zinc[800] + "80",
     borderRadius: 999,
     paddingHorizontal: 16,
     flexDirection: "row",
