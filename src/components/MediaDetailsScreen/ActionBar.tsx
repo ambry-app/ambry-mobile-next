@@ -1,13 +1,8 @@
 import { IconButton } from "@/src/components";
 import { Download, useDownload } from "@/src/db/downloads";
 import { ActionBarMedia, useMediaActionBarInfo } from "@/src/db/library";
-import { syncDownUser } from "@/src/db/sync";
+import useLoadMediaCallback from "@/src/hooks/use.load.media.callback";
 import { startDownload, useDownloads } from "@/src/stores/downloads";
-import {
-  loadMedia,
-  prepareToLoadMedia,
-  requestExpandPlayer,
-} from "@/src/stores/player";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { router } from "expo-router";
@@ -25,15 +20,6 @@ export default function ActionBar({ mediaId, session }: ActionBarProps) {
 
   if (!media) return null;
 
-  const onPressPlay = async () => {
-    requestExpandPlayer();
-    prepareToLoadMedia();
-    setTimeout(async () => {
-      await syncDownUser(session, true);
-      await loadMedia(session, media.id);
-    }, 400);
-  };
-
   return (
     <Animated.View style={[styles.container, { opacity }]}>
       <View style={styles.buttonsContainer}>
@@ -50,14 +36,7 @@ export default function ActionBar({ mediaId, session }: ActionBarProps) {
             );
           }}
         />
-        <IconButton
-          icon="play"
-          size={32}
-          style={styles.playButton}
-          iconStyle={styles.playButtonIcon}
-          color={Colors.black}
-          onPress={onPressPlay}
-        />
+        <PlayButton session={session} media={media} />
         <IconButton
           icon="share"
           size={24}
@@ -84,6 +63,26 @@ export default function ActionBar({ mediaId, session }: ActionBarProps) {
       </View>
       {/* <ExplanationText download={download} /> */}
     </Animated.View>
+  );
+}
+
+type PlayButtonProps = {
+  media: ActionBarMedia;
+  session: Session;
+};
+
+function PlayButton({ session, media }: PlayButtonProps) {
+  const loadMedia = useLoadMediaCallback(session, media.id);
+
+  return (
+    <IconButton
+      icon="play"
+      size={32}
+      style={styles.playButton}
+      iconStyle={styles.playButtonIcon}
+      color={Colors.black}
+      onPress={loadMedia}
+    />
   );
 }
 

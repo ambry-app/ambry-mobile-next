@@ -217,7 +217,7 @@ export async function pause() {
 export function onPlaybackProgressUpdated(position: number, duration: number) {
   updateProgress(position, duration);
   if (maybeHandleSleepTimer()) return Promise.resolve();
-  return savePosition();
+  if (duration !== 0) return savePosition();
 }
 
 export function onPlaybackState(state: State) {
@@ -520,7 +520,10 @@ async function loadMediaIntoTrackPlayer(
     // neither a synced playerState nor a local playerState exists
     // create a new local playerState and load it into the player
 
-    console.debug("[Player] No state found; creating new local state", 0);
+    console.debug(
+      "[Player] No state found; creating new local state; new position =",
+      0,
+    );
 
     const newLocalPlayerState = await createInitialPlayerState(
       session,
@@ -535,7 +538,7 @@ async function loadMediaIntoTrackPlayer(
     // create a new local playerState by copying the synced playerState
 
     console.debug(
-      "[Player] Synced state found; creating new local state",
+      "[Player] Synced state found; creating new local state; synced position =",
       syncedPlayerState.position,
     );
 
@@ -548,7 +551,7 @@ async function loadMediaIntoTrackPlayer(
     );
 
     console.debug(
-      "[Player] Loading new local state into player",
+      "[Player] Loading new local state into player; local position =",
       newLocalPlayerState.position,
     );
 
@@ -560,7 +563,7 @@ async function loadMediaIntoTrackPlayer(
     // use it as is (we haven't had a chance to sync it to the server yet)
 
     console.debug(
-      "[Player] Local state found (but no synced state); loading into player",
+      "[Player] Local state found (but no synced state); loading into player; local position =",
       localPlayerState.position,
     );
 
@@ -571,8 +574,9 @@ async function loadMediaIntoTrackPlayer(
 
   // both a synced playerState and a local playerState exist
   console.debug(
-    "[Player] Both synced and local states found",
-    localPlayerState.position,
+    "[Player] Both synced and local states found; local position =",
+    localPlayerState.position + ";",
+    "synced position =",
     syncedPlayerState.position,
   );
 
@@ -581,7 +585,7 @@ async function loadMediaIntoTrackPlayer(
     // use it as is (the server is out of date)
 
     console.debug(
-      "[Player] Local state is newer; loading into player",
+      "[Player] Local state is newer; loading into player; local position =",
       localPlayerState.position,
     );
 
@@ -592,7 +596,7 @@ async function loadMediaIntoTrackPlayer(
   // update the local playerState by copying the synced playerState
 
   console.debug(
-    "[Player] Synced state is newer; updating local state",
+    "[Player] Synced state is newer; updating local state; synced position =",
     syncedPlayerState.position,
   );
 
@@ -603,7 +607,7 @@ async function loadMediaIntoTrackPlayer(
   });
 
   console.debug(
-    "[Player] Loading updated local state into player",
+    "[Player] Loading updated local state into player; local position =",
     updatedLocalPlayerState.position,
   );
 
