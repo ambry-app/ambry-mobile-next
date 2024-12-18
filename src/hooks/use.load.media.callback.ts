@@ -1,6 +1,7 @@
 import { syncDownUser } from "@/src/db/sync";
 import {
   loadMedia,
+  pause,
   prepareToLoadMedia,
   requestExpandPlayer,
 } from "@/src/stores/player";
@@ -12,6 +13,7 @@ export default function useLoadMediaCallback(
   mediaId: string,
 ) {
   const loadMediaCallback = useCallback(async () => {
+    await pause();
     requestExpandPlayer();
     prepareToLoadMedia();
     setTimeout(async () => {

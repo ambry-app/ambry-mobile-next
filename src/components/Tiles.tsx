@@ -243,13 +243,13 @@ export function PlayerStateTile(props: PlayerStateTileProps) {
             color={Colors.zinc[100]}
           />
         </View>
-        {duration && (
+        {duration !== false && (
           <ProgressBar
             position={media.playerState.position}
             duration={duration}
           />
         )}
-        {percent && (
+        {percent !== false && (
           <Text style={styles.progressText} numberOfLines={1}>
             {percent.toFixed(1)}%
           </Text>
