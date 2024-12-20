@@ -11,6 +11,7 @@ import {
   eq,
   inArray,
   isNull,
+  like,
   ne,
   notInArray,
   or,
@@ -114,6 +115,31 @@ export function useMediaListByIds(session: Session, mediaIds: string[]) {
   ]);
 
   return { media: data, ...rest };
+}
+
+export function useMediaByBookTitleSearch(
+  session: Session,
+  queryString: string,
+) {
+  const mediaIdsQuery = db
+    .select({ id: schema.media.id })
+    .from(schema.books)
+    .innerJoin(schema.media, eq(schema.media.bookId, schema.books.id))
+    .where(
+      and(
+        eq(schema.books.url, session.url),
+        like(schema.books.title, `%${queryString}%`),
+      ),
+    );
+
+  const { data: mediaIds } = useSyncedDataQuery(session, mediaIdsQuery, [
+    queryString,
+  ]);
+
+  return useMediaListByIds(
+    session,
+    mediaIds.map((x) => x.id),
+  );
 }
 
 export function useMediaDetails(session: Session, mediaId: string) {
