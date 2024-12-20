@@ -101,8 +101,8 @@ function SearchResultsFlatList(props: SearchResultsFlatListProps) {
     return (
       <ScreenCentered>
         <Text style={styles.text}>
-          Your library is empty. Log into the server on the web and add some
-          audiobooks to get started!
+          Nothing in the library matches your search term. Search is very basic
+          right now and only matches on book titles. Please try another search.
         </Text>
       </ScreenCentered>
     );
