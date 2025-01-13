@@ -64,6 +64,8 @@ export default {
         },
       ],
       "react-native-edge-to-edge",
+      "expo-build-properties",
+      "expo-sqlite",
     ],
     experiments: {
       typedRoutes: true,
