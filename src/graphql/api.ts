@@ -1,6 +1,13 @@
 import { graphql } from "@/src/graphql/client";
-import { executeAuthenticated } from "@/src/graphql/client/execute";
+import {
+  execute,
+  executeAuthenticated,
+  ExecuteAuthenticatedError,
+  ExecuteError,
+  ExecuteErrorCode,
+} from "@/src/graphql/client/execute";
 import { Session } from "@/src/stores/session";
+import { Result } from "@/src/types/result";
 
 const libraryChangesSinceQuery = graphql(`
   query LibraryChangesSince($since: DateTime) {
@@ -206,4 +213,78 @@ export function updatePlayerState(
       },
     },
   );
+}
+
+const createSessionMutation = graphql(`
+  mutation CreateSession($input: CreateSessionInput!) {
+    createSession(input: $input) {
+      token
+    }
+  }
+`);
+
+export enum CreateSessionErrorCode {
+  INVALID_CREDENTIALS = "CreateSessionErrorCodeInvalidCredentials",
+}
+
+interface InvalidCredentialsError {
+  code: CreateSessionErrorCode.INVALID_CREDENTIALS;
+}
+
+export type CreateSessionError = InvalidCredentialsError | ExecuteError;
+
+export async function createSession(
+  url: string,
+  email: string,
+  password: string,
+): Promise<Result<{ token: string }, CreateSessionError>> {
+  const result = await execute(url, createSessionMutation, {
+    input: {
+      email: email,
+      password: password,
+    },
+  });
+
+  if (!result.success) {
+    if (
+      result.error.code === ExecuteErrorCode.GQL_ERROR &&
+      result.error.message === "invalid username or password"
+    ) {
+      return {
+        success: false,
+        error: { code: CreateSessionErrorCode.INVALID_CREDENTIALS },
+      };
+    }
+
+    return result;
+  }
+
+  const {
+    result: { createSession },
+  } = result;
+
+  const { token } = createSession!;
+
+  return { success: true, result: { token } };
+}
+
+const deleteSessionMutation = graphql(`
+  mutation DeleteSession {
+    deleteSession {
+      deleted
+    }
+  }
+`);
+
+export async function deleteSession(
+  url: string,
+  token: string,
+): Promise<Result<true, ExecuteAuthenticatedError>> {
+  const result = await executeAuthenticated(url, token, deleteSessionMutation);
+
+  if (!result.success) {
+    return result;
+  }
+
+  return { success: true, result: true };
 }
