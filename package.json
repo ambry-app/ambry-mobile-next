@@ -16,8 +16,7 @@
     "ios-preview": "bunx eas build --platform ios --profile preview --local",
     "codegen": "bunx graphql-codegen --config codegen.ts",
     "codegen-watch": "bunx graphql-codegen --config codegen.ts --watch",
-    "generate-migrations": "bunx drizzle-kit generate",
-    "update-bun-lock-tree": "bun pm ls --all | tail -n +2 | sed 's/\\x1B\\[[0-9;]\\{1,\\}[A-Za-z]//g' > bun.lock.tree"
+    "generate-migrations": "bunx drizzle-kit generate"
   },
   "expo": {
     "install": {
