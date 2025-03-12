@@ -42,6 +42,7 @@ export default {
       bundleIdentifier: getUniqueIdentifier(),
       infoPlist: {
         UIBackgroundModes: ["audio"],
+        ITSAppUsesNonExemptEncryption: false,
       },
     },
     android: {
