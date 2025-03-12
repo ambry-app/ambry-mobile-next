@@ -344,6 +344,22 @@ export async function tryUnloadPlayer() {
   return Promise.resolve();
 }
 
+export async function forceUnloadPlayer() {
+  await TrackPlayer.reset();
+
+  usePlayer.setState({
+    position: 0,
+    duration: 0,
+    state: undefined,
+    mediaId: null,
+    playbackRate: 1,
+    streaming: undefined,
+    chapterState: null,
+  });
+
+  return Promise.resolve();
+}
+
 async function savePosition(force: boolean = false) {
   const session = useSession.getState().session;
   const { mediaId, position, duration } = usePlayer.getState();

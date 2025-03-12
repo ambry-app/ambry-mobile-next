@@ -5,9 +5,11 @@ import {
   getUserChangesSince,
   updatePlayerState,
 } from "@/src/graphql/api";
-import { Session } from "@/src/stores/session";
+import { forceUnloadPlayer } from "@/src/stores/player";
+import { Session, forceSignOut } from "@/src/stores/session";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { ExecuteAuthenticatedErrorCode } from "../graphql/client/execute";
 
 export function useLastDownSync(session: Session) {
   const query = db
@@ -65,7 +67,27 @@ export async function syncDownLibrary(
     }
   }
 
-  const changes = await getLibraryChangesSince(session, lastSync);
+  const result = await getLibraryChangesSince(session, lastSync);
+
+  if (!result.success) {
+    switch (result.error.code) {
+      case ExecuteAuthenticatedErrorCode.UNAUTHORIZED:
+        console.warn("[SyncDown] unauthorized, signing out...");
+        await resetAndSignOut();
+        return;
+      case ExecuteAuthenticatedErrorCode.NETWORK_ERROR:
+        console.error("[SyncDown] network error, we'll try again later");
+        return;
+      case ExecuteAuthenticatedErrorCode.SERVER_ERROR:
+      case ExecuteAuthenticatedErrorCode.GQL_ERROR:
+        console.error("[SyncDown] server error, we'll try again later");
+        return;
+      default:
+        return result.error satisfies never;
+    }
+  }
+
+  const changes = result.result;
 
   if (!changes) return;
 
@@ -452,7 +474,27 @@ export async function syncDownUser(session: Session, force: boolean = false) {
     }
   }
 
-  const changes = await getUserChangesSince(session, lastSync);
+  const result = await getUserChangesSince(session, lastSync);
+
+  if (!result.success) {
+    switch (result.error.code) {
+      case ExecuteAuthenticatedErrorCode.UNAUTHORIZED:
+        console.warn("[SyncDown] unauthorized, signing out...");
+        await resetAndSignOut();
+        return;
+      case ExecuteAuthenticatedErrorCode.NETWORK_ERROR:
+        console.error("[SyncDown] network error, we'll try again later");
+        return;
+      case ExecuteAuthenticatedErrorCode.SERVER_ERROR:
+      case ExecuteAuthenticatedErrorCode.GQL_ERROR:
+        console.error("[SyncDown] server error, we'll try again later");
+        return;
+      default:
+        return result.error satisfies never;
+    }
+  }
+
+  const changes = result.result;
 
   if (!changes) return;
 
@@ -565,12 +607,30 @@ export async function syncUp(session: Session, force: boolean = false) {
   );
 
   for (const playerState of changedPlayerStates) {
-    await updatePlayerState(
+    const result = await updatePlayerState(
       session,
       playerState.mediaId,
       playerState.position,
       playerState.playbackRate,
     );
+
+    if (!result.success) {
+      switch (result.error.code) {
+        case ExecuteAuthenticatedErrorCode.UNAUTHORIZED:
+          console.warn("[SyncUp] unauthorized, signing out...");
+          await resetAndSignOut();
+          return;
+        case ExecuteAuthenticatedErrorCode.NETWORK_ERROR:
+          console.error("[SyncUp] network error, we'll try again later");
+          return;
+        case ExecuteAuthenticatedErrorCode.SERVER_ERROR:
+        case ExecuteAuthenticatedErrorCode.GQL_ERROR:
+          console.error("[SyncUp] server error, we'll try again later");
+          return;
+        default:
+          return result.error satisfies never;
+      }
+    }
   }
 
   console.debug("[SyncUp] server request(s) complete");
@@ -590,6 +650,11 @@ export async function syncUp(session: Session, force: boolean = false) {
     });
 
   console.debug("[SyncUp] sync complete");
+}
+
+async function resetAndSignOut() {
+  await forceUnloadPlayer();
+  forceSignOut();
 }
 
 const groupBy = <T, K extends keyof any, V>(

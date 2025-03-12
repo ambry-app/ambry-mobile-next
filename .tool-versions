@@ -1,4 +1,4 @@
-bun 1.1.38
-java adoptopenjdk-22.0.2+9
+bun 1.2.5
+java zulu-17.56.15
 # only needed for esbuild postinstall?
-nodejs 22.11.0
+nodejs 22.14.0

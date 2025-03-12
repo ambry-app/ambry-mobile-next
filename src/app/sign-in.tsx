@@ -1,30 +1,64 @@
 import Logo from "@/assets/images/logo.svg";
 import { FocusableTextInput, IconButton, Loading } from "@/src/components";
 import { useScreen } from "@/src/stores/screen";
-import { clearError, signIn, useSession } from "@/src/stores/session";
+import { signIn, useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { Redirect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { CreateSessionErrorCode } from "../graphql/api";
+import { ExecuteErrorCode } from "../graphql/client/execute";
 
 export default function SignInScreen() {
-  const { session, error, isLoading } = useSession((state) => state);
+  const { session } = useSession((state) => state);
+
   const [email, setEmail] = useState(session?.email || "");
   const [host, setHost] = useState(session?.url || "");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
   const emailInputRef = useRef<TextInput>(null);
   const passwordInputRef = useRef<TextInput>(null);
+
   const { screenWidth } = useScreen();
   const logoWidth = screenWidth - 64;
   const logoHeight = logoWidth / 4.5;
 
-  const doSignIn = useCallback(() => {
+  const doSignIn = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    let result;
+
     // to help the automated Google Play pre-launch report
     if (email === "demo@ambry.app") {
-      signIn("https://demo.ambry.app", email, password);
+      result = await signIn("https://demo.ambry.app", email, password);
     } else {
-      signIn(host, email, password);
+      result = await signIn(host, email, password);
+    }
+
+    setIsLoading(false);
+
+    if (!result.success) {
+      switch (result.error.code) {
+        case ExecuteErrorCode.NETWORK_ERROR:
+          setError(
+            "Could not reach server. Please check your connection or server address and try again.",
+          );
+          return;
+        case ExecuteErrorCode.SERVER_ERROR:
+        case ExecuteErrorCode.GQL_ERROR:
+          setError("Server error. Please contact the server admin.");
+          return;
+        case CreateSessionErrorCode.INVALID_CREDENTIALS:
+          setError(
+            "Invalid email address or password. Please check your credentials and try again.",
+          );
+          return;
+        default:
+          return result.error satisfies never;
+      }
     }
   }, [host, email, password]);
 
@@ -48,12 +82,12 @@ export default function SignInScreen() {
           style={styles.input}
           focusedStyle={styles.inputFocused}
           placeholderTextColor={Colors.zinc[500]}
-          placeholder="Host"
+          placeholder="Server address"
           value={host}
           autoCapitalize="none"
           onChangeText={(host: string) => {
             setHost(host);
-            clearError();
+            setError(null);
           }}
           textContentType="URL"
           keyboardType="url"
@@ -72,7 +106,7 @@ export default function SignInScreen() {
           autoCapitalize="none"
           onChangeText={(email: string) => {
             setEmail(email);
-            clearError();
+            setError(null);
           }}
           textContentType="emailAddress"
           keyboardType="email-address"
@@ -89,7 +123,7 @@ export default function SignInScreen() {
           value={password}
           onChangeText={(password: string) => {
             setPassword(password);
-            clearError();
+            setError(null);
           }}
           secureTextEntry
           textContentType="password"
@@ -108,11 +142,7 @@ export default function SignInScreen() {
         <Text style={styles.buttonText}>Sign in</Text>
       </IconButton>
       {isLoading && <Loading />}
-      {error && (
-        <Text style={styles.errorText}>
-          Invalid host, username, or password
-        </Text>
-      )}
+      {error && <Text style={styles.errorText}>{error}</Text>}
     </KeyboardAwareScrollView>
   );
 }
