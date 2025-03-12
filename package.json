@@ -100,8 +100,5 @@
     "react-test-renderer": "18.3.1",
     "typescript": "^5.7.3"
   },
-  "private": true,
-  "patchedDependencies": {
-    "expo-blur@14.0.2": "patches/expo-blur@14.0.2.patch"
-  }
+  "private": true
 }
