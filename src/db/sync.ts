@@ -5,11 +5,11 @@ import {
   getUserChangesSince,
   updatePlayerState,
 } from "@/src/graphql/api";
+import { ExecuteAuthenticatedErrorCode } from "@/src/graphql/client/execute";
 import { forceUnloadPlayer } from "@/src/stores/player";
 import { Session, forceSignOut } from "@/src/stores/session";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
-import { ExecuteAuthenticatedErrorCode } from "../graphql/client/execute";
 
 export function useLastDownSync(session: Session) {
   const query = db

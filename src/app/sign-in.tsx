@@ -1,5 +1,7 @@
 import Logo from "@/assets/images/logo.svg";
 import { FocusableTextInput, IconButton, Loading } from "@/src/components";
+import { CreateSessionErrorCode } from "@/src/graphql/api";
+import { ExecuteErrorCode } from "@/src/graphql/client/execute";
 import { useScreen } from "@/src/stores/screen";
 import { signIn, useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
@@ -7,8 +9,6 @@ import { Redirect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import { CreateSessionErrorCode } from "../graphql/api";
-import { ExecuteErrorCode } from "../graphql/client/execute";
 
 export default function SignInScreen() {
   const { session } = useSession((state) => state);
