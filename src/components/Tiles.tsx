@@ -1,5 +1,6 @@
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 import useLoadMediaCallback from "@/src/hooks/use.load.media.callback";
+import useNavigateToBookCallback from "@/src/hooks/use.navigate.to.book.callback";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { router } from "expo-router";
@@ -11,7 +12,6 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-import useNavigateToBookCallback from "../hooks/use.navigate.to.book.callback";
 import BookDetailsText from "./BookDetailsText";
 import IconButton from "./IconButton";
 import MultiThumbnailImage from "./MultiThumbnailImage";
