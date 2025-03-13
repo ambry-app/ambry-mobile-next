@@ -21,7 +21,8 @@
   "expo": {
     "install": {
       "exclude": [
-        "react-native-screens"
+        "react-native-screens",
+        "@sentry/react-native"
       ]
     },
     "doctor": {
@@ -45,6 +46,7 @@
     "@react-native-community/slider": "4.5.5",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
+    "@sentry/react-native": "^6.9.1",
     "drizzle-orm": "^0.38.3",
     "expo": "~52.0.38",
     "expo-blur": "~14.0.3",

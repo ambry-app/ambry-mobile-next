@@ -53,6 +53,14 @@ export default {
       package: getUniqueIdentifier(),
     },
     plugins: [
+      [
+        "@sentry/react-native/expo",
+        {
+          url: "https://sentry.io/",
+          project: "ambry-mobile",
+          organization: "ambry-app",
+        },
+      ],
       "expo-router",
       "expo-secure-store",
       [
