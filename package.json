@@ -21,7 +21,8 @@
   "expo": {
     "install": {
       "exclude": [
-        "react-native-screens"
+        "react-native-screens",
+        "@sentry/react-native"
       ]
     },
     "doctor": {
