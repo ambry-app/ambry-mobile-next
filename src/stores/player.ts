@@ -29,6 +29,8 @@ import TrackPlayer, {
 import { create } from "zustand";
 import { Session, useSession } from "./session";
 
+const FADE_OUT_TIME = 30000; // 30 seconds in milliseconds
+
 export type ChapterState = {
   chapters: schema.Chapter[];
   currentChapter: schema.Chapter;
@@ -290,6 +292,8 @@ export async function setPlaybackRate(session: Session, playbackRate: number) {
 }
 
 export async function setSleepTimerState(enabled: boolean) {
+  resetVolume();
+
   usePlayer.setState({
     sleepTimerEnabled: enabled,
     sleepTimerTriggerTime: null,
@@ -728,6 +732,7 @@ function updateChapterState(
 }
 
 function maybeStartSleepTimer() {
+  resetVolume();
   const { sleepTimerEnabled, sleepTimerTriggerTime } = usePlayer.getState();
 
   if (!sleepTimerEnabled || sleepTimerTriggerTime !== null) return;
@@ -736,6 +741,7 @@ function maybeStartSleepTimer() {
 }
 
 function maybeResetSleepTimer() {
+  resetVolume();
   const { sleepTimerEnabled, sleepTimerTriggerTime } = usePlayer.getState();
 
   if (!sleepTimerEnabled || sleepTimerTriggerTime === null) return;
@@ -757,14 +763,33 @@ function _startSleepTimer() {
 function maybeHandleSleepTimer() {
   const { sleepTimerTriggerTime } = usePlayer.getState();
 
-  if (sleepTimerTriggerTime === null) return false;
+  if (sleepTimerTriggerTime === null) {
+    resetVolume();
+    return false;
+  }
 
   const now = Date.now();
+  const timeRemaining = sleepTimerTriggerTime - now;
 
-  if (now >= sleepTimerTriggerTime) {
-    pause();
+  if (timeRemaining <= 0) {
+    pause().finally(() => {
+      resetVolume();
+    });
     return true;
   }
 
+  if (timeRemaining <= FADE_OUT_TIME) {
+    const volume = timeRemaining / FADE_OUT_TIME;
+    console.debug("[Player] Sleep timer setting volume to", volume);
+    TrackPlayer.setVolume(volume);
+  } else {
+    resetVolume();
+  }
+
   return false;
+}
+
+function resetVolume() {
+  console.debug("[Player] Sleep timer setting volume to 1");
+  TrackPlayer.setVolume(1);
 }
