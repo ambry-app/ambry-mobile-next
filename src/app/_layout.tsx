@@ -3,6 +3,7 @@ import { Loading, MeasureScreenHeight, ScreenCentered } from "@/src/components";
 import { db, expoDb } from "@/src/db/db";
 import { Colors } from "@/src/styles";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import * as Sentry from "@sentry/react-native";
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import { Stack } from "expo-router";
@@ -11,6 +12,11 @@ import { useEffect } from "react";
 import { StyleSheet, Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
+
+Sentry.init({
+  dsn: "https://c8e5cc7362c025baf903cd430a1e7951@o4508967734149120.ingest.us.sentry.io/4508967737950208",
+  spotlight: __DEV__,
+});
 
 const Theme = {
   ...DefaultTheme,
