@@ -65,6 +65,10 @@ function Icon({ size, name, color, solid }: IconProps) {
     return <Loading size={size} color={color} />;
   }
 
+  if (name === "none") {
+    return null;
+  }
+
   return <FontAwesome6 size={size} name={name} color={color} solid={solid} />;
 }
 

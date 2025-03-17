@@ -3,7 +3,7 @@ import { useOtherMediaByNarrator } from "@/src/db/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
-import { FlatList, StyleSheet } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import Animated from "react-native-reanimated";
 import HeaderButton from "./HeaderButton";
 
@@ -44,16 +44,20 @@ export default function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
 
   return (
     <Animated.View style={[styles.container, { opacity }]}>
-      <HeaderButton
-        label={`More by ${narrator.name}`}
-        onPress={navigateToPerson}
-      />
+      <View style={styles.headerContainer}>
+        <HeaderButton
+          label={`More by ${narrator.name}`}
+          onPress={navigateToPerson}
+          showCaret={media.length == 10}
+        />
+      </View>
       <FlatList
         style={styles.list}
         showsHorizontalScrollIndicator={false}
         data={media}
         keyExtractor={(item) => item.id}
         horizontal={true}
+        ListHeaderComponent={<View style={styles.listSpacer} />}
         renderItem={({ item }) => {
           return (
             <MediaTile
@@ -71,8 +75,14 @@ const styles = StyleSheet.create({
   container: {
     marginTop: 32,
   },
+  headerContainer: {
+    paddingHorizontal: 16,
+  },
   list: {
     paddingVertical: 8,
+  },
+  listSpacer: {
+    width: 16,
   },
   tile: {
     marginRight: 16,

@@ -148,7 +148,7 @@ export function TileImage(props: TileImageProps) {
           Book {seriesBook.bookNumber}
         </Text>
       )}
-      <PressableScale weight="light" onPress={onPress}>
+      <PressableScale weight="light" onPress={onPress} isInList={true}>
         <MultiThumbnailImage
           thumbnailPairs={media.map((m) => ({
             thumbnails: m.thumbnails,
@@ -193,7 +193,7 @@ export function PersonTile(props: PersonTileProps) {
 
   return (
     <View style={[styles.container, style]}>
-      <PressableScale weight="light" onPress={navigateToPerson}>
+      <PressableScale weight="light" onPress={navigateToPerson} isInList={true}>
         <ThumbnailImage
           thumbnails={thumbnails}
           size="large"
@@ -227,7 +227,7 @@ export function PlayerStateTile(props: PlayerStateTileProps) {
 
   return (
     <View style={[styles.playerStateTileContainer, style]}>
-      <PressableScale weight="light" onPress={loadMedia}>
+      <PressableScale weight="light" onPress={loadMedia} isInList={true}>
         <View style={styles.playerStateThumbnailContainer}>
           <ThumbnailImage
             thumbnails={media.thumbnails}

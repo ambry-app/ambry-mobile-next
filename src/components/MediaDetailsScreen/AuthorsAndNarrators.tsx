@@ -29,6 +29,7 @@ export default function AuthorsAndNarrators({
         data={[...media.book.bookAuthors, ...media.mediaNarrators]}
         keyExtractor={(item) => item.id}
         horizontal={true}
+        ListHeaderComponent={<View style={styles.listSpacer} />}
         renderItem={({ item }) => {
           if ("author" in item) {
             const label = narratorSet.has(item.author.person.id)
@@ -85,5 +86,8 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingVertical: 8,
+  },
+  listSpacer: {
+    width: 16,
   },
 });

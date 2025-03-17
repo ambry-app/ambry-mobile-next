@@ -5,12 +5,17 @@ import { StyleSheet, Text } from "react-native";
 type HeaderButtonProps = {
   label: string;
   onPress: () => void;
+  showCaret?: boolean;
 };
 
-export default function HeaderButton({ label, onPress }: HeaderButtonProps) {
+export default function HeaderButton({
+  label,
+  onPress,
+  showCaret = true,
+}: HeaderButtonProps) {
   return (
     <IconButton
-      icon="chevron-right"
+      icon={showCaret ? "chevron-right" : "none"}
       size={16}
       color={Colors.zinc[100]}
       style={styles.button}
@@ -27,8 +32,7 @@ const styles = StyleSheet.create({
   button: {
     flexDirection: "row-reverse",
     justifyContent: "space-between",
-    paddingLeft: 0,
-    paddingRight: 16,
+    paddingHorizontal: 0,
   },
   label: {
     fontSize: 22,

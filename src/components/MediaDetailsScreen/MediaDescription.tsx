@@ -46,6 +46,7 @@ export default function MediaDescription({
 
 const styles = StyleSheet.create({
   container: {
+    paddingHorizontal: 16,
     marginTop: 32,
     gap: 4,
   },
