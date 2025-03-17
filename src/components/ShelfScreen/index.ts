@@ -1,5 +1,4 @@
-import InProgress from "./InProgress";
-import NowPlaying from "./NowPlaying";
-import ShelfFlatList from "./ShelfFlatList";
-
-export { InProgress, NowPlaying, ShelfFlatList };
+export { default as AllInProgress } from "./AllInProgress";
+export { default as NowPlaying } from "./NowPlaying";
+export { default as RecentInProgress } from "./RecentInProgress";
+export { default as ShelfFlatList } from "./ShelfFlatList";

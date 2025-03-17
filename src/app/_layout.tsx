@@ -22,7 +22,7 @@ Sentry.init({
   tracesSampleRate: __DEV__ ? 0.0 : 0.1,
   integrations: [navigationIntegration],
   enableNativeFramesTracking: true,
-  spotlight: __DEV__,
+  enabled: !__DEV__,
 });
 
 const Theme = {

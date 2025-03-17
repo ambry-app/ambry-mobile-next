@@ -45,9 +45,10 @@ function AppTabs({ session }: { session: Session }) {
         }}
       />
       <Tabs.Screen
-        name="shelf"
+        name="(shelf)"
         options={{
-          title: "Shelf",
+          headerShown: false,
+          title: "My Shelf",
           tabBarIcon: ({ color }) => (
             <FontAwesome6 size={24} name="book-bookmark" color={color} />
           ),
