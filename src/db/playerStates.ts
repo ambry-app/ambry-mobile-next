@@ -189,6 +189,7 @@ export function useInProgressMedia(
       mediaId: sql<string>`COALESCE(local_player_states.media_id, player_states.media_id)`,
       playbackRate: sql<number>`COALESCE(local_player_states.playback_rate, player_states.playback_rate)`,
       position: sql<number>`COALESCE(local_player_states.position, player_states.position)`,
+      status: sql<string>`COALESCE(local_player_states.status, player_states.status)`,
     })
     .from(schema.localPlayerStates)
     .fullJoin(
@@ -196,24 +197,22 @@ export function useInProgressMedia(
       eq(schema.localPlayerStates.mediaId, schema.playerStates.mediaId),
     )
     .where(
-      and(
-        or(
-          and(
-            eq(schema.localPlayerStates.url, session.url),
-            eq(schema.localPlayerStates.userEmail, session.email),
-            eq(schema.localPlayerStates.status, "in_progress"),
-            withoutMediaId
-              ? ne(schema.localPlayerStates.mediaId, withoutMediaId)
-              : undefined,
-          ),
-          and(
-            eq(schema.playerStates.url, session.url),
-            eq(schema.playerStates.userEmail, session.email),
-            eq(schema.playerStates.status, "in_progress"),
-            withoutMediaId
-              ? ne(schema.playerStates.mediaId, withoutMediaId)
-              : undefined,
-          ),
+      or(
+        and(
+          eq(schema.localPlayerStates.url, session.url),
+          eq(schema.localPlayerStates.userEmail, session.email),
+          eq(schema.localPlayerStates.status, "in_progress"),
+          withoutMediaId
+            ? ne(schema.localPlayerStates.mediaId, withoutMediaId)
+            : undefined,
+        ),
+        and(
+          eq(schema.playerStates.url, session.url),
+          eq(schema.playerStates.userEmail, session.email),
+          eq(schema.playerStates.status, "in_progress"),
+          withoutMediaId
+            ? ne(schema.playerStates.mediaId, withoutMediaId)
+            : undefined,
         ),
       ),
     )
@@ -246,7 +245,10 @@ export function useInProgressMedia(
   );
 
   const mediaWithPlayerStates = playerStates.flatMap((state) => {
-    if (state.mediaId in mediaById)
+    // NOTE: For some reason the query still returns states with status !=
+    // in_progress even though we filter them out in the query. This is a dumb
+    // workaround.
+    if (state.mediaId in mediaById && state.status === "in_progress")
       return [{ playerState: state, ...mediaById[state.mediaId] }];
     return [];
   });
