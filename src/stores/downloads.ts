@@ -56,7 +56,9 @@ export async function startDownload(
     });
   }
 
-  const progressCallback = (downloadProgress: any) => {
+  const progressCallback = (
+    downloadProgress: FileSystem.DownloadProgressData,
+  ) => {
     const progress =
       downloadProgress.totalBytesWritten /
       downloadProgress.totalBytesExpectedToWrite;
