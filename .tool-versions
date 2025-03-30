@@ -1,4 +1,6 @@
-bun 1.2.5
+bun 1.2.7
 java zulu-17.56.15
-# only needed for esbuild postinstall?
+
+# only needed for a few postinstall scripts
+
 nodejs 22.14.0
