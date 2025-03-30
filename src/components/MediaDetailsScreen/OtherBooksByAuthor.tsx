@@ -40,7 +40,7 @@ export default function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
         <HeaderButton
           label={`More by ${author.name}`}
           onPress={navigateToPerson}
-          showCaret={books.length == 10}
+          showCaret={books.length === 10}
         />
       </View>
       <FlatList

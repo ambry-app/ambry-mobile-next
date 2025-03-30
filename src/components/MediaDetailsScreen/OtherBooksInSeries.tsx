@@ -34,7 +34,7 @@ export default function OtherBooksInSeries({
         <HeaderButton
           label={series.name}
           onPress={navigateToSeries}
-          showCaret={series.seriesBooks.length == 10}
+          showCaret={series.seriesBooks.length === 10}
         />
       </View>
       <FlatList

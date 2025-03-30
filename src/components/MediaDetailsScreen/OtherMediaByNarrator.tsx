@@ -48,7 +48,7 @@ export default function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
         <HeaderButton
           label={`More by ${narrator.name}`}
           onPress={navigateToPerson}
-          showCaret={media.length == 10}
+          showCaret={media.length === 10}
         />
       </View>
       <FlatList

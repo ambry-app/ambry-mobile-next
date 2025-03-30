@@ -37,7 +37,7 @@ export default function OtherEditions(props: OtherEditionsProps) {
         <HeaderButton
           label="Other Editions"
           onPress={navigateToBook}
-          showCaret={media.length == 10}
+          showCaret={media.length === 10}
         />
       </View>
       <FlatList
