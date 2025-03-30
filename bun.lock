@@ -6,7 +6,7 @@
       "dependencies": {
         "@expo/vector-icons": "^14.0.4",
         "@react-hook/previous": "^1.0.1",
-        "@react-native-community/slider": "4.5.5",
+        "@react-native-community/slider": "4.5.6",
         "@react-navigation/bottom-tabs": "^7.2.0",
         "@react-navigation/native": "^7.0.14",
         "@sentry/react-native": "^6.9.1",
@@ -646,7 +646,7 @@
 
     "@react-hook/previous": ["@react-hook/previous@1.0.1", "", { "peerDependencies": { "react": ">=16.8" } }, "sha512-O7VaRLDEHRy1hxh03CmtWRxDhCwIVQBBkf1kYdYqUP3KNrPnQMIVIYYYQpHIIiNcS1BO6zmBKM4bugFDNgP8Iw=="],
 
-    "@react-native-community/slider": ["@react-native-community/slider@4.5.5", "", {}, "sha512-x2N415pg4ZxIltArOKczPwn7JEYh+1OxQ4+hTnafomnMsqs65HZuEWcX+Ch8c5r8V83DiunuQUf5hWGWlw8hQQ=="],
+    "@react-native-community/slider": ["@react-native-community/slider@4.5.6", "", {}, "sha512-UhLPFeqx0YfPLrEz8ffT3uqAyXWu6iqFjohNsbp4cOU7hnJwg2RXtDnYHoHMr7MOkZDVdlLMdrSrAuzY6KGqrg=="],
 
     "@react-native/assets-registry": ["@react-native/assets-registry@0.76.7", "", {}, "sha512-o79whsqL5fbPTUQO9w1FptRd4cw1TaeOrXtQSLQeDrMVAenw/wmsjyPK10VKtvqxa1KNMtWEyfgxcM8CVZVFmg=="],
 
