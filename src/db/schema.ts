@@ -465,3 +465,43 @@ export const localUserSettings = sqliteTable("local_user_settings", {
     .notNull()
     .default(defaultSleepTimerEnabled),
 });
+
+export const shelvedMedia = sqliteTable(
+  "shelved_media",
+  {
+    url: text("url").notNull(),
+    userEmail: text("user_email").notNull(),
+    shelfName: text("shelf_name").notNull(),
+    mediaId: text("media_id").notNull(),
+    addedAt: integer("added_at", { mode: "timestamp" }).notNull(),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
+    priority: integer("priority").notNull(),
+    synced: integer("synced", { mode: "boolean" }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.url, table.userEmail, table.shelfName, table.mediaId],
+    }),
+    foreignKey({
+      columns: [table.url, table.mediaId],
+      foreignColumns: [media.url, media.id],
+    }).onDelete("cascade"),
+    index("shelved_media_shelf_name_index").on(
+      table.url,
+      table.userEmail,
+      table.shelfName,
+    ),
+    index("shelved_media_synced_index").on(
+      table.url,
+      table.userEmail,
+      table.synced,
+    ),
+  ],
+);
+
+export const shelvedMediaRelations = relations(shelvedMedia, ({ one }) => ({
+  media: one(media, {
+    fields: [shelvedMedia.url, shelvedMedia.mediaId],
+    references: [media.url, media.id],
+  }),
+}));
