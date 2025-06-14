@@ -256,7 +256,6 @@ export function useInProgressMedia(
   return { media: mediaWithPlayerStates, ...rest };
 }
 
-// FIXME: this was AI written, clean it up
 export function useRecentInProgressMedia(
   session: Session,
   withoutMediaId: string | null,

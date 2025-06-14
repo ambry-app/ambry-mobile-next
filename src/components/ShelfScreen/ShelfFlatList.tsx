@@ -35,9 +35,7 @@ export default function ShelfFlatList(props: ShelfFlatListProps) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-  },
+  container: {},
   separator: {
     height: 32,
   },

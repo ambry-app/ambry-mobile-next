@@ -1,11 +1,10 @@
-// FIXME: this was AI written, clean it up
 import { PlayerStateTile } from "@/src/components";
 import { useRecentInProgressMedia } from "@/src/db/playerStates";
 import { usePlayer } from "@/src/stores/player";
 import { Session } from "@/src/stores/session";
 import { useScreen } from "@/src/stores/screen";
 import { router } from "expo-router";
-import { FlatList, StyleSheet } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import Animated from "react-native-reanimated";
 import HeaderButton from "../MediaDetailsScreen/HeaderButton";
 
@@ -28,13 +27,16 @@ export default function RecentInProgress({ session }: RecentInProgressProps) {
 
   return (
     <Animated.View style={[styles.container, { opacity }]}>
-      <HeaderButton label="In Progress" onPress={navigateToAll} />
+      <View style={styles.headerContainer}>
+        <HeaderButton label="In Progress" onPress={navigateToAll} />
+      </View>
       <FlatList
         style={styles.list}
         showsHorizontalScrollIndicator={false}
         horizontal={true}
         data={media}
         keyExtractor={(item) => item.id}
+        ListHeaderComponent={<View style={styles.listSpacer} />}
         renderItem={({ item }) => (
           <PlayerStateTile
             style={[styles.tile, { width: screenWidth / 2.5 }]}
@@ -48,15 +50,17 @@ export default function RecentInProgress({ session }: RecentInProgressProps) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    display: "flex",
-    gap: 8,
+  container: {},
+  headerContainer: {
+    paddingHorizontal: 16,
   },
   list: {
     paddingVertical: 8,
   },
+  listSpacer: {
+    width: 16,
+  },
   tile: {
     marginRight: 16,
-    padding: 8,
   },
 });
