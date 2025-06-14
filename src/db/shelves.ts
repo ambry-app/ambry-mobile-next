@@ -9,7 +9,7 @@ export async function addMediaToShelf(
   mediaId: string,
   shelfName: string,
 ) {
-  const now = new Date();
+  // const now = new Date();
 
   const existingRecord = await getShelvedMedia(session, mediaId, shelfName);
 
