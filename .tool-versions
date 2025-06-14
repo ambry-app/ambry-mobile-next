@@ -1,6 +1,6 @@
-bun 1.2.7
-java zulu-17.56.15
+bun 1.2.16
+java zulu-17.58.21.0
 
 # only needed for a few postinstall scripts
 
-nodejs 22.14.0
+nodejs 22.16.0
