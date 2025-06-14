@@ -1,7 +1,7 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { and, desc, eq, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, lt, ne, or, sql } from "drizzle-orm";
 import { useEffect, useState } from "react";
 import { useMediaListByIds } from "./library";
 
@@ -252,6 +252,58 @@ export function useInProgressMedia(
       return [{ playerState: state, ...mediaById[state.mediaId] }];
     return [];
   });
+
+  return { media: mediaWithPlayerStates, ...rest };
+}
+
+export function useRecentInProgressMedia(
+  session: Session,
+  withoutMediaId: string | null,
+) {
+  const query = db
+    .select({
+      mediaId: schema.playerStates.mediaId,
+      position: schema.playerStates.position,
+      playbackRate: schema.playerStates.playbackRate,
+      status: schema.playerStates.status,
+    })
+    .from(schema.playerStates)
+    .innerJoin(schema.media, eq(schema.media.id, schema.playerStates.mediaId))
+    .where(
+      and(
+        eq(schema.playerStates.url, session.url),
+        eq(schema.playerStates.userEmail, session.email),
+        eq(schema.playerStates.status, "in_progress"),
+        lt(
+          sql`CAST(${schema.playerStates.position} AS FLOAT) / CAST(${schema.media.duration} AS FLOAT)`,
+          0.98,
+        ),
+        withoutMediaId
+          ? ne(schema.playerStates.mediaId, withoutMediaId)
+          : undefined,
+      ),
+    )
+    .orderBy(desc(schema.playerStates.updatedAt))
+    .limit(10);
+
+  const [playerStates, setPlayerStates] = useState<
+    Awaited<ReturnType<(typeof query)["execute"]>>
+  >([]);
+
+  useEffect(() => {
+    query.execute().then(setPlayerStates);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [withoutMediaId]);
+
+  const mediaIds = playerStates.map((state) => state.mediaId);
+  const { media, ...rest } = useMediaListByIds(session, mediaIds);
+
+  if (media.length === 0) return { media: [], ...rest };
+
+  const mediaWithPlayerStates = media.map((m, index) => ({
+    ...m,
+    playerState: playerStates[index],
+  }));
 
   return { media: mediaWithPlayerStates, ...rest };
 }

@@ -57,6 +57,7 @@ export default function Header({ mediaId, session }: HeaderProps) {
 
 const styles = StyleSheet.create({
   container: {
+    paddingHorizontal: 16,
     alignItems: "center",
     gap: 8,
   },

@@ -68,7 +68,7 @@ function translateXToTime(translateX: number) {
 
 function useIsScrubbing() {
   const [isScrubbing, _setIsScrubbing] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | undefined>();
+  const timerRef = useRef<NodeJS.Timeout>(undefined);
 
   const setIsScrubbing = useCallback(
     (newValue: boolean) => {

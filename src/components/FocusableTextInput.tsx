@@ -2,7 +2,7 @@ import { RefObject, useState } from "react";
 import { StyleProp, TextInput, TextInputProps, TextStyle } from "react-native";
 
 type FocusableTextInputProps = TextInputProps & {
-  inputRef?: RefObject<TextInput>;
+  inputRef?: RefObject<TextInput | null>;
   focusedStyle?: StyleProp<TextStyle>;
 };
 

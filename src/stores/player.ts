@@ -25,7 +25,7 @@ import TrackPlayer, {
   PitchAlgorithm,
   State,
   TrackType,
-} from "react-native-track-player";
+} from "@weights-ai/react-native-track-player";
 import { create } from "zustand";
 import { Session, useSession } from "./session";
 

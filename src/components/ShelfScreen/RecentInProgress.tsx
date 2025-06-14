@@ -1,27 +1,23 @@
 import { PlayerStateTile } from "@/src/components";
-import { useInProgressMedia } from "@/src/db/playerStates";
+import { useRecentInProgressMedia } from "@/src/db/playerStates";
 import { usePlayer } from "@/src/stores/player";
 import { Session } from "@/src/stores/session";
 import { useScreen } from "@/src/stores/screen";
 import { router } from "expo-router";
-import { FlatList, StyleSheet } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import Animated from "react-native-reanimated";
 import HeaderButton from "../MediaDetailsScreen/HeaderButton";
 
-type InProgressProps = {
+type RecentInProgressProps = {
   session: Session;
-  limit?: number;
 };
 
-export default function InProgress(props: InProgressProps) {
-  const { session, limit } = props;
+export default function RecentInProgress({ session }: RecentInProgressProps) {
   const mediaId = usePlayer((state) => state.mediaId);
-  const { media, opacity } = useInProgressMedia(session, mediaId);
   const screenWidth = useScreen((state) => state.screenWidth);
+  const { media, opacity } = useRecentInProgressMedia(session, mediaId);
 
   if (media.length === 0) return null;
-
-  const displayMedia = limit ? media.slice(0, limit) : media;
 
   const navigateToAll = () => {
     router.push({
@@ -31,24 +27,19 @@ export default function InProgress(props: InProgressProps) {
 
   return (
     <Animated.View style={[styles.container, { opacity }]}>
-      {limit && <HeaderButton label="Unfinished" onPress={navigateToAll} />}
+      <View style={styles.headerContainer}>
+        <HeaderButton label="In Progress" onPress={navigateToAll} />
+      </View>
       <FlatList
         style={styles.list}
         showsHorizontalScrollIndicator={false}
-        horizontal={limit ? true : false}
-        numColumns={limit ? 1 : 2}
-        data={displayMedia}
+        horizontal={true}
+        data={media}
         keyExtractor={(item) => item.id}
-        columnWrapperStyle={!limit ? styles.columnWrapper : undefined}
+        ListHeaderComponent={<View style={styles.listSpacer} />}
         renderItem={({ item }) => (
           <PlayerStateTile
-            style={[
-              styles.tile,
-              {
-                width: limit ? screenWidth / 2.5 : "48%",
-                marginRight: limit ? 16 : 0,
-              },
-            ]}
+            style={[styles.tile, { width: screenWidth / 2.5 }]}
             media={item}
             session={session}
           />
@@ -59,18 +50,17 @@ export default function InProgress(props: InProgressProps) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    display: "flex",
-    gap: 8,
+  container: {},
+  headerContainer: {
+    paddingHorizontal: 16,
   },
   list: {
     paddingVertical: 8,
   },
-  columnWrapper: {
-    justifyContent: "space-between",
-    marginBottom: 16,
+  listSpacer: {
+    width: 16,
   },
   tile: {
-    padding: 8,
+    marginRight: 16,
   },
 });

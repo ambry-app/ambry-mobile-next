@@ -152,7 +152,7 @@ export default function MediaDetailsFlatList({
   return (
     <Animated.FlatList
       contentInsetAdjustmentBehavior="automatic"
-      style={[styles.container, { opacity }]}
+      style={{ opacity }}
       data={sections}
       keyExtractor={(item) => item.id}
       initialNumToRender={2}
@@ -214,9 +214,6 @@ export default function MediaDetailsFlatList({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 16,
-  },
   listSpacer: {
     height: 16,
   },

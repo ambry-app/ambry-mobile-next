@@ -53,6 +53,8 @@ const styles = StyleSheet.create({
   container: {
     display: "flex",
     gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   rowContainer: {
     display: "flex",

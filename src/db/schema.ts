@@ -54,11 +54,7 @@ export const people = sqliteTable(
     insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.url, table.id] }),
-    };
-  },
+  (table) => [primaryKey({ columns: [table.url, table.id] })],
 );
 
 export const peopleRelations = relations(people, ({ many }) => ({
@@ -76,16 +72,14 @@ export const authors = sqliteTable(
     insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.url, table.id] }),
-      person: foreignKey({
-        columns: [table.url, table.personId],
-        foreignColumns: [people.url, people.id],
-      }).onDelete("cascade"),
-      personIndex: index("authors_person_index").on(table.url, table.personId),
-    };
-  },
+  (table) => [
+    primaryKey({ columns: [table.url, table.id] }),
+    foreignKey({
+      columns: [table.url, table.personId],
+      foreignColumns: [people.url, people.id],
+    }).onDelete("cascade"),
+    index("authors_person_index").on(table.url, table.personId),
+  ],
 );
 
 export const authorsRelations = relations(authors, ({ one, many }) => ({
@@ -106,19 +100,14 @@ export const narrators = sqliteTable(
     insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.url, table.id] }),
-      person: foreignKey({
-        columns: [table.url, table.personId],
-        foreignColumns: [people.url, people.id],
-      }).onDelete("cascade"),
-      personIndex: index("narrators_person_index").on(
-        table.url,
-        table.personId,
-      ),
-    };
-  },
+  (table) => [
+    primaryKey({ columns: [table.url, table.id] }),
+    foreignKey({
+      columns: [table.url, table.personId],
+      foreignColumns: [people.url, people.id],
+    }).onDelete("cascade"),
+    index("narrators_person_index").on(table.url, table.personId),
+  ],
 );
 
 export const narratorsRelations = relations(narrators, ({ one, many }) => ({
@@ -142,12 +131,10 @@ export const books = sqliteTable(
     insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.url, table.id] }),
-      publishedIndex: index("books_published_index").on(table.published),
-    };
-  },
+  (table) => [
+    primaryKey({ columns: [table.url, table.id] }),
+    index("books_published_index").on(table.published),
+  ],
 );
 
 export const booksRelations = relations(books, ({ many }) => ({
@@ -165,11 +152,7 @@ export const series = sqliteTable(
     insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.url, table.id] }),
-    };
-  },
+  (table) => [primaryKey({ columns: [table.url, table.id] })],
 );
 
 export const seriesRelations = relations(series, ({ many }) => ({
@@ -187,24 +170,19 @@ export const seriesBooks = sqliteTable(
     insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.url, table.id] }),
-      book: foreignKey({
-        columns: [table.url, table.bookId],
-        foreignColumns: [books.url, books.id],
-      }).onDelete("cascade"),
-      series: foreignKey({
-        columns: [table.url, table.seriesId],
-        foreignColumns: [series.url, series.id],
-      }).onDelete("cascade"),
-      bookIndex: index("series_books_book_index").on(table.url, table.bookId),
-      seriesIndex: index("series_books_series_index").on(
-        table.url,
-        table.seriesId,
-      ),
-    };
-  },
+  (table) => [
+    primaryKey({ columns: [table.url, table.id] }),
+    foreignKey({
+      columns: [table.url, table.bookId],
+      foreignColumns: [books.url, books.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.url, table.seriesId],
+      foreignColumns: [series.url, series.id],
+    }).onDelete("cascade"),
+    index("series_books_book_index").on(table.url, table.bookId),
+    index("series_books_series_index").on(table.url, table.seriesId),
+  ],
 );
 
 export const seriesBooksRelations = relations(seriesBooks, ({ one }) => ({
@@ -228,24 +206,19 @@ export const bookAuthors = sqliteTable(
     insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.url, table.id] }),
-      author: foreignKey({
-        columns: [table.url, table.authorId],
-        foreignColumns: [authors.url, authors.id],
-      }).onDelete("cascade"),
-      book: foreignKey({
-        columns: [table.url, table.bookId],
-        foreignColumns: [books.url, books.id],
-      }).onDelete("cascade"),
-      authorIndex: index("book_authors_author_index").on(
-        table.url,
-        table.authorId,
-      ),
-      bookIndex: index("book_authors_book_index").on(table.url, table.bookId),
-    };
-  },
+  (table) => [
+    primaryKey({ columns: [table.url, table.id] }),
+    foreignKey({
+      columns: [table.url, table.authorId],
+      foreignColumns: [authors.url, authors.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.url, table.bookId],
+      foreignColumns: [books.url, books.id],
+    }).onDelete("cascade"),
+    index("book_authors_author_index").on(table.url, table.authorId),
+    index("book_authors_book_index").on(table.url, table.bookId),
+  ],
 );
 
 export const bookAuthorsRelations = relations(bookAuthors, ({ one }) => ({
@@ -289,19 +262,17 @@ export const media = sqliteTable(
     insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.url, table.id] }),
-      book: foreignKey({
-        columns: [table.url, table.bookId],
-        foreignColumns: [books.url, books.id],
-      }).onDelete("cascade"),
-      bookIndex: index("media_book_index").on(table.url, table.bookId),
-      statusIndex: index("media_status_index").on(table.status),
-      insertedAtIndex: index("media_inserted_at_index").on(table.insertedAt),
-      publishedIndex: index("media_published_index").on(table.published),
-    };
-  },
+  (table) => [
+    primaryKey({ columns: [table.url, table.id] }),
+    foreignKey({
+      columns: [table.url, table.bookId],
+      foreignColumns: [books.url, books.id],
+    }).onDelete("cascade"),
+    index("media_book_index").on(table.url, table.bookId),
+    index("media_status_index").on(table.status),
+    index("media_inserted_at_index").on(table.insertedAt),
+    index("media_published_index").on(table.published),
+  ],
 );
 
 export const mediaRelations = relations(media, ({ one, many }) => ({
@@ -323,27 +294,19 @@ export const mediaNarrators = sqliteTable(
     insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.url, table.id] }),
-      media: foreignKey({
-        columns: [table.url, table.mediaId],
-        foreignColumns: [media.url, media.id],
-      }).onDelete("cascade"),
-      narrator: foreignKey({
-        columns: [table.url, table.narratorId],
-        foreignColumns: [narrators.url, narrators.id],
-      }).onDelete("cascade"),
-      mediaIndex: index("media_narrators_media_index").on(
-        table.url,
-        table.mediaId,
-      ),
-      narratorIndex: index("media_narrators_narrator_index").on(
-        table.url,
-        table.narratorId,
-      ),
-    };
-  },
+  (table) => [
+    primaryKey({ columns: [table.url, table.id] }),
+    foreignKey({
+      columns: [table.url, table.mediaId],
+      foreignColumns: [media.url, media.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.url, table.narratorId],
+      foreignColumns: [narrators.url, narrators.id],
+    }).onDelete("cascade"),
+    index("media_narrators_media_index").on(table.url, table.mediaId),
+    index("media_narrators_narrator_index").on(table.url, table.narratorId),
+  ],
 );
 
 export const mediaNarratorsRelations = relations(mediaNarrators, ({ one }) => ({
@@ -372,24 +335,17 @@ export const playerStates = sqliteTable(
     insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.url, table.id] }),
-      media: foreignKey({
-        columns: [table.url, table.mediaId],
-        foreignColumns: [media.url, media.id],
-      }).onDelete("cascade"),
-      emailIndex: index("player_states_email_index").on(table.userEmail),
-      statusIndex: index("player_states_status_index").on(table.status),
-      mediaIndex: index("player_states_media_index").on(
-        table.url,
-        table.mediaId,
-      ),
-      updatedAtIndex: index("player_states_updated_at_index").on(
-        table.updatedAt,
-      ),
-    };
-  },
+  (table) => [
+    primaryKey({ columns: [table.url, table.id] }),
+    foreignKey({
+      columns: [table.url, table.mediaId],
+      foreignColumns: [media.url, media.id],
+    }).onDelete("cascade"),
+    index("player_states_email_index").on(table.userEmail),
+    index("player_states_status_index").on(table.status),
+    index("player_states_media_index").on(table.url, table.mediaId),
+    index("player_states_updated_at_index").on(table.updatedAt),
+  ],
 );
 
 export const playerStatesRelations = relations(playerStates, ({ one }) => ({
@@ -413,19 +369,14 @@ export const localPlayerStates = sqliteTable(
     insertedAt: integer("inserted_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.url, table.mediaId, table.userEmail] }),
-      media: foreignKey({
-        columns: [table.url, table.mediaId],
-        foreignColumns: [media.url, media.id],
-      }).onDelete("cascade"),
-      mediaIndex: index("local_player_states_media_index").on(
-        table.url,
-        table.mediaId,
-      ),
-    };
-  },
+  (table) => [
+    primaryKey({ columns: [table.url, table.mediaId, table.userEmail] }),
+    foreignKey({
+      columns: [table.url, table.mediaId],
+      foreignColumns: [media.url, media.id],
+    }).onDelete("cascade"),
+    index("local_player_states_media_index").on(table.url, table.mediaId),
+  ],
 );
 
 export const localPlayerStatesRelations = relations(
@@ -461,11 +412,7 @@ export const serverProfiles = sqliteTable(
     // the last time we sent data to the server (player states)
     lastUpSync: integer("last_up_sync", { mode: "timestamp" }),
   },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.url, table.userEmail] }),
-    };
-  },
+  (table) => [primaryKey({ columns: [table.url, table.userEmail] })],
 );
 
 // downloads are associated to a server but _not_ a user. If you log into a
@@ -487,19 +434,15 @@ export const downloads = sqliteTable(
       enum: ["pending", "error", "ready"],
     }).notNull(),
   },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.url, table.mediaId] }),
-      media: foreignKey({
-        columns: [table.url, table.mediaId],
-        foreignColumns: [media.url, media.id],
-      }).onDelete("cascade"),
-      mediaIndex: index("downloads_media_index").on(table.url, table.mediaId),
-      downloadedAtIndex: index("downloads_downloaded_at_index").on(
-        table.downloadedAt,
-      ),
-    };
-  },
+  (table) => [
+    primaryKey({ columns: [table.url, table.mediaId] }),
+    foreignKey({
+      columns: [table.url, table.mediaId],
+      foreignColumns: [media.url, media.id],
+    }).onDelete("cascade"),
+    index("downloads_media_index").on(table.url, table.mediaId),
+    index("downloads_downloaded_at_index").on(table.downloadedAt),
+  ],
 );
 
 export const downloadsRelations = relations(downloads, ({ one }) => ({
@@ -522,3 +465,43 @@ export const localUserSettings = sqliteTable("local_user_settings", {
     .notNull()
     .default(defaultSleepTimerEnabled),
 });
+
+export const shelvedMedia = sqliteTable(
+  "shelved_media",
+  {
+    url: text("url").notNull(),
+    userEmail: text("user_email").notNull(),
+    shelfName: text("shelf_name").notNull(),
+    mediaId: text("media_id").notNull(),
+    addedAt: integer("added_at", { mode: "timestamp" }).notNull(),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
+    priority: integer("priority").notNull(),
+    synced: integer("synced", { mode: "boolean" }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.url, table.userEmail, table.shelfName, table.mediaId],
+    }),
+    foreignKey({
+      columns: [table.url, table.mediaId],
+      foreignColumns: [media.url, media.id],
+    }).onDelete("cascade"),
+    index("shelved_media_shelf_name_index").on(
+      table.url,
+      table.userEmail,
+      table.shelfName,
+    ),
+    index("shelved_media_synced_index").on(
+      table.url,
+      table.userEmail,
+      table.synced,
+    ),
+  ],
+);
+
+export const shelvedMediaRelations = relations(shelvedMedia, ({ one }) => ({
+  media: one(media, {
+    fields: [shelvedMedia.url, shelvedMedia.mediaId],
+    references: [media.url, media.id],
+  }),
+}));

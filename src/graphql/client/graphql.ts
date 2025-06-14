@@ -56,12 +56,8 @@ export type AuthorAuthoredBooksArgs = {
 export type Book = Node & SearchResult & {
   __typename?: 'Book';
   authors: Array<Author>;
-  /** @deprecated description has been moved to `Media` */
-  description?: Maybe<Scalars['String']['output']>;
   /** The ID of an object */
   id: Scalars['ID']['output'];
-  /** @deprecated imagePath has been moved to `Media` */
-  imagePath?: Maybe<Scalars['String']['output']>;
   insertedAt: Scalars['DateTime']['output'];
   media: Array<Media>;
   published: Scalars['Date']['output'];
@@ -556,9 +552,13 @@ export class TypedDocumentString<TResult, TVariables>
   implements DocumentTypeDecoration<TResult, TVariables>
 {
   __apiType?: DocumentTypeDecoration<TResult, TVariables>['__apiType'];
+  private value: string;
+  public __meta__?: Record<string, any> | undefined;
 
-  constructor(private value: string, public __meta__?: Record<string, any> | undefined) {
+  constructor(value: string, __meta__?: Record<string, any> | undefined) {
     super(value);
+    this.value = value;
+    this.__meta__ = __meta__;
   }
 
   toString(): string & DocumentTypeDecoration<TResult, TVariables> {

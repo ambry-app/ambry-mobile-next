@@ -15,10 +15,8 @@ type Author implements Node {
 
 type Book implements Node & SearchResult {
   authors: [Author!]!
-  description: String @deprecated(reason: "description has been moved to `Media`")
   """The ID of an object"""
   id: ID!
-  imagePath: String @deprecated(reason: "imagePath has been moved to `Media`")
   insertedAt: DateTime!
   media: [Media!]!
   published: Date!

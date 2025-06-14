@@ -6,7 +6,7 @@ import {
   play,
   seekRelative,
 } from "@/src/stores/player";
-import TrackPlayer, { Event } from "react-native-track-player";
+import TrackPlayer, { Event } from "@weights-ai/react-native-track-player";
 
 export const PlaybackService = async function () {
   TrackPlayer.addEventListener(Event.RemoteStop, () => {

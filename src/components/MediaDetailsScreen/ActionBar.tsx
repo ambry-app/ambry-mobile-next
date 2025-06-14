@@ -1,6 +1,7 @@
 import { IconButton } from "@/src/components";
 import { Download, useDownload } from "@/src/db/downloads";
 import { ActionBarMedia, useMediaActionBarInfo } from "@/src/db/library";
+import { toggleMediaOnShelf, useShelvedMedia } from "@/src/db/shelves";
 import useLoadMediaCallback from "@/src/hooks/use.load.media.callback";
 import { startDownload, useDownloads } from "@/src/stores/downloads";
 import { Session } from "@/src/stores/session";
@@ -17,6 +18,7 @@ type ActionBarProps = {
 export default function ActionBar({ mediaId, session }: ActionBarProps) {
   const { media, opacity } = useMediaActionBarInfo(session, mediaId);
   const { download } = useDownload(session, mediaId);
+  const { isSaved } = useShelvedMedia(session, mediaId, "saved");
 
   if (!media) return null;
 
@@ -26,14 +28,12 @@ export default function ActionBar({ mediaId, session }: ActionBarProps) {
         <DownloadButton media={media} download={download} session={session} />
         <IconButton
           icon="heart"
+          solid={isSaved}
           size={24}
           style={styles.button}
           color={Colors.zinc[100]}
           onPress={() => {
-            Alert.alert(
-              "Coming soon",
-              "This will allow you to add audiobooks to a list liked audiobooks.",
-            );
+            toggleMediaOnShelf(session, media.id, "saved");
           }}
         />
         <PlayButton session={session} media={media} />
