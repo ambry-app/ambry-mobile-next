@@ -44,7 +44,7 @@
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
     "@react-hook/previous": "^1.0.1",
-    "@react-native-community/slider": "4.5.6",
+    "@react-native-community/slider": "4.5.7",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
     "@sentry/react-native": "^6.9.1",
@@ -68,7 +68,7 @@
     "react-dom": "19.0.0",
     "react-freeze": "^1.0.4",
     "react-native": "0.79.3",
-    "react-native-animateable-text": "^0.14.2",
+    "react-native-animateable-text": "^0.15.0",
     "react-native-edge-to-edge": "1.6.0",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-keyboard-controller": "^1.15.2",
