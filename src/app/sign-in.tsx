@@ -5,7 +5,6 @@ import { ExecuteErrorCode } from "@/src/graphql/client/execute";
 import { useScreen } from "@/src/stores/screen";
 import { signIn, useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
-import { Redirect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -61,11 +60,6 @@ export default function SignInScreen() {
       }
     }
   }, [host, email, password]);
-
-  if (session?.token) {
-    // Redirect back to library if already signed in
-    return <Redirect href="/(app)/(tabs)/(library)" />;
-  }
 
   return (
     <KeyboardAwareScrollView

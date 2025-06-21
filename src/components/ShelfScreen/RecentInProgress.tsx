@@ -1,5 +1,5 @@
 import { PlayerStateTile } from "@/src/components";
-import { useRecentInProgressMedia } from "@/src/db/playerStates";
+import { useInProgressMedia } from "@/src/db/playerStates";
 import { usePlayer } from "@/src/stores/player";
 import { Session } from "@/src/stores/session";
 import { useScreen } from "@/src/stores/screen";
@@ -15,7 +15,7 @@ type RecentInProgressProps = {
 export default function RecentInProgress({ session }: RecentInProgressProps) {
   const mediaId = usePlayer((state) => state.mediaId);
   const screenWidth = useScreen((state) => state.screenWidth);
-  const { media, opacity } = useRecentInProgressMedia(session, mediaId);
+  const { media, opacity } = useInProgressMedia(session, mediaId, 10);
 
   if (media.length === 0) return null;
 

@@ -183,13 +183,13 @@ export async function getMostRecentInProgressLocalMedia(
 export function useInProgressMedia(
   session: Session,
   withoutMediaId?: string | null,
+  limit?: number,
 ) {
   const query = db
     .select({
       mediaId: sql<string>`COALESCE(local_player_states.media_id, player_states.media_id)`,
       playbackRate: sql<number>`COALESCE(local_player_states.playback_rate, player_states.playback_rate)`,
       position: sql<number>`COALESCE(local_player_states.position, player_states.position)`,
-      status: sql<string>`COALESCE(local_player_states.status, player_states.status)`,
     })
     .from(schema.localPlayerStates)
     .fullJoin(
@@ -197,30 +197,37 @@ export function useInProgressMedia(
       eq(schema.localPlayerStates.mediaId, schema.playerStates.mediaId),
     )
     .where(
-      or(
-        and(
-          eq(schema.localPlayerStates.url, session.url),
-          eq(schema.localPlayerStates.userEmail, session.email),
-          eq(schema.localPlayerStates.status, "in_progress"),
-          withoutMediaId
-            ? ne(schema.localPlayerStates.mediaId, withoutMediaId)
-            : undefined,
+      and(
+        eq(
+          sql<string>`COALESCE(local_player_states.url, player_states.url)`,
+          session.url,
         ),
-        and(
-          eq(schema.playerStates.url, session.url),
-          eq(schema.playerStates.userEmail, session.email),
-          eq(schema.playerStates.status, "in_progress"),
-          withoutMediaId
-            ? ne(schema.playerStates.mediaId, withoutMediaId)
-            : undefined,
+        eq(
+          sql<string>`COALESCE(local_player_states.user_email, player_states.user_email)`,
+          session.email,
         ),
+        eq(
+          sql<string>`COALESCE(local_player_states.status, player_states.status)`,
+          "in_progress",
+        ),
+        withoutMediaId
+          ? ne(
+              sql<string>`COALESCE(local_player_states.media_id, player_states.media_id)`,
+              withoutMediaId,
+            )
+          : undefined,
       ),
     )
+
     .orderBy(
       desc(
         sql`COALESCE(local_player_states.updated_at, player_states.updated_at)`,
       ),
     );
+
+  if (limit) {
+    query.limit(limit);
+  }
 
   const [playerStates, setPlayerStates] = useState<
     Awaited<ReturnType<(typeof query)["execute"]>>
@@ -245,65 +252,10 @@ export function useInProgressMedia(
   );
 
   const mediaWithPlayerStates = playerStates.flatMap((state) => {
-    // NOTE: For some reason the query still returns states with status !=
-    // in_progress even though we filter them out in the query. This is a dumb
-    // workaround.
-    if (state.mediaId in mediaById && state.status === "in_progress")
+    if (state.mediaId in mediaById)
       return [{ playerState: state, ...mediaById[state.mediaId] }];
     return [];
   });
-
-  return { media: mediaWithPlayerStates, ...rest };
-}
-
-export function useRecentInProgressMedia(
-  session: Session,
-  withoutMediaId: string | null,
-) {
-  const query = db
-    .select({
-      mediaId: schema.playerStates.mediaId,
-      position: schema.playerStates.position,
-      playbackRate: schema.playerStates.playbackRate,
-      status: schema.playerStates.status,
-    })
-    .from(schema.playerStates)
-    .innerJoin(schema.media, eq(schema.media.id, schema.playerStates.mediaId))
-    .where(
-      and(
-        eq(schema.playerStates.url, session.url),
-        eq(schema.playerStates.userEmail, session.email),
-        eq(schema.playerStates.status, "in_progress"),
-        lt(
-          sql`CAST(${schema.playerStates.position} AS FLOAT) / CAST(${schema.media.duration} AS FLOAT)`,
-          0.98,
-        ),
-        withoutMediaId
-          ? ne(schema.playerStates.mediaId, withoutMediaId)
-          : undefined,
-      ),
-    )
-    .orderBy(desc(schema.playerStates.updatedAt))
-    .limit(10);
-
-  const [playerStates, setPlayerStates] = useState<
-    Awaited<ReturnType<(typeof query)["execute"]>>
-  >([]);
-
-  useEffect(() => {
-    query.execute().then(setPlayerStates);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [withoutMediaId]);
-
-  const mediaIds = playerStates.map((state) => state.mediaId);
-  const { media, ...rest } = useMediaListByIds(session, mediaIds);
-
-  if (media.length === 0) return { media: [], ...rest };
-
-  const mediaWithPlayerStates = media.map((m, index) => ({
-    ...m,
-    playerState: playerStates[index],
-  }));
 
   return { media: mediaWithPlayerStates, ...rest };
 }

@@ -1,13 +1,14 @@
 import migrations from "@/drizzle/migrations";
 import { Loading, MeasureScreenHeight, ScreenCentered } from "@/src/components";
 import { db, expoDb } from "@/src/db/db";
+import { useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import * as Sentry from "@sentry/react-native";
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
-import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import { Stack, useNavigationContainerRef } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import { useSQLiteDevTools } from "expo-sqlite-devtools";
 import { useEffect } from "react";
 import { StyleSheet, Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -51,7 +52,6 @@ function RootStackLayout() {
     <KeyboardProvider>
       <GestureHandlerRootView>
         <MeasureScreenHeight />
-        {__DEV__ && <DrizzleStudio />}
         <ThemeProvider value={Theme}>
           <Root />
         </ThemeProvider>
@@ -64,6 +64,7 @@ export default Sentry.wrap(RootStackLayout);
 
 function Root() {
   const { success, error } = useMigrations(db, migrations);
+  const session = useSession((state) => state.session);
 
   useEffect(() => {
     if (success) {
@@ -91,16 +92,22 @@ function Root() {
   }
 
   return (
-    <Stack>
-      <Stack.Screen name="(app)" options={{ headerShown: false }} />
-      <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-      <Stack.Screen name="sign-out" options={{ headerShown: false }} />
-    </Stack>
+    <>
+      {__DEV__ && <SQLiteDevTools />}
+      <Stack>
+        <Stack.Protected guard={!!session}>
+          <Stack.Screen name="(app)" options={{ headerShown: false }} />
+        </Stack.Protected>
+        <Stack.Protected guard={!session}>
+          <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+        </Stack.Protected>
+      </Stack>
+    </>
   );
 }
 
-function DrizzleStudio() {
-  useDrizzleStudio(expoDb);
+function SQLiteDevTools() {
+  useSQLiteDevTools(expoDb);
   return null;
 }
 
