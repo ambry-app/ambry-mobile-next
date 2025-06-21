@@ -1,6 +1,7 @@
 import migrations from "@/drizzle/migrations";
 import { Loading, MeasureScreenHeight, ScreenCentered } from "@/src/components";
 import { db, expoDb } from "@/src/db/db";
+import { useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import * as Sentry from "@sentry/react-native";
@@ -64,6 +65,7 @@ export default Sentry.wrap(RootStackLayout);
 
 function Root() {
   const { success, error } = useMigrations(db, migrations);
+  const session = useSession((state) => state.session);
 
   useEffect(() => {
     if (success) {
@@ -92,9 +94,12 @@ function Root() {
 
   return (
     <Stack>
-      <Stack.Screen name="(app)" options={{ headerShown: false }} />
-      <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-      <Stack.Screen name="sign-out" options={{ headerShown: false }} />
+      <Stack.Protected guard={!!session}>
+        <Stack.Screen name="(app)" options={{ headerShown: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={!session}>
+        <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+      </Stack.Protected>
     </Stack>
   );
 }

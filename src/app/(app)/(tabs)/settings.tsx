@@ -1,6 +1,6 @@
-import { useSession } from "@/src/stores/session";
+import { tryUnloadPlayer } from "@/src/stores/player";
+import { signOut, useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
-import { router } from "expo-router";
 import { Button, StyleSheet, Text, View } from "react-native";
 
 export default function SettingsScreen() {
@@ -18,7 +18,10 @@ export default function SettingsScreen() {
       <Text style={styles.text}>to server: {session.url}</Text>
       <Button
         title="Sign out"
-        onPress={() => router.replace("/sign-out")}
+        onPress={async function () {
+          await tryUnloadPlayer();
+          await signOut();
+        }}
         color={Colors.lime[500]}
       />
     </View>
