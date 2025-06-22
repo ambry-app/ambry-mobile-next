@@ -32,7 +32,7 @@ jobs:
       - name: Run expo-doctor
         run: bun doctor
       - name: Run eslint
-        run: bun lint
+        run: bun lint --max-warnings 0
       - name: Run tsc
         run: bun tsc
       - name: Run prebuild
