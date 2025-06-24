@@ -1,4 +1,6 @@
+import { syncDown } from "@/src/db/sync";
 import { Session } from "@/src/stores/session";
+import { useCallback, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import NowPlaying from "./NowPlaying";
 import RecentInProgress from "./RecentInProgress";
@@ -14,7 +16,20 @@ type ShelfFlatListProps = {
 };
 
 export default function ShelfFlatList(props: ShelfFlatListProps) {
+  const { session } = props;
   const sections = ["now_playing", "in_progress"];
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await syncDown(session);
+    } catch (error) {
+      console.error("Pull-to-refresh sync error:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [session]);
 
   return (
     <FlatList
@@ -24,12 +39,13 @@ export default function ShelfFlatList(props: ShelfFlatListProps) {
       ItemSeparatorComponent={() => <View style={styles.separator} />}
       ListFooterComponent={() => <View style={styles.separator} />}
       renderItem={({ item }) => {
-        if (item === "now_playing")
-          return <NowPlaying session={props.session} />;
+        if (item === "now_playing") return <NowPlaying session={session} />;
         if (item === "in_progress")
-          return <RecentInProgress session={props.session} />;
+          return <RecentInProgress session={session} />;
         return null;
       }}
+      onRefresh={onRefresh}
+      refreshing={refreshing}
     />
   );
 }

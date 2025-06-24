@@ -14,9 +14,7 @@ import {
   setSleepTimerEnabled,
   setSleepTimerTime,
 } from "@/src/db/settings";
-import { syncUp } from "@/src/db/sync";
 import { documentDirectoryFilePath } from "@/src/utils/paths";
-import { Platform } from "react-native";
 import TrackPlayer, {
   AndroidAudioContentType,
   Capability,
@@ -26,6 +24,7 @@ import TrackPlayer, {
   State,
   TrackType,
 } from "@weights-ai/react-native-track-player";
+import { Platform } from "react-native";
 import { create } from "zustand";
 import { Session, useSession } from "./session";
 
@@ -213,7 +212,7 @@ export async function pause() {
   stopSleepTimer();
   await TrackPlayer.pause();
   await seekRelative(-1);
-  return savePosition(true);
+  return savePosition(); // Removed force sync - handled by background sync
 }
 
 export function onPlaybackProgressUpdated(position: number, duration: number) {
@@ -230,7 +229,7 @@ export function onPlaybackQueueEnded() {
   stopSleepTimer();
   const { duration } = usePlayer.getState();
   updateProgress(duration, duration);
-  return savePosition(true);
+  return savePosition(); // Removed force sync - handled by background sync
 }
 
 export function updateProgress(position: number, duration: number) {
@@ -288,7 +287,6 @@ export async function setPlaybackRate(session: Session, playbackRate: number) {
     TrackPlayer.setRate(playbackRate),
     updatePlayerState(session, usePlayer.getState().mediaId!, { playbackRate }),
   ]);
-  return syncUp(session, true);
 }
 
 export async function setSleepTimerState(enabled: boolean) {
@@ -379,7 +377,6 @@ async function savePosition(force: boolean = false) {
         : "in_progress";
 
   await updatePlayerState(session, mediaId, { position, status });
-  return syncUp(session, force);
 }
 
 function shouldSeek(state: State | undefined): boolean {

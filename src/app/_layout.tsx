@@ -65,6 +65,7 @@ export default Sentry.wrap(RootStackLayout);
 function Root() {
   const { success, error } = useMigrations(db, migrations);
   const session = useSession((state) => state.session);
+  const isLoggedIn = !!session;
 
   useEffect(() => {
     if (success) {
@@ -95,10 +96,10 @@ function Root() {
     <>
       {__DEV__ && <SQLiteDevTools />}
       <Stack>
-        <Stack.Protected guard={!!session}>
+        <Stack.Protected guard={isLoggedIn}>
           <Stack.Screen name="(app)" options={{ headerShown: false }} />
         </Stack.Protected>
-        <Stack.Protected guard={!session}>
+        <Stack.Protected guard={!isLoggedIn}>
           <Stack.Screen name="sign-in" options={{ headerShown: false }} />
         </Stack.Protected>
       </Stack>

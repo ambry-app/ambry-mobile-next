@@ -1,4 +1,5 @@
-import { syncDown } from "@/src/db/sync";
+import { getLastDownSync, syncDown } from "@/src/db/sync";
+import { registerBackgroundSyncTask } from "@/src/services/BackgroundSyncService";
 import { loadMostRecentMedia, setupPlayer } from "@/src/stores/player";
 import { useSession } from "@/src/stores/session";
 import { useEffect, useState } from "react";
@@ -15,12 +16,16 @@ const useAppBoot = () => {
         return;
       }
 
-      try {
-        console.debug("[AppBoot] down sync...");
-        await syncDown(session);
-        console.debug("[AppBoot] down sync complete");
-      } catch (e) {
-        console.error("[AppBoot] down sync error", e);
+      const lastDownSync = await getLastDownSync(session);
+
+      if (!lastDownSync) {
+        try {
+          console.debug("[AppBoot] down sync...");
+          await syncDown(session);
+          console.debug("[AppBoot] down sync complete");
+        } catch (e) {
+          console.error("[AppBoot] down sync error", e);
+        }
       }
 
       try {
@@ -37,6 +42,14 @@ const useAppBoot = () => {
         console.debug("[AppBoot] most recent media loaded");
       } catch (e) {
         console.error("[AppBoot] most recent media load error", e);
+      }
+
+      try {
+        console.debug("[AppBoot] registering background sync task...");
+        await registerBackgroundSyncTask();
+        console.debug("[AppBoot] background sync task registered");
+      } catch (e) {
+        console.error("[AppBoot] background sync task registration error", e);
       }
 
       setIsReady(true);

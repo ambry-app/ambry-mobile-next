@@ -1,8 +1,10 @@
 import { PlayerStateTile, ScreenCentered } from "@/src/components";
 import { useInProgressMedia } from "@/src/db/playerStates";
+import { syncDown } from "@/src/db/sync";
 import { usePlayer } from "@/src/stores/player";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
+import { useCallback, useState } from "react";
 import { StyleSheet, Text } from "react-native";
 import Animated from "react-native-reanimated";
 
@@ -13,6 +15,18 @@ type AllInProgressProps = {
 export default function AllInProgress({ session }: AllInProgressProps) {
   const mediaId = usePlayer((state) => state.mediaId);
   const { media, opacity } = useInProgressMedia(session, mediaId);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await syncDown(session);
+    } catch (error) {
+      console.error("Pull-to-refresh sync error:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [session]);
 
   if (media.length === 0) {
     return (
@@ -31,6 +45,8 @@ export default function AllInProgress({ session }: AllInProgressProps) {
       renderItem={({ item }) => (
         <PlayerStateTile style={[styles.tile]} media={item} session={session} />
       )}
+      onRefresh={onRefresh}
+      refreshing={refreshing}
     />
   );
 }

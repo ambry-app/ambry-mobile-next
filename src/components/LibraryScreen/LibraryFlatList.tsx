@@ -1,19 +1,19 @@
 import { Loading, MediaTile, ScreenCentered } from "@/src/components";
 import { useMediaByBookTitleSearch, useMediaList } from "@/src/db/library";
-import { useLastDownSync } from "@/src/db/sync";
+import { syncDown, useLastDownSync } from "@/src/db/sync";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { useNavigation } from "expo-router";
-import { useLayoutEffect } from "react";
+import { useCallback, useLayoutEffect, useState } from "react";
 import { StyleSheet, Text } from "react-native";
 import Animated from "react-native-reanimated";
 import { useDebounce } from "use-debounce";
 
-type LibraryFlatlistProps = {
+type LibraryFlatListProps = {
   session: Session;
 };
 
-export default function LibraryFlatlist({ session }: LibraryFlatlistProps) {
+export default function LibraryFlatList({ session }: LibraryFlatListProps) {
   const [search, setSearch] = useDebounce("", 500);
   const navigation = useNavigation();
 
@@ -44,6 +44,18 @@ type FullLibraryFlatListProps = {
 function FullLibraryFlatList({ session }: FullLibraryFlatListProps) {
   const { media, updatedAt, opacity } = useMediaList(session);
   const lastDownSync = useLastDownSync(session);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await syncDown(session);
+    } catch (error) {
+      console.error("Pull-to-refresh sync error:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [session]);
 
   if (!lastDownSync || !updatedAt) {
     return (
@@ -55,12 +67,10 @@ function FullLibraryFlatList({ session }: FullLibraryFlatListProps) {
 
   if (updatedAt && lastDownSync && media.length === 0) {
     return (
-      <ScreenCentered>
-        <Text style={styles.text}>
-          Your library is empty. Log into the server on the web and add some
-          audiobooks to get started!
-        </Text>
-      </ScreenCentered>
+      <Text style={styles.text}>
+        Your library is empty. Log into the server on the web and add some
+        audiobooks to get started!
+      </Text>
     );
   }
 
@@ -72,6 +82,8 @@ function FullLibraryFlatList({ session }: FullLibraryFlatListProps) {
       keyExtractor={(item) => item.id}
       numColumns={2}
       renderItem={({ item }) => <MediaTile style={styles.tile} media={item} />}
+      onRefresh={onRefresh}
+      refreshing={refreshing}
     />
   );
 }
@@ -88,6 +100,18 @@ function SearchResultsFlatList(props: SearchResultsFlatListProps) {
     searchQuery,
   );
   const lastDownSync = useLastDownSync(session);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await syncDown(session);
+    } catch (error) {
+      console.error("Pull-to-refresh sync error:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [session]);
 
   if (!lastDownSync || !updatedAt) {
     return (
@@ -99,12 +123,10 @@ function SearchResultsFlatList(props: SearchResultsFlatListProps) {
 
   if (updatedAt && lastDownSync && media.length === 0) {
     return (
-      <ScreenCentered>
-        <Text style={styles.text}>
-          Nothing in the library matches your search term. Search is very basic
-          right now and only matches on book titles. Please try another search.
-        </Text>
-      </ScreenCentered>
+      <Text style={styles.text}>
+        Nothing in the library matches your search term. Search is very basic
+        right now and only matches on book titles. Please try another search.
+      </Text>
     );
   }
 
@@ -116,6 +138,8 @@ function SearchResultsFlatList(props: SearchResultsFlatListProps) {
       keyExtractor={(item) => item.id}
       numColumns={2}
       renderItem={({ item }) => <MediaTile style={styles.tile} media={item} />}
+      onRefresh={onRefresh}
+      refreshing={refreshing}
     />
   );
 }
@@ -123,6 +147,8 @@ function SearchResultsFlatList(props: SearchResultsFlatListProps) {
 const styles = StyleSheet.create({
   text: {
     color: Colors.zinc[100],
+    paddingHorizontal: 32,
+    paddingTop: 32,
   },
   flatlist: {
     padding: 8,
