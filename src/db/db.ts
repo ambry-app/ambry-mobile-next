@@ -7,5 +7,5 @@ export const expoDb = openDatabaseSync("ambry.db", {
 });
 expoDb.execSync("PRAGMA journal_mode = WAL;");
 
-// export const db = drizzle(expoDb, { schema, logger: true });
-export const db = drizzle(expoDb, { schema });
+export const db = drizzle(expoDb, { schema, logger: __DEV__ });
+// export const db = drizzle(expoDb, { schema });

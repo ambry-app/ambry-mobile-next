@@ -21,7 +21,7 @@ export default function RecentInProgress({ session }: RecentInProgressProps) {
 
   const navigateToAll = () => {
     router.push({
-      pathname: "/(app)/(tabs)/(shelf)/in-progress",
+      pathname: "/(tabs)/(shelf)/in-progress",
     });
   };
 

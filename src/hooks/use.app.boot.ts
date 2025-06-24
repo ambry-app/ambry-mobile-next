@@ -3,9 +3,16 @@ import { registerBackgroundSyncTask } from "@/src/services/BackgroundSyncService
 import { loadMostRecentMedia, setupPlayer } from "@/src/stores/player";
 import { useSession } from "@/src/stores/session";
 import { useEffect, useState } from "react";
+import migrations from "@/drizzle/migrations";
+import { db } from "@/src/db/db";
+import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 
 const useAppBoot = () => {
   const [isReady, setIsReady] = useState(false);
+  const { success: migrationSuccess, error: migrationError } = useMigrations(
+    db,
+    migrations,
+  );
   const session = useSession((state) => state.session);
 
   useEffect(() => {
@@ -55,10 +62,12 @@ const useAppBoot = () => {
       setIsReady(true);
     }
 
-    boot();
-  }, [session]);
+    if (migrationSuccess) {
+      boot();
+    }
+  }, [migrationSuccess, session]);
 
-  return { isReady };
+  return { isReady, migrationError };
 };
 
 export { useAppBoot };

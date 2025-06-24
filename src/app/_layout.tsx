@@ -1,11 +1,10 @@
-import migrations from "@/drizzle/migrations";
 import { Loading, MeasureScreenHeight, ScreenCentered } from "@/src/components";
-import { db, expoDb } from "@/src/db/db";
+import { expoDb } from "@/src/db/db";
+import { useAppBoot } from "@/src/hooks/use.app.boot";
 import { useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import * as Sentry from "@sentry/react-native";
-import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import { Stack, useNavigationContainerRef } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useSQLiteDevTools } from "expo-sqlite-devtools";
@@ -13,6 +12,13 @@ import { useEffect } from "react";
 import { StyleSheet, Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
+import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
+import { usePlayer } from "../stores/player";
+
+SplashScreen.preventAutoHideAsync();
+SplashScreen.setOptions({
+  fade: true,
+});
 
 const navigationIntegration = Sentry.reactNavigationIntegration({
   enableTimeToInitialDisplay: true,
@@ -25,6 +31,94 @@ Sentry.init({
   enableNativeFramesTracking: true,
   enabled: !__DEV__,
 });
+
+function useSentryNavigationIntegration() {
+  const ref = useNavigationContainerRef();
+
+  useEffect(() => {
+    if (ref?.current) {
+      navigationIntegration.registerNavigationContainer(ref);
+    }
+  }, [ref]);
+
+  return ref;
+}
+
+function RootLayout() {
+  useSentryNavigationIntegration();
+  const { isReady, migrationError } = useAppBoot();
+
+  useEffect(() => {
+    if (isReady) {
+      SplashScreen.hideAsync();
+    }
+  }, [isReady]);
+
+  if (migrationError) {
+    return (
+      <ScreenCentered>
+        <Text style={styles.text}>
+          The app failed to initialize in an irrecoverable way. Please delete
+          the app's data and start fresh.
+        </Text>
+      </ScreenCentered>
+    );
+  }
+
+  if (!isReady) {
+    return (
+      <ScreenCentered>
+        <Loading />
+      </ScreenCentered>
+    );
+  }
+
+  return (
+    <>
+      {__DEV__ && <SQLiteDevTools />}
+      <KeyboardProvider>
+        <GestureHandlerRootView>
+          <MeasureScreenHeight />
+          <ThemeProvider value={Theme}>
+            <RootStackLayout />
+          </ThemeProvider>
+        </GestureHandlerRootView>
+      </KeyboardProvider>
+    </>
+  );
+}
+
+function SQLiteDevTools() {
+  useSQLiteDevTools(expoDb);
+  return null;
+}
+
+function RootStackLayout() {
+  const isLoggedIn = useSession((state) => !!state.session);
+  const playerLoaded = usePlayer((state) => !!state.mediaId);
+
+  return (
+    <Stack>
+      <Stack.Protected guard={isLoggedIn}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Protected guard={playerLoaded}>
+          <Stack.Screen name="sleep-timer" options={modalOptions} />
+          <Stack.Screen name="playback-rate" options={modalOptions} />
+          <Stack.Screen name="chapter-select" options={chapterSelectOptions} />
+        </Stack.Protected>
+        <Stack.Screen
+          name="download-actions-modal/[id]"
+          options={modalOptions}
+        />
+      </Stack.Protected>
+      <Stack.Protected guard={!isLoggedIn}>
+        <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+      </Stack.Protected>
+    </Stack>
+  );
+}
+
+export default Sentry.wrap(RootLayout);
 
 const Theme = {
   ...DefaultTheme,
@@ -39,81 +133,25 @@ const Theme = {
   },
 };
 
-function RootStackLayout() {
-  const ref = useNavigationContainerRef();
-
-  useEffect(() => {
-    if (ref?.current) {
-      navigationIntegration.registerNavigationContainer(ref);
-    }
-  }, [ref]);
-
-  return (
-    <KeyboardProvider>
-      <GestureHandlerRootView>
-        <MeasureScreenHeight />
-        <ThemeProvider value={Theme}>
-          <Root />
-        </ThemeProvider>
-      </GestureHandlerRootView>
-    </KeyboardProvider>
-  );
-}
-
-export default Sentry.wrap(RootStackLayout);
-
-function Root() {
-  const { success, error } = useMigrations(db, migrations);
-  const session = useSession((state) => state.session);
-  const isLoggedIn = !!session;
-
-  useEffect(() => {
-    if (success) {
-      SplashScreen.hideAsync();
-    }
-  }, [success]);
-
-  if (error) {
-    return (
-      <ScreenCentered>
-        <Text style={styles.text}>
-          The app failed to initialize in an irrecoverable way. Please delete
-          the app's data and start fresh.
-        </Text>
-      </ScreenCentered>
-    );
-  }
-
-  if (!success) {
-    return (
-      <ScreenCentered>
-        <Loading />
-      </ScreenCentered>
-    );
-  }
-
-  return (
-    <>
-      {__DEV__ && <SQLiteDevTools />}
-      <Stack>
-        <Stack.Protected guard={isLoggedIn}>
-          <Stack.Screen name="(app)" options={{ headerShown: false }} />
-        </Stack.Protected>
-        <Stack.Protected guard={!isLoggedIn}>
-          <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-        </Stack.Protected>
-      </Stack>
-    </>
-  );
-}
-
-function SQLiteDevTools() {
-  useSQLiteDevTools(expoDb);
-  return null;
-}
-
 const styles = StyleSheet.create({
   text: {
     color: Colors.zinc[100],
   },
+  modalContent: {
+    backgroundColor: Colors.zinc[900],
+  },
 });
+
+const modalOptions: NativeStackNavigationOptions = {
+  headerShown: false,
+  presentation: "formSheet",
+  sheetAllowedDetents: "fitToContents",
+  sheetGrabberVisible: true,
+  contentStyle: styles.modalContent,
+};
+
+const chapterSelectOptions: NativeStackNavigationOptions = {
+  presentation: "modal",
+  headerTitle: "Select Chapter",
+  contentStyle: styles.modalContent,
+};
