@@ -1,14 +1,15 @@
 import { IconButton } from "@/src/components";
+import FadeInOnMount from "@/src/components/FadeInOnMount";
 import { Download, useDownload } from "@/src/db/downloads";
-import { ActionBarMedia, useMediaActionBarInfo } from "@/src/db/library";
+import { ActionBarInfo } from "@/src/db/library";
 import { toggleMediaOnShelf, useShelvedMedia } from "@/src/db/shelves";
+import { useActionBarInfo } from "@/src/hooks/use-action-bar-info";
 import useLoadMediaCallback from "@/src/hooks/use.load.media.callback";
 import { startDownload, useDownloads } from "@/src/stores/downloads";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { router } from "expo-router";
 import { Alert, Share, StyleSheet, View } from "react-native";
-import Animated from "react-native-reanimated";
 
 type ActionBarProps = {
   mediaId: string;
@@ -16,14 +17,14 @@ type ActionBarProps = {
 };
 
 export default function ActionBar({ mediaId, session }: ActionBarProps) {
-  const { media, opacity } = useMediaActionBarInfo(session, mediaId);
+  const { media } = useActionBarInfo(session, mediaId);
   const { download } = useDownload(session, mediaId);
   const { isSaved } = useShelvedMedia(session, mediaId, "saved");
 
   if (!media) return null;
 
   return (
-    <Animated.View style={[styles.container, { opacity }]}>
+    <FadeInOnMount style={styles.container}>
       <View style={styles.buttonsContainer}>
         <DownloadButton media={media} download={download} session={session} />
         <IconButton
@@ -62,12 +63,12 @@ export default function ActionBar({ mediaId, session }: ActionBarProps) {
         />
       </View>
       {/* <ExplanationText download={download} /> */}
-    </Animated.View>
+    </FadeInOnMount>
   );
 }
 
 type PlayButtonProps = {
-  media: ActionBarMedia;
+  media: ActionBarInfo;
   session: Session;
 };
 
@@ -87,7 +88,7 @@ function PlayButton({ session, media }: PlayButtonProps) {
 }
 
 type DownloadButtonProps = {
-  media: ActionBarMedia;
+  media: ActionBarInfo;
   download: Download;
   session: Session;
 };

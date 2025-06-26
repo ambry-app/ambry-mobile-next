@@ -66,11 +66,7 @@ function RootLayout() {
   }
 
   if (!isReady) {
-    return (
-      <ScreenCentered>
-        <Loading />
-      </ScreenCentered>
-    );
+    return null;
   }
 
   return (

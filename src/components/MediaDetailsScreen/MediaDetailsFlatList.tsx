@@ -87,48 +87,48 @@ function useSections(mediaId: string, session: Session) {
     const sections: Section[] = [
       { id: `header-${mediaId}`, type: "header", mediaId },
       { id: `actions-${mediaId}`, type: "actionBar", mediaId },
-      {
-        id: `description-${mediaId}`,
-        type: "mediaDescription",
-        mediaId,
-      },
-      {
-        id: `authors-narrators-${mediaId}`,
-        type: "authorsAndNarrators",
-        mediaId,
-      },
-      {
-        id: `editions-${mediaId}`,
-        type: "otherEditions",
-        bookId: ids.bookId,
-        withoutMediaId: mediaId,
-      },
-      ...ids.seriesIds.map(
-        (seriesId): OtherBooksInSeriesSection => ({
-          id: `books-in-series-${seriesId}`,
-          type: "otherBooksInSeries",
-          seriesId,
-        }),
-      ),
-      ...ids.authorIds.map(
-        (authorId): OtherBooksByAuthorSection => ({
-          id: `other-books-${authorId}`,
-          type: "otherBooksByAuthor",
-          authorId,
-          withoutBookId: ids.bookId,
-          withoutSeriesIds: ids.seriesIds,
-        }),
-      ),
-      ...ids.narratorIds.map(
-        (narratorId): OtherMediaByNarratorSection => ({
-          id: `other-media-${narratorId}`,
-          type: "otherMediaByNarrator",
-          narratorId,
-          withoutMediaId: mediaId,
-          withoutSeriesIds: ids.seriesIds,
-          withoutAuthorIds: ids.authorIds,
-        }),
-      ),
+      // {
+      //   id: `description-${mediaId}`,
+      //   type: "mediaDescription",
+      //   mediaId,
+      // },
+      // {
+      //   id: `authors-narrators-${mediaId}`,
+      //   type: "authorsAndNarrators",
+      //   mediaId,
+      // },
+      // {
+      //   id: `editions-${mediaId}`,
+      //   type: "otherEditions",
+      //   bookId: ids.bookId,
+      //   withoutMediaId: mediaId,
+      // },
+      // ...ids.seriesIds.map(
+      //   (seriesId): OtherBooksInSeriesSection => ({
+      //     id: `books-in-series-${seriesId}`,
+      //     type: "otherBooksInSeries",
+      //     seriesId,
+      //   }),
+      // ),
+      // ...ids.authorIds.map(
+      //   (authorId): OtherBooksByAuthorSection => ({
+      //     id: `other-books-${authorId}`,
+      //     type: "otherBooksByAuthor",
+      //     authorId,
+      //     withoutBookId: ids.bookId,
+      //     withoutSeriesIds: ids.seriesIds,
+      //   }),
+      // ),
+      // ...ids.narratorIds.map(
+      //   (narratorId): OtherMediaByNarratorSection => ({
+      //     id: `other-media-${narratorId}`,
+      //     type: "otherMediaByNarrator",
+      //     narratorId,
+      //     withoutMediaId: mediaId,
+      //     withoutSeriesIds: ids.seriesIds,
+      //     withoutAuthorIds: ids.authorIds,
+      //   }),
+      // ),
     ];
     setSections(sections);
   }, [ids, mediaId, session]);

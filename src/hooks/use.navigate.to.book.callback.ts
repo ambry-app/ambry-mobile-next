@@ -12,10 +12,13 @@ type Media = {
 
 export default function useNavigateToBookCallback(book: Book, media: Media[]) {
   return useCallback(() => {
-    if (media.length === 1) {
+    if (media[0] && media.length === 1) {
       router.navigate({
         pathname: "/media/[id]",
-        params: { id: media[0].id, title: book.title },
+        params: {
+          id: media[0].id,
+          title: book.title,
+        },
       });
     } else {
       router.navigate({

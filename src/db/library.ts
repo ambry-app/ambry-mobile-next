@@ -20,52 +20,9 @@ import {
 import { useEffect, useState } from "react";
 import { useSharedValue, withTiming } from "react-native-reanimated";
 
-export function useMediaList(session: Session) {
-  const query = db.query.media.findMany({
-    columns: { id: true, thumbnails: true },
-    where: and(
-      eq(schema.media.url, session.url),
-      eq(schema.media.status, "ready"),
-    ),
-    orderBy: desc(schema.media.insertedAt),
-    with: {
-      download: {
-        columns: { thumbnails: true },
-      },
-      mediaNarrators: {
-        columns: { id: true },
-        with: {
-          narrator: {
-            columns: { id: true, name: true },
-            with: { person: { columns: { id: true } } },
-          },
-        },
-      },
-      book: {
-        columns: { id: true, title: true },
-        with: {
-          bookAuthors: {
-            columns: { id: true },
-            with: {
-              author: {
-                columns: { id: true, name: true },
-                with: { person: { columns: { id: true } } },
-              },
-            },
-          },
-          seriesBooks: {
-            columns: { id: true, bookNumber: true },
-            with: { series: { columns: { id: true, name: true } } },
-          },
-        },
-      },
-    },
-  });
-
-  const { data, ...rest } = useFadeInSyncedDataQuery(session, query);
-
-  return { media: data, ...rest };
-}
+export * from "./library/get-media-page";
+export * from "./library/get-media-header-info";
+export * from "./library/get-action-bar-info";
 
 export function useMediaListByIds(session: Session, mediaIds: string[]) {
   const query = db.query.media.findMany({
@@ -660,71 +617,6 @@ export function useMediaIds(session: Session, mediaId: string) {
   }, [media, mediaId]);
 
   return { ids, ...rest };
-}
-
-export function useMediaHeaderInfo(session: Session, mediaId: string) {
-  const query = db.query.media.findFirst({
-    columns: {
-      fullCast: true,
-      abridged: true,
-      thumbnails: true,
-      duration: true,
-    },
-    where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
-    with: {
-      download: {
-        columns: { thumbnails: true },
-      },
-      mediaNarrators: {
-        columns: {},
-        with: {
-          narrator: {
-            columns: { name: true },
-          },
-        },
-      },
-      book: {
-        columns: { title: true },
-        with: {
-          bookAuthors: {
-            columns: {},
-            with: {
-              author: {
-                columns: { name: true },
-              },
-            },
-          },
-          seriesBooks: {
-            columns: { bookNumber: true },
-            with: { series: { columns: { name: true } } },
-          },
-        },
-      },
-    },
-  });
-
-  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [mediaId]);
-
-  return { media: data, ...rest };
-}
-
-export type ActionBarMedia = Exclude<
-  ReturnType<typeof useMediaActionBarInfo>["media"],
-  undefined
->;
-
-export function useMediaActionBarInfo(session: Session, mediaId: string) {
-  const query = db.query.media.findFirst({
-    columns: {
-      id: true,
-      thumbnails: true,
-      mp4Path: true,
-    },
-    where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
-  });
-
-  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [mediaId]);
-  return { media: data, ...rest };
 }
 
 export function useMediaDescription(session: Session, mediaId: string) {

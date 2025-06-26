@@ -1,11 +1,11 @@
 import { BookDetailsText, ThumbnailImage } from "@/src/components";
-import { useMediaHeaderInfo } from "@/src/db/library";
+import FadeInOnMount from "@/src/components/FadeInOnMount";
+import useMediaHeaderInfo from "@/src/hooks/use-media-header-info";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { durationDisplay } from "@/src/utils/time";
 import { StyleSheet, Text, View } from "react-native";
-import Animated from "react-native-reanimated";
 
 type HeaderProps = {
   mediaId: string;
@@ -14,12 +14,12 @@ type HeaderProps = {
 
 export default function Header({ mediaId, session }: HeaderProps) {
   const shortScreen = useScreen((state) => state.shortScreen);
-  const { media, opacity } = useMediaHeaderInfo(session, mediaId);
+  const { media } = useMediaHeaderInfo(session, mediaId);
 
   if (!media) return null;
 
   return (
-    <Animated.View style={[styles.container, { opacity }]}>
+    <FadeInOnMount style={styles.container}>
       <ThumbnailImage
         thumbnails={media.thumbnails}
         downloadedThumbnails={media.download?.thumbnails}
@@ -37,10 +37,10 @@ export default function Header({ mediaId, session }: HeaderProps) {
           titleWeight={700}
           title={media.book.title}
           series={media.book.seriesBooks.map(
-            (sb) => `${sb.series.name} #${sb.bookNumber}`,
+            (sb) => `${sb.seriesName} #${sb.bookNumber}`,
           )}
-          authors={media.book.bookAuthors.map((ba) => ba.author.name)}
-          narrators={media.mediaNarrators.map((mn) => mn.narrator.name)}
+          authors={media.book.authors.map((author) => author.name)}
+          narrators={media.narrators.map((narrator) => narrator.name)}
           fullCast={media.fullCast}
         />
       </View>
@@ -51,7 +51,7 @@ export default function Header({ mediaId, session }: HeaderProps) {
           </Text>
         </View>
       )}
-    </Animated.View>
+    </FadeInOnMount>
   );
 }
 

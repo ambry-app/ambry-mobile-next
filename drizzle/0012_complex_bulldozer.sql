@@ -1,0 +1,1 @@
+CREATE INDEX `media_url_status_inserted_at_idx` ON `media` (`url`,`status`,`inserted_at`);
