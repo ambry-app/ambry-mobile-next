@@ -2,6 +2,7 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import useFadeInQuery from "@/src/hooks/use.fade.in.query";
 import { Session } from "@/src/stores/session";
+import { requireValue } from "@/src/utils/require-value";
 import { and, desc, eq } from "drizzle-orm";
 
 export type ListedDownload = ReturnType<
@@ -48,19 +49,12 @@ export function useDownloadsList(session: Session) {
   return { downloads: data, ...rest };
 }
 
-export type Download = ReturnType<typeof useDownload>["download"];
-
-export function useDownload(session: Session, mediaId: string) {
-  const query = db.query.downloads.findFirst({
-    where: and(
-      eq(schema.downloads.url, session.url),
-      eq(schema.downloads.mediaId, mediaId),
-    ),
+// Get all downloads for a session
+export async function getAllDownloads(session: Session) {
+  return db.query.downloads.findMany({
+    where: eq(schema.downloads.url, session.url),
+    orderBy: desc(schema.downloads.downloadedAt),
   });
-
-  const { data: download, ...rest } = useFadeInQuery(query);
-
-  return { download, ...rest };
 }
 
 export async function getDownload(session: Session, mediaId: string) {
@@ -86,6 +80,11 @@ export async function createDownload(
     status: "pending",
     filePath,
   });
+
+  return requireValue(
+    await getDownload(session, mediaId),
+    "Download not found after creation",
+  );
 }
 
 export async function updateDownload(
@@ -108,6 +107,11 @@ export async function updateDownload(
         eq(schema.downloads.mediaId, mediaId),
       ),
     );
+
+  return requireValue(
+    await getDownload(session, mediaId),
+    "Download not found after update",
+  );
 }
 
 export async function deleteDownload(session: Session, mediaId: string) {

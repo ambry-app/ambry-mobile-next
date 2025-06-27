@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import migrations from "@/drizzle/migrations";
 import { db } from "@/src/db/db";
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
+import { loadAllDownloads } from "../stores/downloads";
 
 const useAppBoot = () => {
   const [isReady, setIsReady] = useState(false);
@@ -29,6 +30,8 @@ const useAppBoot = () => {
         await getServerSyncTimestamps(session);
 
       if (newDataAsOf) setLibraryDataVersion(newDataAsOf);
+
+      await loadAllDownloads(session);
 
       if (!lastDownSync) {
         try {

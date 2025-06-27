@@ -1,24 +1,29 @@
 import { IconButton } from "@/src/components";
-import { useDownload } from "@/src/db/downloads";
-import { cancelDownload, removeDownload } from "@/src/stores/downloads";
+import {
+  cancelDownload,
+  removeDownload,
+  useDownloads,
+} from "@/src/stores/downloads";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { router, useLocalSearchParams } from "expo-router";
 import { StyleSheet, Text } from "react-native";
-import Animated from "react-native-reanimated";
+import FadeInOnMount from "../FadeInOnMount";
 
 export default function DownloadActions({ session }: { session: Session }) {
   const { id: mediaId } = useLocalSearchParams<{ id: string }>();
-  const { download, opacity } = useDownload(session, mediaId);
+  const download = useDownloads((state) => state.downloads[mediaId]);
+
+  if (!download) return null;
 
   return (
-    <Animated.View style={[styles.container, { opacity }]}>
-      {download?.status === "ready" ? (
+    <FadeInOnMount style={styles.container}>
+      {download.status === "ready" ? (
         <DeleteButton session={session} mediaId={mediaId} />
       ) : (
         <CancelButton session={session} mediaId={mediaId} />
       )}
-    </Animated.View>
+    </FadeInOnMount>
   );
 }
 

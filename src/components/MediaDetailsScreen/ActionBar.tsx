@@ -1,6 +1,5 @@
 import { IconButton } from "@/src/components";
 import FadeInOnMount from "@/src/components/FadeInOnMount";
-import { Download, useDownload } from "@/src/db/downloads";
 import { ActionBarInfo } from "@/src/db/library";
 import { useActionBarInfo } from "@/src/hooks/use-action-bar-info";
 import { useShelvedMedia } from "@/src/hooks/use-shelved-media";
@@ -19,7 +18,6 @@ type ActionBarProps = {
 export default function ActionBar(props: ActionBarProps) {
   const { mediaId, session } = props;
   const { media } = useActionBarInfo(session, mediaId);
-  const { download } = useDownload(session, mediaId);
   const { isOnShelf, toggleOnShelf } = useShelvedMedia(
     session,
     mediaId,
@@ -31,7 +29,7 @@ export default function ActionBar(props: ActionBarProps) {
   return (
     <FadeInOnMount style={styles.container}>
       <View style={styles.buttonsContainer}>
-        <DownloadButton media={media} download={download} session={session} />
+        <DownloadButton media={media} session={session} />
         <IconButton
           icon="heart"
           solid={isOnShelf}
@@ -92,16 +90,13 @@ function PlayButton({ session, media }: PlayButtonProps) {
 
 type DownloadButtonProps = {
   media: ActionBarInfo;
-  download: Download;
   session: Session;
 };
 
-function DownloadButton({ media, download, session }: DownloadButtonProps) {
-  const inProgress = useDownloads(
-    (state) => media.id in state.downloadProgresses,
-  );
+function DownloadButton({ media, session }: DownloadButtonProps) {
+  const download = useDownloads((state) => state.downloads[media.id]);
 
-  if (inProgress) {
+  if (download?.progress || download?.status === "pending") {
     return (
       <IconButton
         icon="loading"
@@ -113,7 +108,7 @@ function DownloadButton({ media, download, session }: DownloadButtonProps) {
     );
   }
 
-  if (download && download.status !== "error") {
+  if (download?.status === "ready") {
     return (
       <IconButton
         icon="circle-check"
