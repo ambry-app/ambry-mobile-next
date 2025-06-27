@@ -1,7 +1,8 @@
 import { getMediaPage } from "@/src/db/library";
 import { Session } from "@/src/stores/session";
 import { produce } from "immer";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useDataVersion } from "@/src/stores/dataVersion";
 
 type MediaPage = Awaited<ReturnType<typeof getMediaPage>>;
 
@@ -12,10 +13,13 @@ export default function useMediaPages(session: Session) {
   const [lastInsertedAt, setLastInsertedAt] = useState<Date | undefined>(
     undefined,
   );
-  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-  const [media, setMedia] = useState<MediaPage>([]);
+  const [media, setMedia] = useState<MediaPage | null>(null);
+  const libraryDataVersion = useDataVersion(
+    (state) => state.libraryDataVersion,
+  );
+  const initialDataVersion = useRef(libraryDataVersion);
 
-  // Initial load or refresh
+  // Initial load (only on mount)
   const loadInitial = useCallback(async () => {
     setLoading(true);
 
@@ -24,7 +28,6 @@ export default function useMediaPages(session: Session) {
     setMedia(page);
     setHasMore(page.length === PAGE_SIZE);
     setLastInsertedAt(page[page.length - 1]?.insertedAt ?? undefined);
-    setUpdatedAt(new Date());
     setLoading(false);
   }, [session]);
 
@@ -39,6 +42,7 @@ export default function useMediaPages(session: Session) {
     if (page.length > 0) {
       setMedia(
         produce((draft) => {
+          if (!draft) draft = [];
           draft.push(...page);
         }),
       );
@@ -49,9 +53,33 @@ export default function useMediaPages(session: Session) {
     setLoading(false);
   }, [session, lastInsertedAt, loading, hasMore]);
 
+  // Reload all currently loaded items
+  const reload = useCallback(async () => {
+    setLoading(true);
+
+    const count = media?.length || PAGE_SIZE;
+    const page = await getMediaPage(session, count);
+
+    setMedia(page);
+    setHasMore(page.length === PAGE_SIZE);
+    setLastInsertedAt(page[page.length - 1]?.insertedAt ?? undefined);
+    setLoading(false);
+  }, [media?.length, session]);
+
+  // Initial load on mount
   useEffect(() => {
     loadInitial();
-  }, [loadInitial]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  return [media, hasMore, updatedAt, loadMore, loadInitial] as const;
+  // Reload when libraryDataVersion changes (but not on initial mount)
+  useEffect(() => {
+    if (initialDataVersion.current !== libraryDataVersion) {
+      reload();
+      initialDataVersion.current = libraryDataVersion;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [libraryDataVersion]);
+
+  return { media, hasMore, loadMore };
 }

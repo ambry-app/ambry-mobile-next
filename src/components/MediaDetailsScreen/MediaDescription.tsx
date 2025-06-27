@@ -1,26 +1,24 @@
 import { Description } from "@/src/components";
-import { useMediaDescription } from "@/src/db/library";
+import FadeInOnMount from "@/src/components/FadeInOnMount";
+import { useMediaDescription } from "@/src/hooks/use-media-description";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { formatPublished } from "@/src/utils/date";
 import { StyleSheet, Text, View } from "react-native";
-import Animated from "react-native-reanimated";
 
 type MediaDescriptionProps = {
   mediaId: string;
   session: Session;
 };
 
-export default function MediaDescription({
-  mediaId,
-  session,
-}: MediaDescriptionProps) {
-  const { media, opacity } = useMediaDescription(session, mediaId);
+export default function MediaDescription(props: MediaDescriptionProps) {
+  const { mediaId, session } = props;
+  const { media } = useMediaDescription(session, mediaId);
 
   if (!media?.description) return null;
 
   return (
-    <Animated.View style={[styles.container, { opacity }]}>
+    <FadeInOnMount style={styles.container}>
       <Description description={media.description} />
       <View>
         {media.book.published && (
@@ -40,7 +38,7 @@ export default function MediaDescription({
         )}
         {media.notes && <Text style={styles.text}>Note: {media.notes}</Text>}
       </View>
-    </Animated.View>
+    </FadeInOnMount>
   );
 }
 

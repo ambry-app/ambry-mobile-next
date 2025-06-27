@@ -1,17 +1,20 @@
-import { getMediaHeaderInfo, MediaHeaderInfo } from "@/src/db/library";
-import { useDataVersion } from "@/src/stores/dataVersion";
+import {
+  getMediaDescription,
+  MediaDescription,
+} from "@/src/db/library/get-media-description";
 import { Session } from "@/src/stores/session";
 import { useCallback, useEffect, useState } from "react";
+import { useDataVersion } from "@/src/stores/dataVersion";
 
-export default function useMediaHeaderInfo(session: Session, mediaId: string) {
-  const [media, setMedia] = useState<MediaHeaderInfo | null>(null);
+export function useMediaDescription(session: Session, mediaId: string) {
+  const [media, setMedia] = useState<MediaDescription | null>(null);
   const libraryDataVersion = useDataVersion(
     (state) => state.libraryDataVersion,
   );
 
   const load = useCallback(async () => {
-    const media = await getMediaHeaderInfo(session, mediaId);
-    setMedia(media);
+    const result = await getMediaDescription(session, mediaId);
+    setMedia(result);
   }, [session, mediaId]);
 
   useEffect(() => {

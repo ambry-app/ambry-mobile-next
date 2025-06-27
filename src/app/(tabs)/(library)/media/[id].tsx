@@ -1,4 +1,4 @@
-import { MediaDetailsFlatList } from "@/src/components/MediaDetailsScreen";
+import { MediaDetailsSections } from "@/src/components/MediaDetailsScreen";
 import { useSession } from "@/src/stores/session";
 import { RouterParams } from "@/src/types/router";
 import { Stack, useLocalSearchParams } from "expo-router";
@@ -12,7 +12,7 @@ export default function MediaDetailsScreen() {
   return (
     <>
       <Stack.Screen options={{ title }} />
-      <MediaDetailsFlatList session={session} mediaId={mediaId} />
+      <MediaDetailsSections session={session} mediaId={mediaId} />
     </>
   );
 }

@@ -6,6 +6,7 @@ import {
   updatePlayerState,
 } from "@/src/graphql/api";
 import { ExecuteAuthenticatedErrorCode } from "@/src/graphql/client/execute";
+import { useDataVersion } from "@/src/stores/dataVersion";
 import { forceUnloadPlayer } from "@/src/stores/player";
 import { Session, forceSignOut } from "@/src/stores/session";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
@@ -23,16 +24,17 @@ export function useLastDownSync(session: Session) {
   return data[0]?.lastDownSync || undefined;
 }
 
-export async function getLastDownSync(session: Session) {
-  const query = db
-    .select({ lastDownSync: schema.syncedServers.lastDownSync })
+export async function getServerSyncTimestamps(session: Session) {
+  const result = await db
+    .select({
+      lastDownSync: schema.syncedServers.lastDownSync,
+      newDataAsOf: schema.syncedServers.newDataAsOf,
+    })
     .from(schema.syncedServers)
     .where(eq(schema.syncedServers.url, session.url))
     .limit(1);
 
-  const result = await query.execute();
-
-  return result[0]?.lastDownSync || undefined;
+  return result[0] || { lastDownSync: null, newDataAsOf: null };
 }
 
 const deletionsTables = {
@@ -220,6 +222,7 @@ export async function syncDownLibrary(session: Session) {
     (deletion) => deletion.recordId,
   );
 
+  let newDataAsOf: Date | null = null;
   await db.transaction(async (tx) => {
     if (peopleValues.length !== 0) {
       console.debug("[SyncDown] inserting", peopleValues.length, "people...");
@@ -417,7 +420,7 @@ export async function syncDownLibrary(session: Session) {
       changes.seriesBooksChangedSince.length +
       changes.seriesChangedSince.length;
 
-    const newDataAsOf =
+    newDataAsOf =
       countChanges > 0 || syncedServer === undefined
         ? serverTime
         : syncedServer.newDataAsOf;
@@ -437,6 +440,9 @@ export async function syncDownLibrary(session: Session) {
         },
       });
   });
+
+  // Update global data version store
+  if (newDataAsOf) useDataVersion.getState().setLibraryDataVersion(newDataAsOf);
 
   console.debug("[SyncDown] library sync complete");
 }

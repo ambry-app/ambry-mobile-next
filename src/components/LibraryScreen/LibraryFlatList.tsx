@@ -44,20 +44,14 @@ type FullLibraryFlatListProps = {
 };
 
 function FullLibraryFlatList({ session }: FullLibraryFlatListProps) {
-  const [media, hasMore, updatedAt, loadMore, reload] = useMediaPages(session);
-  const { refreshing, onRefresh } = usePullToRefresh(session, reload);
+  const { media, hasMore, loadMore } = useMediaPages(session);
+  const { refreshing, onRefresh } = usePullToRefresh(session);
 
-  // useFocusEffect(
-  //   useCallback(() => {
-  //     reload();
-  //   }, [reload]),
-  // );
-
-  if (!updatedAt) {
+  if (!media) {
     return null;
   }
 
-  if (updatedAt && media.length === 0) {
+  if (media.length === 0) {
     return (
       <Text style={styles.text}>
         Your library is empty. Log into the server on the web and add some

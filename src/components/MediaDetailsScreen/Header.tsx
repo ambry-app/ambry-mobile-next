@@ -12,7 +12,8 @@ type HeaderProps = {
   session: Session;
 };
 
-export default function Header({ mediaId, session }: HeaderProps) {
+export default function Header(props: HeaderProps) {
+  const { mediaId, session } = props;
   const shortScreen = useScreen((state) => state.shortScreen);
   const { media } = useMediaHeaderInfo(session, mediaId);
 

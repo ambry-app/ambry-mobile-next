@@ -21,8 +21,10 @@ import { useEffect, useState } from "react";
 import { useSharedValue, withTiming } from "react-native-reanimated";
 
 export * from "./library/get-media-page";
+export * from "./library/get-media-ids";
 export * from "./library/get-media-header-info";
 export * from "./library/get-action-bar-info";
+export * from "./library/get-media-description";
 
 export function useMediaListByIds(session: Session, mediaIds: string[]) {
   const query = db.query.media.findMany({
@@ -568,76 +570,6 @@ export function useMediaByNarrator(session: Session, narratorId: string) {
 
   // TODO: add updatedAt and error
   return { media, narrator, opacity };
-}
-
-export function useMediaIds(session: Session, mediaId: string) {
-  const query = db.query.media.findFirst({
-    columns: { bookId: true },
-    where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
-    with: {
-      book: {
-        columns: {},
-        with: {
-          bookAuthors: {
-            columns: { authorId: true },
-          },
-          seriesBooks: {
-            columns: { seriesId: true },
-          },
-        },
-      },
-      mediaNarrators: {
-        columns: { narratorId: true },
-      },
-    },
-  });
-
-  const { data: media, ...rest } = useFadeInSyncedDataQuery(session, query, [
-    mediaId,
-  ]);
-
-  const [ids, setIds] = useState<{
-    mediaId: string;
-    bookId: string;
-    authorIds: string[];
-    seriesIds: string[];
-    narratorIds: string[];
-  } | null>(null);
-
-  useEffect(() => {
-    if (!media) return;
-
-    setIds({
-      mediaId,
-      bookId: media.bookId,
-      authorIds: media.book.bookAuthors.map((ba) => ba.authorId),
-      seriesIds: media.book.seriesBooks.map((sb) => sb.seriesId),
-      narratorIds: media.mediaNarrators.map((mn) => mn.narratorId),
-    });
-  }, [media, mediaId]);
-
-  return { ids, ...rest };
-}
-
-export function useMediaDescription(session: Session, mediaId: string) {
-  const query = db.query.media.findFirst({
-    columns: {
-      description: true,
-      published: true,
-      publishedFormat: true,
-      publisher: true,
-      notes: true,
-    },
-    with: {
-      book: {
-        columns: { published: true, publishedFormat: true },
-      },
-    },
-    where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
-  });
-
-  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [mediaId]);
-  return { media: data, ...rest };
 }
 
 export function useMediaAuthorsAndNarrators(session: Session, mediaId: string) {

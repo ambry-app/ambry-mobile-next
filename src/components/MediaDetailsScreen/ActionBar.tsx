@@ -2,8 +2,8 @@ import { IconButton } from "@/src/components";
 import FadeInOnMount from "@/src/components/FadeInOnMount";
 import { Download, useDownload } from "@/src/db/downloads";
 import { ActionBarInfo } from "@/src/db/library";
-import { toggleMediaOnShelf, useShelvedMedia } from "@/src/db/shelves";
 import { useActionBarInfo } from "@/src/hooks/use-action-bar-info";
+import { useShelvedMedia } from "@/src/hooks/use-shelved-media";
 import useLoadMediaCallback from "@/src/hooks/use.load.media.callback";
 import { startDownload, useDownloads } from "@/src/stores/downloads";
 import { Session } from "@/src/stores/session";
@@ -16,10 +16,15 @@ type ActionBarProps = {
   session: Session;
 };
 
-export default function ActionBar({ mediaId, session }: ActionBarProps) {
+export default function ActionBar(props: ActionBarProps) {
+  const { mediaId, session } = props;
   const { media } = useActionBarInfo(session, mediaId);
   const { download } = useDownload(session, mediaId);
-  const { isSaved } = useShelvedMedia(session, mediaId, "saved");
+  const { isOnShelf, toggleOnShelf } = useShelvedMedia(
+    session,
+    mediaId,
+    "saved",
+  );
 
   if (!media) return null;
 
@@ -29,13 +34,11 @@ export default function ActionBar({ mediaId, session }: ActionBarProps) {
         <DownloadButton media={media} download={download} session={session} />
         <IconButton
           icon="heart"
-          solid={isSaved}
+          solid={isOnShelf}
           size={24}
           style={styles.button}
           color={Colors.zinc[100]}
-          onPress={() => {
-            toggleMediaOnShelf(session, media.id, "saved");
-          }}
+          onPress={toggleOnShelf}
         />
         <PlayButton session={session} media={media} />
         <IconButton
