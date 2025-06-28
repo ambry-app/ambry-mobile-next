@@ -6,6 +6,16 @@ import { and, eq } from "drizzle-orm";
 
 export type MediaDescription = Awaited<ReturnType<typeof getMediaDescription>>;
 
+/**
+ * Retrieves the description and related metadata for a specific media item,
+ * along with its associated book information, from the database.
+ *
+ * @param session - The current user session containing the URL context.
+ * @param mediaId - The unique identifier of the media item to fetch.
+ * @returns An object containing the media's description, publication details, publisher, notes, bookId,
+ *          and the associated book's publication information.
+ * @throws If the media or associated book is not found in the database.
+ */
 export async function getMediaDescription(session: Session, mediaId: string) {
   // 1. Fetch the media row
   const mediaRows = await db

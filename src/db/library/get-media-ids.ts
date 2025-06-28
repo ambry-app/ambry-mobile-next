@@ -6,6 +6,14 @@ import { and, eq } from "drizzle-orm";
 
 export type MediaIds = Awaited<ReturnType<typeof getMediaIds>>;
 
+/**
+ * Retrieves related IDs for a given media item, including its book, authors, series, and narrators.
+ *
+ * @param session - The current user session containing the URL context.
+ * @param mediaId - The unique identifier of the media item to look up.
+ * @returns An object containing the mediaId, bookId, an array of authorIds, seriesIds, and narratorIds.
+ * @throws If the media item is not found for the given session and mediaId.
+ */
 export async function getMediaIds(session: Session, mediaId: string) {
   const mediaRows = await db
     .select({
@@ -15,6 +23,7 @@ export async function getMediaIds(session: Session, mediaId: string) {
     .from(schema.media)
     .where(and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)))
     .limit(1);
+
   const media = requireValue(mediaRows[0], "Media not found");
 
   const bookAuthors = await db

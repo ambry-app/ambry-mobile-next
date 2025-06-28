@@ -6,6 +6,18 @@ import { and, eq, inArray } from "drizzle-orm";
 
 export type MediaHeaderInfo = Awaited<ReturnType<typeof getMediaHeaderInfo>>;
 
+/**
+ * Retrieves comprehensive header information for a specific media item.
+ *
+ * This function gathers and returns detailed information about a media item,
+ * including its metadata, download thumbnails, narrators, associated book details,
+ * book authors, and series information.
+ *
+ * @param session - The current user session containing the URL context.
+ * @param mediaId - The unique identifier of the media item to fetch information for.
+ * @returns An object containing media metadata, download info, narrators, and nested book details (including authors and series).
+ * @throws Will throw an error if any of the required entities (media, book, etc.) cannot be found.
+ */
 export async function getMediaHeaderInfo(session: Session, mediaId: string) {
   // 1. Fetch the media row
   const media = await getMedia(session, mediaId);
@@ -66,7 +78,7 @@ async function getDownload(session: Session, mediaId: string) {
     )
     .limit(1);
 
-  return rows[0] || null;
+  return rows[0];
 }
 
 async function getNarrators(session: Session, mediaId: string) {

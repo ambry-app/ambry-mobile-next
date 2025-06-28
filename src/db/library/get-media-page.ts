@@ -4,6 +4,21 @@ import { Session } from "@/src/stores/session";
 import { requireValue } from "@/src/utils/require-value";
 import { and, desc, eq, inArray, lt } from "drizzle-orm";
 
+/**
+ * Fetches a paginated list of media items along with their related books, authors, and narrators.
+ *
+ * This function performs the following steps:
+ * 1. Retrieves recent media items with optional pagination based on insertion date.
+ * 2. Fetches related books for the media items in batch.
+ * 3. Fetches book-author relationships and corresponding author details in batch.
+ * 4. Fetches media-narrator relationships and corresponding narrator details in batch.
+ * 5. Assembles and returns an array where each media item includes its book (with authors) and narrators.
+ *
+ * @param session - The current user session containing the URL context.
+ * @param limit - The maximum number of media items to fetch.
+ * @param insertedBefore - (Optional) Only include media inserted before this date.
+ * @returns A promise that resolves to an array of media items, each with its related book (including authors) and narrators.
+ */
 export async function getMediaPage(
   session: Session,
   limit: number,

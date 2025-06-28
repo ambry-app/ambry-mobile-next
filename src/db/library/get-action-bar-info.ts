@@ -6,6 +6,14 @@ import { and, eq } from "drizzle-orm";
 
 export type ActionBarInfo = Awaited<ReturnType<typeof getActionBarInfo>>;
 
+/**
+ * Retrieves action bar information for a specific media item associated with the current session.
+ *
+ * @param session - The current user session containing the URL context.
+ * @param mediaId - The unique identifier of the media item to retrieve information for.
+ * @returns A promise that resolves to the media information object, including id, thumbnails, and mp4Path.
+ * @throws If the media item is not found, an error is thrown with the message "Media not found".
+ */
 export async function getActionBarInfo(session: Session, mediaId: string) {
   const rows = await db
     .select({
