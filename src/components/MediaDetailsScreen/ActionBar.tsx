@@ -1,7 +1,7 @@
 import { IconButton } from "@/src/components";
 import FadeInOnMount from "@/src/components/FadeInOnMount";
 import { ActionBarInfo } from "@/src/db/library";
-import { useActionBarInfo } from "@/src/hooks/use-action-bar-info";
+import { useActionBarInfo } from "@/src/hooks/library";
 import { useShelvedMedia } from "@/src/hooks/use-shelved-media";
 import useLoadMediaCallback from "@/src/hooks/use.load.media.callback";
 import { startDownload, useDownloads } from "@/src/stores/downloads";

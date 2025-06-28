@@ -1,17 +1,22 @@
-import { getMediaHeaderInfo, MediaHeaderInfo } from "@/src/db/library";
+import {
+  getMediaAuthorsAndNarrators,
+  MediaAuthorOrNarrator,
+} from "@/src/db/library";
 import { useDataVersion } from "@/src/stores/dataVersion";
 import { Session } from "@/src/stores/session";
 import { useCallback, useEffect, useState } from "react";
 
-export default function useMediaHeaderInfo(session: Session, mediaId: string) {
-  const [media, setMedia] = useState<MediaHeaderInfo | null>(null);
+export function useMediaAuthorsAndNarrators(session: Session, mediaId: string) {
+  const [authorsAndNarrators, setAuthorsAndNarrators] = useState<
+    MediaAuthorOrNarrator[] | undefined
+  >(undefined);
   const libraryDataVersion = useDataVersion(
     (state) => state.libraryDataVersion,
   );
 
   const load = useCallback(async () => {
-    const media = await getMediaHeaderInfo(session, mediaId);
-    setMedia(media);
+    const data = await getMediaAuthorsAndNarrators(session, mediaId);
+    setAuthorsAndNarrators(data);
   }, [session, mediaId]);
 
   useEffect(() => {
@@ -19,5 +24,5 @@ export default function useMediaHeaderInfo(session: Session, mediaId: string) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [libraryDataVersion]);
 
-  return { media };
+  return { authorsAndNarrators };
 }

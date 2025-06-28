@@ -1,6 +1,6 @@
 import { Description } from "@/src/components";
 import FadeInOnMount from "@/src/components/FadeInOnMount";
-import { useMediaDescription } from "@/src/hooks/use-media-description";
+import { useMediaDescription } from "@/src/hooks/library";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { formatPublished } from "@/src/utils/date";

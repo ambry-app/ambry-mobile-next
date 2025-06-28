@@ -1,10 +1,11 @@
 import { PersonTile } from "@/src/components";
-import { useMediaAuthorsAndNarrators } from "@/src/db/library";
+import { useMediaAuthorsAndNarrators } from "@/src/hooks/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
+import { requireValue } from "@/src/utils/require-value";
 import { FlatList, StyleSheet, View } from "react-native";
-import Animated from "react-native-reanimated";
+import FadeInOnMount from "../FadeInOnMount";
 
 type AuthorsAndNarratorsProps = {
   mediaId: string;
@@ -16,62 +17,51 @@ export default function AuthorsAndNarrators({
   session,
 }: AuthorsAndNarratorsProps) {
   const screenWidth = useScreen((state) => state.screenWidth);
-  const { media, authorSet, narratorSet, opacity } =
-    useMediaAuthorsAndNarrators(session, mediaId);
+  const { authorsAndNarrators } = useMediaAuthorsAndNarrators(session, mediaId);
 
-  if (!media) return null;
+  if (!authorsAndNarrators) return null;
 
   return (
-    <Animated.View style={[styles.container, { opacity }]}>
+    <FadeInOnMount style={styles.container}>
       <FlatList
         style={styles.list}
         showsHorizontalScrollIndicator={false}
-        data={[...media.book.bookAuthors, ...media.mediaNarrators]}
+        data={authorsAndNarrators}
         keyExtractor={(item) => item.id}
         horizontal={true}
         ListHeaderComponent={<View style={styles.listSpacer} />}
+        snapToInterval={screenWidth / 2.5 + 16}
         renderItem={({ item }) => {
-          if ("author" in item) {
-            const label = narratorSet.has(item.author.person.id)
-              ? "Author & Narrator"
-              : "Author";
-            return (
-              <View style={{ width: screenWidth / 2.5, marginRight: 16 }}>
-                <PersonTile
-                  label={label}
-                  personId={item.author.person.id}
-                  name={item.author.name}
-                  realName={item.author.person.name}
-                  thumbnails={item.author.person.thumbnails}
-                />
-              </View>
-            );
-          }
+          const label = labelFromType(item.type);
+          // NOTE: we're displaying only the first name, we may be hiding info here
+          const name = requireValue(item.names[0], "Name is required");
 
-          if ("narrator" in item) {
-            // skip if this person is also an author, as they were already rendered
-            if (authorSet.has(item.narrator.person.id)) return null;
-
-            return (
-              <View style={{ width: screenWidth / 2.5, marginRight: 16 }}>
-                <PersonTile
-                  label="Narrator"
-                  personId={item.narrator.person.id}
-                  name={item.narrator.name}
-                  realName={item.narrator.person.name}
-                  thumbnails={item.narrator.person.thumbnails}
-                />
-              </View>
-            );
-          }
-
-          // can't happen:
-          console.error("unknown item:", item);
-          return null;
+          return (
+            <View style={{ width: screenWidth / 2.5, marginRight: 16 }}>
+              <PersonTile
+                label={label}
+                personId={item.id}
+                name={name}
+                realName={item.realName}
+                thumbnails={item.thumbnails}
+              />
+            </View>
+          );
         }}
       />
-    </Animated.View>
+    </FadeInOnMount>
   );
+}
+
+function labelFromType(type: "author" | "narrator" | "authorAndNarrator") {
+  switch (type) {
+    case "author":
+      return "Author";
+    case "narrator":
+      return "Narrator";
+    case "authorAndNarrator":
+      return "Author & Narrator";
+  }
 }
 
 const styles = StyleSheet.create({

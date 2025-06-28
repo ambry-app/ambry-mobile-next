@@ -20,12 +20,6 @@ import {
 import { useEffect, useState } from "react";
 import { useSharedValue, withTiming } from "react-native-reanimated";
 
-export * from "./library/get-media-page";
-export * from "./library/get-media-ids";
-export * from "./library/get-media-header-info";
-export * from "./library/get-action-bar-info";
-export * from "./library/get-media-description";
-
 export function useMediaListByIds(session: Session, mediaIds: string[]) {
   const query = db.query.media.findMany({
     columns: { id: true, thumbnails: true, duration: true },
@@ -572,71 +566,71 @@ export function useMediaByNarrator(session: Session, narratorId: string) {
   return { media, narrator, opacity };
 }
 
-export function useMediaAuthorsAndNarrators(session: Session, mediaId: string) {
-  const query = db.query.media.findFirst({
-    columns: {},
-    where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
-    with: {
-      book: {
-        columns: {},
-        with: {
-          bookAuthors: {
-            columns: { id: true },
-            with: {
-              author: {
-                columns: { name: true },
-                with: {
-                  person: {
-                    columns: { id: true, name: true, thumbnails: true },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      mediaNarrators: {
-        columns: { id: true },
-        with: {
-          narrator: {
-            columns: { name: true },
-            with: {
-              person: { columns: { id: true, name: true, thumbnails: true } },
-            },
-          },
-        },
-      },
-    },
-  });
+// export function useMediaAuthorsAndNarrators(session: Session, mediaId: string) {
+//   const query = db.query.media.findFirst({
+//     columns: {},
+//     where: and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
+//     with: {
+//       book: {
+//         columns: {},
+//         with: {
+//           bookAuthors: {
+//             columns: { id: true },
+//             with: {
+//               author: {
+//                 columns: { name: true },
+//                 with: {
+//                   person: {
+//                     columns: { id: true, name: true, thumbnails: true },
+//                   },
+//                 },
+//               },
+//             },
+//           },
+//         },
+//       },
+//       mediaNarrators: {
+//         columns: { id: true },
+//         with: {
+//           narrator: {
+//             columns: { name: true },
+//             with: {
+//               person: { columns: { id: true, name: true, thumbnails: true } },
+//             },
+//           },
+//         },
+//       },
+//     },
+//   });
 
-  const { data: media, opacity } = useFadeInSyncedDataQuery(session, query, [
-    mediaId,
-  ]);
+//   const { data: media, opacity } = useFadeInSyncedDataQuery(session, query, [
+//     mediaId,
+//   ]);
 
-  const [authorSet, setAuthorSet] = useState<Set<string>>(new Set<string>());
-  const [narratorSet, setNarratorSet] = useState<Set<string>>(
-    new Set<string>(),
-  );
+//   const [authorSet, setAuthorSet] = useState<Set<string>>(new Set<string>());
+//   const [narratorSet, setNarratorSet] = useState<Set<string>>(
+//     new Set<string>(),
+//   );
 
-  useEffect(() => {
-    if (!media) return;
+//   useEffect(() => {
+//     if (!media) return;
 
-    const newAuthorSet = new Set<string>();
-    for (const ba of media.book.bookAuthors) {
-      newAuthorSet.add(ba.author.person.id);
-    }
-    setAuthorSet(newAuthorSet);
+//     const newAuthorSet = new Set<string>();
+//     for (const ba of media.book.bookAuthors) {
+//       newAuthorSet.add(ba.author.person.id);
+//     }
+//     setAuthorSet(newAuthorSet);
 
-    const newNarratorSet = new Set<string>();
-    for (const mn of media.mediaNarrators) {
-      newNarratorSet.add(mn.narrator.person.id);
-    }
-    setNarratorSet(newNarratorSet);
-  }, [media]);
+//     const newNarratorSet = new Set<string>();
+//     for (const mn of media.mediaNarrators) {
+//       newNarratorSet.add(mn.narrator.person.id);
+//     }
+//     setNarratorSet(newNarratorSet);
+//   }, [media]);
 
-  // TODO: add updatedAt and error
-  return { media, authorSet, narratorSet, opacity };
-}
+//   // TODO: add updatedAt and error
+//   return { media, authorSet, narratorSet, opacity };
+// }
 
 export function useMediaOtherEditions(
   session: Session,

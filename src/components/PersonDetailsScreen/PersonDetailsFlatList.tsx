@@ -1,4 +1,4 @@
-import { usePersonIds } from "@/src/db/library";
+import { usePersonIds } from "@/src/db/library_old";
 import { Session } from "@/src/stores/session";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";

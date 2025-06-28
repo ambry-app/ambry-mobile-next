@@ -19,22 +19,11 @@ export type MediaHeaderInfo = Awaited<ReturnType<typeof getMediaHeaderInfo>>;
  * @throws Will throw an error if any of the required entities (media, book, etc.) cannot be found.
  */
 export async function getMediaHeaderInfo(session: Session, mediaId: string) {
-  // 1. Fetch the media row
   const media = await getMedia(session, mediaId);
-
-  // 2. Fetch download thumbnails
   const download = await getDownload(session, mediaId);
-
-  // 3. Fetch media narrators (and their names)
   const narrators = await getNarrators(session, mediaId);
-
-  // 4. Fetch book info
   const book = await getBook(session, media.bookId);
-
-  // 5. Fetch book authors
   const authors = await getAuthors(session, book.id);
-
-  // 6. Fetch seriesBooks (bookNumber, series name)
   const seriesBooks = await getSeriesBooks(session, book.id);
 
   return {

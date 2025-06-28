@@ -15,6 +15,21 @@ export type MediaIds = Awaited<ReturnType<typeof getMediaIds>>;
  * @throws If the media item is not found for the given session and mediaId.
  */
 export async function getMediaIds(session: Session, mediaId: string) {
+  const media = await getMedia(session, mediaId);
+  const authorIds = await getAuthorIds(session, media.bookId);
+  const seriesIds = await getSeriesIds(session, media.bookId);
+  const narratorIds = await getNarratorIds(session, mediaId);
+
+  return {
+    mediaId,
+    bookId: media.bookId,
+    authorIds: authorIds,
+    seriesIds: seriesIds,
+    narratorIds: narratorIds,
+  };
+}
+
+async function getMedia(session: Session, mediaId: string) {
   const mediaRows = await db
     .select({
       id: schema.media.id,
@@ -24,28 +39,38 @@ export async function getMediaIds(session: Session, mediaId: string) {
     .where(and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)))
     .limit(1);
 
-  const media = requireValue(mediaRows[0], "Media not found");
+  return requireValue(mediaRows[0], "Media not found");
+}
 
+async function getAuthorIds(session: Session, bookId: string) {
   const bookAuthors = await db
     .select({ authorId: schema.bookAuthors.authorId })
     .from(schema.bookAuthors)
     .where(
       and(
         eq(schema.bookAuthors.url, session.url),
-        eq(schema.bookAuthors.bookId, media.bookId),
+        eq(schema.bookAuthors.bookId, bookId),
       ),
     );
 
+  return bookAuthors.map((ba) => ba.authorId);
+}
+
+async function getSeriesIds(session: Session, bookId: string) {
   const seriesBooks = await db
     .select({ seriesId: schema.seriesBooks.seriesId })
     .from(schema.seriesBooks)
     .where(
       and(
         eq(schema.seriesBooks.url, session.url),
-        eq(schema.seriesBooks.bookId, media.bookId),
+        eq(schema.seriesBooks.bookId, bookId),
       ),
     );
 
+  return seriesBooks.map((sb) => sb.seriesId);
+}
+
+export async function getNarratorIds(session: Session, mediaId: string) {
   const mediaNarrators = await db
     .select({ narratorId: schema.mediaNarrators.narratorId })
     .from(schema.mediaNarrators)
@@ -56,11 +81,5 @@ export async function getMediaIds(session: Session, mediaId: string) {
       ),
     );
 
-  return {
-    mediaId,
-    bookId: media.bookId,
-    authorIds: bookAuthors.map((ba) => ba.authorId),
-    seriesIds: seriesBooks.map((sb) => sb.seriesId),
-    narratorIds: mediaNarrators.map((mn) => mn.narratorId),
-  };
+  return mediaNarrators.map((mn) => mn.narratorId);
 }

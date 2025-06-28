@@ -1,6 +1,6 @@
 import { BookDetailsText, ThumbnailImage } from "@/src/components";
 import FadeInOnMount from "@/src/components/FadeInOnMount";
-import useMediaHeaderInfo from "@/src/hooks/use-media-header-info";
+import { useMediaHeaderInfo } from "@/src/hooks/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";

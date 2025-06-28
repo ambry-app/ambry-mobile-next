@@ -1,5 +1,5 @@
 import { MediaTile } from "@/src/components";
-import { useOtherMediaByNarrator } from "@/src/db/library";
+import { useOtherMediaByNarrator } from "@/src/db/library_old";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";

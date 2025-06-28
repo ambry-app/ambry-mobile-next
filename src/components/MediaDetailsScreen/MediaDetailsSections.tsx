@@ -1,4 +1,4 @@
-import { useMediaIds } from "@/src/hooks/use-media-ids";
+import { useMediaIds } from "@/src/hooks/library";
 import { Session } from "@/src/stores/session";
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, RefreshControl } from "react-native";
@@ -45,7 +45,7 @@ export default function MediaDetailsSections(props: MediaDetailsSectionsProps) {
       {showRest && (
         <>
           <MediaDescription mediaId={mediaId} session={session} />
-          {/* <AuthorsAndNarrators mediaId={mediaId} session={session} /> */}
+          <AuthorsAndNarrators mediaId={mediaId} session={session} />
           {/* <OtherEditions
             bookId={ids.bookId}
             withoutMediaId={mediaId}

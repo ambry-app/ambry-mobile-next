@@ -6,7 +6,7 @@ import { useDataVersion } from "@/src/stores/dataVersion";
 
 type MediaPage = Awaited<ReturnType<typeof getMediaPage>>;
 
-export default function useMediaPages(session: Session) {
+export function useMediaPages(session: Session) {
   const PAGE_SIZE = 64;
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
