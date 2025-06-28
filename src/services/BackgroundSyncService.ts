@@ -1,3 +1,4 @@
+import { expoDb } from "@/src/db/db";
 import { syncDown, syncUp } from "@/src/db/sync";
 import { useSession } from "@/src/stores/session";
 import * as BackgroundTask from "expo-background-task";
@@ -8,12 +9,12 @@ const BACKGROUND_SYNC_TASK_NAME = "ambry-background-sync";
 // Define the background task
 TaskManager.defineTask(BACKGROUND_SYNC_TASK_NAME, async () => {
   try {
-    console.log("Background sync started");
+    console.debug("[BackgroundSync] started");
 
     // Get the current session
     const session = useSession.getState().session;
     if (!session) {
-      console.log("No session available, skipping background sync");
+      console.debug("[BackgroundSync] No session available, skipping sync");
       return BackgroundTask.BackgroundTaskResult.Success;
     }
 
@@ -23,10 +24,14 @@ TaskManager.defineTask(BACKGROUND_SYNC_TASK_NAME, async () => {
     // Sync up local player states
     await syncUp(session);
 
-    console.log("Background sync completed successfully");
+    // WAL checkpoint
+    console.debug("[BackgroundSync] performing WAL checkpoint");
+    expoDb.execSync("PRAGMA wal_checkpoint(TRUNCATE);");
+
+    console.debug("[BackgroundSync] completed successfully");
     return BackgroundTask.BackgroundTaskResult.Success;
   } catch (error) {
-    console.error("Background sync failed:", error);
+    console.error("[BackgroundSync] failed:", error);
     return BackgroundTask.BackgroundTaskResult.Failed;
   }
 });
@@ -41,20 +46,20 @@ export async function registerBackgroundSyncTask() {
       await BackgroundTask.registerTaskAsync(BACKGROUND_SYNC_TASK_NAME, {
         minimumInterval: 15,
       });
-      console.log("Background sync task registered");
+      console.debug("[BackgroundSync] registered");
     } else {
-      console.log("Background sync task already registered");
+      console.debug("[BackgroundSync] already registered");
     }
   } catch (error) {
-    console.error("Failed to register background sync task:", error);
+    console.error("[BackgroundSync] failed to register:", error);
   }
 }
 
 export async function unregisterBackgroundSyncTask() {
   try {
     await BackgroundTask.unregisterTaskAsync(BACKGROUND_SYNC_TASK_NAME);
-    console.log("Background sync task unregistered");
+    console.debug("[BackgroundSync] unregistered");
   } catch (error) {
-    console.error("Failed to unregister background sync task:", error);
+    console.error("[BackgroundSync] failed to unregister:", error);
   }
 }
