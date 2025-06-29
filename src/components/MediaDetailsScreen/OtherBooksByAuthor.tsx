@@ -5,7 +5,7 @@ import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
 import Animated from "react-native-reanimated";
-import HeaderButton from "./HeaderButton";
+import { HeaderButton } from "./HeaderButton";
 
 type OtherBooksByAuthorProps = {
   authorId: string;
@@ -14,7 +14,7 @@ type OtherBooksByAuthorProps = {
   withoutSeriesIds: string[];
 };
 
-export default function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
+export function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
   const { authorId, session, withoutBookId, withoutSeriesIds } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
   const { books, author, opacity } = useOtherBooksByAuthor(

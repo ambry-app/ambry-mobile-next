@@ -1,23 +1,10 @@
-import ActionBar from "./ActionBar";
-import AuthorsAndNarrators from "./AuthorsAndNarrators";
-import Header from "./Header";
-import HeaderButton from "./HeaderButton";
-import MediaDescription from "./MediaDescription";
-import MediaDetailsSections from "./MediaDetailsSections";
-import OtherBooksByAuthor from "./OtherBooksByAuthor";
-import OtherBooksInSeries from "./OtherBooksInSeries";
-import OtherEditions from "./OtherEditions";
-import OtherMediaByNarrator from "./OtherMediaByNarrator";
-
-export {
-  ActionBar,
-  AuthorsAndNarrators,
-  Header,
-  HeaderButton,
-  MediaDescription,
-  MediaDetailsSections,
-  OtherBooksByAuthor,
-  OtherBooksInSeries,
-  OtherEditions,
-  OtherMediaByNarrator,
-};
+export * from "./ActionBar";
+export * from "./AuthorsAndNarrators";
+export * from "./Header";
+export * from "./HeaderButton";
+export * from "./MediaDescription";
+export * from "./MediaDetailsSections";
+export * from "./OtherBooksByAuthor";
+export * from "./BooksInSeries";
+export * from "./OtherEditions";
+export * from "./OtherMediaByNarrator";

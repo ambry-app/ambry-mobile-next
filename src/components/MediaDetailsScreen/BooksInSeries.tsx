@@ -1,23 +1,20 @@
 import { SeriesBookTile } from "@/src/components";
-import { useOtherBooksInSeries } from "@/src/db/library_old";
+import { useSeriesWithBooks } from "@/src/hooks/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
-import Animated from "react-native-reanimated";
-import HeaderButton from "./HeaderButton";
+import FadeInOnMount from "../FadeInOnMount";
+import { HeaderButton } from "./HeaderButton";
 
-type OtherBooksInSeriesProps = {
+type BooksInSeriesProps = {
   seriesId: string;
   session: Session;
 };
 
-export default function OtherBooksInSeries({
-  seriesId,
-  session,
-}: OtherBooksInSeriesProps) {
+export function BooksInSeries({ seriesId, session }: BooksInSeriesProps) {
   const screenWidth = useScreen((state) => state.screenWidth);
-  const { series, opacity } = useOtherBooksInSeries(session, seriesId);
+  const { series } = useSeriesWithBooks(session, seriesId);
 
   if (!series) return null;
 
@@ -29,7 +26,7 @@ export default function OtherBooksInSeries({
   };
 
   return (
-    <Animated.View style={[styles.container, { opacity }]}>
+    <FadeInOnMount style={styles.container}>
       <View style={styles.headerContainer}>
         <HeaderButton
           label={series.name}
@@ -43,6 +40,7 @@ export default function OtherBooksInSeries({
         data={series.seriesBooks}
         keyExtractor={(item) => item.id}
         horizontal={true}
+        snapToInterval={screenWidth / 2.5 + 16}
         ListHeaderComponent={<View style={styles.listSpacer} />}
         renderItem={({ item }) => {
           return (
@@ -53,7 +51,7 @@ export default function OtherBooksInSeries({
           );
         }}
       />
-    </Animated.View>
+    </FadeInOnMount>
   );
 }
 

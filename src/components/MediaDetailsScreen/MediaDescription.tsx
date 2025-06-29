@@ -11,7 +11,7 @@ type MediaDescriptionProps = {
   session: Session;
 };
 
-export default function MediaDescription(props: MediaDescriptionProps) {
+export function MediaDescription(props: MediaDescriptionProps) {
   const { mediaId, session } = props;
   const { media } = useMediaDescription(session, mediaId);
 

@@ -8,7 +8,7 @@ type HeaderButtonProps = {
   showCaret?: boolean;
 };
 
-export default function HeaderButton({
+export function HeaderButton({
   label,
   onPress,
   showCaret = true,

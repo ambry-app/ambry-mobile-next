@@ -3,7 +3,7 @@ import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { requireValue } from "@/src/utils/require-value";
 import "core-js/actual/object/group-by";
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 
 export type BookOtherEditions = Awaited<
   ReturnType<typeof getBookOtherEditions>
@@ -110,7 +110,7 @@ async function getAuthors(session: Session, bookId: string) {
         eq(schema.bookAuthors.bookId, bookId),
       ),
     )
-    .orderBy(desc(schema.bookAuthors.insertedAt));
+    .orderBy(asc(schema.bookAuthors.insertedAt));
 }
 
 async function getNarrators(session: Session, mediaIds: string[]) {
@@ -133,5 +133,5 @@ async function getNarrators(session: Session, mediaIds: string[]) {
         inArray(schema.mediaNarrators.mediaId, mediaIds),
       ),
     )
-    .orderBy(desc(schema.mediaNarrators.insertedAt));
+    .orderBy(asc(schema.mediaNarrators.insertedAt));
 }

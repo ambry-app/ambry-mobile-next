@@ -3,21 +3,21 @@ import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
 import { Session } from "@/src/stores/session";
 import { useEffect, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
-import ActionBar from "./ActionBar";
-import AuthorsAndNarrators from "./AuthorsAndNarrators";
-import Header from "./Header";
-import MediaDescription from "./MediaDescription";
-import OtherBooksByAuthor from "./OtherBooksByAuthor";
-import OtherBooksInSeries from "./OtherBooksInSeries";
-import OtherEditions from "./OtherEditions";
-import OtherMediaByNarrator from "./OtherMediaByNarrator";
+import { ActionBar } from "./ActionBar";
+import { AuthorsAndNarrators } from "./AuthorsAndNarrators";
+import { Header } from "./Header";
+import { MediaDescription } from "./MediaDescription";
+import { OtherBooksByAuthor } from "./OtherBooksByAuthor";
+import { BooksInSeries } from "./BooksInSeries";
+import { OtherEditions } from "./OtherEditions";
+import { OtherMediaByNarrator } from "./OtherMediaByNarrator";
 
 type MediaDetailsSectionsProps = {
   session: Session;
   mediaId: string;
 };
 
-export default function MediaDetailsSections(props: MediaDetailsSectionsProps) {
+export function MediaDetailsSections(props: MediaDetailsSectionsProps) {
   const { session, mediaId } = props;
   const { ids } = useMediaIds(session, mediaId);
   const [showRest, setShowRest] = useState(false);
@@ -50,14 +50,14 @@ export default function MediaDetailsSections(props: MediaDetailsSectionsProps) {
             withoutMediaId={mediaId}
             session={session}
           />
-          {/* {ids.seriesIds.map((seriesId) => (
-            <OtherBooksInSeries
+          {ids.seriesIds.map((seriesId) => (
+            <BooksInSeries
               key={`books-in-series-${seriesId}`}
               seriesId={seriesId}
               session={session}
             />
           ))}
-          {ids.authorIds.map((authorId) => (
+          {/* {ids.authorIds.map((authorId) => (
             <OtherBooksByAuthor
               key={`other-books-${authorId}`}
               authorId={authorId}

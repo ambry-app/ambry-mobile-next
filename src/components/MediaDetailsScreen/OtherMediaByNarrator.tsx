@@ -5,7 +5,7 @@ import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
 import Animated from "react-native-reanimated";
-import HeaderButton from "./HeaderButton";
+import { HeaderButton } from "./HeaderButton";
 
 type OtherMediaByNarratorProps = {
   narratorId: string;
@@ -15,7 +15,7 @@ type OtherMediaByNarratorProps = {
   withoutAuthorIds: string[];
 };
 
-export default function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
+export function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
   const {
     narratorId,
     session,

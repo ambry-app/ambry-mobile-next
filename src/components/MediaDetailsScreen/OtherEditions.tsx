@@ -5,7 +5,7 @@ import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
 import FadeInOnMount from "../FadeInOnMount";
-import HeaderButton from "./HeaderButton";
+import { HeaderButton } from "./HeaderButton";
 
 type OtherEditionsProps = {
   bookId: string;
@@ -13,7 +13,7 @@ type OtherEditionsProps = {
   withoutMediaId: string;
 };
 
-export default function OtherEditions(props: OtherEditionsProps) {
+export function OtherEditions(props: OtherEditionsProps) {
   const { bookId, session, withoutMediaId } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
 
@@ -51,6 +51,7 @@ export default function OtherEditions(props: OtherEditionsProps) {
         data={bookWithOtherEditions.media}
         keyExtractor={(item) => item.id}
         horizontal={true}
+        snapToInterval={screenWidth / 2.5 + 16}
         ListHeaderComponent={<View style={styles.listSpacer} />}
         renderItem={({ item }) => {
           return (

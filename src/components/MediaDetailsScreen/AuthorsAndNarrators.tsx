@@ -12,7 +12,7 @@ type AuthorsAndNarratorsProps = {
   session: Session;
 };
 
-export default function AuthorsAndNarrators({
+export function AuthorsAndNarrators({
   mediaId,
   session,
 }: AuthorsAndNarratorsProps) {
@@ -29,8 +29,8 @@ export default function AuthorsAndNarrators({
         data={authorsAndNarrators}
         keyExtractor={(item) => item.id}
         horizontal={true}
-        ListHeaderComponent={<View style={styles.listSpacer} />}
         snapToInterval={screenWidth / 2.5 + 16}
+        ListHeaderComponent={<View style={styles.listSpacer} />}
         renderItem={({ item }) => {
           const label = labelFromType(item.type);
           // NOTE: we're displaying only the first name, we may be hiding info here

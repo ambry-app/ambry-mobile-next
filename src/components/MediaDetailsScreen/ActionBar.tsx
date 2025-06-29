@@ -15,7 +15,7 @@ type ActionBarProps = {
   session: Session;
 };
 
-export default function ActionBar(props: ActionBarProps) {
+export function ActionBar(props: ActionBarProps) {
   const { mediaId, session } = props;
   const { media } = useMediaActionBarInfo(session, mediaId);
   const { isOnShelf, toggleOnShelf } = useShelvedMedia(
