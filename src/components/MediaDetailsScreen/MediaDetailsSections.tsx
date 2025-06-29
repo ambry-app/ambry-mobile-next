@@ -1,7 +1,8 @@
 import { useMediaIds } from "@/src/hooks/library";
+import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
 import { Session } from "@/src/stores/session";
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, RefreshControl } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet } from "react-native";
 import ActionBar from "./ActionBar";
 import AuthorsAndNarrators from "./AuthorsAndNarrators";
 import Header from "./Header";
@@ -10,8 +11,6 @@ import OtherBooksByAuthor from "./OtherBooksByAuthor";
 import OtherBooksInSeries from "./OtherBooksInSeries";
 import OtherEditions from "./OtherEditions";
 import OtherMediaByNarrator from "./OtherMediaByNarrator";
-import { syncDown } from "@/src/db/sync";
-import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
 
 type MediaDetailsSectionsProps = {
   session: Session;
@@ -46,12 +45,12 @@ export default function MediaDetailsSections(props: MediaDetailsSectionsProps) {
         <>
           <MediaDescription mediaId={mediaId} session={session} />
           <AuthorsAndNarrators mediaId={mediaId} session={session} />
-          {/* <OtherEditions
+          <OtherEditions
             bookId={ids.bookId}
             withoutMediaId={mediaId}
             session={session}
           />
-          {ids.seriesIds.map((seriesId) => (
+          {/* {ids.seriesIds.map((seriesId) => (
             <OtherBooksInSeries
               key={`books-in-series-${seriesId}`}
               seriesId={seriesId}

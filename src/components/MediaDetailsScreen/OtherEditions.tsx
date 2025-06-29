@@ -1,10 +1,10 @@
 import { MediaTile } from "@/src/components";
-import { useMediaOtherEditions } from "@/src/db/library_old";
+import { useBookOtherEditions } from "@/src/hooks/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
-import Animated from "react-native-reanimated";
+import FadeInOnMount from "../FadeInOnMount";
 import HeaderButton from "./HeaderButton";
 
 type OtherEditionsProps = {
@@ -16,34 +16,39 @@ type OtherEditionsProps = {
 export default function OtherEditions(props: OtherEditionsProps) {
   const { bookId, session, withoutMediaId } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
-  const { media, opacity } = useMediaOtherEditions(
+
+  const { bookWithOtherEditions } = useBookOtherEditions(
     session,
     bookId,
     withoutMediaId,
   );
 
-  if (media.length === 0) return null;
+  if (!bookWithOtherEditions) return null;
+  if (!bookWithOtherEditions.media[0]) return null;
 
   const navigateToBook = () => {
     router.navigate({
       pathname: "/book/[id]",
-      params: { id: media[0].book.id, title: media[0].book.title },
+      params: {
+        id: bookWithOtherEditions.id,
+        title: bookWithOtherEditions.title,
+      },
     });
   };
 
   return (
-    <Animated.View style={[styles.container, { opacity }]}>
+    <FadeInOnMount style={styles.container}>
       <View style={styles.headerContainer}>
         <HeaderButton
           label="Other Editions"
           onPress={navigateToBook}
-          showCaret={media.length === 10}
+          showCaret={bookWithOtherEditions.media.length === 10}
         />
       </View>
       <FlatList
         style={styles.list}
         showsHorizontalScrollIndicator={false}
-        data={media}
+        data={bookWithOtherEditions.media}
         keyExtractor={(item) => item.id}
         horizontal={true}
         ListHeaderComponent={<View style={styles.listSpacer} />}
@@ -51,12 +56,12 @@ export default function OtherEditions(props: OtherEditionsProps) {
           return (
             <MediaTile
               style={[styles.tile, { width: screenWidth / 2.5 }]}
-              media={item}
+              media={{ ...item, book: bookWithOtherEditions }}
             />
           );
         }}
       />
-    </Animated.View>
+    </FadeInOnMount>
   );
 }
 

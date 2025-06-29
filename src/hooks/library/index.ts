@@ -1,3 +1,4 @@
+export * from "./use-book-other-editions";
 export * from "./use-media-action-bar-info";
 export * from "./use-media-authors-and-narrators";
 export * from "./use-media-description";

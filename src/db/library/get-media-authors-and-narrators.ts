@@ -12,6 +12,20 @@ export type MediaAuthorOrNarrator = {
   thumbnails: schema.Thumbnails | null;
 };
 
+/**
+ * Retrieves and combines the authors and narrators associated with a given media item.
+ *
+ * This function fetches the authors of the book linked to the media, as well as the narrators
+ * specific to the media. It then gathers the corresponding person records for both authors and narrators,
+ * and returns a deduplicated, collapsed list of people, indicating their roles (author, narrator, or both),
+ * their display names, real names, and thumbnails.
+ *
+ * @param session - The current user session containing the URL context.
+ * @param mediaId - The ID of the media item for which to retrieve authors and narrators.
+ * @returns A promise that resolves to an array of objects representing authors, narrators, or both,
+ *          each containing the person's ID, role type, associated names, real name, and thumbnails.
+ * @throws If any referenced author, narrator, or person cannot be found.
+ */
 export async function getMediaAuthorsAndNarrators(
   session: Session,
   mediaId: string,

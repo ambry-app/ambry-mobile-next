@@ -24,36 +24,23 @@ export async function getMediaPage(
   limit: number,
   insertedBefore?: Date,
 ) {
-  // 1. Fetch paginated media
   const media = await recentMedia(session, limit, insertedBefore);
-
-  // 2. Fetch related books in batch
   const bookIds = [...new Set(media.map((m) => m.bookId))];
   const books = await booksByIds(session, bookIds);
 
-  // 3. Fetch bookAuthors in batch
   const bookAuthors = await bookAuthorsByBookIds(session, bookIds);
-
-  // 4. Fetch authors in batch
   const authorIds = [...new Set(bookAuthors.map((ba) => ba.authorId))];
   const authors = await authorsByIds(session, authorIds);
 
-  // 5. Fetch media narrators in batch (existing)
   const mediaIds = media.map((m) => m.id);
   const mediaNarrators = await mediaNarratorsByMediaIds(session, mediaIds);
-
-  // 6. Fetch narrator details in batch (existing)
   const narratorIds = [...new Set(mediaNarrators.map((n) => n.narratorId))];
   const narrators = await narratorsByIds(session, narratorIds);
 
-  // --- Assemble everything ---
-
-  // Map books, authors, and narrators by id for fast lookup
   const bookMap = Object.fromEntries(books.map((b) => [b.id, b]));
   const authorMap = Object.fromEntries(authors.map((a) => [a.id, a]));
   const narratorMap = Object.fromEntries(narrators.map((n) => [n.id, n]));
 
-  // Group bookAuthors by bookId
   const authorsByBookId = bookAuthors.reduce<Record<string, typeof authors>>(
     (acc, ba) => {
       const author = authorMap[ba.authorId];
@@ -65,7 +52,6 @@ export async function getMediaPage(
     {},
   );
 
-  // Group narrators by mediaId
   const narratorsByMediaId = mediaNarrators.reduce<
     Record<string, typeof narrators>
   >((acc, mn) => {
@@ -76,7 +62,6 @@ export async function getMediaPage(
     return acc;
   }, {});
 
-  // Final assembled array for your FlatList
   return media.map((media) => ({
     ...media,
     book: {
