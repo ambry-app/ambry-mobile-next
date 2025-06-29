@@ -1,7 +1,7 @@
 import { IconButton } from "@/src/components";
 import FadeInOnMount from "@/src/components/FadeInOnMount";
-import { ActionBarInfo } from "@/src/db/library";
-import { useActionBarInfo } from "@/src/hooks/library";
+import { MediaActionBarInfo } from "@/src/db/library";
+import { useMediaActionBarInfo } from "@/src/hooks/library";
 import { useShelvedMedia } from "@/src/hooks/use-shelved-media";
 import useLoadMediaCallback from "@/src/hooks/use.load.media.callback";
 import { startDownload, useDownloads } from "@/src/stores/downloads";
@@ -17,7 +17,7 @@ type ActionBarProps = {
 
 export default function ActionBar(props: ActionBarProps) {
   const { mediaId, session } = props;
-  const { media } = useActionBarInfo(session, mediaId);
+  const { media } = useMediaActionBarInfo(session, mediaId);
   const { isOnShelf, toggleOnShelf } = useShelvedMedia(
     session,
     mediaId,
@@ -69,7 +69,7 @@ export default function ActionBar(props: ActionBarProps) {
 }
 
 type PlayButtonProps = {
-  media: ActionBarInfo;
+  media: MediaActionBarInfo;
   session: Session;
 };
 
@@ -89,7 +89,7 @@ function PlayButton({ session, media }: PlayButtonProps) {
 }
 
 type DownloadButtonProps = {
-  media: ActionBarInfo;
+  media: MediaActionBarInfo;
   session: Session;
 };
 

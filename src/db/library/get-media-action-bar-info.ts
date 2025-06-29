@@ -4,7 +4,9 @@ import { Session } from "@/src/stores/session";
 import { requireValue } from "@/src/utils/require-value";
 import { and, eq } from "drizzle-orm";
 
-export type ActionBarInfo = Awaited<ReturnType<typeof getActionBarInfo>>;
+export type MediaActionBarInfo = Awaited<
+  ReturnType<typeof getMediaActionBarInfo>
+>;
 
 /**
  * Retrieves action bar information for a specific media item associated with the current session.
@@ -14,7 +16,7 @@ export type ActionBarInfo = Awaited<ReturnType<typeof getActionBarInfo>>;
  * @returns A promise that resolves to the media information object, including id, thumbnails, and mp4Path.
  * @throws If the media item is not found, an error is thrown with the message "Media not found".
  */
-export async function getActionBarInfo(session: Session, mediaId: string) {
+export async function getMediaActionBarInfo(session: Session, mediaId: string) {
   const rows = await db
     .select({
       id: schema.media.id,

@@ -1,4 +1,4 @@
-export * from "./get-action-bar-info";
+export * from "./get-media-action-bar-info";
 export * from "./get-media-authors-and-narrators";
 export * from "./get-media-description";
 export * from "./get-media-header-info";
