@@ -4,7 +4,7 @@ import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
-import { HeaderButton } from "./HeaderButton";
+import { HeaderButton } from "../HeaderButton";
 
 type OtherEditionsProps = {
   bookId: string;

@@ -1,7 +1,6 @@
 export * from "./ActionBar";
 export * from "./AuthorsAndNarrators";
 export * from "./Header";
-export * from "./HeaderButton";
 export * from "./MediaDescription";
 export * from "./MediaDetailsSections";
 export * from "./OtherBooksByAuthor";

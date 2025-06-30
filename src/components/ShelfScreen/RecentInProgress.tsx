@@ -6,7 +6,7 @@ import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
 import Animated from "react-native-reanimated";
-import { HeaderButton } from "../MediaDetailsScreen/HeaderButton";
+import { HeaderButton } from "../HeaderButton";
 
 type RecentInProgressProps = {
   session: Session;
