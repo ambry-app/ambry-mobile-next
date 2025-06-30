@@ -2,7 +2,7 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import useFadeInSyncedDataQuery, {
   fadeInTime,
-} from "@/src/hooks/use.fade.in.synced.data.query";
+} from "@/src/hooks/use-fade-in-synced-data-query";
 import useSyncedDataQuery from "@/src/hooks/use.synced.data.query";
 import { Session } from "@/src/stores/session";
 import { and, desc, eq, inArray, like, sql } from "drizzle-orm";

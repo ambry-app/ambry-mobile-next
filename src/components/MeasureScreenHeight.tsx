@@ -4,7 +4,7 @@ import { StyleSheet, View } from "react-native";
 // This is a workaround due to Android screen height currently being broken:
 // https://github.com/facebook/react-native/issues/47080
 
-export default function MeasureScreenHeight() {
+export function MeasureScreenHeight() {
   return (
     <View
       onLayout={({ nativeEvent }) => {

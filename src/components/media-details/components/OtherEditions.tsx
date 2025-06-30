@@ -1,34 +1,36 @@
-import { BookTile } from "@/src/components";
-import { useAuthorWithOtherBooks } from "@/src/hooks/library";
+import { HeaderButton, MediaTile } from "@/src/components";
+import { useBookOtherEditions } from "@/src/hooks/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
-import { HeaderButton } from "../HeaderButton";
 
-type OtherBooksByAuthorProps = {
-  authorId: string;
+type OtherEditionsProps = {
+  bookId: string;
   session: Session;
-  withoutBookId: string;
-  withoutSeriesIds: string[];
+  withoutMediaId: string;
 };
 
-export function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
-  const { authorId, session, withoutBookId, withoutSeriesIds } = props;
+export function OtherEditions(props: OtherEditionsProps) {
+  const { bookId, session, withoutMediaId } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
-  const { author } = useAuthorWithOtherBooks(
+
+  const { bookWithOtherEditions } = useBookOtherEditions(
     session,
-    authorId,
-    withoutBookId,
-    withoutSeriesIds,
+    bookId,
+    withoutMediaId,
   );
 
-  if (!author) return null;
+  if (!bookWithOtherEditions) return null;
+  if (!bookWithOtherEditions.media[0]) return null;
 
-  const navigateToPerson = () => {
+  const navigateToBook = () => {
     router.navigate({
-      pathname: "/person/[id]",
-      params: { id: author.person.id, title: author.person.name },
+      pathname: "/book/[id]",
+      params: {
+        id: bookWithOtherEditions.id,
+        title: bookWithOtherEditions.title,
+      },
     });
   };
 
@@ -36,23 +38,23 @@ export function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
     <View style={styles.container}>
       <View style={styles.headerContainer}>
         <HeaderButton
-          label={`More by ${author.name}`}
-          onPress={navigateToPerson}
-          showCaret={author.books.length === 10}
+          label="Other Editions"
+          onPress={navigateToBook}
+          showCaret={bookWithOtherEditions.media.length === 10}
         />
       </View>
       <FlatList
         style={styles.list}
-        data={author.books}
+        data={bookWithOtherEditions.media}
         keyExtractor={(item) => item.id}
         horizontal={true}
         snapToInterval={screenWidth / 2.5 + 16}
         ListHeaderComponent={<View style={styles.listSpacer} />}
         renderItem={({ item }) => {
           return (
-            <BookTile
+            <MediaTile
               style={[styles.tile, { width: screenWidth / 2.5 }]}
-              book={item}
+              media={{ ...item, book: bookWithOtherEditions }}
             />
           );
         }}

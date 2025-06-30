@@ -3,7 +3,7 @@ import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { useEffect, useState } from "react";
-import { useMediaListByIds } from "./library";
+import { useMediaListByIds } from "./library-old";
 
 export async function getSyncedPlayerState(session: Session, mediaId: string) {
   return db.query.playerStates.findFirst({

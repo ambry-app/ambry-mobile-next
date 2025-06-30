@@ -2,7 +2,7 @@ import {
   getMediaAuthorsAndNarrators,
   MediaAuthorOrNarrator,
 } from "@/src/db/library";
-import { useDataVersion } from "@/src/stores/dataVersion";
+import { useDataVersion } from "@/src/stores/data-version";
 import { Session } from "@/src/stores/session";
 import { useCallback, useEffect, useState } from "react";
 

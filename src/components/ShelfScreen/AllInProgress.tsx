@@ -1,5 +1,5 @@
 import { PlayerStateTile, ScreenCentered } from "@/src/components";
-import { useInProgressMedia } from "@/src/db/playerStates";
+import { useInProgressMedia } from "@/src/db/player-states";
 import { syncDown } from "@/src/db/sync";
 import { usePlayer } from "@/src/stores/player";
 import { Session } from "@/src/stores/session";

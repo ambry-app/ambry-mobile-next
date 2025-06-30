@@ -1,9 +1,8 @@
-import { Description } from "@/src/components";
-import FadeInOnMount from "@/src/components/FadeInOnMount";
+import { Description, FadeInOnMount } from "@/src/components";
 import { useMediaDescription } from "@/src/hooks/library";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
-import { formatPublished } from "@/src/utils/date";
+import { formatPublished } from "@/src/utils";
 import { StyleSheet, Text, View } from "react-native";
 
 type MediaDescriptionProps = {

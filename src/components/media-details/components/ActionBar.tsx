@@ -1,9 +1,8 @@
-import { IconButton } from "@/src/components";
-import FadeInOnMount from "@/src/components/FadeInOnMount";
+import { FadeInOnMount, IconButton } from "@/src/components";
 import { MediaActionBarInfo } from "@/src/db/library";
 import { useMediaActionBarInfo } from "@/src/hooks/library";
+import useLoadMediaCallback from "@/src/hooks/use-load-media-callback";
 import { useShelvedMedia } from "@/src/hooks/use-shelved-media";
-import useLoadMediaCallback from "@/src/hooks/use.load.media.callback";
 import { startDownload, useDownloads } from "@/src/stores/downloads";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";

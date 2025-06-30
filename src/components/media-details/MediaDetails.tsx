@@ -3,21 +3,23 @@ import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
 import { Session } from "@/src/stores/session";
 import { useEffect, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
-import { ActionBar } from "./ActionBar";
-import { AuthorsAndNarrators } from "./AuthorsAndNarrators";
-import { BooksInSeries } from "./BooksInSeries";
-import { Header } from "./Header";
-import { MediaDescription } from "./MediaDescription";
-import { OtherBooksByAuthor } from "./OtherBooksByAuthor";
-import { OtherEditions } from "./OtherEditions";
-import { OtherMediaByNarrator } from "./OtherMediaByNarrator";
+import {
+  ActionBar,
+  AuthorsAndNarrators,
+  BooksInSeries,
+  Header,
+  MediaDescription,
+  OtherBooksByAuthor,
+  OtherEditions,
+  OtherMediaByNarrator,
+} from "./components";
 
-type MediaDetailsSectionsProps = {
+type MediaDetailsProps = {
   session: Session;
   mediaId: string;
 };
 
-export function MediaDetailsSections(props: MediaDetailsSectionsProps) {
+export function MediaDetails(props: MediaDetailsProps) {
   const { session, mediaId } = props;
   const { ids } = useMediaIds(session, mediaId);
   const [showRest, setShowRest] = useState(false);

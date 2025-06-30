@@ -1,9 +1,9 @@
 import { Button } from "@/src/components";
 import * as schema from "@/src/db/schema";
-import useBackHandler from "@/src/hooks/use.back.handler";
+import useBackHandler from "@/src/hooks/use-back-handler";
 import { seekTo, usePlayer } from "@/src/stores/player";
 import { Colors } from "@/src/styles";
-import { secondsDisplay } from "@/src/utils/time";
+import { secondsDisplay } from "@/src/utils";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 import { useCallback, useRef } from "react";

@@ -1,9 +1,10 @@
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
-import useLoadMediaCallback from "@/src/hooks/use.load.media.callback";
-import useNavigateToBookCallback from "@/src/hooks/use.navigate.to.book.callback";
+import useLoadMediaCallback from "@/src/hooks/use-load-media-callback";
+import useNavigateToBookCallback from "@/src/hooks/use-navigate-to-book-callback";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { router } from "expo-router";
+import React from "react";
 import {
   Pressable,
   StyleProp,
@@ -12,12 +13,11 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-import BookDetailsText from "./BookDetailsText";
-import IconButton from "./IconButton";
-import MultiThumbnailImage from "./MultiThumbnailImage";
-import ProgressBar from "./ProgressBar";
-import ThumbnailImage from "./ThumbnailImage";
-import React from "react";
+import { BookDetailsText } from "./BookDetailsText";
+import { IconButton } from "./IconButton";
+import { MultiThumbnailImage } from "./MultiThumbnailImage";
+import { ProgressBar } from "./ProgressBar";
+import { ThumbnailImage } from "./ThumbnailImage";
 
 type Media = {
   id: string;

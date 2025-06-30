@@ -1,6 +1,6 @@
 import { ListedDownload } from "@/src/db/downloads";
 import { Colors } from "@/src/styles";
-import { documentDirectoryFilePath } from "@/src/utils/paths";
+import { documentDirectoryFilePath } from "@/src/utils";
 import * as FileSystem from "expo-file-system";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text } from "react-native";

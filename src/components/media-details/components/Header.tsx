@@ -1,10 +1,13 @@
-import { BookDetailsText, ThumbnailImage } from "@/src/components";
-import FadeInOnMount from "@/src/components/FadeInOnMount";
+import {
+  BookDetailsText,
+  FadeInOnMount,
+  ThumbnailImage,
+} from "@/src/components";
 import { useMediaHeaderInfo } from "@/src/hooks/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
-import { durationDisplay } from "@/src/utils/time";
+import { durationDisplay } from "@/src/utils";
 import { StyleSheet, Text, View } from "react-native";
 
 type HeaderProps = {

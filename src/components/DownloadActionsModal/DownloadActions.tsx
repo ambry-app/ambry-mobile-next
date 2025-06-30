@@ -1,4 +1,4 @@
-import { IconButton } from "@/src/components";
+import { FadeInOnMount, IconButton } from "@/src/components";
 import {
   cancelDownload,
   removeDownload,
@@ -8,7 +8,6 @@ import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { router, useLocalSearchParams } from "expo-router";
 import { StyleSheet, Text } from "react-native";
-import FadeInOnMount from "../FadeInOnMount";
 
 export default function DownloadActions({ session }: { session: Session }) {
   const { id: mediaId } = useLocalSearchParams<{ id: string }>();

@@ -1,5 +1,5 @@
 import { Loading, MediaTile, ScreenCentered } from "@/src/components";
-import { useMediaByBookTitleSearch } from "@/src/db/library_old";
+import { useMediaByBookTitleSearch } from "@/src/db/library-old";
 import { syncDown } from "@/src/db/sync";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
@@ -7,7 +7,7 @@ import { useFocusEffect, useNavigation } from "expo-router";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { FlatList, StyleSheet, Text } from "react-native";
 import { useDebounce } from "use-debounce";
-import FadeInOnMount from "../FadeInOnMount";
+import { FadeInOnMount } from "../FadeInOnMount";
 import { useMediaPages } from "@/src/hooks/library";
 import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
 

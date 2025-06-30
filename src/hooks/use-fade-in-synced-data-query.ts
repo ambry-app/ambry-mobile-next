@@ -10,6 +10,7 @@ type Query = SyncedDataQueryParams[1];
 type Deps = SyncedDataQueryParams[2];
 
 /**
+ * @deprecated This hook is deprecated and will be removed soon.
  * This hook is a wrapper around useSyncedDataQuery that fades in an opacity
  * value when the query first returns.
  */

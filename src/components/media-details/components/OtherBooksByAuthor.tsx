@@ -1,42 +1,33 @@
-import { MediaTile } from "@/src/components";
-import { useNarratorWithOtherMedia } from "@/src/hooks/library";
+import { BookTile, HeaderButton } from "@/src/components";
+import { useAuthorWithOtherBooks } from "@/src/hooks/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
-import { HeaderButton } from "../HeaderButton";
 
-type OtherMediaByNarratorProps = {
-  narratorId: string;
+type OtherBooksByAuthorProps = {
+  authorId: string;
   session: Session;
-  withoutMediaId: string;
+  withoutBookId: string;
   withoutSeriesIds: string[];
-  withoutAuthorIds: string[];
 };
 
-export function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
-  const {
-    narratorId,
-    session,
-    withoutMediaId,
-    withoutSeriesIds,
-    withoutAuthorIds,
-  } = props;
+export function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
+  const { authorId, session, withoutBookId, withoutSeriesIds } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
-  const { narrator } = useNarratorWithOtherMedia(
+  const { author } = useAuthorWithOtherBooks(
     session,
-    narratorId,
-    withoutMediaId,
+    authorId,
+    withoutBookId,
     withoutSeriesIds,
-    withoutAuthorIds,
   );
 
-  if (!narrator) return null;
+  if (!author) return null;
 
   const navigateToPerson = () => {
     router.navigate({
       pathname: "/person/[id]",
-      params: { id: narrator.person.id, title: narrator.person.name },
+      params: { id: author.person.id, title: author.person.name },
     });
   };
 
@@ -44,23 +35,23 @@ export function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
     <View style={styles.container}>
       <View style={styles.headerContainer}>
         <HeaderButton
-          label={`More read by ${narrator.name}`}
+          label={`More by ${author.name}`}
           onPress={navigateToPerson}
-          showCaret={narrator.media.length === 10}
+          showCaret={author.books.length === 10}
         />
       </View>
       <FlatList
         style={styles.list}
-        data={narrator.media}
+        data={author.books}
         keyExtractor={(item) => item.id}
         horizontal={true}
         snapToInterval={screenWidth / 2.5 + 16}
         ListHeaderComponent={<View style={styles.listSpacer} />}
         renderItem={({ item }) => {
           return (
-            <MediaTile
+            <BookTile
               style={[styles.tile, { width: screenWidth / 2.5 }]}
-              media={item}
+              book={item}
             />
           );
         }}

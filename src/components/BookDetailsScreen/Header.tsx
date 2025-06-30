@@ -1,7 +1,7 @@
 import { NamesList } from "@/src/components";
-import { BookDetails } from "@/src/db/library_old";
+import { BookDetails } from "@/src/db/library-old";
 import { Colors } from "@/src/styles";
-import { formatPublished } from "@/src/utils/date";
+import { formatPublished } from "@/src/utils";
 import { StyleSheet, Text, View } from "react-native";
 
 type HeaderProps = { book: BookDetails };

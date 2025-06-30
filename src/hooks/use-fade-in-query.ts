@@ -9,6 +9,7 @@ type Query = LiveQueryParams[0];
 type Deps = LiveQueryParams[1];
 
 /**
+ * @deprecated This hook is deprecated and will be removed soon.
  * This hook is a wrapper around useLiveQuery that fades in an opacity
  * value when the query first returns.
  */

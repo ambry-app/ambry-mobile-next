@@ -2,7 +2,7 @@ import { getMediaPage } from "@/src/db/library";
 import { Session } from "@/src/stores/session";
 import { produce } from "immer";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useDataVersion } from "@/src/stores/dataVersion";
+import { useDataVersion } from "@/src/stores/data-version";
 
 type MediaPage = Awaited<ReturnType<typeof getMediaPage>>;
 

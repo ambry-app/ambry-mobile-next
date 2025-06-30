@@ -1,7 +1,7 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { requireValue } from "@/src/utils/require-value";
+import { requireValue } from "@/src/utils";
 import { and, asc, eq } from "drizzle-orm";
 
 export type MediaAuthorOrNarrator = {

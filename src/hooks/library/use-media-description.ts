@@ -4,7 +4,7 @@ import {
 } from "@/src/db/library/get-media-description";
 import { Session } from "@/src/stores/session";
 import { useCallback, useEffect, useState } from "react";
-import { useDataVersion } from "@/src/stores/dataVersion";
+import { useDataVersion } from "@/src/stores/data-version";
 
 export function useMediaDescription(session: Session, mediaId: string) {
   const [media, setMedia] = useState<MediaDescription | null>(null);

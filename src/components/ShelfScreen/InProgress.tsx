@@ -1,12 +1,11 @@
-import { PlayerStateTile } from "@/src/components";
-import { useInProgressMedia } from "@/src/db/playerStates";
+import { HeaderButton, PlayerStateTile } from "@/src/components";
+import { useInProgressMedia } from "@/src/db/player-states";
 import { usePlayer } from "@/src/stores/player";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet } from "react-native";
 import Animated from "react-native-reanimated";
-import { HeaderButton } from "../HeaderButton";
 
 type InProgressProps = {
   session: Session;

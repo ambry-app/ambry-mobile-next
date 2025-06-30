@@ -1,9 +1,11 @@
-import { Loading, MeasureScreenHeight, ScreenCentered } from "@/src/components";
+import { MeasureScreenHeight, ScreenCentered } from "@/src/components";
 import { expoDb } from "@/src/db/db";
-import { useAppBoot } from "@/src/hooks/use.app.boot";
+import { useAppBoot } from "@/src/hooks/use-app-boot";
+import { usePlayer } from "@/src/stores/player";
 import { useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import * as Sentry from "@sentry/react-native";
 import { Stack, useNavigationContainerRef } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -12,8 +14,6 @@ import { useEffect } from "react";
 import { StyleSheet, Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
-import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
-import { usePlayer } from "../stores/player";
 
 SplashScreen.preventAutoHideAsync();
 SplashScreen.setOptions({

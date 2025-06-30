@@ -1,6 +1,6 @@
 import { seekRelative } from "@/src/stores/player";
 import { StyleProp, ViewStyle } from "react-native";
-import IconButton from "./IconButton";
+import { IconButton } from "./IconButton";
 
 type SeekButtonProps = {
   icon: string;
@@ -10,7 +10,7 @@ type SeekButtonProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export default function SeekButton(props: SeekButtonProps) {
+export function SeekButton(props: SeekButtonProps) {
   const { icon, size, color, amount, style } = props;
 
   return (

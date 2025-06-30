@@ -1,8 +1,8 @@
 import migrations from "@/drizzle/migrations";
 import { db, expoDb } from "@/src/db/db";
 import { getServerSyncTimestamps, syncDown, syncUp } from "@/src/db/sync";
-import { registerBackgroundSyncTask } from "@/src/services/BackgroundSyncService";
-import { useDataVersion } from "@/src/stores/dataVersion";
+import { registerBackgroundSyncTask } from "@/src/services/background-sync-service";
+import { useDataVersion } from "@/src/stores/data-version";
 import { loadMostRecentMedia, setupPlayer } from "@/src/stores/player";
 import { useSession } from "@/src/stores/session";
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";

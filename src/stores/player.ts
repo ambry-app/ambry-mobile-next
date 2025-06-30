@@ -7,14 +7,14 @@ import {
   getMostRecentInProgressSyncedMedia,
   getSyncedPlayerState,
   updatePlayerState,
-} from "@/src/db/playerStates";
+} from "@/src/db/player-states";
 import * as schema from "@/src/db/schema";
 import {
   getSleepTimerSettings,
   setSleepTimerEnabled,
   setSleepTimerTime,
 } from "@/src/db/settings";
-import { documentDirectoryFilePath } from "@/src/utils/paths";
+import { documentDirectoryFilePath } from "@/src/utils";
 import TrackPlayer, {
   AndroidAudioContentType,
   Capability,

@@ -13,7 +13,7 @@ type ButtonProps = {
   children?: React.ReactNode;
 };
 
-export default function Button(props: ButtonProps) {
+export function Button(props: ButtonProps) {
   const { size, style, onPress, children } = props;
 
   return (

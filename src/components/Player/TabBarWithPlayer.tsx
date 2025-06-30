@@ -7,8 +7,8 @@ import {
   ThumbnailImage,
 } from "@/src/components";
 import { playerHeight, tabBarBaseHeight } from "@/src/constants";
-import { useMediaDetails } from "@/src/db/library_old";
-import useBackHandler from "@/src/hooks/use.back.handler";
+import { useMediaDetails } from "@/src/db/library-old";
+import useBackHandler from "@/src/hooks/use-back-handler";
 import {
   expandPlayerHandled,
   setIsFullyCollapsed,

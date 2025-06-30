@@ -3,7 +3,7 @@ import { useMediaAuthorsAndNarrators } from "@/src/hooks/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
-import { requireValue } from "@/src/utils/require-value";
+import { requireValue } from "@/src/utils";
 import { FlatList, StyleSheet, View } from "react-native";
 
 type AuthorsAndNarratorsProps = {

@@ -1,8 +1,7 @@
 import { IconButton } from "@/src/components";
 import { setSleepTimerState, usePlayer } from "@/src/stores/player";
 import { Colors } from "@/src/styles";
-import { formatPlaybackRate } from "@/src/utils/rate";
-import { secondsDisplayMinutesOnly } from "@/src/utils/time";
+import { formatPlaybackRate, secondsDisplayMinutesOnly } from "@/src/utils";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
