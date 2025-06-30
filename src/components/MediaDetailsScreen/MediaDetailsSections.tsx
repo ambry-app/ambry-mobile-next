@@ -5,10 +5,10 @@ import { useEffect, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
 import { ActionBar } from "./ActionBar";
 import { AuthorsAndNarrators } from "./AuthorsAndNarrators";
+import { BooksInSeries } from "./BooksInSeries";
 import { Header } from "./Header";
 import { MediaDescription } from "./MediaDescription";
 import { OtherBooksByAuthor } from "./OtherBooksByAuthor";
-import { BooksInSeries } from "./BooksInSeries";
 import { OtherEditions } from "./OtherEditions";
 import { OtherMediaByNarrator } from "./OtherMediaByNarrator";
 
@@ -66,7 +66,7 @@ export function MediaDetailsSections(props: MediaDetailsSectionsProps) {
               withoutSeriesIds={ids.seriesIds}
             />
           ))}
-          {/* {ids.narratorIds.map((narratorId) => (
+          {ids.narratorIds.map((narratorId) => (
             <OtherMediaByNarrator
               key={`other-media-${narratorId}`}
               narratorId={narratorId}
@@ -75,7 +75,7 @@ export function MediaDetailsSections(props: MediaDetailsSectionsProps) {
               withoutSeriesIds={ids.seriesIds}
               withoutAuthorIds={ids.authorIds}
             />
-          ))} */}
+          ))}
         </>
       )}
     </ScrollView>

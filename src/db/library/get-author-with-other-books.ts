@@ -61,10 +61,12 @@ export async function getAuthorWithOtherBooks(
     ...author,
     books: books.map((book) => ({
       ...book,
-      authors: authorsByBookId[book.id] ?? [],
+      authors: (authorsByBookId[book.id] ?? []).map((a) => ({ name: a.name })),
       media: (mediaByBookId[book.id] ?? []).map((m) => ({
         ...m,
-        narrators: narratorsByMediaId[m.id] ?? [],
+        narrators: (narratorsByMediaId[m.id] ?? []).map((n) => ({
+          name: n.name,
+        })),
       })),
     })),
   };
@@ -195,6 +197,7 @@ async function getMediaForBooks(session: Session, bookIds: string[]) {
 
 async function getNarratorsForMedia(session: Session, mediaIds: string[]) {
   if (mediaIds.length === 0) return [];
+
   return db
     .select({
       mediaId: schema.mediaNarrators.mediaId,

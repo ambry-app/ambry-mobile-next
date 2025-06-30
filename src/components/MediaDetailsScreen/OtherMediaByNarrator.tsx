@@ -1,10 +1,9 @@
 import { MediaTile } from "@/src/components";
-import { useOtherMediaByNarrator } from "@/src/db/library_old";
+import { useNarratorWithOtherMedia } from "@/src/hooks/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
-import Animated from "react-native-reanimated";
 import { HeaderButton } from "./HeaderButton";
 
 type OtherMediaByNarratorProps = {
@@ -24,7 +23,7 @@ export function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
     withoutAuthorIds,
   } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
-  const { media, narrator, opacity } = useOtherMediaByNarrator(
+  const { narrator } = useNarratorWithOtherMedia(
     session,
     narratorId,
     withoutMediaId,
@@ -33,7 +32,6 @@ export function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
   );
 
   if (!narrator) return null;
-  if (media.length === 0) return null;
 
   const navigateToPerson = () => {
     router.navigate({
@@ -43,19 +41,20 @@ export function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
   };
 
   return (
-    <Animated.View style={[styles.container, { opacity }]}>
+    <View style={styles.container}>
       <View style={styles.headerContainer}>
         <HeaderButton
-          label={`More by ${narrator.name}`}
+          label={`More read by ${narrator.name}`}
           onPress={navigateToPerson}
-          showCaret={media.length === 10}
+          showCaret={narrator.media.length === 10}
         />
       </View>
       <FlatList
         style={styles.list}
-        data={media}
+        data={narrator.media}
         keyExtractor={(item) => item.id}
         horizontal={true}
+        snapToInterval={screenWidth / 2.5 + 16}
         ListHeaderComponent={<View style={styles.listSpacer} />}
         renderItem={({ item }) => {
           return (
@@ -66,7 +65,7 @@ export function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
           );
         }}
       />
-    </Animated.View>
+    </View>
   );
 }
 

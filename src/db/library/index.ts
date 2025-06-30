@@ -6,4 +6,5 @@ export * from "./get-media-description";
 export * from "./get-media-header-info";
 export * from "./get-media-ids";
 export * from "./get-media-page";
+export * from "./get-narrator-with-other-media";
 export * from "./get-series-with-books";
