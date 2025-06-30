@@ -103,7 +103,7 @@ async function getBooks(
   withoutSeriesIds: string[],
 ) {
   return await db
-    .select({ id: schema.books.id, title: schema.books.title })
+    .selectDistinct({ id: schema.books.id, title: schema.books.title })
     .from(schema.authors)
     .innerJoin(
       schema.bookAuthors,
