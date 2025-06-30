@@ -5,7 +5,6 @@ import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { requireValue } from "@/src/utils/require-value";
 import { FlatList, StyleSheet, View } from "react-native";
-import FadeInOnMount from "../FadeInOnMount";
 
 type AuthorsAndNarratorsProps = {
   mediaId: string;
@@ -22,10 +21,9 @@ export function AuthorsAndNarrators({
   if (!authorsAndNarrators) return null;
 
   return (
-    <FadeInOnMount style={styles.container}>
+    <View style={styles.container}>
       <FlatList
         style={styles.list}
-        showsHorizontalScrollIndicator={false}
         data={authorsAndNarrators}
         keyExtractor={(item) => item.id}
         horizontal={true}
@@ -49,7 +47,7 @@ export function AuthorsAndNarrators({
           );
         }}
       />
-    </FadeInOnMount>
+    </View>
   );
 }
 

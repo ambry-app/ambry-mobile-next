@@ -41,9 +41,9 @@ export function MediaDetailsSections(props: MediaDetailsSectionsProps) {
     >
       <Header mediaId={mediaId} session={session} />
       <ActionBar mediaId={mediaId} session={session} />
+      <MediaDescription mediaId={mediaId} session={session} />
       {showRest && (
         <>
-          <MediaDescription mediaId={mediaId} session={session} />
           <AuthorsAndNarrators mediaId={mediaId} session={session} />
           <OtherEditions
             bookId={ids.bookId}
@@ -57,7 +57,7 @@ export function MediaDetailsSections(props: MediaDetailsSectionsProps) {
               session={session}
             />
           ))}
-          {/* {ids.authorIds.map((authorId) => (
+          {ids.authorIds.map((authorId) => (
             <OtherBooksByAuthor
               key={`other-books-${authorId}`}
               authorId={authorId}
@@ -66,7 +66,7 @@ export function MediaDetailsSections(props: MediaDetailsSectionsProps) {
               withoutSeriesIds={ids.seriesIds}
             />
           ))}
-          {ids.narratorIds.map((narratorId) => (
+          {/* {ids.narratorIds.map((narratorId) => (
             <OtherMediaByNarrator
               key={`other-media-${narratorId}`}
               narratorId={narratorId}

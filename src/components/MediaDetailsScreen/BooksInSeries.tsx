@@ -4,7 +4,6 @@ import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
-import FadeInOnMount from "../FadeInOnMount";
 import { HeaderButton } from "./HeaderButton";
 
 type BooksInSeriesProps = {
@@ -26,7 +25,7 @@ export function BooksInSeries({ seriesId, session }: BooksInSeriesProps) {
   };
 
   return (
-    <FadeInOnMount style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.headerContainer}>
         <HeaderButton
           label={series.name}
@@ -36,7 +35,6 @@ export function BooksInSeries({ seriesId, session }: BooksInSeriesProps) {
       </View>
       <FlatList
         style={styles.list}
-        showsHorizontalScrollIndicator={false}
         data={series.seriesBooks}
         keyExtractor={(item) => item.id}
         horizontal={true}
@@ -51,7 +49,7 @@ export function BooksInSeries({ seriesId, session }: BooksInSeriesProps) {
           );
         }}
       />
-    </FadeInOnMount>
+    </View>
   );
 }
 

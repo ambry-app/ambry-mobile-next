@@ -1,12 +1,12 @@
 import { PlayerStateTile } from "@/src/components";
 import { useInProgressMedia } from "@/src/db/playerStates";
 import { usePlayer } from "@/src/stores/player";
-import { Session } from "@/src/stores/session";
 import { useScreen } from "@/src/stores/screen";
+import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet } from "react-native";
 import Animated from "react-native-reanimated";
-import HeaderButton from "../MediaDetailsScreen/HeaderButton";
+import { HeaderButton } from "../MediaDetailsScreen/HeaderButton";
 
 type InProgressProps = {
   session: Session;
@@ -34,7 +34,6 @@ export default function InProgress(props: InProgressProps) {
       {limit && <HeaderButton label="Unfinished" onPress={navigateToAll} />}
       <FlatList
         style={styles.list}
-        showsHorizontalScrollIndicator={false}
         horizontal={limit ? true : false}
         numColumns={limit ? 1 : 2}
         data={displayMedia}

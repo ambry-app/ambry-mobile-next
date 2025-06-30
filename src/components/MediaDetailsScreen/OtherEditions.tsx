@@ -4,7 +4,6 @@ import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
-import FadeInOnMount from "../FadeInOnMount";
 import { HeaderButton } from "./HeaderButton";
 
 type OtherEditionsProps = {
@@ -37,7 +36,7 @@ export function OtherEditions(props: OtherEditionsProps) {
   };
 
   return (
-    <FadeInOnMount style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.headerContainer}>
         <HeaderButton
           label="Other Editions"
@@ -47,7 +46,6 @@ export function OtherEditions(props: OtherEditionsProps) {
       </View>
       <FlatList
         style={styles.list}
-        showsHorizontalScrollIndicator={false}
         data={bookWithOtherEditions.media}
         keyExtractor={(item) => item.id}
         horizontal={true}
@@ -62,7 +60,7 @@ export function OtherEditions(props: OtherEditionsProps) {
           );
         }}
       />
-    </FadeInOnMount>
+    </View>
   );
 }
 

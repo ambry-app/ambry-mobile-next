@@ -1,10 +1,9 @@
 import { BookTile } from "@/src/components";
-import { useOtherBooksByAuthor } from "@/src/db/library_old";
+import { useAuthorWithOtherBooks } from "@/src/hooks/library";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
-import Animated from "react-native-reanimated";
 import { HeaderButton } from "./HeaderButton";
 
 type OtherBooksByAuthorProps = {
@@ -17,7 +16,7 @@ type OtherBooksByAuthorProps = {
 export function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
   const { authorId, session, withoutBookId, withoutSeriesIds } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
-  const { books, author, opacity } = useOtherBooksByAuthor(
+  const { author } = useAuthorWithOtherBooks(
     session,
     authorId,
     withoutBookId,
@@ -25,7 +24,6 @@ export function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
   );
 
   if (!author) return null;
-  if (books.length === 0) return null;
 
   const navigateToPerson = () => {
     router.navigate({
@@ -35,20 +33,20 @@ export function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
   };
 
   return (
-    <Animated.View style={[styles.container, { opacity }]}>
+    <View style={styles.container}>
       <View style={styles.headerContainer}>
         <HeaderButton
           label={`More by ${author.name}`}
           onPress={navigateToPerson}
-          showCaret={books.length === 10}
+          showCaret={author.books.length === 10}
         />
       </View>
       <FlatList
         style={styles.list}
-        showsHorizontalScrollIndicator={false}
-        data={books}
+        data={author.books}
         keyExtractor={(item) => item.id}
         horizontal={true}
+        snapToInterval={screenWidth / 2.5 + 16}
         ListHeaderComponent={<View style={styles.listSpacer} />}
         renderItem={({ item }) => {
           return (
@@ -59,7 +57,7 @@ export function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
           );
         }}
       />
-    </Animated.View>
+    </View>
   );
 }
 
