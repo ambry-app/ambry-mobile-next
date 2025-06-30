@@ -25,7 +25,7 @@ export default function InProgress(props: InProgressProps) {
 
   const navigateToAll = () => {
     router.push({
-      pathname: "/(app)/(tabs)/(shelf)/in-progress",
+      pathname: "/(tabs)/(shelf)/in-progress",
     });
   };
 

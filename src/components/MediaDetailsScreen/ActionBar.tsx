@@ -1,40 +1,42 @@
 import { IconButton } from "@/src/components";
-import { Download, useDownload } from "@/src/db/downloads";
-import { ActionBarMedia, useMediaActionBarInfo } from "@/src/db/library";
-import { toggleMediaOnShelf, useShelvedMedia } from "@/src/db/shelves";
+import FadeInOnMount from "@/src/components/FadeInOnMount";
+import { MediaActionBarInfo } from "@/src/db/library";
+import { useMediaActionBarInfo } from "@/src/hooks/library";
+import { useShelvedMedia } from "@/src/hooks/use-shelved-media";
 import useLoadMediaCallback from "@/src/hooks/use.load.media.callback";
 import { startDownload, useDownloads } from "@/src/stores/downloads";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { router } from "expo-router";
 import { Alert, Share, StyleSheet, View } from "react-native";
-import Animated from "react-native-reanimated";
 
 type ActionBarProps = {
   mediaId: string;
   session: Session;
 };
 
-export default function ActionBar({ mediaId, session }: ActionBarProps) {
-  const { media, opacity } = useMediaActionBarInfo(session, mediaId);
-  const { download } = useDownload(session, mediaId);
-  const { isSaved } = useShelvedMedia(session, mediaId, "saved");
+export default function ActionBar(props: ActionBarProps) {
+  const { mediaId, session } = props;
+  const { media } = useMediaActionBarInfo(session, mediaId);
+  const { isOnShelf, toggleOnShelf } = useShelvedMedia(
+    session,
+    mediaId,
+    "saved",
+  );
 
   if (!media) return null;
 
   return (
-    <Animated.View style={[styles.container, { opacity }]}>
+    <FadeInOnMount style={styles.container}>
       <View style={styles.buttonsContainer}>
-        <DownloadButton media={media} download={download} session={session} />
+        <DownloadButton media={media} session={session} />
         <IconButton
           icon="heart"
-          solid={isSaved}
+          solid={isOnShelf}
           size={24}
           style={styles.button}
           color={Colors.zinc[100]}
-          onPress={() => {
-            toggleMediaOnShelf(session, media.id, "saved");
-          }}
+          onPress={toggleOnShelf}
         />
         <PlayButton session={session} media={media} />
         <IconButton
@@ -62,12 +64,12 @@ export default function ActionBar({ mediaId, session }: ActionBarProps) {
         />
       </View>
       {/* <ExplanationText download={download} /> */}
-    </Animated.View>
+    </FadeInOnMount>
   );
 }
 
 type PlayButtonProps = {
-  media: ActionBarMedia;
+  media: MediaActionBarInfo;
   session: Session;
 };
 
@@ -87,17 +89,14 @@ function PlayButton({ session, media }: PlayButtonProps) {
 }
 
 type DownloadButtonProps = {
-  media: ActionBarMedia;
-  download: Download;
+  media: MediaActionBarInfo;
   session: Session;
 };
 
-function DownloadButton({ media, download, session }: DownloadButtonProps) {
-  const inProgress = useDownloads(
-    (state) => media.id in state.downloadProgresses,
-  );
+function DownloadButton({ media, session }: DownloadButtonProps) {
+  const download = useDownloads((state) => state.downloads[media.id]);
 
-  if (inProgress) {
+  if (download?.progress || download?.status === "pending") {
     return (
       <IconButton
         icon="loading"
@@ -109,7 +108,7 @@ function DownloadButton({ media, download, session }: DownloadButtonProps) {
     );
   }
 
-  if (download && download.status !== "error") {
+  if (download?.status === "ready") {
     return (
       <IconButton
         icon="circle-check"

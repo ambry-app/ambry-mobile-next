@@ -1,5 +1,5 @@
 import { NamesList } from "@/src/components";
-import { BookDetails } from "@/src/db/library";
+import { BookDetails } from "@/src/db/library_old";
 import { Colors } from "@/src/styles";
 import { formatPublished } from "@/src/utils/date";
 import { StyleSheet, Text, View } from "react-native";

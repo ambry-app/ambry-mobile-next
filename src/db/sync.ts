@@ -6,6 +6,7 @@ import {
   updatePlayerState,
 } from "@/src/graphql/api";
 import { ExecuteAuthenticatedErrorCode } from "@/src/graphql/client/execute";
+import { useDataVersion } from "@/src/stores/dataVersion";
 import { forceUnloadPlayer } from "@/src/stores/player";
 import { Session, forceSignOut } from "@/src/stores/session";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
@@ -23,6 +24,19 @@ export function useLastDownSync(session: Session) {
   return data[0]?.lastDownSync || undefined;
 }
 
+export async function getServerSyncTimestamps(session: Session) {
+  const result = await db
+    .select({
+      lastDownSync: schema.syncedServers.lastDownSync,
+      newDataAsOf: schema.syncedServers.newDataAsOf,
+    })
+    .from(schema.syncedServers)
+    .where(eq(schema.syncedServers.url, session.url))
+    .limit(1);
+
+  return result[0] || { lastDownSync: null, newDataAsOf: null };
+}
+
 const deletionsTables = {
   MEDIA_NARRATOR: schema.mediaNarrators,
   MEDIA: schema.media,
@@ -35,17 +49,11 @@ const deletionsTables = {
   PERSON: schema.people,
 };
 
-export async function syncDown(session: Session, force: boolean = false) {
-  return Promise.all([
-    syncDownLibrary(session, force),
-    syncDownUser(session, force),
-  ]);
+export async function syncDown(session: Session) {
+  return Promise.all([syncDownLibrary(session), syncDownUser(session)]);
 }
 
-export async function syncDownLibrary(
-  session: Session,
-  force: boolean = false,
-) {
+export async function syncDownLibrary(session: Session) {
   console.debug("[SyncDown] syncing library...");
 
   const syncedServer = await db.query.syncedServers.findFirst({
@@ -53,20 +61,6 @@ export async function syncDownLibrary(
   });
 
   const lastSync = syncedServer?.lastDownSync;
-
-  if (lastSync) {
-    // WARNING: treating server-time and client-time as the same
-    // but it's ok because this is just a debounce
-    const now = Date.now();
-    const lastSyncTime = lastSync.getTime();
-    if (now - lastSyncTime < 60 * 1000 && !force) {
-      console.debug(
-        "[SyncDown] library synced less than a minute ago, skipping sync",
-      );
-      return;
-    }
-  }
-
   const result = await getLibraryChangesSince(session, lastSync);
 
   if (!result.success) {
@@ -228,6 +222,7 @@ export async function syncDownLibrary(
     (deletion) => deletion.recordId,
   );
 
+  let newDataAsOf: Date | null = null;
   await db.transaction(async (tx) => {
     if (peopleValues.length !== 0) {
       console.debug("[SyncDown] inserting", peopleValues.length, "people...");
@@ -425,7 +420,7 @@ export async function syncDownLibrary(
       changes.seriesBooksChangedSince.length +
       changes.seriesChangedSince.length;
 
-    const newDataAsOf =
+    newDataAsOf =
       countChanges > 0 || syncedServer === undefined
         ? serverTime
         : syncedServer.newDataAsOf;
@@ -446,10 +441,13 @@ export async function syncDownLibrary(
       });
   });
 
+  // Update global data version store
+  if (newDataAsOf) useDataVersion.getState().setLibraryDataVersion(newDataAsOf);
+
   console.debug("[SyncDown] library sync complete");
 }
 
-export async function syncDownUser(session: Session, force: boolean = false) {
+export async function syncDownUser(session: Session) {
   console.debug("[SyncDown] syncing user player states...");
 
   const serverProfile = await db.query.serverProfiles.findFirst({
@@ -460,20 +458,6 @@ export async function syncDownUser(session: Session, force: boolean = false) {
   });
 
   const lastSync = serverProfile?.lastDownSync;
-
-  if (lastSync) {
-    // WARNING: treating server-time and client-time as the same
-    // but it's ok because this is just a debounce
-    const now = Date.now();
-    const lastSyncTime = lastSync.getTime();
-    if (now - lastSyncTime < 60 * 1000 && !force) {
-      console.debug(
-        "[SyncDown] user player states synced less than a minute ago, skipping sync",
-      );
-      return;
-    }
-  }
-
   const result = await getUserChangesSince(session, lastSync);
 
   if (!result.success) {
@@ -568,7 +552,7 @@ export async function syncDownUser(session: Session, force: boolean = false) {
   console.debug("[SyncDown] user player state sync complete");
 }
 
-export async function syncUp(session: Session, force: boolean = false) {
+export async function syncUp(session: Session) {
   console.debug("[SyncUp] syncing...");
 
   const server = await db.query.serverProfiles.findFirst({
@@ -579,16 +563,6 @@ export async function syncUp(session: Session, force: boolean = false) {
   });
 
   const lastSync = server?.lastUpSync;
-
-  if (lastSync) {
-    const now = Date.now();
-    const lastSyncTime = lastSync.getTime();
-    if (now - lastSyncTime < 60 * 1000 && !force) {
-      console.debug("[SyncUp] synced less than a minute ago, skipping sync");
-      return;
-    }
-  }
-
   const now = new Date();
 
   const changedPlayerStates = await db.query.localPlayerStates.findMany({

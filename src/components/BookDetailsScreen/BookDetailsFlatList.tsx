@@ -1,5 +1,5 @@
 import { Tile } from "@/src/components";
-import { useBookDetails } from "@/src/db/library";
+import { useBookDetails } from "@/src/db/library_old";
 import { Session } from "@/src/stores/session";
 import { StyleSheet } from "react-native";
 import Animated from "react-native-reanimated";

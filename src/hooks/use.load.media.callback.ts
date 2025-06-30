@@ -17,7 +17,7 @@ export default function useLoadMediaCallback(
     requestExpandPlayer();
     prepareToLoadMedia();
     setTimeout(async () => {
-      await syncDownUser(session, true);
+      await syncDownUser(session);
       await loadMedia(session, mediaId);
     }, 400);
   }, [mediaId, session]);

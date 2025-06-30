@@ -1,5 +1,5 @@
 import { MediaTile } from "@/src/components";
-import { useMediaByNarrator } from "@/src/db/library";
+import { useMediaByNarrator } from "@/src/db/library_old";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { FlatList, StyleSheet, Text } from "react-native";

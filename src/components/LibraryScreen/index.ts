@@ -1,3 +1,3 @@
-import LibraryFlatlist from "./LibraryFlatList";
+import LibraryFlatList from "./LibraryFlatList";
 
-export { LibraryFlatlist };
+export { LibraryFlatList as LibraryFlatList };

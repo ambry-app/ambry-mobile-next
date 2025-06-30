@@ -1,6 +1,6 @@
 import { TileImage, TileText } from "@/src/components";
 import { PlayerProgressBar } from "@/src/components/Player";
-import { useMediaDetails } from "@/src/db/library";
+import { useMediaDetails } from "@/src/db/library_old";
 import { requestExpandPlayer, usePlayer } from "@/src/stores/player";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";

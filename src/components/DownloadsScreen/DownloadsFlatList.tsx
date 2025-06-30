@@ -18,10 +18,7 @@ export default function DownloadsFlatList({ session }: { session: Session }) {
         </Text>
         <Text style={styles.noDownloadsText}>
           Go to the{" "}
-          <Link
-            href="/(app)/(tabs)/(library)"
-            style={styles.noDownloadsLinkText}
-          >
+          <Link href="/(tabs)/(library)" style={styles.noDownloadsLinkText}>
             library
           </Link>{" "}
           to download some!

@@ -1,5 +1,5 @@
 import { Description } from "@/src/components";
-import { usePersonDescription } from "@/src/db/library";
+import { usePersonDescription } from "@/src/db/library_old";
 import { Session } from "@/src/stores/session";
 import { StyleSheet } from "react-native";
 import Animated from "react-native-reanimated";

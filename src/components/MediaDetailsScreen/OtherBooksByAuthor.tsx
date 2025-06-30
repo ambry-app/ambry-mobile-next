@@ -1,5 +1,5 @@
 import { BookTile } from "@/src/components";
-import { useOtherBooksByAuthor } from "@/src/db/library";
+import { useOtherBooksByAuthor } from "@/src/db/library_old";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";

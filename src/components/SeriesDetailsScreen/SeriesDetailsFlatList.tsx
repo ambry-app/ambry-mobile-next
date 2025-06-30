@@ -1,5 +1,5 @@
 import { SeriesBookTile } from "@/src/components";
-import { useSeriesDetails } from "@/src/db/library";
+import { useSeriesDetails } from "@/src/db/library_old";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { StyleSheet } from "react-native";
