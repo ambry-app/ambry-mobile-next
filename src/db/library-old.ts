@@ -5,7 +5,7 @@ import useFadeInSyncedDataQuery, {
 } from "@/src/hooks/use-fade-in-synced-data-query";
 import useSyncedDataQuery from "@/src/hooks/use.synced.data.query";
 import { Session } from "@/src/stores/session";
-import { and, desc, eq, inArray, like, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { useEffect, useState } from "react";
 import { useSharedValue, withTiming } from "react-native-reanimated";
 
@@ -57,31 +57,6 @@ export function useMediaListByIds(session: Session, mediaIds: string[]) {
   ]);
 
   return { media: data, ...rest };
-}
-
-export function useMediaByBookTitleSearch(
-  session: Session,
-  queryString: string,
-) {
-  const mediaIdsQuery = db
-    .select({ id: schema.media.id })
-    .from(schema.books)
-    .innerJoin(schema.media, eq(schema.media.bookId, schema.books.id))
-    .where(
-      and(
-        eq(schema.books.url, session.url),
-        like(schema.books.title, `%${queryString}%`),
-      ),
-    );
-
-  const { data: mediaIds } = useSyncedDataQuery(session, mediaIdsQuery, [
-    queryString,
-  ]);
-
-  return useMediaListByIds(
-    session,
-    mediaIds.map((x) => x.id),
-  );
 }
 
 export function useMediaDetails(session: Session, mediaId: string) {

@@ -1,21 +1,18 @@
-import { Loading, MediaTile, ScreenCentered } from "@/src/components";
-import { useMediaByBookTitleSearch } from "@/src/db/library-old";
-import { syncDown } from "@/src/db/sync";
+import { FadeInOnMount, Loading, MediaTile } from "@/src/components";
+import { useMediaPages, useMediaSearch } from "@/src/hooks/library";
+import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
-import { useFocusEffect, useNavigation } from "expo-router";
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useNavigation } from "expo-router";
+import { useLayoutEffect } from "react";
 import { FlatList, StyleSheet, Text } from "react-native";
 import { useDebounce } from "use-debounce";
-import { FadeInOnMount } from "../FadeInOnMount";
-import { useMediaPages } from "@/src/hooks/library";
-import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
 
 type LibraryFlatListProps = {
   session: Session;
 };
 
-export default function LibraryFlatList({ session }: LibraryFlatListProps) {
+export function LibraryFlatList({ session }: LibraryFlatListProps) {
   const [search, setSearch] = useDebounce("", 500);
   const navigation = useNavigation();
 
@@ -33,8 +30,7 @@ export default function LibraryFlatList({ session }: LibraryFlatListProps) {
   }, [navigation, setSearch]);
 
   if (search && search.length >= 3) {
-    // return <SearchResultsFlatList session={session} searchQuery={search} />;
-    return <Text>Search results</Text>;
+    return <SearchResultsFlatList session={session} searchQuery={search} />;
   } else {
     return <FullLibraryFlatList session={session} />;
   }
@@ -91,56 +87,38 @@ type SearchResultsFlatListProps = {
   searchQuery: string;
 };
 
-// function SearchResultsFlatList(props: SearchResultsFlatListProps) {
-//   const { session, searchQuery } = props;
-//   const { media, updatedAt, opacity } = useMediaByBookTitleSearch(
-//     session,
-//     searchQuery,
-//   );
-//   const lastDownSync = useLastDownSync(session);
-//   const [refreshing, setRefreshing] = useState(false);
+function SearchResultsFlatList(props: SearchResultsFlatListProps) {
+  const { session, searchQuery } = props;
+  const { media } = useMediaSearch(session, searchQuery);
 
-//   const onRefresh = useCallback(async () => {
-//     setRefreshing(true);
-//     try {
-//       await syncDown(session);
-//     } catch (error) {
-//       console.error("Pull-to-refresh sync error:", error);
-//     } finally {
-//       setRefreshing(false);
-//     }
-//   }, [session]);
+  if (!media) {
+    return null;
+  }
 
-//   if (!lastDownSync || !updatedAt) {
-//     return (
-//       <ScreenCentered>
-//         <Loading />
-//       </ScreenCentered>
-//     );
-//   }
+  if (media.length === 0) {
+    return (
+      <Text style={styles.text}>
+        Nothing in the library matches your search term. Please try another
+        search.
+      </Text>
+    );
+  }
 
-//   if (updatedAt && lastDownSync && media.length === 0) {
-//     return (
-//       <Text style={styles.text}>
-//         Nothing in the library matches your search term. Search is very basic
-//         right now and only matches on book titles. Please try another search.
-//       </Text>
-//     );
-//   }
-
-//   return (
-//     <Animated.FlatList
-//       contentInsetAdjustmentBehavior="automatic"
-//       style={[styles.flatlist, { opacity }]}
-//       data={media}
-//       keyExtractor={(item) => item.id}
-//       numColumns={2}
-//       renderItem={({ item }) => <MediaTile style={styles.tile} media={item} />}
-//       onRefresh={onRefresh}
-//       refreshing={refreshing}
-//     />
-//   );
-// }
+  return (
+    <FlatList
+      contentInsetAdjustmentBehavior="automatic"
+      style={styles.flatlist}
+      data={media}
+      keyExtractor={(item) => item.id}
+      numColumns={2}
+      renderItem={({ item }) => (
+        <FadeInOnMount style={styles.tile}>
+          <MediaTile media={item} />
+        </FadeInOnMount>
+      )}
+    />
+  );
+}
 
 const styles = StyleSheet.create({
   text: {

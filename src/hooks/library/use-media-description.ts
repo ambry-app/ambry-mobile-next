@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useDataVersion } from "@/src/stores/data-version";
 
 export function useMediaDescription(session: Session, mediaId: string) {
-  const [media, setMedia] = useState<MediaDescription | null>(null);
+  const [media, setMedia] = useState<MediaDescription | undefined>(undefined);
   const libraryDataVersion = useDataVersion(
     (state) => state.libraryDataVersion,
   );

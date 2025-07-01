@@ -4,7 +4,7 @@ import { Session } from "@/src/stores/session";
 import { useCallback, useEffect, useState } from "react";
 
 export function useMediaIds(session: Session, mediaId: string) {
-  const [ids, setIds] = useState<MediaIds | null>(null);
+  const [ids, setIds] = useState<MediaIds | undefined>(undefined);
   const libraryDataVersion = useDataVersion(
     (state) => state.libraryDataVersion,
   );

@@ -4,7 +4,7 @@ import { Session } from "@/src/stores/session";
 import { useCallback, useEffect, useState } from "react";
 
 export function useMediaActionBarInfo(session: Session, mediaId: string) {
-  const [media, setMedia] = useState<MediaActionBarInfo | null>(null);
+  const [media, setMedia] = useState<MediaActionBarInfo | undefined>(undefined);
   const libraryDataVersion = useDataVersion(
     (state) => state.libraryDataVersion,
   );

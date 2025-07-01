@@ -1,4 +1,4 @@
-import { LibraryFlatList } from "@/src/components/LibraryScreen";
+import { LibraryFlatList } from "@/src/components/library";
 import { useSession } from "@/src/stores/session";
 
 export default function LibraryScreen() {

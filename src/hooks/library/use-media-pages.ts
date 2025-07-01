@@ -1,10 +1,8 @@
-import { getMediaPage } from "@/src/db/library";
+import { getMediaPage, MediaPage } from "@/src/db/library";
 import { Session } from "@/src/stores/session";
 import { produce } from "immer";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDataVersion } from "@/src/stores/data-version";
-
-type MediaPage = Awaited<ReturnType<typeof getMediaPage>>;
 
 export function useMediaPages(session: Session) {
   const PAGE_SIZE = 64;
@@ -13,7 +11,7 @@ export function useMediaPages(session: Session) {
   const [lastInsertedAt, setLastInsertedAt] = useState<Date | undefined>(
     undefined,
   );
-  const [media, setMedia] = useState<MediaPage | null>(null);
+  const [media, setMedia] = useState<MediaPage | undefined>(undefined);
   const libraryDataVersion = useDataVersion(
     (state) => state.libraryDataVersion,
   );
