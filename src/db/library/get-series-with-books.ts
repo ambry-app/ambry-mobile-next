@@ -2,7 +2,6 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { requireValue } from "@/src/utils";
-import "core-js/actual/object/group-by";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 export type SeriesWithBooks = Awaited<ReturnType<typeof getSeriesWithBooks>>;
@@ -75,8 +74,8 @@ async function getSeriesBooks(session: Session, seriesId: string) {
     .innerJoin(
       schema.books,
       and(
-        eq(schema.seriesBooks.url, schema.books.url),
-        eq(schema.seriesBooks.bookId, schema.books.id),
+        eq(schema.books.url, schema.seriesBooks.url),
+        eq(schema.books.id, schema.seriesBooks.bookId),
       ),
     )
     .where(
@@ -100,8 +99,8 @@ async function getAuthorsForBooks(session: Session, bookIds: string[]) {
     .innerJoin(
       schema.authors,
       and(
-        eq(schema.bookAuthors.url, schema.authors.url),
-        eq(schema.bookAuthors.authorId, schema.authors.id),
+        eq(schema.authors.url, schema.bookAuthors.url),
+        eq(schema.authors.id, schema.bookAuthors.authorId),
       ),
     )
     .where(
@@ -127,8 +126,8 @@ async function getMediaForBooks(session: Session, bookIds: string[]) {
     .leftJoin(
       schema.downloads,
       and(
-        eq(schema.media.url, schema.downloads.url),
-        eq(schema.media.id, schema.downloads.mediaId),
+        eq(schema.downloads.url, schema.media.url),
+        eq(schema.downloads.mediaId, schema.media.id),
       ),
     )
     .where(
@@ -152,8 +151,8 @@ async function getNarratorsForMedia(session: Session, mediaIds: string[]) {
     .innerJoin(
       schema.narrators,
       and(
-        eq(schema.mediaNarrators.url, schema.narrators.url),
-        eq(schema.mediaNarrators.narratorId, schema.narrators.id),
+        eq(schema.narrators.url, schema.mediaNarrators.url),
+        eq(schema.narrators.id, schema.mediaNarrators.narratorId),
       ),
     )
     .where(

@@ -1,4 +1,4 @@
-import { MeasureScreenHeight, ScreenCentered } from "@/src/components";
+import { MeasureScreenHeight } from "@/src/components";
 import { expoDb } from "@/src/db/db";
 import { useAppBoot } from "@/src/hooks/use-app-boot";
 import { usePlayer } from "@/src/stores/player";
@@ -7,6 +7,7 @@ import { Colors } from "@/src/styles";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import * as Sentry from "@sentry/react-native";
+import "core-js/actual/object/group-by";
 import { Stack, useNavigationContainerRef } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useSQLiteDevTools } from "expo-sqlite-devtools";
@@ -14,6 +15,7 @@ import { useEffect } from "react";
 import { StyleSheet, Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 SplashScreen.preventAutoHideAsync();
 SplashScreen.setOptions({
@@ -56,12 +58,12 @@ function RootLayout() {
 
   if (migrationError) {
     return (
-      <ScreenCentered>
+      <SafeAreaView>
         <Text style={styles.text}>
           The app failed to initialize in an irrecoverable way. Please delete
           the app's data and start fresh.
         </Text>
-      </ScreenCentered>
+      </SafeAreaView>
     );
   }
 
@@ -132,6 +134,9 @@ const Theme = {
 const styles = StyleSheet.create({
   text: {
     color: Colors.zinc[100],
+    fontSize: 18,
+    paddingHorizontal: 32,
+    paddingTop: 64,
   },
   modalContent: {
     backgroundColor: Colors.zinc[900],

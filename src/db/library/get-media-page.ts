@@ -1,72 +1,41 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { requireValue } from "@/src/utils";
-import { and, desc, eq, inArray, lt } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt } from "drizzle-orm";
 
 /**
- * Fetches a paginated list of media items along with their related books, authors, and narrators.
- *
- * This function performs the following steps:
- * 1. Retrieves recent media items with optional pagination based on insertion date.
- * 2. Fetches related books for the media items in batch.
- * 3. Fetches book-author relationships and corresponding author details in batch.
- * 4. Fetches media-narrator relationships and corresponding narrator details in batch.
- * 5. Assembles and returns an array where each media item includes its book (with authors) and narrators.
+ * Returns a paginated list of media items, each with its related book (including authors) and narrators.
  *
  * @param session - The current user session containing the URL context.
  * @param limit - The maximum number of media items to fetch.
  * @param insertedBefore - (Optional) Only include media inserted before this date.
- * @returns A promise that resolves to an array of media items, each with its related book (including authors) and narrators.
+ * @returns A promise that resolves to an array of media items with related book and narrator details.
  */
 export async function getMediaPage(
   session: Session,
   limit: number,
   insertedBefore?: Date,
 ) {
-  const media = await recentMedia(session, limit, insertedBefore);
-  const bookIds = [...new Set(media.map((m) => m.bookId))];
-  const books = await booksByIds(session, bookIds);
+  console.time("getMediaPage");
 
-  const bookAuthors = await bookAuthorsByBookIds(session, bookIds);
-  const authorIds = [...new Set(bookAuthors.map((ba) => ba.authorId))];
-  const authors = await authorsByIds(session, authorIds);
+  const media = await recentMedia(session, limit, insertedBefore);
+
+  const bookIds = media.map((m) => m.book.id);
+  const authors = await getAuthorsForBooks(session, bookIds);
 
   const mediaIds = media.map((m) => m.id);
-  const mediaNarrators = await mediaNarratorsByMediaIds(session, mediaIds);
-  const narratorIds = [...new Set(mediaNarrators.map((n) => n.narratorId))];
-  const narrators = await narratorsByIds(session, narratorIds);
+  const narrators = await getNarratorsForMedia(session, mediaIds);
 
-  const bookMap = Object.fromEntries(books.map((b) => [b.id, b]));
-  const authorMap = Object.fromEntries(authors.map((a) => [a.id, a]));
-  const narratorMap = Object.fromEntries(narrators.map((n) => [n.id, n]));
+  console.timeEnd("getMediaPage");
 
-  const authorsByBookId = bookAuthors.reduce<Record<string, typeof authors>>(
-    (acc, ba) => {
-      const author = authorMap[ba.authorId];
-      if (author) {
-        acc[ba.bookId] = [...(acc[ba.bookId] ?? []), author];
-      }
-      return acc;
-    },
-    {},
-  );
-
-  const narratorsByMediaId = mediaNarrators.reduce<
-    Record<string, typeof narrators>
-  >((acc, mn) => {
-    const narrator = narratorMap[mn.narratorId];
-    if (narrator) {
-      acc[mn.mediaId] = [...(acc[mn.mediaId] ?? []), narrator];
-    }
-    return acc;
-  }, {});
+  const authorsByBookId = Object.groupBy(authors, (a) => a.bookId);
+  const narratorsByMediaId = Object.groupBy(narrators, (n) => n.mediaId);
 
   return media.map((media) => ({
     ...media,
     book: {
-      ...requireValue(bookMap[media.bookId], "Book not found"),
-      authors: authorsByBookId[media.bookId] || [],
+      ...media.book,
+      authors: authorsByBookId[media.book.id] || [],
     },
     narrators: narratorsByMediaId[media.id] || [],
   }));
@@ -82,9 +51,19 @@ async function recentMedia(
       id: schema.media.id,
       thumbnails: schema.media.thumbnails,
       insertedAt: schema.media.insertedAt,
-      bookId: schema.media.bookId,
+      book: {
+        id: schema.books.id,
+        title: schema.books.title,
+      },
     })
     .from(schema.media)
+    .innerJoin(
+      schema.books,
+      and(
+        eq(schema.books.url, schema.media.url),
+        eq(schema.books.id, schema.media.bookId),
+      ),
+    )
     .where(
       and(
         eq(schema.media.url, session.url),
@@ -98,94 +77,52 @@ async function recentMedia(
     .limit(limit);
 }
 
-async function booksByIds(session: Session, bookIds: string[]) {
-  if (bookIds.length === 0) {
-    return [];
-  }
-
-  return db
-    .select({
-      id: schema.books.id,
-      title: schema.books.title,
-    })
-    .from(schema.books)
-    .where(
-      and(eq(schema.books.url, session.url), inArray(schema.books.id, bookIds)),
-    );
-}
-
-async function bookAuthorsByBookIds(session: Session, bookIds: string[]) {
-  if (bookIds.length === 0) {
-    return [];
-  }
+async function getAuthorsForBooks(session: Session, bookIds: string[]) {
+  if (bookIds.length === 0) return [];
 
   return db
     .select({
       bookId: schema.bookAuthors.bookId,
-      authorId: schema.bookAuthors.authorId,
+      name: schema.authors.name,
     })
     .from(schema.bookAuthors)
+    .innerJoin(
+      schema.authors,
+      and(
+        eq(schema.authors.url, schema.bookAuthors.url),
+        eq(schema.authors.id, schema.bookAuthors.authorId),
+      ),
+    )
     .where(
       and(
         eq(schema.bookAuthors.url, session.url),
         inArray(schema.bookAuthors.bookId, bookIds),
       ),
-    );
+    )
+    .orderBy(asc(schema.bookAuthors.insertedAt));
 }
 
-async function authorsByIds(session: Session, authorIds: string[]) {
-  if (authorIds.length === 0) {
-    return [];
-  }
-
-  return db
-    .select({
-      id: schema.authors.id,
-      name: schema.authors.name,
-    })
-    .from(schema.authors)
-    .where(
-      and(
-        eq(schema.authors.url, session.url),
-        inArray(schema.authors.id, authorIds),
-      ),
-    );
-}
-
-async function mediaNarratorsByMediaIds(session: Session, mediaIds: string[]) {
-  if (mediaIds.length === 0) {
-    return [];
-  }
+async function getNarratorsForMedia(session: Session, mediaIds: string[]) {
+  if (mediaIds.length === 0) return [];
 
   return db
     .select({
       mediaId: schema.mediaNarrators.mediaId,
-      narratorId: schema.mediaNarrators.narratorId,
+      name: schema.narrators.name,
     })
     .from(schema.mediaNarrators)
+    .innerJoin(
+      schema.narrators,
+      and(
+        eq(schema.narrators.url, schema.mediaNarrators.url),
+        eq(schema.narrators.id, schema.mediaNarrators.narratorId),
+      ),
+    )
     .where(
       and(
         eq(schema.mediaNarrators.url, session.url),
         inArray(schema.mediaNarrators.mediaId, mediaIds),
       ),
-    );
-}
-
-async function narratorsByIds(session: Session, narratorIds: string[]) {
-  if (narratorIds.length === 0) {
-    return [];
-  }
-
-  return db
-    .select({
-      id: schema.narrators.id,
-      name: schema.narrators.name,
-    })
-    .from(schema.narrators)
-    .where(
-      and(
-        eq(schema.narrators.url, session.url),
-        inArray(schema.narrators.id, narratorIds),
-      ),
-    );
+    )
+    .orderBy(asc(schema.mediaNarrators.insertedAt));
 }

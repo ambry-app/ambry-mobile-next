@@ -17,13 +17,7 @@ export type MediaDescription = Awaited<ReturnType<typeof getMediaDescription>>;
  * @throws If the media or associated book is not found in the database.
  */
 export async function getMediaDescription(session: Session, mediaId: string) {
-  const media = await getMedia(session, mediaId);
-  const book = await getBook(session, media.bookId);
-
-  return {
-    ...media,
-    book,
-  };
+  return await getMedia(session, mediaId);
 }
 
 async function getMedia(session: Session, mediaId: string) {
@@ -34,24 +28,21 @@ async function getMedia(session: Session, mediaId: string) {
       publishedFormat: schema.media.publishedFormat,
       publisher: schema.media.publisher,
       notes: schema.media.notes,
-      bookId: schema.media.bookId,
+      book: {
+        published: schema.books.published,
+        publishedFormat: schema.books.publishedFormat,
+      },
     })
     .from(schema.media)
+    .innerJoin(
+      schema.books,
+      and(
+        eq(schema.books.url, schema.media.url),
+        eq(schema.books.id, schema.media.bookId),
+      ),
+    )
     .where(and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)))
     .limit(1);
 
   return requireValue(mediaRows[0], "Media not found");
-}
-
-async function getBook(session: Session, bookId: string) {
-  const bookRows = await db
-    .select({
-      published: schema.books.published,
-      publishedFormat: schema.books.publishedFormat,
-    })
-    .from(schema.books)
-    .where(and(eq(schema.books.url, session.url), eq(schema.books.id, bookId)))
-    .limit(1);
-
-  return requireValue(bookRows[0], "Book not found");
 }

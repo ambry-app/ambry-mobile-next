@@ -2,7 +2,6 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { requireValue } from "@/src/utils";
-import "core-js/actual/object/group-by";
 import {
   and,
   asc,
@@ -86,8 +85,8 @@ async function getAuthor(session: Session, authorId: string) {
     .innerJoin(
       schema.people,
       and(
-        eq(schema.authors.url, schema.people.url),
-        eq(schema.authors.personId, schema.people.id),
+        eq(schema.people.url, schema.authors.url),
+        eq(schema.people.id, schema.authors.personId),
       ),
     )
     .where(
@@ -98,6 +97,8 @@ async function getAuthor(session: Session, authorId: string) {
   return requireValue(rows[0], `Author with ID ${authorId} not found`);
 }
 
+// FIXME: I think this query isn't quite what I want
+// see new example query in get-narrator-with-other-media.ts
 async function getBooks(
   session: Session,
   authorId: string,
@@ -110,22 +111,22 @@ async function getBooks(
     .innerJoin(
       schema.bookAuthors,
       and(
-        eq(schema.authors.url, schema.bookAuthors.url),
-        eq(schema.authors.id, schema.bookAuthors.authorId),
+        eq(schema.bookAuthors.url, schema.authors.url),
+        eq(schema.bookAuthors.authorId, schema.authors.id),
       ),
     )
     .innerJoin(
       schema.books,
       and(
-        eq(schema.bookAuthors.url, schema.books.url),
-        eq(schema.bookAuthors.bookId, schema.books.id),
+        eq(schema.books.url, schema.bookAuthors.url),
+        eq(schema.books.id, schema.bookAuthors.bookId),
       ),
     )
     .leftJoin(
       schema.seriesBooks,
       and(
-        eq(schema.books.url, schema.seriesBooks.url),
-        eq(schema.books.id, schema.seriesBooks.bookId),
+        eq(schema.seriesBooks.url, schema.books.url),
+        eq(schema.seriesBooks.bookId, schema.books.id),
       ),
     )
     .where(
@@ -155,8 +156,8 @@ async function getAuthorsForBooks(session: Session, bookIds: string[]) {
     .innerJoin(
       schema.authors,
       and(
-        eq(schema.bookAuthors.url, schema.authors.url),
-        eq(schema.bookAuthors.authorId, schema.authors.id),
+        eq(schema.authors.url, schema.bookAuthors.url),
+        eq(schema.authors.id, schema.bookAuthors.authorId),
       ),
     )
     .where(
@@ -182,8 +183,8 @@ async function getMediaForBooks(session: Session, bookIds: string[]) {
     .leftJoin(
       schema.downloads,
       and(
-        eq(schema.media.url, schema.downloads.url),
-        eq(schema.media.id, schema.downloads.mediaId),
+        eq(schema.downloads.url, schema.media.url),
+        eq(schema.downloads.mediaId, schema.media.id),
       ),
     )
     .where(
@@ -207,8 +208,8 @@ async function getNarratorsForMedia(session: Session, mediaIds: string[]) {
     .innerJoin(
       schema.narrators,
       and(
-        eq(schema.mediaNarrators.url, schema.narrators.url),
-        eq(schema.mediaNarrators.narratorId, schema.narrators.id),
+        eq(schema.narrators.url, schema.mediaNarrators.url),
+        eq(schema.narrators.id, schema.mediaNarrators.narratorId),
       ),
     )
     .where(

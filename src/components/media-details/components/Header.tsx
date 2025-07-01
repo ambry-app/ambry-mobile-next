@@ -40,9 +40,7 @@ export function Header(props: HeaderProps) {
           baseFontSize={16}
           titleWeight={700}
           title={media.book.title}
-          series={media.book.seriesBooks.map(
-            (sb) => `${sb.seriesName} #${sb.bookNumber}`,
-          )}
+          series={media.book.series.map((sb) => `${sb.name} #${sb.bookNumber}`)}
           authors={media.book.authors.map((author) => author.name)}
           narrators={media.narrators.map((narrator) => narrator.name)}
           fullCast={media.fullCast}

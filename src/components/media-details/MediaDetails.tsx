@@ -1,7 +1,7 @@
+import { Delay } from "@/src/components";
 import { useMediaIds } from "@/src/hooks/library";
 import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
 import { Session } from "@/src/stores/session";
-import { useEffect, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
 import {
   ActionBar,
@@ -22,14 +22,8 @@ type MediaDetailsProps = {
 export function MediaDetails(props: MediaDetailsProps) {
   const { session, mediaId } = props;
   const { ids } = useMediaIds(session, mediaId);
-  const [showRest, setShowRest] = useState(false);
-  const { refreshing, onRefresh } = usePullToRefresh(session);
 
-  useEffect(() => {
-    // Show the rest of the sections after a short delay
-    const timeout = setTimeout(() => setShowRest(true), 100);
-    return () => clearTimeout(timeout);
-  }, []);
+  const { refreshing, onRefresh } = usePullToRefresh(session);
 
   if (!ids) return null;
 
@@ -44,14 +38,14 @@ export function MediaDetails(props: MediaDetailsProps) {
       <Header mediaId={mediaId} session={session} />
       <ActionBar mediaId={mediaId} session={session} />
       <MediaDescription mediaId={mediaId} session={session} />
-      {showRest && (
-        <>
-          <AuthorsAndNarrators mediaId={mediaId} session={session} />
-          <OtherEditions
-            bookId={ids.bookId}
-            withoutMediaId={mediaId}
-            session={session}
-          />
+      <Delay delay={550}>
+        <AuthorsAndNarrators mediaId={mediaId} session={session} />
+        <OtherEditions
+          bookId={ids.bookId}
+          withoutMediaId={ids.mediaId}
+          session={session}
+        />
+        <Delay delay={100}>
           {ids.seriesIds.map((seriesId) => (
             <BooksInSeries
               key={`books-in-series-${seriesId}`}
@@ -78,8 +72,8 @@ export function MediaDetails(props: MediaDetailsProps) {
               withoutAuthorIds={ids.authorIds}
             />
           ))}
-        </>
-      )}
+        </Delay>
+      </Delay>
     </ScrollView>
   );
 }

@@ -85,12 +85,12 @@ async function getAuthors(session: Session, bookId: string) {
         thumbnails: schema.people.thumbnails,
       },
     })
-    .from(schema.authors)
+    .from(schema.bookAuthors)
     .innerJoin(
-      schema.bookAuthors,
+      schema.authors,
       and(
-        eq(schema.bookAuthors.url, schema.authors.url),
-        eq(schema.bookAuthors.authorId, schema.authors.id),
+        eq(schema.authors.url, schema.bookAuthors.url),
+        eq(schema.authors.id, schema.bookAuthors.authorId),
       ),
     )
     .innerJoin(
@@ -102,7 +102,7 @@ async function getAuthors(session: Session, bookId: string) {
     )
     .where(
       and(
-        eq(schema.authors.url, session.url),
+        eq(schema.bookAuthors.url, session.url),
         eq(schema.bookAuthors.bookId, bookId),
       ),
     )
@@ -125,12 +125,12 @@ async function getNarrators(session: Session, mediaId: string) {
         thumbnails: schema.people.thumbnails,
       },
     })
-    .from(schema.narrators)
+    .from(schema.mediaNarrators)
     .innerJoin(
-      schema.mediaNarrators,
+      schema.narrators,
       and(
-        eq(schema.mediaNarrators.url, schema.narrators.url),
-        eq(schema.mediaNarrators.narratorId, schema.narrators.id),
+        eq(schema.narrators.url, schema.mediaNarrators.url),
+        eq(schema.narrators.id, schema.mediaNarrators.narratorId),
       ),
     )
     .innerJoin(
@@ -142,7 +142,7 @@ async function getNarrators(session: Session, mediaId: string) {
     )
     .where(
       and(
-        eq(schema.narrators.url, session.url),
+        eq(schema.mediaNarrators.url, session.url),
         eq(schema.mediaNarrators.mediaId, mediaId),
       ),
     )

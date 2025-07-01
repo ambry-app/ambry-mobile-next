@@ -101,9 +101,7 @@ export const MediaTile = React.memo(function MediaTile({
   media,
   style,
 }: MediaTileProps) {
-  console.time("[MediaTile] render");
   const tile = <Tile book={media.book} media={[media]} style={style} />;
-  console.timeEnd("[MediaTile] render");
   return tile;
 });
 
