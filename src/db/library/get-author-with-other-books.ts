@@ -2,17 +2,7 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { requireValue } from "@/src/utils";
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  inArray,
-  isNull,
-  ne,
-  notInArray,
-  or,
-} from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
 
 export type AuthorWithOtherBooks = Awaited<
   ReturnType<typeof getAuthorWithOtherBooks>
@@ -97,16 +87,20 @@ async function getAuthor(session: Session, authorId: string) {
   return requireValue(rows[0], `Author with ID ${authorId} not found`);
 }
 
-// FIXME: I think this query isn't quite what I want
-// see new example query in get-narrator-with-other-media.ts
 async function getBooks(
   session: Session,
   authorId: string,
   withoutBookId: string,
   withoutSeriesIds: string[],
 ) {
-  return await db
-    .selectDistinct({ id: schema.books.id, title: schema.books.title })
+  const results = await db
+    .select({
+      id: schema.books.id,
+      title: schema.books.title,
+      seriesIds: sql`json_group_array("series_books"."series_id")`.as(
+        "series_ids",
+      ),
+    })
     .from(schema.authors)
     .innerJoin(
       schema.bookAuthors,
@@ -134,14 +128,19 @@ async function getBooks(
         eq(schema.authors.url, session.url),
         eq(schema.authors.id, authorId),
         ne(schema.books.id, withoutBookId),
-        or(
-          isNull(schema.seriesBooks.seriesId),
-          notInArray(schema.seriesBooks.seriesId, withoutSeriesIds),
-        ),
+      ),
+    )
+    .groupBy(schema.books.id)
+    .having(
+      or(
+        sql`series_ids is null`,
+        sql`not exists (select 1 from json_each(series_ids) where value in ${withoutSeriesIds})`,
       ),
     )
     .orderBy(desc(schema.books.published))
     .limit(10);
+
+  return results.map(({ seriesIds, ...rest }) => rest);
 }
 
 async function getAuthorsForBooks(session: Session, bookIds: string[]) {
