@@ -40,9 +40,11 @@ export async function getBookOtherEditions(
   return {
     ...book,
     authors,
-    media: media.map((m) => ({
-      ...m,
-      narrators: narratorsByMediaId[m.id] ?? [],
+    media: media.map((media) => ({
+      ...media,
+      narrators: (narratorsByMediaId[media.id] ?? []).map(
+        ({ mediaId, ...narrator }) => narrator,
+      ),
     })),
   };
 }

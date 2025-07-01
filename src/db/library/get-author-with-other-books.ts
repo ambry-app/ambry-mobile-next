@@ -50,12 +50,14 @@ export async function getAuthorWithOtherBooks(
     ...author,
     books: books.map((book) => ({
       ...book,
-      authors: (authorsByBookId[book.id] ?? []).map((a) => ({ name: a.name })),
-      media: (mediaByBookId[book.id] ?? []).map((m) => ({
-        ...m,
-        narrators: (narratorsByMediaId[m.id] ?? []).map((n) => ({
-          name: n.name,
-        })),
+      authors: (authorsByBookId[book.id] ?? []).map(
+        ({ bookId, ...author }) => author,
+      ),
+      media: (mediaByBookId[book.id] ?? []).map(({ bookId, ...media }) => ({
+        ...media,
+        narrators: (narratorsByMediaId[media.id] ?? []).map(
+          ({ mediaId, ...narrator }) => narrator,
+        ),
       })),
     })),
   };

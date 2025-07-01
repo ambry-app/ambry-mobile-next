@@ -6,6 +6,8 @@ import { and, eq } from "drizzle-orm";
 
 export type MediaIds = Awaited<ReturnType<typeof getMediaIds>>;
 
+// FIXME: I think we can get rid of this one altogether
+
 /**
  * Retrieves related IDs for a given media item, including its book, authors, series, and narrators.
  *

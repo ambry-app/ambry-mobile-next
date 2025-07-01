@@ -51,14 +51,14 @@ export async function getNarratorWithOtherMedia(
     ...narrator,
     media: media.map((m) => ({
       ...m,
-      narrators: (narratorsByMediaId[m.id] ?? []).map((n) => ({
-        name: n.name,
-      })),
+      narrators: (narratorsByMediaId[m.id] ?? []).map(
+        ({ mediaId, ...narrator }) => narrator,
+      ),
       book: {
         ...m.book,
-        authors: (authorsByBookId[m.book.id] ?? []).map((a) => ({
-          name: a.name,
-        })),
+        authors: (authorsByBookId[m.book.id] ?? []).map(
+          ({ bookId, ...author }) => author,
+        ),
       },
     })),
   };

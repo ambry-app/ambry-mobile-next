@@ -34,15 +34,21 @@ export async function getSeriesWithBooks(session: Session, seriesId: string) {
 
   return {
     ...series,
-    seriesBooks: seriesBooks.map((sb) => ({
-      ...sb,
+    seriesBooks: seriesBooks.map((seriesBook) => ({
+      ...seriesBook,
       book: {
-        ...sb.book,
-        authors: authorsByBookId[sb.book.id] ?? [],
-        media: (mediaByBookId[sb.book.id] ?? []).map((m) => ({
-          ...m,
-          narrators: narratorsByMediaId[m.id] ?? [],
-        })),
+        ...seriesBook.book,
+        authors: (authorsByBookId[seriesBook.book.id] ?? []).map(
+          ({ bookId, ...author }) => author,
+        ),
+        media: (mediaByBookId[seriesBook.book.id] ?? []).map(
+          ({ bookId, ...media }) => ({
+            ...media,
+            narrators: (narratorsByMediaId[media.id] ?? []).map(
+              ({ mediaId, ...narrator }) => narrator,
+            ),
+          }),
+        ),
       },
     })),
   };

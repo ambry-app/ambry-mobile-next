@@ -35,13 +35,13 @@ export async function getMediaPage(
     ...media,
     book: {
       ...media.book,
-      authors: (authorsByBookId[media.book.id] || []).map((a) => ({
-        name: a.name,
-      })),
+      authors: (authorsByBookId[media.book.id] || []).map(
+        ({ bookId, ...author }) => author,
+      ),
     },
-    narrators: (narratorsByMediaId[media.id] || []).map((n) => ({
-      name: n.name,
-    })),
+    narrators: (narratorsByMediaId[media.id] || []).map(
+      ({ mediaId, ...narrator }) => narrator,
+    ),
   }));
 }
 
@@ -65,13 +65,13 @@ export async function getSearchedMedia(
     ...media,
     book: {
       ...media.book,
-      authors: (authorsByBookId[media.book.id] || []).map((a) => ({
-        name: a.name,
-      })),
+      authors: (authorsByBookId[media.book.id] || []).map(
+        ({ bookId, ...author }) => author,
+      ),
     },
-    narrators: (narratorsByMediaId[media.id] || []).map((n) => ({
-      name: n.name,
-    })),
+    narrators: (narratorsByMediaId[media.id] || []).map(
+      ({ mediaId, ...narrator }) => narrator,
+    ),
   }));
 }
 
