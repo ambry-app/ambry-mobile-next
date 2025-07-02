@@ -1,8 +1,4 @@
 import { Delay } from "@/src/components";
-import { useMediaIds } from "@/src/hooks/library";
-import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
-import { Session } from "@/src/stores/session";
-import { RefreshControl, ScrollView, StyleSheet } from "react-native";
 import {
   ActionBar,
   AuthorsAndNarrators,
@@ -12,7 +8,11 @@ import {
   OtherBooksByAuthor,
   OtherEditions,
   OtherMediaByNarrator,
-} from "./components";
+} from "@/src/components/media-details";
+import { useMediaIds } from "@/src/hooks/library";
+import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
+import { Session } from "@/src/stores/session";
+import { RefreshControl, ScrollView, StyleSheet } from "react-native";
 
 type MediaDetailsProps = {
   session: Session;

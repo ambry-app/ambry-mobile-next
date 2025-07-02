@@ -1,8 +1,8 @@
 import { Tile } from "@/src/components";
+import { Header } from "@/src/components/book-details";
+import { useBookDetails } from "@/src/hooks/library";
 import { Session } from "@/src/stores/session";
 import { FlatList, StyleSheet } from "react-native";
-import { Header } from "./components";
-import { useBookDetails } from "@/src/hooks/library";
 
 type BookDetailsProps = {
   bookId: string;

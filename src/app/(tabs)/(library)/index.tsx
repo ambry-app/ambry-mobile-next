@@ -1,4 +1,4 @@
-import { Library } from "@/src/components/library";
+import { Library } from "@/src/screens";
 import { useSession } from "@/src/stores/session";
 
 export default function LibraryScreen() {

@@ -1,4 +1,4 @@
-import { BookDetails } from "@/src/components/book-details";
+import { BookDetails } from "@/src/screens";
 import { useSession } from "@/src/stores/session";
 import { RouterParams } from "@/src/types/router";
 import { Stack, useLocalSearchParams } from "expo-router";
