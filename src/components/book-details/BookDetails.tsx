@@ -1,27 +1,23 @@
 import { Tile } from "@/src/components";
-import { useBookDetails } from "@/src/db/library-old";
 import { Session } from "@/src/stores/session";
-import { StyleSheet } from "react-native";
-import Animated from "react-native-reanimated";
-import Header from "./Header";
+import { FlatList, StyleSheet } from "react-native";
+import { Header } from "./components";
+import { useBookDetails } from "@/src/hooks/library";
 
-type BookDetailsFlatListProps = {
+type BookDetailsProps = {
   bookId: string;
   session: Session;
 };
 
-export default function BookDetailsFlatList({
-  bookId,
-  session,
-}: BookDetailsFlatListProps) {
-  const { book, opacity } = useBookDetails(session, bookId);
+export function BookDetails({ bookId, session }: BookDetailsProps) {
+  const { book } = useBookDetails(session, bookId);
 
   if (!book) return null;
 
   return (
-    <Animated.FlatList
+    <FlatList
       contentInsetAdjustmentBehavior="automatic"
-      style={[styles.container, { opacity }]}
+      style={styles.container}
       data={book.media}
       keyExtractor={(item) => item.id}
       numColumns={2}

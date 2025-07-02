@@ -76,7 +76,6 @@ type TileProps = {
 };
 
 type TileImageProps = {
-  book: Book;
   media: Media[];
   seriesBook?: SeriesBook;
   onPress: () => void;
@@ -97,26 +96,22 @@ type PersonTileProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export const MediaTile = React.memo(function MediaTile({
-  media,
-  style,
-}: MediaTileProps) {
+export const MediaTile = React.memo(function MediaTile(props: MediaTileProps) {
+  const { media, style } = props;
   const tile = <Tile book={media.book} media={[media]} style={style} />;
   return tile;
 });
 
-export const BookTile = React.memo(function BookTile({
-  book,
-  style,
-}: BookTileProps) {
+export const BookTile = React.memo(function BookTile(props: BookTileProps) {
+  const { book, style } = props;
   if (book.media.length === 0) return null;
   return <Tile book={book} media={book.media} style={style} />;
 });
 
-export const SeriesBookTile = React.memo(function SeriesBookTile({
-  seriesBook,
-  style,
-}: SeriesBookTileProps) {
+export const SeriesBookTile = React.memo(function SeriesBookTile(
+  props: SeriesBookTileProps,
+) {
+  const { seriesBook, style } = props;
   if (seriesBook.book.media.length === 0) return null;
   return (
     <Tile
@@ -128,18 +123,13 @@ export const SeriesBookTile = React.memo(function SeriesBookTile({
   );
 });
 
-export const Tile = React.memo(function Tile({
-  book,
-  media,
-  seriesBook,
-  style,
-}: TileProps) {
+export const Tile = React.memo(function Tile(props: TileProps) {
+  const { book, media, seriesBook, style } = props;
   const navigateToBook = useNavigateToBookCallback(book, media);
 
   return (
     <View style={[styles.container, style]}>
       <TileImage
-        book={book}
         media={media}
         seriesBook={seriesBook}
         onPress={navigateToBook}
@@ -173,11 +163,9 @@ export const TileImage = React.memo(function TileImage(props: TileImageProps) {
   );
 });
 
-export const TileText = React.memo(function TileText({
-  book,
-  media,
-  onPress,
-}: TileTextProps) {
+export const TileText = React.memo(function TileText(props: TileTextProps) {
+  const { book, media, onPress } = props;
+
   return (
     <Pressable onPress={onPress}>
       <View>

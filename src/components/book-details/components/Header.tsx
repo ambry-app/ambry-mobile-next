@@ -1,19 +1,19 @@
 import { NamesList } from "@/src/components";
-import { BookDetails } from "@/src/db/library-old";
+import { BookDetails } from "@/src/db/library";
 import { Colors } from "@/src/styles";
 import { formatPublished } from "@/src/utils";
 import { StyleSheet, Text, View } from "react-native";
 
 type HeaderProps = { book: BookDetails };
 
-export default function Header({ book }: HeaderProps) {
+export function Header({ book }: HeaderProps) {
   return (
     <View style={styles.container}>
       <View>
         <NamesList
           style={styles.authorsList}
           prefix="By"
-          names={book.bookAuthors.map((ba) => ba.author.name)}
+          names={book.authors.map((author) => author.name)}
         />
         {book.published && (
           <Text style={styles.publishedText}>

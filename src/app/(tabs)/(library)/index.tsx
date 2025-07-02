@@ -1,4 +1,4 @@
-import { LibraryFlatList } from "@/src/components/library";
+import { Library } from "@/src/components/library";
 import { useSession } from "@/src/stores/session";
 
 export default function LibraryScreen() {
@@ -6,5 +6,5 @@ export default function LibraryScreen() {
 
   if (!session) return null;
 
-  return <LibraryFlatList session={session} />;
+  return <Library session={session} />;
 }

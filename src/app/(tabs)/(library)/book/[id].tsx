@@ -1,4 +1,4 @@
-import { BookDetailsFlatList } from "@/src/components/BookDetailsScreen";
+import { BookDetails } from "@/src/components/book-details";
 import { useSession } from "@/src/stores/session";
 import { RouterParams } from "@/src/types/router";
 import { Stack, useLocalSearchParams } from "expo-router";
@@ -12,7 +12,7 @@ export default function BookDetailsScreen() {
   return (
     <>
       <Stack.Screen options={{ title }} />
-      <BookDetailsFlatList session={session} bookId={bookId} />
+      <BookDetails session={session} bookId={bookId} />
     </>
   );
 }

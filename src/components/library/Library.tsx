@@ -8,11 +8,11 @@ import { useLayoutEffect } from "react";
 import { FlatList, StyleSheet, Text } from "react-native";
 import { useDebounce } from "use-debounce";
 
-type LibraryFlatListProps = {
+type LibraryProps = {
   session: Session;
 };
 
-export function LibraryFlatList({ session }: LibraryFlatListProps) {
+export function Library({ session }: LibraryProps) {
   const [search, setSearch] = useDebounce("", 500);
   const navigation = useNavigation();
 
@@ -30,17 +30,17 @@ export function LibraryFlatList({ session }: LibraryFlatListProps) {
   }, [navigation, setSearch]);
 
   if (search && search.length >= 3) {
-    return <SearchResultsFlatList session={session} searchQuery={search} />;
+    return <SearchResults session={session} searchQuery={search} />;
   } else {
-    return <FullLibraryFlatList session={session} />;
+    return <FullLibrary session={session} />;
   }
 }
 
-type FullLibraryFlatListProps = {
+type FullLibraryProps = {
   session: Session;
 };
 
-function FullLibraryFlatList({ session }: FullLibraryFlatListProps) {
+function FullLibrary({ session }: FullLibraryProps) {
   const { media, hasMore, loadMore } = useMediaPages(session);
   const { refreshing, onRefresh } = usePullToRefresh(session);
 
@@ -82,12 +82,12 @@ function FullLibraryFlatList({ session }: FullLibraryFlatListProps) {
   );
 }
 
-type SearchResultsFlatListProps = {
+type SearchResultsProps = {
   session: Session;
   searchQuery: string;
 };
 
-function SearchResultsFlatList(props: SearchResultsFlatListProps) {
+function SearchResults(props: SearchResultsProps) {
   const { session, searchQuery } = props;
   const { media } = useMediaSearch(session, searchQuery);
 

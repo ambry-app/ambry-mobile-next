@@ -112,67 +112,6 @@ export function useMediaDetails(session: Session, mediaId: string) {
   return { media: data, ...rest };
 }
 
-export type BookDetails = Exclude<
-  ReturnType<typeof useBookDetails>["book"],
-  undefined
->;
-
-export function useBookDetails(session: Session, bookId: string) {
-  const query = db.query.books.findFirst({
-    columns: {
-      id: true,
-      title: true,
-      published: true,
-      publishedFormat: true,
-    },
-    where: and(eq(schema.books.url, session.url), eq(schema.books.id, bookId)),
-    with: {
-      bookAuthors: {
-        columns: {},
-        with: {
-          author: {
-            columns: { id: true, name: true },
-            with: {
-              person: {
-                columns: { id: true, name: true, thumbnails: true },
-              },
-            },
-          },
-        },
-      },
-      media: {
-        columns: { id: true, thumbnails: true },
-        with: {
-          mediaNarrators: {
-            columns: {},
-            with: {
-              narrator: {
-                columns: { id: true, name: true },
-                with: {
-                  person: {
-                    columns: {
-                      id: true,
-                      name: true,
-                      thumbnails: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
-          download: {
-            columns: { thumbnails: true },
-          },
-        },
-      },
-    },
-  });
-
-  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [bookId]);
-
-  return { book: data, ...rest };
-}
-
 // TODO: break this up into smaller hooks
 export function useSeriesDetails(session: Session, seriesId: string) {
   const query = db.query.series.findFirst({
