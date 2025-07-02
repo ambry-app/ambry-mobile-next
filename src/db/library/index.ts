@@ -10,4 +10,5 @@ export * from "./get-media-page";
 export * from "./get-narrator-with-other-media";
 export * from "./get-person-header-info";
 export * from "./get-person-with-authored-books";
+export * from "./get-person-with-narrated-media";
 export * from "./get-series-with-books";
