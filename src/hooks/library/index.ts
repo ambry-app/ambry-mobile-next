@@ -9,4 +9,5 @@ export * from "./use-media-ids";
 export * from "./use-media-pages";
 export * from "./use-media-search";
 export * from "./use-narrator-with-other-media";
+export * from "./use-person-header-info";
 export * from "./use-series-with-books";

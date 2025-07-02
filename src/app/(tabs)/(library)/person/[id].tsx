@@ -1,4 +1,4 @@
-import { PersonDetailsFlatList } from "@/src/components/PersonDetailsScreen";
+import { PersonDetails } from "@/src/screens";
 import { useSession } from "@/src/stores/session";
 import { RouterParams } from "@/src/types/router";
 import { Stack, useLocalSearchParams } from "expo-router";
@@ -12,7 +12,7 @@ export default function PersonDetailsScreen() {
   return (
     <>
       <Stack.Screen options={{ title }} />
-      <PersonDetailsFlatList session={session} personId={personId} />
+      <PersonDetails session={session} personId={personId} />
     </>
   );
 }

@@ -22,7 +22,6 @@ type MediaDetailsProps = {
 export function MediaDetails(props: MediaDetailsProps) {
   const { session, mediaId } = props;
   const { ids } = useMediaIds(session, mediaId);
-
   const { refreshing, onRefresh } = usePullToRefresh(session);
 
   if (!ids) return null;
@@ -42,7 +41,7 @@ export function MediaDetails(props: MediaDetailsProps) {
         <AuthorsAndNarrators mediaId={mediaId} session={session} />
         <OtherEditions
           bookId={ids.bookId}
-          withoutMediaId={ids.mediaId}
+          withoutMediaId={mediaId}
           session={session}
         />
         <Delay delay={100}>

@@ -1,39 +1,36 @@
-import { BookTile } from "@/src/components";
-import { useBooksByAuthor } from "@/src/db/library-old";
+import { MediaTile } from "@/src/components";
+import { useMediaByNarrator } from "@/src/db/library-old";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { FlatList, StyleSheet, Text } from "react-native";
 import Animated from "react-native-reanimated";
 
-type BooksByAuthorProps = {
-  authorId: string;
+type MediaByNarratorProps = {
+  narratorId: string;
   session: Session;
 };
 
-export default function BooksByAuthor({
-  authorId,
-  session,
-}: BooksByAuthorProps) {
-  const { books, author, opacity } = useBooksByAuthor(session, authorId);
+export function MediaByNarrator({ narratorId, session }: MediaByNarratorProps) {
+  const { media, narrator, opacity } = useMediaByNarrator(session, narratorId);
 
-  if (!author) return null;
-  if (books.length === 0) return null;
+  if (!narrator) return null;
+  if (media.length === 0) return null;
 
   return (
     <Animated.View style={[styles.container, { opacity }]}>
       <Text style={styles.header} numberOfLines={1}>
-        {author.name === author.person.name
-          ? `By ${author.name}`
-          : `As ${author.name}`}
+        {narrator.name === narrator.person.name
+          ? `Read by ${narrator.name}`
+          : `Read as ${narrator.name}`}
       </Text>
 
       <FlatList
         style={styles.list}
-        data={books}
+        data={media}
         keyExtractor={(item) => item.id}
         numColumns={2}
         renderItem={({ item }) => {
-          return <BookTile style={styles.tile} book={item} />;
+          return <MediaTile style={styles.tile} media={item} />;
         }}
       />
     </Animated.View>
