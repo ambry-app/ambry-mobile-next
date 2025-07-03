@@ -39,11 +39,7 @@ export function MediaDetails(props: MediaDetailsProps) {
       <MediaDescription mediaId={mediaId} session={session} />
       <Delay delay={550}>
         <AuthorsAndNarrators mediaId={mediaId} session={session} />
-        <OtherEditions
-          bookId={ids.bookId}
-          withoutMediaId={mediaId}
-          session={session}
-        />
+        <OtherEditions mediaId={mediaId} session={session} />
         <Delay delay={100}>
           {ids.seriesIds.map((seriesId) => (
             <BooksInSeries

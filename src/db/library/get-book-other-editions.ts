@@ -8,26 +8,13 @@ export type BookOtherEditions = Awaited<
   ReturnType<typeof getBookOtherEditions>
 >;
 
-/**
- * Retrieves other editions of a book, excluding a specific media ID, along with associated authors and narrators.
- *
- * @param session - The current user session containing the URL context.
- * @param bookId - The unique identifier of the book to retrieve editions for.
- * @param withoutMediaId - The media ID to exclude from the results.
- * @returns An object containing book details, authors, and an array of media editions (each with their narrators),
- *          or `null` if no other editions are found.
- */
-export async function getBookOtherEditions(
-  session: Session,
-  bookId: string,
-  withoutMediaId: string,
-) {
-  const media = await getMedia(session, bookId, withoutMediaId);
+export async function getBookOtherEditions(session: Session, mediaId: string) {
+  const book = await getBook(session, mediaId);
+  const media = await getMedia(session, book.id, mediaId);
 
   if (media.length === 0) return null;
 
-  const book = await getBook(session, bookId);
-  const authors = await getAuthors(session, bookId);
+  const authors = await getAuthors(session, book.id);
 
   const mediaIds = media.map((m) => m.id);
   const narrators = await getNarrators(session, mediaIds);
@@ -47,6 +34,26 @@ export async function getBookOtherEditions(
       ),
     })),
   };
+}
+
+async function getBook(session: Session, mediaId: string) {
+  const rows = await db
+    .select({
+      id: schema.books.id,
+      title: schema.books.title,
+    })
+    .from(schema.media)
+    .innerJoin(
+      schema.books,
+      and(
+        eq(schema.books.url, schema.media.url),
+        eq(schema.books.id, schema.media.bookId),
+      ),
+    )
+    .where(and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)))
+    .limit(1);
+
+  return requireValue(rows[0], "Book not found");
 }
 
 async function getMedia(
@@ -79,15 +86,6 @@ async function getMedia(
     )
     .orderBy(desc(schema.media.published))
     .limit(10);
-}
-
-async function getBook(session: Session, bookId: string) {
-  const book = await db.query.books.findFirst({
-    where: and(eq(schema.books.url, session.url), eq(schema.books.id, bookId)),
-    columns: { id: true, title: true },
-  });
-
-  return requireValue(book, "Book not found");
 }
 
 async function getAuthors(session: Session, bookId: string) {

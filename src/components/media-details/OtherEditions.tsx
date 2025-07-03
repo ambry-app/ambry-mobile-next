@@ -6,30 +6,25 @@ import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
 
 type OtherEditionsProps = {
-  bookId: string;
   session: Session;
-  withoutMediaId: string;
+  mediaId: string;
 };
 
 export function OtherEditions(props: OtherEditionsProps) {
-  const { bookId, session, withoutMediaId } = props;
+  const { mediaId, session } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
 
-  const { bookWithOtherEditions } = useBookOtherEditions(
-    session,
-    bookId,
-    withoutMediaId,
-  );
+  const { book } = useBookOtherEditions(session, mediaId);
 
-  if (!bookWithOtherEditions) return null;
-  if (!bookWithOtherEditions.media[0]) return null;
+  if (!book) return null;
+  if (!book.media[0]) return null;
 
   const navigateToBook = () => {
     router.navigate({
       pathname: "/book/[id]",
       params: {
-        id: bookWithOtherEditions.id,
-        title: bookWithOtherEditions.title,
+        id: book.id,
+        title: book.title,
       },
     });
   };
@@ -40,12 +35,12 @@ export function OtherEditions(props: OtherEditionsProps) {
         <HeaderButton
           label="Other Editions"
           onPress={navigateToBook}
-          showCaret={bookWithOtherEditions.media.length === 10}
+          showCaret={book.media.length === 10}
         />
       </View>
       <FlatList
         style={styles.list}
-        data={bookWithOtherEditions.media}
+        data={book.media}
         keyExtractor={(item) => item.id}
         horizontal={true}
         snapToInterval={screenWidth / 2.5 + 16}
@@ -54,7 +49,7 @@ export function OtherEditions(props: OtherEditionsProps) {
           return (
             <MediaTile
               style={[styles.tile, { width: screenWidth / 2.5 }]}
-              media={{ ...item, book: bookWithOtherEditions }}
+              media={{ ...item, book: book }}
             />
           );
         }}
