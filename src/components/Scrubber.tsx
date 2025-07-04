@@ -160,7 +160,7 @@ type ScrubberProps = {
   theme: Theme;
 };
 
-export default function Scrubber(props: ScrubberProps) {
+export function Scrubber(props: ScrubberProps) {
   const {
     position: positionInput,
     duration,

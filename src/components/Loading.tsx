@@ -7,7 +7,7 @@ type LoadingProps = {
   size?: number | "small" | "large";
 };
 
-export default function Loading(props: LoadingProps) {
+export function Loading(props: LoadingProps) {
   const { style, color = Colors.zinc[100], size = "large" } = props;
 
   return (

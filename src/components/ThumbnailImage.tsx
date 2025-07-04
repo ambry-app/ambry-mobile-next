@@ -1,7 +1,7 @@
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 import { useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
-import { documentDirectoryFilePath } from "@/src/utils/paths";
+import { documentDirectoryFilePath } from "@/src/utils";
 import { Image, ImageStyle } from "expo-image";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 
@@ -13,7 +13,7 @@ type ThumbnailImageProps = {
   imageStyle?: StyleProp<ImageStyle>;
 };
 
-export default function ThumbnailImage(props: ThumbnailImageProps) {
+export function ThumbnailImage(props: ThumbnailImageProps) {
   const { downloadedThumbnails, thumbnails, size, style, imageStyle } = props;
   const session = useSession((state) => state.session);
 

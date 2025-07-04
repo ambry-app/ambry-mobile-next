@@ -2,7 +2,6 @@ import { Session } from "@/src/stores/session";
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { and, eq } from "drizzle-orm";
-import useFadeInQuery from "@/src/hooks/use.fade.in.query";
 
 export async function addMediaToShelf(
   session: Session,
@@ -75,7 +74,9 @@ export async function toggleMediaOnShelf(
   return;
 }
 
-async function getShelvedMedia(
+export type ShelvedMedia = Awaited<ReturnType<typeof getShelvedMedia>>;
+
+export async function getShelvedMedia(
   session: Session,
   mediaId: string,
   shelfName: string,
@@ -88,6 +89,26 @@ async function getShelvedMedia(
       eq(schema.shelvedMedia.mediaId, mediaId),
     ),
   });
+}
+
+export async function isMediaOnShelf(
+  session: Session,
+  mediaId: string,
+  shelfName: string,
+) {
+  const rows = await db
+    .select({ deletedAt: schema.shelvedMedia.deletedAt })
+    .from(schema.shelvedMedia)
+    .where(
+      and(
+        eq(schema.shelvedMedia.url, session.url),
+        eq(schema.shelvedMedia.userEmail, session.email),
+        eq(schema.shelvedMedia.shelfName, shelfName),
+        eq(schema.shelvedMedia.mediaId, mediaId),
+      ),
+    );
+
+  return rows[0] ? !rows[0].deletedAt : false;
 }
 
 async function reAddShelvedMedia(
@@ -154,23 +175,4 @@ async function deleteShelvedMedia(
         eq(schema.shelvedMedia.mediaId, mediaId),
       ),
     );
-}
-
-export function useShelvedMedia(
-  session: Session,
-  mediaId: string,
-  shelfName: string,
-) {
-  const query = db.query.shelvedMedia.findFirst({
-    where: and(
-      eq(schema.shelvedMedia.url, session.url),
-      eq(schema.shelvedMedia.userEmail, session.email),
-      eq(schema.shelvedMedia.shelfName, shelfName),
-      eq(schema.shelvedMedia.mediaId, mediaId),
-    ),
-  });
-
-  const { data, ...rest } = useFadeInQuery(query);
-  const isSaved = data && !data.deletedAt;
-  return { isSaved: isSaved, ...rest };
 }

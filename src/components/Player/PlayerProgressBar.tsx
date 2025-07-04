@@ -1,7 +1,7 @@
 import { ProgressBar } from "@/src/components";
 import { usePlayer } from "@/src/stores/player";
 import { Colors } from "@/src/styles";
-import { secondsDisplay } from "@/src/utils/time";
+import { secondsDisplay } from "@/src/utils";
 import { StyleSheet, Text, View } from "react-native";
 import { useShallow } from "zustand/react/shallow";
 

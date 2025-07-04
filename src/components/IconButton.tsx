@@ -6,7 +6,7 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-import Loading from "./Loading";
+import { Loading } from "./Loading";
 
 type IconButtonProps = {
   size: number;
@@ -20,7 +20,7 @@ type IconButtonProps = {
   solid?: boolean;
 };
 
-export default function IconButton(props: IconButtonProps) {
+export function IconButton(props: IconButtonProps) {
   const {
     size,
     icon,

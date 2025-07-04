@@ -1,4 +1,5 @@
 import * as FileSystem from "expo-file-system";
+import { requireValue } from "./require-value";
 
 export function documentDirectoryFilePath(path: string): string {
   if (path.startsWith("file:///")) {
@@ -8,7 +9,10 @@ export function documentDirectoryFilePath(path: string): string {
     // (on iOS, `FileSystem.documentDirectory` changes between app upgrades)
     const [lastSegment] = path.split("/").slice(-1);
 
-    return FileSystem.documentDirectory + lastSegment;
+    return (
+      FileSystem.documentDirectory +
+      requireValue(lastSegment, "Invalid file path")
+    );
   }
 
   return FileSystem.documentDirectory + path;

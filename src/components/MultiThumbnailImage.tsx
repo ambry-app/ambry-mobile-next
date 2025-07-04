@@ -2,7 +2,7 @@ import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 import { Colors } from "@/src/styles";
 import { ImageStyle } from "expo-image";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
-import ThumbnailImage from "./ThumbnailImage";
+import { ThumbnailImage } from "./ThumbnailImage";
 
 type MultiThumbnailImageProps = {
   thumbnailPairs: {
@@ -14,7 +14,7 @@ type MultiThumbnailImageProps = {
   imageStyle?: StyleProp<ImageStyle>;
 };
 
-export default function MultiThumbnailImage(props: MultiThumbnailImageProps) {
+export function MultiThumbnailImage(props: MultiThumbnailImageProps) {
   const { thumbnailPairs, size, style, imageStyle } = props;
 
   if (thumbnailPairs.length === 0)

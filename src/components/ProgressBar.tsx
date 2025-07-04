@@ -6,7 +6,7 @@ type ProgressBarProps = {
   duration: number;
 };
 
-export default function ProgressBar(props: ProgressBarProps) {
+export function ProgressBar(props: ProgressBarProps) {
   const { position, duration } = props;
   const percent = duration > 0 ? (position / duration) * 100 : 0;
 

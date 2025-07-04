@@ -1,7 +1,7 @@
 import { tabBarBaseHeight } from "@/src/constants";
 import { BottomTabBar, BottomTabBarProps } from "@react-navigation/bottom-tabs";
 
-export default function TabBar(props: BottomTabBarProps) {
+export function TabBar(props: BottomTabBarProps) {
   const { state, descriptors, navigation, insets } = props;
   const tabBarHeight = tabBarBaseHeight + insets.bottom;
 

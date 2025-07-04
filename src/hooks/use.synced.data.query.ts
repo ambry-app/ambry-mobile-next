@@ -10,6 +10,23 @@ type LiveQueryParams = Parameters<typeof useLiveQuery>;
 type Query = LiveQueryParams[0];
 type Deps = LiveQueryParams[1];
 
+/**
+ * @deprecated This hook is deprecated and will be removed soon.
+ * React hook to query and synchronize data based on the latest server sync timestamp.
+ *
+ * This hook listens for changes in the `syncedServers` table for the given session's URL,
+ * and re-executes the provided query whenever new data is available or when additional dependencies change.
+ * It returns the queried data, any error encountered, and the timestamp of the last update.
+ *
+ * @template T - The type of the query result.
+ * @param session - The current user session containing the server URL.
+ * @param query - The query to execute, which should be a Promise-like object.
+ * @param additionalDeps - Optional array of additional dependencies to trigger the effect.
+ * @returns An object containing:
+ *   - `data`: The result of the query.
+ *   - `error`: Any error encountered during the query.
+ *   - `updatedAt`: The timestamp when the data was last updated.
+ */
 export default function useSyncedDataQuery<T extends Query>(
   session: Session,
   query: T,
