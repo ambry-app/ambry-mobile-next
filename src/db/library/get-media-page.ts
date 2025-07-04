@@ -188,7 +188,7 @@ async function searchMedia(
         eq(schema.seriesBooks.bookId, schema.books.id),
       ),
     )
-    .innerJoin(
+    .leftJoin(
       schema.series,
       and(
         eq(schema.series.url, schema.seriesBooks.url),

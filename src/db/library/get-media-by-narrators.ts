@@ -1,88 +1,60 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { requireValue } from "@/src/utils";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
-export type PersonWithNarratedMedia = Awaited<
-  ReturnType<typeof getPersonWithNarratedMedia>
+export type MediaByNarratorsType = Awaited<
+  ReturnType<typeof getMediaByNarrators>
 >;
 
-export async function getPersonWithNarratedMedia(
-  session: Session,
-  personId: string,
-) {
-  const person = await getPerson(session, personId);
-  const personNarrators = await getNarrators(session, personId);
+type Narrator = {
+  id: string;
+  name: string;
+};
 
-  const narratorIds = personNarrators.map((n) => n.id);
+export async function getMediaByNarrators(
+  session: Session,
+  narrators: Narrator[],
+) {
+  const narratorIds = narrators.map((n) => n.id);
   const media = await getMediaForNarrators(session, narratorIds);
 
   const bookIds = media.map((m) => m.book.id);
   const authors = await getAuthorsForBooks(session, bookIds);
 
   const mediaIds = media.map((m) => m.id);
-  const narrators = await getNarratorsForMedia(session, mediaIds);
+  const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
 
   const authorsByBookId = Object.groupBy(authors, (a) => a.bookId);
   const mediaByNarratorId = Object.groupBy(media, (m) => m.narratorId);
-  const narratorsByMediaId = Object.groupBy(narrators, (n) => n.mediaId);
+  const narratorsByMediaId = Object.groupBy(
+    narratorsForMedia,
+    (n) => n.mediaId,
+  );
 
-  return {
-    ...person,
-    narrators: personNarrators.map((narrator) => ({
-      ...narrator,
-      media: (mediaByNarratorId[narrator.id] ?? []).map(
-        ({ narratorId, ...media }) => ({
-          ...media,
-          book: {
-            ...media.book,
-            authors: (authorsByBookId[media.book.id] ?? []).map(
-              ({ bookId, ...author }) => author,
-            ),
-          },
-          narrators: (narratorsByMediaId[media.id] ?? []).map(
-            ({ mediaId, ...narrator }) => narrator,
+  return narrators.map((narrator) => ({
+    ...narrator,
+    media: (mediaByNarratorId[narrator.id] ?? []).map(
+      ({ narratorId, ...media }) => ({
+        ...media,
+        book: {
+          ...media.book,
+          authors: (authorsByBookId[media.book.id] ?? []).map(
+            ({ bookId, ...author }) => author,
           ),
-        }),
-      ),
-    })),
-  };
-}
-
-async function getPerson(session: Session, personId: string) {
-  const person = await db.query.people.findFirst({
-    columns: {
-      name: true,
-    },
-    where: and(
-      eq(schema.people.url, session.url),
-      eq(schema.people.id, personId),
+        },
+        narrators: (narratorsByMediaId[media.id] ?? []).map(
+          ({ mediaId, ...narrator }) => narrator,
+        ),
+      }),
     ),
-  });
-
-  return requireValue(person, "Person not found");
-}
-
-async function getNarrators(session: Session, personId: string) {
-  return db
-    .select({
-      id: schema.narrators.id,
-      name: schema.narrators.name,
-    })
-    .from(schema.narrators)
-    .where(
-      and(
-        eq(schema.narrators.url, session.url),
-        eq(schema.narrators.personId, personId),
-      ),
-    )
-    .orderBy(asc(schema.narrators.name));
+  }));
 }
 
 async function getMediaForNarrators(session: Session, narratorIds: string[]) {
   if (narratorIds.length === 0) return [];
-  return db
+
+  const media = await db
     .select({
       id: schema.media.id,
       narratorId: schema.mediaNarrators.narratorId,
@@ -122,6 +94,11 @@ async function getMediaForNarrators(session: Session, narratorIds: string[]) {
       ),
     )
     .orderBy(desc(schema.media.published));
+
+  // Limit to 10 media per narratorId
+  // Doing it in JS right now because it's too hard to do window functions with drizzle-orm
+  const grouped = Object.groupBy(media, (m) => m.narratorId);
+  return Object.values(grouped).flatMap((arr) => (arr ?? []).slice(0, 10));
 }
 
 async function getAuthorsForBooks(session: Session, bookIds: string[]) {

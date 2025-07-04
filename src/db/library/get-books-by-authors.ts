@@ -1,91 +1,52 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { requireValue } from "@/src/utils";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
-export type PersonWithAuthoredBooks = Awaited<
-  ReturnType<typeof getPersonWithAuthoredBooks>
->;
+export type BooksByAuthorsType = Awaited<ReturnType<typeof getBooksByAuthors>>;
 
-export async function getPersonWithAuthoredBooks(
-  session: Session,
-  personId: string,
-) {
-  const person = await getPerson(session, personId);
-  const personAuthors = await getAuthors(session, personId);
+type Author = {
+  id: string;
+  name: string;
+};
 
-  const authorIds = personAuthors.map((a) => a.id);
+export async function getBooksByAuthors(session: Session, authors: Author[]) {
+  const authorIds = authors.map((a) => a.id);
   const books = await getBooks(session, authorIds);
 
   const bookIds = books.map((b) => b.id);
-  const authors = await getAuthorsForBooks(session, bookIds);
+  const authorsForBooks = await getAuthorsForBooks(session, bookIds);
   const media = await getMediaForBooks(session, bookIds);
 
   const mediaIds = media.map((m) => m.id);
   const narrators = await getNarratorsForMedia(session, mediaIds);
 
   const booksByAuthorId = Object.groupBy(books, (b) => b.authorId);
-  const authorsByBookId = Object.groupBy(authors, (a) => a.bookId);
+  const authorsByBookId = Object.groupBy(authorsForBooks, (a) => a.bookId);
   const mediaByBookId = Object.groupBy(media, (m) => m.bookId);
   const narratorsByMediaId = Object.groupBy(narrators, (n) => n.mediaId);
 
-  return {
-    ...person,
-    authors: personAuthors.map((author) => ({
-      ...author,
-      books: (booksByAuthorId[author.id] ?? []).map(
-        ({ authorId, ...book }) => ({
-          ...book,
-          authors: (authorsByBookId[book.id] ?? []).map(
-            ({ bookId, ...author }) => author,
-          ),
-          media: (mediaByBookId[book.id] ?? []).map(({ bookId, ...media }) => ({
-            ...media,
-            narrators: (narratorsByMediaId[media.id] ?? []).map(
-              ({ mediaId, ...narrator }) => narrator,
-            ),
-          })),
-        }),
+  return authors.map((author) => ({
+    ...author,
+    books: (booksByAuthorId[author.id] ?? []).map(({ authorId, ...book }) => ({
+      ...book,
+      authors: (authorsByBookId[book.id] ?? []).map(
+        ({ bookId, ...author }) => author,
       ),
+      media: (mediaByBookId[book.id] ?? []).map(({ bookId, ...media }) => ({
+        ...media,
+        narrators: (narratorsByMediaId[media.id] ?? []).map(
+          ({ mediaId, ...narrator }) => narrator,
+        ),
+      })),
     })),
-  };
-}
-
-async function getPerson(session: Session, personId: string) {
-  const person = await db.query.people.findFirst({
-    columns: {
-      name: true,
-    },
-    where: and(
-      eq(schema.people.url, session.url),
-      eq(schema.people.id, personId),
-    ),
-  });
-
-  return requireValue(person, "Person not found");
-}
-
-async function getAuthors(session: Session, personId: string) {
-  return db
-    .select({
-      id: schema.authors.id,
-      name: schema.authors.name,
-    })
-    .from(schema.authors)
-    .where(
-      and(
-        eq(schema.authors.url, session.url),
-        eq(schema.authors.personId, personId),
-      ),
-    )
-    .orderBy(asc(schema.authors.name));
+  }));
 }
 
 async function getBooks(session: Session, authorIds: string[]) {
   if (authorIds.length === 0) return [];
 
-  return db
+  const books = await db
     .select({
       id: schema.books.id,
       title: schema.books.title,
@@ -106,6 +67,11 @@ async function getBooks(session: Session, authorIds: string[]) {
       ),
     )
     .orderBy(desc(schema.books.published));
+
+  // Limit to 10 books per authorId
+  // Doing it in JS right now because it's too hard to do window functions with drizzle-orm
+  const grouped = Object.groupBy(books, (b) => b.authorId);
+  return Object.values(grouped).flatMap((arr) => (arr ?? []).slice(0, 10));
 }
 
 async function getMediaForBooks(session: Session, bookIds: string[]) {

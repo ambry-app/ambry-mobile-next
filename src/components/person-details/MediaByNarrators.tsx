@@ -1,23 +1,31 @@
-import { FadeInOnMount, MediaTile } from "@/src/components";
-import { PersonWithNarratedMedia } from "@/src/db/library";
-import { usePersonWithNarratedMedia } from "@/src/hooks/library";
+import { FadeInOnMount, HeaderButton, MediaTile } from "@/src/components";
+import {
+  getMediaByNarrators,
+  MediaByNarratorsType,
+  PersonHeaderInfo,
+} from "@/src/db/library";
+import { useLibraryData } from "@/src/hooks/use-library-data";
+import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
+import { FlatList, StyleSheet, View } from "react-native";
 
 type MediaByNarratorsProps = {
-  personId: string;
+  person: PersonHeaderInfo;
   session: Session;
 };
 
-export function MediaByNarrators({ personId, session }: MediaByNarratorsProps) {
-  const { person } = usePersonWithNarratedMedia(session, personId);
+export function MediaByNarrators(props: MediaByNarratorsProps) {
+  const { person, session } = props;
+  const narrators = useLibraryData(() =>
+    getMediaByNarrators(session, person.narrators),
+  );
 
-  if (!person) return null;
+  if (!narrators) return null;
 
   return (
     <FadeInOnMount>
-      {person.narrators.map((narrator) => (
+      {narrators.map((narrator) => (
         <MediaByNarrator
           key={`media-${narrator.id}`}
           narrator={narrator}
@@ -29,25 +37,51 @@ export function MediaByNarrators({ personId, session }: MediaByNarratorsProps) {
 }
 
 type MediaByNarratorProps = {
-  narrator: PersonWithNarratedMedia["narrators"][0];
+  narrator: MediaByNarratorsType[number];
   personName: string;
 };
 
-function MediaByNarrator({ narrator, personName }: MediaByNarratorProps) {
+function MediaByNarrator(props: MediaByNarratorProps) {
+  const { narrator, personName } = props;
+  const screenWidth = useScreen((state) => state.screenWidth);
+
+  if (narrator.media.length === 0) return null;
+
+  const navigateToNarrator = () => {
+    router.navigate({
+      pathname: "/person/[id]",
+      params: { id: narrator.id, title: narrator.name },
+    });
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.header} numberOfLines={1}>
-        {narrator.name === personName
-          ? `Read By ${narrator.name}`
-          : `Read As ${narrator.name}`}
-      </Text>
+      <View style={styles.headerContainer}>
+        <HeaderButton
+          label={
+            narrator.name === personName
+              ? `Read By ${narrator.name}`
+              : `Read As ${narrator.name}`
+          }
+          onPress={navigateToNarrator}
+          showCaret={narrator.media.length === 10}
+        />
+      </View>
+
       <FlatList
         style={styles.list}
         data={narrator.media}
         keyExtractor={(item) => item.id}
-        numColumns={2}
+        horizontal={true}
+        snapToInterval={screenWidth / 2.5 + 16}
+        ListHeaderComponent={<View style={styles.listSpacer} />}
         renderItem={({ item }) => {
-          return <MediaTile style={styles.tile} media={item} />;
+          return (
+            <MediaTile
+              style={[styles.tile, { width: screenWidth / 2.5 }]}
+              media={item}
+            />
+          );
         }}
       />
     </View>
@@ -57,19 +91,17 @@ function MediaByNarrator({ narrator, personName }: MediaByNarratorProps) {
 const styles = StyleSheet.create({
   container: {
     marginTop: 32,
-    gap: 8,
   },
-  header: {
-    fontSize: 22,
-    fontWeight: "500",
-    color: Colors.zinc[100],
+  headerContainer: {
+    paddingHorizontal: 16,
   },
   list: {
-    marginHorizontal: -8,
+    paddingVertical: 8,
+  },
+  listSpacer: {
+    width: 16,
   },
   tile: {
-    padding: 8,
-    width: "50%",
-    marginBottom: 8,
+    marginRight: 16,
   },
 });

@@ -1,23 +1,31 @@
-import { BookTile, FadeInOnMount } from "@/src/components";
-import { PersonWithAuthoredBooks } from "@/src/db/library";
-import { usePersonWithAuthoredBooks } from "@/src/hooks/library/use-person-with-authored-books";
+import { BookTile, FadeInOnMount, HeaderButton } from "@/src/components";
+import {
+  BooksByAuthorsType,
+  getBooksByAuthors,
+  PersonHeaderInfo,
+} from "@/src/db/library";
+import { useLibraryData } from "@/src/hooks/use-library-data";
+import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
+import { FlatList, StyleSheet, View } from "react-native";
 
 type BooksByAuthorsProps = {
-  personId: string;
+  person: PersonHeaderInfo;
   session: Session;
 };
 
-export function BooksByAuthors({ personId, session }: BooksByAuthorsProps) {
-  const { person } = usePersonWithAuthoredBooks(session, personId);
+export function BooksByAuthors(props: BooksByAuthorsProps) {
+  const { person, session } = props;
+  const authors = useLibraryData(() =>
+    getBooksByAuthors(session, person.authors),
+  );
 
-  if (!person) return null;
+  if (!authors) return null;
 
   return (
     <FadeInOnMount>
-      {person.authors.map((author) => (
+      {authors.map((author) => (
         <BooksByAuthor
           key={`books-${author.id}`}
           author={author}
@@ -29,28 +37,51 @@ export function BooksByAuthors({ personId, session }: BooksByAuthorsProps) {
 }
 
 type BooksByAuthorProps = {
-  author: PersonWithAuthoredBooks["authors"][0];
+  author: BooksByAuthorsType[number];
   personName: string;
 };
 
 function BooksByAuthor(props: BooksByAuthorProps) {
   const { author, personName } = props;
+  const screenWidth = useScreen((state) => state.screenWidth);
 
   if (author.books.length === 0) return null;
 
+  const navigateToAuthor = () => {
+    router.navigate({
+      pathname: "/person/[id]",
+      params: { id: author.id, title: author.name },
+    });
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.header} numberOfLines={1}>
-        {author.name === personName ? `By ${author.name}` : `As ${author.name}`}
-      </Text>
+      <View style={styles.headerContainer}>
+        <HeaderButton
+          label={
+            author.name === personName
+              ? `By ${author.name}`
+              : `As ${author.name}`
+          }
+          onPress={navigateToAuthor}
+          showCaret={author.books.length === 10}
+        />
+      </View>
 
       <FlatList
         style={styles.list}
         data={author.books}
         keyExtractor={(item) => item.id}
-        numColumns={2}
+        horizontal={true}
+        snapToInterval={screenWidth / 2.5 + 16}
+        ListHeaderComponent={<View style={styles.listSpacer} />}
         renderItem={({ item }) => {
-          return <BookTile style={styles.tile} book={item} />;
+          return (
+            <BookTile
+              style={[styles.tile, { width: screenWidth / 2.5 }]}
+              book={item}
+            />
+          );
         }}
       />
     </View>
@@ -60,19 +91,17 @@ function BooksByAuthor(props: BooksByAuthorProps) {
 const styles = StyleSheet.create({
   container: {
     marginTop: 32,
-    gap: 8,
   },
-  header: {
-    fontSize: 22,
-    fontWeight: "500",
-    color: Colors.zinc[100],
+  headerContainer: {
+    paddingHorizontal: 16,
   },
   list: {
-    marginHorizontal: -8,
+    paddingVertical: 8,
+  },
+  listSpacer: {
+    width: 16,
   },
   tile: {
-    padding: 8,
-    width: "50%",
-    marginBottom: 8,
+    marginRight: 16,
   },
 });

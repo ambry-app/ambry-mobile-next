@@ -1,31 +1,18 @@
 import { Description, FadeInOnMount, ThumbnailImage } from "@/src/components";
-import { usePersonHeaderInfo } from "@/src/hooks/library";
-import { Session } from "@/src/stores/session";
-import { View, StyleSheet } from "react-native";
+import { PersonHeaderInfo } from "@/src/db/library";
+import { StyleSheet, View } from "react-native";
 
 type HeaderProps = {
-  personId: string;
-  session: Session;
+  person: PersonHeaderInfo;
 };
 
-export function Header({ personId, session }: HeaderProps) {
-  const { person } = usePersonHeaderInfo(session, personId);
-
-  if (!person) return null;
-
+export function Header({ person }: HeaderProps) {
   return (
     <FadeInOnMount>
       <ThumbnailImage
         thumbnails={person.thumbnails}
         size="extraLarge"
-        style={{
-          aspectRatio: 1,
-          borderRadius: 9999,
-          marginLeft: "auto",
-          marginRight: "auto",
-          marginTop: 32,
-          width: "75%",
-        }}
+        style={styles.thumbnail}
       />
       <PersonDescription description={person.description} />
     </FadeInOnMount>
@@ -49,7 +36,16 @@ function PersonDescription(props: PersonDescriptionProps) {
 }
 
 const styles = StyleSheet.create({
+  thumbnail: {
+    aspectRatio: 1,
+    borderRadius: 9999,
+    marginLeft: "auto",
+    marginRight: "auto",
+    marginTop: 16,
+    width: "75%",
+  },
   spacingTop: {
     marginTop: 32,
+    paddingHorizontal: 16,
   },
 });
