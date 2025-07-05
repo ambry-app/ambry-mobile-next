@@ -1,4 +1,4 @@
-import { FullLibrary, SearchResults } from "@/src/components/library";
+import { FullLibrary, SearchResults } from "@/src/components/screens/library";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { useNavigation } from "expo-router";

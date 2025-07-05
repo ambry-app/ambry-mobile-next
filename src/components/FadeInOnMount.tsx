@@ -1,21 +1,18 @@
-import { ReactNode, useEffect } from "react";
+import { ReactNode } from "react";
 import { StyleProp, ViewProps } from "react-native";
-import Animated, { useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { FadeIn } from "react-native-reanimated";
 
 type Props = ViewProps & {
   style?: StyleProp<ViewProps>;
   children?: ReactNode;
+  duration?: number;
 };
 
-export function FadeInOnMount({ children, style, ...props }: Props) {
-  const opacity = useSharedValue(0.0);
-
-  useEffect(() => {
-    opacity.value = withTiming(1, { duration: 500 });
-  }, [opacity]);
+export function FadeInOnMount(props: Props) {
+  const { children, style, duration = 500, ...rest } = props;
 
   return (
-    <Animated.View style={[style, { opacity }]} {...props}>
+    <Animated.View style={style} entering={FadeIn.duration(duration)} {...rest}>
       {children}
     </Animated.View>
   );

@@ -1,9 +1,9 @@
-import { Delay } from "@/src/components";
+import { Delay, FadeInOnMount } from "@/src/components";
 import {
   BooksByAuthors,
   Header,
   MediaByNarrators,
-} from "@/src/components/person-details";
+} from "@/src/components/screens/person-details";
 import { getPersonHeaderInfo } from "@/src/db/library";
 import { useLibraryData } from "@/src/hooks/use-library-data";
 import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
@@ -30,10 +30,16 @@ export function PersonDetails(props: PersonDetailsProps) {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <Header person={person} />
+      <FadeInOnMount>
+        <Header person={person} />
+      </FadeInOnMount>
       <Delay delay={100}>
-        <BooksByAuthors person={person} session={session} />
-        <MediaByNarrators person={person} session={session} />
+        {person.authors.length > 0 && (
+          <BooksByAuthors person={person} session={session} />
+        )}
+        {person.narrators.length > 0 && (
+          <MediaByNarrators person={person} session={session} />
+        )}
       </Delay>
     </ScrollView>
   );

@@ -1,5 +1,6 @@
 import { FadeInOnMount, MediaTile } from "@/src/components";
-import { useMediaSearch } from "@/src/hooks/library";
+import { getSearchedMedia } from "@/src/db/library";
+import { useLibraryData } from "@/src/hooks/use-library-data";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { FlatList, StyleSheet, Text } from "react-native";
@@ -11,7 +12,10 @@ type SearchResultsProps = {
 
 export function SearchResults(props: SearchResultsProps) {
   const { session, searchQuery } = props;
-  const { media } = useMediaSearch(session, searchQuery);
+  const media = useLibraryData(
+    () => getSearchedMedia(session, 64, searchQuery),
+    [searchQuery],
+  );
 
   if (!media) {
     return null;

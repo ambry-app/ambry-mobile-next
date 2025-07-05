@@ -8,7 +8,7 @@ import {
   OtherBooksByAuthor,
   OtherEditions,
   OtherMediaByNarrator,
-} from "@/src/components/media-details";
+} from "@/src/components/screens/media-details";
 import { useMediaIds } from "@/src/hooks/library";
 import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
 import { Session } from "@/src/stores/session";
@@ -37,7 +37,7 @@ export function MediaDetails(props: MediaDetailsProps) {
       <Header mediaId={mediaId} session={session} />
       <ActionBar mediaId={mediaId} session={session} />
       <MediaDescription mediaId={mediaId} session={session} />
-      <Delay delay={550}>
+      <Delay delay={100}>
         <AuthorsAndNarrators mediaId={mediaId} session={session} />
         <OtherEditions mediaId={mediaId} session={session} />
         <Delay delay={100}>

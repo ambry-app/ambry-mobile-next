@@ -1,4 +1,4 @@
-import { Description, FadeInOnMount, ThumbnailImage } from "@/src/components";
+import { Description, ThumbnailImage } from "@/src/components";
 import { PersonHeaderInfo } from "@/src/db/library";
 import { StyleSheet, View } from "react-native";
 
@@ -8,14 +8,14 @@ type HeaderProps = {
 
 export function Header({ person }: HeaderProps) {
   return (
-    <FadeInOnMount>
+    <>
       <ThumbnailImage
         thumbnails={person.thumbnails}
         size="extraLarge"
         style={styles.thumbnail}
       />
       <PersonDescription description={person.description} />
-    </FadeInOnMount>
+    </>
   );
 }
 

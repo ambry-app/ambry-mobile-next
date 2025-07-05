@@ -1,7 +1,7 @@
 import { useDataVersion } from "@/src/stores/data-version";
 import { useCallback, useEffect, useState } from "react";
 
-export function useLibraryData<T>(getData: () => Promise<T>) {
+export function useLibraryData<T>(getData: () => Promise<T>, deps: any[] = []) {
   const [data, setData] = useState<T | undefined>(undefined);
   const libraryDataVersion = useDataVersion(
     (state) => state.libraryDataVersion,
@@ -15,7 +15,7 @@ export function useLibraryData<T>(getData: () => Promise<T>) {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [libraryDataVersion]);
+  }, [libraryDataVersion, ...deps]);
 
   return data;
 }

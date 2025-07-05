@@ -1,4 +1,4 @@
-import { PersonDetails } from "@/src/screens";
+import { PersonDetails } from "@/src/components/screens";
 import { useSession } from "@/src/stores/session";
 import { RouterParams } from "@/src/types/router";
 import { Stack, useLocalSearchParams } from "expo-router";
