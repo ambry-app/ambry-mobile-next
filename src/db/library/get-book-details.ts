@@ -2,29 +2,25 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { requireValue } from "@/src/utils";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
+import { getNarratorsForMedia } from "./shared-queries";
 
 export type BookDetails = Awaited<ReturnType<typeof getBookDetails>>;
 
 export async function getBookDetails(session: Session, bookId: string) {
   const book = await getBook(session, bookId);
-  const authors = await getAuthors(session, bookId);
-  const media = await getMedia(session, bookId);
+  const authorsForBook = await getAuthorsForBook(session, bookId);
+  const mediaForBook = await getMediaForBook(session, bookId);
 
-  const mediaIds = media.map((m) => m.id);
-  const narrators = await getNarrators(session, mediaIds);
-
-  const narratorsByMediaId = Object.groupBy(
-    narrators,
-    (narrator) => narrator.mediaId,
-  );
+  const mediaIds = mediaForBook.map((m) => m.id);
+  const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
 
   return {
     ...book,
-    authors,
-    media: media.map((media) => ({
+    authors: authorsForBook,
+    media: mediaForBook.map((media) => ({
       ...media,
-      narrators: (narratorsByMediaId[media.id] ?? []).map(
+      narrators: (narratorsForMedia[media.id] ?? []).map(
         ({ mediaId, ...narrator }) => narrator,
       ),
     })),
@@ -45,7 +41,7 @@ async function getBook(session: Session, bookId: string) {
   return requireValue(book, "Book not found");
 }
 
-async function getAuthors(session: Session, bookId: string) {
+async function getAuthorsForBook(session: Session, bookId: string) {
   return db
     .select({
       name: schema.authors.name,
@@ -67,7 +63,7 @@ async function getAuthors(session: Session, bookId: string) {
     .orderBy(asc(schema.bookAuthors.insertedAt));
 }
 
-async function getMedia(session: Session, bookId: string) {
+async function getMediaForBook(session: Session, bookId: string) {
   return db
     .select({
       id: schema.media.id,
@@ -89,27 +85,4 @@ async function getMedia(session: Session, bookId: string) {
     )
     .orderBy(desc(schema.media.published))
     .limit(10);
-}
-
-async function getNarrators(session: Session, mediaIds: string[]) {
-  return db
-    .select({
-      name: schema.narrators.name,
-      mediaId: schema.mediaNarrators.mediaId,
-    })
-    .from(schema.narrators)
-    .innerJoin(
-      schema.mediaNarrators,
-      and(
-        eq(schema.mediaNarrators.url, schema.narrators.url),
-        eq(schema.mediaNarrators.narratorId, schema.narrators.id),
-      ),
-    )
-    .where(
-      and(
-        eq(schema.narrators.url, session.url),
-        inArray(schema.mediaNarrators.mediaId, mediaIds),
-      ),
-    )
-    .orderBy(asc(schema.mediaNarrators.insertedAt));
 }

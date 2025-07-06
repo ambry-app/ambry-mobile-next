@@ -3,6 +3,7 @@ import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { and, asc, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { MediaHeaderInfo } from "./get-media-header-info";
+import { getNarratorsForMedia } from "./shared-queries";
 
 export type AuthorsWithOtherBooks = Awaited<
   ReturnType<typeof getOtherBooksByAuthors>
@@ -24,11 +25,10 @@ export async function getOtherBooksByAuthors(
   const mediaForBooks = await getMediaForBooks(session, bookIds);
 
   const mediaIds = mediaForBooks.map((m) => m.id);
-  const narrators = await getNarratorsForMedia(session, mediaIds);
+  const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
 
   const authorsByBookId = Object.groupBy(authors, (a) => a.bookId);
   const mediaByBookId = Object.groupBy(mediaForBooks, (m) => m.bookId);
-  const narratorsByMediaId = Object.groupBy(narrators, (n) => n.mediaId);
 
   return book.authors.map((author) => ({
     ...author,
@@ -39,7 +39,7 @@ export async function getOtherBooksByAuthors(
       ),
       media: (mediaByBookId[book.id] ?? []).map(({ bookId, ...media }) => ({
         ...media,
-        narrators: (narratorsByMediaId[media.id] ?? []).map(
+        narrators: (narratorsForMedia[media.id] ?? []).map(
           ({ mediaId, ...narrator }) => narrator,
         ),
       })),
@@ -176,29 +176,4 @@ async function getMediaForBooks(session: Session, bookIds: string[]) {
       ),
     )
     .orderBy(desc(schema.media.published));
-}
-
-async function getNarratorsForMedia(session: Session, mediaIds: string[]) {
-  if (mediaIds.length === 0) return [];
-
-  return db
-    .select({
-      mediaId: schema.mediaNarrators.mediaId,
-      name: schema.narrators.name,
-    })
-    .from(schema.mediaNarrators)
-    .innerJoin(
-      schema.narrators,
-      and(
-        eq(schema.narrators.url, schema.mediaNarrators.url),
-        eq(schema.narrators.id, schema.mediaNarrators.narratorId),
-      ),
-    )
-    .where(
-      and(
-        eq(schema.mediaNarrators.url, session.url),
-        inArray(schema.mediaNarrators.mediaId, mediaIds),
-      ),
-    )
-    .orderBy(asc(schema.mediaNarrators.insertedAt));
 }

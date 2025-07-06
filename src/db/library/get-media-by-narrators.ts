@@ -2,6 +2,7 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { getNarratorsForMedia } from "./shared-queries";
 
 export type MediaByNarratorsType = Awaited<
   ReturnType<typeof getMediaByNarrators>
@@ -27,10 +28,6 @@ export async function getMediaByNarrators(
 
   const authorsByBookId = Object.groupBy(authors, (a) => a.bookId);
   const mediaByNarratorId = Object.groupBy(media, (m) => m.narratorId);
-  const narratorsByMediaId = Object.groupBy(
-    narratorsForMedia,
-    (n) => n.mediaId,
-  );
 
   return narrators.map((narrator) => ({
     ...narrator,
@@ -43,7 +40,7 @@ export async function getMediaByNarrators(
             ({ bookId, ...author }) => author,
           ),
         },
-        narrators: (narratorsByMediaId[media.id] ?? []).map(
+        narrators: (narratorsForMedia[media.id] ?? []).map(
           ({ mediaId, ...narrator }) => narrator,
         ),
       }),
@@ -124,29 +121,4 @@ async function getAuthorsForBooks(session: Session, bookIds: string[]) {
       ),
     )
     .orderBy(asc(schema.bookAuthors.insertedAt));
-}
-
-async function getNarratorsForMedia(session: Session, mediaIds: string[]) {
-  if (mediaIds.length === 0) return [];
-
-  return db
-    .select({
-      mediaId: schema.mediaNarrators.mediaId,
-      name: schema.narrators.name,
-    })
-    .from(schema.mediaNarrators)
-    .innerJoin(
-      schema.narrators,
-      and(
-        eq(schema.narrators.url, schema.mediaNarrators.url),
-        eq(schema.narrators.id, schema.mediaNarrators.narratorId),
-      ),
-    )
-    .where(
-      and(
-        eq(schema.mediaNarrators.url, session.url),
-        inArray(schema.mediaNarrators.mediaId, mediaIds),
-      ),
-    )
-    .orderBy(asc(schema.mediaNarrators.insertedAt));
 }
