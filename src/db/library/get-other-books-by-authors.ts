@@ -1,9 +1,14 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { and, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
+import { flatMapGroups } from "@/src/utils/flat-map-groups";
+import { and, desc, eq, ne, or, sql } from "drizzle-orm";
 import { MediaHeaderInfo } from "./get-media-header-info";
-import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
+import {
+  getAuthorsForBooks,
+  getMediaForBooks,
+  getNarratorsForMedia,
+} from "./shared-queries";
 
 export type AuthorsWithOtherBooks = Awaited<
   ReturnType<typeof getOtherBooksByAuthors>
@@ -18,16 +23,12 @@ export async function getOtherBooksByAuthors(
 
   const booksByAuthorId = await getBooksForAuthors(session, book);
 
-  const bookIds = Object.values(booksByAuthorId).flatMap((books) =>
-    books.map((b) => b.id),
-  );
+  const bookIds = flatMapGroups(booksByAuthorId, (book) => book.id);
   const authorsForBooks = await getAuthorsForBooks(session, bookIds);
   const mediaForBooks = await getMediaForBooks(session, bookIds);
 
-  const mediaIds = mediaForBooks.map((m) => m.id);
+  const mediaIds = flatMapGroups(mediaForBooks, (media) => media.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
-
-  const mediaByBookId = Object.groupBy(mediaForBooks, (m) => m.bookId);
 
   return book.authors.map((author) => ({
     ...author,
@@ -36,7 +37,7 @@ export async function getOtherBooksByAuthors(
       authors: (authorsForBooks[book.id] ?? []).map(
         ({ bookId, ...author }) => author,
       ),
-      media: (mediaByBookId[book.id] ?? []).map(({ bookId, ...media }) => ({
+      media: (mediaForBooks[book.id] ?? []).map(({ bookId, ...media }) => ({
         ...media,
         narrators: (narratorsForMedia[media.id] ?? []).map(
           ({ mediaId, ...narrator }) => narrator,
@@ -123,31 +124,4 @@ async function getBooksForAuthor(
     .limit(10);
 
   return results.map(({ seriesIds, ...rest }) => rest);
-}
-
-async function getMediaForBooks(session: Session, bookIds: string[]) {
-  if (bookIds.length === 0) return [];
-
-  return db
-    .select({
-      id: schema.media.id,
-      bookId: schema.media.bookId,
-      thumbnails: schema.media.thumbnails,
-      download: { thumbnails: schema.downloads.thumbnails },
-    })
-    .from(schema.media)
-    .leftJoin(
-      schema.downloads,
-      and(
-        eq(schema.downloads.url, schema.media.url),
-        eq(schema.downloads.mediaId, schema.media.id),
-      ),
-    )
-    .where(
-      and(
-        eq(schema.media.url, session.url),
-        inArray(schema.media.bookId, bookIds),
-      ),
-    )
-    .orderBy(desc(schema.media.published));
 }

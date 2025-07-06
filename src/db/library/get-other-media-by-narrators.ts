@@ -1,6 +1,7 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
+import { flatMapGroups } from "@/src/utils/flat-map-groups";
 import { and, desc, eq, ne, or, sql } from "drizzle-orm";
 import { MediaHeaderInfo } from "./get-media-header-info";
 import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
@@ -18,14 +19,10 @@ export async function getOtherMediaByNarrators(
 
   const mediaByNarratorId = await getMediaForNarrators(session, media);
 
-  const bookIds = Object.values(mediaByNarratorId).flatMap((media) =>
-    media.map((m) => m.book.id),
-  );
+  const bookIds = flatMapGroups(mediaByNarratorId, (media) => media.book.id);
   const authorsForBooks = await getAuthorsForBooks(session, bookIds);
 
-  const mediaIds = Object.values(mediaByNarratorId).flatMap((media) =>
-    media.map((m) => m.id),
-  );
+  const mediaIds = flatMapGroups(mediaByNarratorId, (media) => media.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
 
   return media.narrators.map((narrator) => ({

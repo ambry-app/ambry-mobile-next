@@ -1,8 +1,13 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
+import { flatMapGroups } from "@/src/utils/flat-map-groups";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import {
+  getAuthorsForBooks,
+  getMediaForBooks,
+  getNarratorsForMedia,
+} from "./shared-queries";
 
 export type SeriesWithBooks = Awaited<ReturnType<typeof getSeriesWithBooks>>;
 
@@ -19,16 +24,15 @@ export async function getSeriesWithBooks(session: Session, series: Series[]) {
 
   const bookIds = seriesBooks.map((sb) => sb.book.id);
   const authorsForBooks = await getAuthorsForBooks(session, bookIds);
-  const media = await getMediaForBooks(session, bookIds);
+  const mediaForBooks = await getMediaForBooks(session, bookIds);
 
-  const mediaIds = media.map((m) => m.id);
+  const mediaIds = flatMapGroups(mediaForBooks, (media) => media.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
 
   const seriesBooksBySeriesId = Object.groupBy(
     seriesBooks,
     (sb) => sb.seriesId,
   );
-  const mediaByBookId = Object.groupBy(media, (m) => m.bookId);
 
   // NOTE: small improvement possible by missing out series that have no books
   return series.map((series) => ({
@@ -41,7 +45,7 @@ export async function getSeriesWithBooks(session: Session, series: Series[]) {
           authors: (authorsForBooks[seriesBook.book.id] ?? []).map(
             ({ bookId, ...author }) => author,
           ),
-          media: (mediaByBookId[seriesBook.book.id] ?? []).map(
+          media: (mediaForBooks[seriesBook.book.id] ?? []).map(
             ({ bookId, ...media }) => ({
               ...media,
               narrators: (narratorsForMedia[media.id] ?? []).map(
@@ -81,31 +85,4 @@ async function getSeriesBooks(session: Session, seriesIds: string[]) {
       ),
     )
     .orderBy(sql`CAST(book_number AS FLOAT)`);
-}
-
-async function getMediaForBooks(session: Session, bookIds: string[]) {
-  if (bookIds.length === 0) return [];
-
-  return db
-    .select({
-      id: schema.media.id,
-      bookId: schema.media.bookId,
-      thumbnails: schema.media.thumbnails,
-      download: { thumbnails: schema.downloads.thumbnails },
-    })
-    .from(schema.media)
-    .leftJoin(
-      schema.downloads,
-      and(
-        eq(schema.downloads.url, schema.media.url),
-        eq(schema.downloads.mediaId, schema.media.id),
-      ),
-    )
-    .where(
-      and(
-        eq(schema.media.url, session.url),
-        inArray(schema.media.bookId, bookIds),
-      ),
-    )
-    .orderBy(desc(schema.media.published));
 }

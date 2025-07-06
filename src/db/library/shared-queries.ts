@@ -1,7 +1,7 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
 export async function getAuthorsForBooks(session: Session, bookIds: string[]) {
   if (bookIds.length === 0) return {};
@@ -28,6 +28,35 @@ export async function getAuthorsForBooks(session: Session, bookIds: string[]) {
     .orderBy(asc(schema.bookAuthors.insertedAt));
 
   return Object.groupBy(authors, (author) => author.bookId);
+}
+
+export async function getMediaForBooks(session: Session, bookIds: string[]) {
+  if (bookIds.length === 0) return {};
+
+  const media = await db
+    .select({
+      id: schema.media.id,
+      bookId: schema.media.bookId,
+      thumbnails: schema.media.thumbnails,
+      download: { thumbnails: schema.downloads.thumbnails },
+    })
+    .from(schema.media)
+    .leftJoin(
+      schema.downloads,
+      and(
+        eq(schema.downloads.url, schema.media.url),
+        eq(schema.downloads.mediaId, schema.media.id),
+      ),
+    )
+    .where(
+      and(
+        eq(schema.media.url, session.url),
+        inArray(schema.media.bookId, bookIds),
+      ),
+    )
+    .orderBy(desc(schema.media.published));
+
+  return Object.groupBy(media, (media) => media.bookId);
 }
 
 export async function getNarratorsForMedia(
