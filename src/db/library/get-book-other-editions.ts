@@ -25,9 +25,7 @@ export async function getBookOtherEditions(
     ...book,
     media: otherMedia.map((media) => ({
       ...media,
-      narrators: (narratorsForMedia[media.id] ?? []).map(
-        ({ mediaId, ...narrator }) => narrator,
-      ),
+      narrators: narratorsForMedia[media.id] ?? [],
     })),
   };
 }

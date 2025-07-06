@@ -1,7 +1,7 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { flatMapGroups } from "@/src/utils/flat-map-groups";
+import { flatMapGroups } from "@/src/utils";
 import { and, desc, eq, ne, or, sql } from "drizzle-orm";
 import { MediaHeaderInfo } from "./get-media-header-info";
 import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
@@ -29,20 +29,18 @@ export async function getOtherMediaByNarrators(
     ...narrator,
     media: (mediaByNarratorId[narrator.id] ?? []).map((m) => ({
       ...m,
-      narrators: (narratorsForMedia[m.id] ?? []).map(
-        ({ mediaId, ...narrator }) => narrator,
-      ),
+      narrators: narratorsForMedia[m.id] ?? [],
       book: {
         ...m.book,
-        authors: (authorsForBooks[m.book.id] ?? []).map(
-          ({ bookId, ...author }) => author,
-        ),
+        authors: authorsForBooks[m.book.id] ?? [],
       },
     })),
   }));
 }
 
 async function getMediaForNarrators(session: Session, media: MediaHeaderInfo) {
+  if (media.narrators.length === 0) return {};
+
   const narratorIds = media.narrators.map((n) => n.id);
   const withoutMediaId = media.id;
   const withoutSeriesIds = media.book.series.map((s) => s.id);
@@ -50,7 +48,7 @@ async function getMediaForNarrators(session: Session, media: MediaHeaderInfo) {
 
   // NOTE: N+1 queries, but it's a small number of narrators (usually 1) and it's easier than doing window functions/CTEs.
   // NOTE: full-cast recordings might make this heavy...
-  let map: Record<string, Awaited<ReturnType<typeof getMediaForNarrator>>> = {};
+  let map: Record<string, MediaForNarrator[]> = {};
 
   for (const narratorId of narratorIds) {
     map[narratorId] = await getMediaForNarrator(
@@ -64,6 +62,8 @@ async function getMediaForNarrators(session: Session, media: MediaHeaderInfo) {
 
   return map;
 }
+
+type MediaForNarrator = Awaited<ReturnType<typeof getMediaForNarrator>>[number];
 
 async function getMediaForNarrator(
   session: Session,

@@ -1,7 +1,7 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { flatMapGroups } from "@/src/utils/flat-map-groups";
+import { flatMapGroups } from "@/src/utils";
 import { and, desc, eq, ne, or, sql } from "drizzle-orm";
 import { MediaHeaderInfo } from "./get-media-header-info";
 import {
@@ -34,14 +34,10 @@ export async function getOtherBooksByAuthors(
     ...author,
     books: (booksByAuthorId[author.id] ?? []).map((book) => ({
       ...book,
-      authors: (authorsForBooks[book.id] ?? []).map(
-        ({ bookId, ...author }) => author,
-      ),
-      media: (mediaForBooks[book.id] ?? []).map(({ bookId, ...media }) => ({
+      authors: authorsForBooks[book.id] ?? [],
+      media: (mediaForBooks[book.id] ?? []).map((media) => ({
         ...media,
-        narrators: (narratorsForMedia[media.id] ?? []).map(
-          ({ mediaId, ...narrator }) => narrator,
-        ),
+        narrators: narratorsForMedia[media.id] ?? [],
       })),
     })),
   }));
@@ -51,12 +47,14 @@ async function getBooksForAuthors(
   session: Session,
   book: MediaHeaderInfo["book"],
 ) {
+  if (book.authors.length === 0) return {};
+
   const authorIds = book.authors.map((a) => a.id);
   const withoutBookId = book.id;
   const withoutSeriesIds = book.series.map((s) => s.id);
 
   // NOTE: N+1 queries, but it's a small number of authors (usually 1) and it's easier than doing window functions/CTEs.
-  let map: Record<string, Awaited<ReturnType<typeof getBooksForAuthor>>> = {};
+  let map: Record<string, BooksForAuthor[]> = {};
 
   for (const authorId of authorIds) {
     map[authorId] = await getBooksForAuthor(
@@ -69,6 +67,8 @@ async function getBooksForAuthors(
 
   return map;
 }
+
+type BooksForAuthor = Awaited<ReturnType<typeof getBooksForAuthor>>[number];
 
 async function getBooksForAuthor(
   session: Session,

@@ -1,7 +1,8 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { flatMapGroups } from "@/src/utils";
+import { and, desc, eq } from "drizzle-orm";
 import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
 
 export type MediaByNarratorsType = Awaited<
@@ -17,45 +18,50 @@ export async function getMediaByNarrators(
   session: Session,
   narrators: Narrator[],
 ) {
-  const narratorIds = narrators.map((n) => n.id);
-  const media = await getMediaForNarrators(session, narratorIds);
+  if (narrators.length === 0) return [];
 
-  const bookIds = media.map((m) => m.book.id);
+  const narratorIds = narrators.map((n) => n.id);
+  const mediaForNarrators = await getMediaForNarrators(session, narratorIds);
+
+  const bookIds = flatMapGroups(mediaForNarrators, (m) => m.book.id);
   const authorsForBooks = await getAuthorsForBooks(session, bookIds);
 
-  const mediaIds = media.map((m) => m.id);
+  const mediaIds = flatMapGroups(mediaForNarrators, (m) => m.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
-
-  const mediaByNarratorId = Object.groupBy(media, (m) => m.narratorId);
 
   return narrators.map((narrator) => ({
     ...narrator,
-    media: (mediaByNarratorId[narrator.id] ?? []).map(
-      ({ narratorId, ...media }) => ({
-        ...media,
-        book: {
-          ...media.book,
-          authors: (authorsForBooks[media.book.id] ?? []).map(
-            ({ bookId, ...author }) => author,
-          ),
-        },
-        narrators: (narratorsForMedia[media.id] ?? []).map(
-          ({ mediaId, ...narrator }) => narrator,
-        ),
-      }),
-    ),
+    media: (mediaForNarrators[narrator.id] ?? []).map((media) => ({
+      ...media,
+      book: {
+        ...media.book,
+        authors: authorsForBooks[media.book.id] ?? [],
+      },
+      narrators: narratorsForMedia[media.id] ?? [],
+    })),
   }));
 }
 
 async function getMediaForNarrators(session: Session, narratorIds: string[]) {
-  if (narratorIds.length === 0) return [];
+  // NOTE: N+1 queries, but it's a small number of narrators (usually 1) and it's easier than doing window functions/CTEs.
+  let map: Record<string, MediaForNarrator[]> = {};
+  for (const narratorId of narratorIds) {
+    map[narratorId] = await getMediaForNarrator(session, narratorId);
+  }
 
-  const media = await db
+  return map;
+}
+
+type MediaForNarrator = Awaited<ReturnType<typeof getMediaForNarrator>>[number];
+
+async function getMediaForNarrator(session: Session, narratorId: string) {
+  return db
     .select({
       id: schema.media.id,
-      narratorId: schema.mediaNarrators.narratorId,
       thumbnails: schema.media.thumbnails,
-      download: { thumbnails: schema.downloads.thumbnails },
+      download: {
+        thumbnails: schema.downloads.thumbnails,
+      },
       book: {
         id: schema.books.id,
         title: schema.books.title,
@@ -86,13 +92,9 @@ async function getMediaForNarrators(session: Session, narratorIds: string[]) {
     .where(
       and(
         eq(schema.mediaNarrators.url, session.url),
-        inArray(schema.mediaNarrators.narratorId, narratorIds),
+        eq(schema.mediaNarrators.narratorId, narratorId),
       ),
     )
-    .orderBy(desc(schema.media.published));
-
-  // Limit to 10 media per narratorId
-  // Doing it in JS right now because it's too hard to do window functions with drizzle-orm
-  const grouped = Object.groupBy(media, (m) => m.narratorId);
-  return Object.values(grouped).flatMap((arr) => (arr ?? []).slice(0, 10));
+    .orderBy(desc(schema.media.published))
+    .limit(10);
 }

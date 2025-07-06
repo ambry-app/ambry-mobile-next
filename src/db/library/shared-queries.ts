@@ -1,6 +1,7 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
+import { groupMapBy } from "@/src/utils";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
 export async function getAuthorsForBooks(session: Session, bookIds: string[]) {
@@ -27,7 +28,11 @@ export async function getAuthorsForBooks(session: Session, bookIds: string[]) {
     )
     .orderBy(asc(schema.bookAuthors.insertedAt));
 
-  return Object.groupBy(authors, (author) => author.bookId);
+  return groupMapBy(
+    authors,
+    (author) => author.bookId,
+    ({ bookId, ...author }) => author,
+  );
 }
 
 export async function getMediaForBooks(session: Session, bookIds: string[]) {
@@ -56,7 +61,11 @@ export async function getMediaForBooks(session: Session, bookIds: string[]) {
     )
     .orderBy(desc(schema.media.published));
 
-  return Object.groupBy(media, (media) => media.bookId);
+  return groupMapBy(
+    media,
+    (media) => media.bookId,
+    ({ bookId, ...media }) => media,
+  );
 }
 
 export async function getNarratorsForMedia(
@@ -86,5 +95,9 @@ export async function getNarratorsForMedia(
     )
     .orderBy(asc(schema.mediaNarrators.insertedAt));
 
-  return Object.groupBy(narrators, (narrator) => narrator.mediaId);
+  return groupMapBy(
+    narrators,
+    (narrator) => narrator.mediaId,
+    ({ mediaId, ...narrator }) => narrator,
+  );
 }

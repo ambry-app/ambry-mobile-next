@@ -20,9 +20,7 @@ export async function getBookDetails(session: Session, bookId: string) {
     authors: authorsForBook,
     media: mediaForBook.map((media) => ({
       ...media,
-      narrators: (narratorsForMedia[media.id] ?? []).map(
-        ({ mediaId, ...narrator }) => narrator,
-      ),
+      narrators: narratorsForMedia[media.id] ?? [],
     })),
   };
 }

@@ -1,7 +1,7 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { flatMapGroups } from "@/src/utils/flat-map-groups";
+import { flatMapGroups } from "@/src/utils";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import {
   getAuthorsForBooks,
@@ -42,17 +42,11 @@ export async function getSeriesWithBooks(session: Session, series: Series[]) {
         ...seriesBook,
         book: {
           ...seriesBook.book,
-          authors: (authorsForBooks[seriesBook.book.id] ?? []).map(
-            ({ bookId, ...author }) => author,
-          ),
-          media: (mediaForBooks[seriesBook.book.id] ?? []).map(
-            ({ bookId, ...media }) => ({
-              ...media,
-              narrators: (narratorsForMedia[media.id] ?? []).map(
-                ({ mediaId, ...narrator }) => narrator,
-              ),
-            }),
-          ),
+          authors: authorsForBooks[seriesBook.book.id] ?? [],
+          media: (mediaForBooks[seriesBook.book.id] ?? []).map((media) => ({
+            ...media,
+            narrators: narratorsForMedia[media.id] ?? [],
+          })),
         },
       }),
     ),
