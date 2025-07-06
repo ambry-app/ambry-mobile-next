@@ -1,54 +1,38 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { requireValue } from "@/src/utils";
 import { and, asc, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
+import { MediaHeaderInfo } from "./get-media-header-info";
 
-export type AuthorWithOtherBooks = Awaited<
-  ReturnType<typeof getAuthorWithOtherBooks>
+export type AuthorsWithOtherBooks = Awaited<
+  ReturnType<typeof getOtherBooksByAuthors>
 >;
+export type AuthorWithOtherBooks = AuthorsWithOtherBooks[number];
 
-/**
- * Retrieves an author along with their other books, excluding a specific book and series.
- *
- * @param session - The current user session containing the URL context.
- * @param authorId - The ID of the author to retrieve.
- * @param withoutBookId - The ID of the book to exclude from the results.
- * @param withoutSeriesIds - An array of series IDs to exclude books from.
- * @returns A promise that resolves to the author object with their other books, including associated authors, media, and narrators,
- *          or `null` if the author has no other books.
- */
-export async function getAuthorWithOtherBooks(
+export async function getOtherBooksByAuthors(
   session: Session,
-  authorId: string,
-  withoutBookId: string,
-  withoutSeriesIds: string[],
+  book: MediaHeaderInfo["book"],
 ) {
-  const books = await getBooks(
-    session,
-    authorId,
-    withoutBookId,
-    withoutSeriesIds,
+  if (book.authors.length === 0) return [];
+
+  const booksByAuthorId = await getBooksForAuthors(session, book);
+
+  const bookIds = Object.values(booksByAuthorId).flatMap((books) =>
+    books.map((b) => b.id),
   );
-
-  if (books.length === 0) return null;
-
-  const author = await getAuthor(session, authorId);
-
-  const bookIds = books.map((b) => b.id);
   const authors = await getAuthorsForBooks(session, bookIds);
-  const media = await getMediaForBooks(session, bookIds);
+  const mediaForBooks = await getMediaForBooks(session, bookIds);
 
-  const mediaIds = media.map((m) => m.id);
+  const mediaIds = mediaForBooks.map((m) => m.id);
   const narrators = await getNarratorsForMedia(session, mediaIds);
 
   const authorsByBookId = Object.groupBy(authors, (a) => a.bookId);
-  const mediaByBookId = Object.groupBy(media, (m) => m.bookId);
+  const mediaByBookId = Object.groupBy(mediaForBooks, (m) => m.bookId);
   const narratorsByMediaId = Object.groupBy(narrators, (n) => n.mediaId);
 
-  return {
+  return book.authors.map((author) => ({
     ...author,
-    books: books.map((book) => ({
+    books: (booksByAuthorId[author.id] ?? []).map((book) => ({
       ...book,
       authors: (authorsByBookId[book.id] ?? []).map(
         ({ bookId, ...author }) => author,
@@ -60,36 +44,33 @@ export async function getAuthorWithOtherBooks(
         ),
       })),
     })),
-  };
+  }));
 }
 
-async function getAuthor(session: Session, authorId: string) {
-  const rows = await db
-    .select({
-      id: schema.authors.id,
-      name: schema.authors.name,
-      person: {
-        id: schema.people.id,
-        name: schema.people.name,
-      },
-    })
-    .from(schema.authors)
-    .innerJoin(
-      schema.people,
-      and(
-        eq(schema.people.url, schema.authors.url),
-        eq(schema.people.id, schema.authors.personId),
-      ),
-    )
-    .where(
-      and(eq(schema.authors.url, session.url), eq(schema.authors.id, authorId)),
-    )
-    .limit(1);
+async function getBooksForAuthors(
+  session: Session,
+  book: MediaHeaderInfo["book"],
+) {
+  const authorIds = book.authors.map((a) => a.id);
+  const withoutBookId = book.id;
+  const withoutSeriesIds = book.series.map((s) => s.id);
 
-  return requireValue(rows[0], `Author with ID ${authorId} not found`);
+  // NOTE: N+1 queries, but it's a small number of authors (usually 1) and it's easier than doing window functions/CTEs.
+  let map: Record<string, Awaited<ReturnType<typeof getBooksForAuthor>>> = {};
+
+  for (const authorId of authorIds) {
+    map[authorId] = await getBooksForAuthor(
+      session,
+      authorId,
+      withoutBookId,
+      withoutSeriesIds,
+    );
+  }
+
+  return map;
 }
 
-async function getBooks(
+async function getBooksForAuthor(
   session: Session,
   authorId: string,
   withoutBookId: string,

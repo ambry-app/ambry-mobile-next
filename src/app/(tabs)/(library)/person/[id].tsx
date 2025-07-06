@@ -1,3 +1,4 @@
+import { Delay } from "@/src/components";
 import { PersonDetails } from "@/src/components/screens";
 import { useSession } from "@/src/stores/session";
 import { RouterParams } from "@/src/types/router";
@@ -12,7 +13,9 @@ export default function PersonDetailsScreen() {
   return (
     <>
       <Stack.Screen options={{ title }} />
-      <PersonDetails session={session} personId={personId} />
+      <Delay delay={10}>
+        <PersonDetails session={session} personId={personId} />
+      </Delay>
     </>
   );
 }

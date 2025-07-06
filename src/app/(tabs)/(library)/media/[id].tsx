@@ -1,3 +1,4 @@
+import { Delay } from "@/src/components";
 import { MediaDetails } from "@/src/components/screens";
 import { useSession } from "@/src/stores/session";
 import { RouterParams } from "@/src/types/router";
@@ -12,7 +13,9 @@ export default function MediaDetailsScreen() {
   return (
     <>
       <Stack.Screen options={{ title }} />
-      <MediaDetails session={session} mediaId={mediaId} />
+      <Delay delay={10}>
+        <MediaDetails session={session} mediaId={mediaId} />
+      </Delay>
     </>
   );
 }

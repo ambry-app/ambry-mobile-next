@@ -7,14 +7,6 @@ export type MediaPage = Awaited<ReturnType<typeof getMediaPage>>;
 
 export type MediaSearchResult = Awaited<ReturnType<typeof getSearchedMedia>>;
 
-/**
- * Returns a paginated list of media items, each with its related book (including authors) and narrators.
- *
- * @param session - The current user session containing the URL context.
- * @param limit - The maximum number of media items to fetch.
- * @param insertedBefore - (Optional) Only include media inserted before this date.
- * @returns A promise that resolves to an array of media items with related book and narrator details.
- */
 export async function getMediaPage(
   session: Session,
   limit: number,

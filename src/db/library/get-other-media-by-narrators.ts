@@ -1,55 +1,38 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { requireValue } from "@/src/utils";
 import { and, asc, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
+import { MediaHeaderInfo } from "./get-media-header-info";
 
-export type NarratorWithOtherMedia = Awaited<
-  ReturnType<typeof getNarratorWithOtherMedia>
+export type NarratorsWithOtherMedia = Awaited<
+  ReturnType<typeof getOtherMediaByNarrators>
 >;
+export type NarratorWithOtherMedia = NarratorsWithOtherMedia[number];
 
-/**
- * Retrieves a narrator along with their other media, excluding a specific media and series/authors.
- *
- * @param session - The current user session containing the URL context.
- * @param narratorId - The ID of the narrator to retrieve.
- * @param withoutMediaId - The ID of the media to exclude from the results.
- * @param withoutSeriesIds - An array of series IDs to exclude media from.
- * @param withoutAuthorIds - An array of author IDs to exclude media from.
- * @returns A promise that resolves to the narrator object with their other media, including associated book, authors, and downloads,
- *          or `null` if the narrator has no other media.
- */
-export async function getNarratorWithOtherMedia(
+export async function getOtherMediaByNarrators(
   session: Session,
-  narratorId: string,
-  withoutMediaId: string,
-  withoutSeriesIds: string[],
-  withoutAuthorIds: string[],
+  media: MediaHeaderInfo,
 ) {
-  const media = await getMedia(
-    session,
-    narratorId,
-    withoutMediaId,
-    withoutSeriesIds,
-    withoutAuthorIds,
+  if (media.narrators.length === 0) return [];
+
+  const mediaByNarratorId = await getMediaForNarrators(session, media);
+
+  const bookIds = Object.values(mediaByNarratorId).flatMap((media) =>
+    media.map((m) => m.book.id),
   );
-
-  if (media.length === 0) return null;
-
-  const narrator = await getNarrator(session, narratorId);
-
-  const bookIds = media.map((m) => m.book.id);
   const authors = await getAuthorsForBooks(session, bookIds);
 
-  const mediaIds = media.map((m) => m.id);
+  const mediaIds = Object.values(mediaByNarratorId).flatMap((media) =>
+    media.map((m) => m.id),
+  );
   const narrators = await getNarratorsForMedia(session, mediaIds);
 
   const authorsByBookId = Object.groupBy(authors, (a) => a.bookId);
   const narratorsByMediaId = Object.groupBy(narrators, (n) => n.mediaId);
 
-  return {
+  return media.narrators.map((narrator) => ({
     ...narrator,
-    media: media.map((m) => ({
+    media: (mediaByNarratorId[narrator.id] ?? []).map((m) => ({
       ...m,
       narrators: (narratorsByMediaId[m.id] ?? []).map(
         ({ mediaId, ...narrator }) => narrator,
@@ -61,39 +44,33 @@ export async function getNarratorWithOtherMedia(
         ),
       },
     })),
-  };
+  }));
 }
 
-async function getNarrator(session: Session, narratorId: string) {
-  const rows = await db
-    .select({
-      id: schema.narrators.id,
-      name: schema.narrators.name,
-      person: {
-        id: schema.people.id,
-        name: schema.people.name,
-      },
-    })
-    .from(schema.narrators)
-    .innerJoin(
-      schema.people,
-      and(
-        eq(schema.narrators.url, schema.people.url),
-        eq(schema.narrators.personId, schema.people.id),
-      ),
-    )
-    .where(
-      and(
-        eq(schema.narrators.url, session.url),
-        eq(schema.narrators.id, narratorId),
-      ),
-    )
-    .limit(1);
+async function getMediaForNarrators(session: Session, media: MediaHeaderInfo) {
+  const narratorIds = media.narrators.map((n) => n.id);
+  const withoutMediaId = media.id;
+  const withoutSeriesIds = media.book.series.map((s) => s.id);
+  const withoutAuthorIds = media.book.authors.map((a) => a.id);
 
-  return requireValue(rows[0], `Narrator with ID ${narratorId} not found`);
+  // NOTE: N+1 queries, but it's a small number of narrators (usually 1) and it's easier than doing window functions/CTEs.
+  // NOTE: full-cast recordings might make this heavy...
+  let map: Record<string, Awaited<ReturnType<typeof getMediaForNarrator>>> = {};
+
+  for (const narratorId of narratorIds) {
+    map[narratorId] = await getMediaForNarrator(
+      session,
+      narratorId,
+      withoutMediaId,
+      withoutSeriesIds,
+      withoutAuthorIds,
+    );
+  }
+
+  return map;
 }
 
-async function getMedia(
+async function getMediaForNarrator(
   session: Session,
   narratorId: string,
   withoutMediaId: string,

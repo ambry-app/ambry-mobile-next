@@ -1,26 +1,20 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { requireValue } from "@/src/utils";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 export type SeriesWithBooks = Awaited<ReturnType<typeof getSeriesWithBooks>>;
 
-/**
- * Retrieves detailed information about a book series, including its books,
- * authors, and associated media.
- *
- * @param session - The current user session containing the URL context.
- * @param seriesId - The unique identifier of the series to retrieve.
- * @returns A promise that resolves to an object containing the series data and an array of books in the series,
- *          each with their respective authors and media. If the series has no books, returns the series with an empty `seriesBooks` array.
- * @throws If the series with the given ID is not found.
- */
-export async function getSeriesWithBooks(session: Session, seriesId: string) {
-  const series = await getSeries(session, seriesId);
+type Series = {
+  id: string;
+  name: string;
+};
 
-  const seriesBooks = await getSeriesBooks(session, seriesId);
-  if (seriesBooks.length === 0) return { ...series, seriesBooks: [] };
+export async function getSeriesWithBooks(session: Session, series: Series[]) {
+  if (series.length === 0) return [];
+
+  const seriesIds = series.map((s) => s.id);
+  const seriesBooks = await getSeriesBooks(session, seriesIds);
 
   const bookIds = seriesBooks.map((sb) => sb.book.id);
   const authors = await getAuthorsForBooks(session, bookIds);
@@ -28,48 +22,44 @@ export async function getSeriesWithBooks(session: Session, seriesId: string) {
   const mediaIds = media.map((m) => m.id);
   const narrators = await getNarratorsForMedia(session, mediaIds);
 
+  const seriesBooksBySeriesId = Object.groupBy(
+    seriesBooks,
+    (sb) => sb.seriesId,
+  );
   const authorsByBookId = Object.groupBy(authors, (a) => a.bookId);
   const mediaByBookId = Object.groupBy(media, (m) => m.bookId);
   const narratorsByMediaId = Object.groupBy(narrators, (n) => n.mediaId);
 
-  return {
+  // NOTE: small improvement possible by missing out series that have no books
+  return series.map((series) => ({
     ...series,
-    seriesBooks: seriesBooks.map((seriesBook) => ({
-      ...seriesBook,
-      book: {
-        ...seriesBook.book,
-        authors: (authorsByBookId[seriesBook.book.id] ?? []).map(
-          ({ bookId, ...author }) => author,
-        ),
-        media: (mediaByBookId[seriesBook.book.id] ?? []).map(
-          ({ bookId, ...media }) => ({
-            ...media,
-            narrators: (narratorsByMediaId[media.id] ?? []).map(
-              ({ mediaId, ...narrator }) => narrator,
-            ),
-          }),
-        ),
-      },
-    })),
-  };
-}
-
-async function getSeries(session: Session, seriesId: string) {
-  const series = await db.query.series.findFirst({
-    where: and(
-      eq(schema.series.url, session.url),
-      eq(schema.series.id, seriesId),
+    seriesBooks: (seriesBooksBySeriesId[series.id] ?? []).map(
+      ({ seriesId, ...seriesBook }) => ({
+        ...seriesBook,
+        book: {
+          ...seriesBook.book,
+          authors: (authorsByBookId[seriesBook.book.id] ?? []).map(
+            ({ bookId, ...author }) => author,
+          ),
+          media: (mediaByBookId[seriesBook.book.id] ?? []).map(
+            ({ bookId, ...media }) => ({
+              ...media,
+              narrators: (narratorsByMediaId[media.id] ?? []).map(
+                ({ mediaId, ...narrator }) => narrator,
+              ),
+            }),
+          ),
+        },
+      }),
     ),
-    columns: { id: true, name: true },
-  });
-
-  return requireValue(series, "Series not found");
+  }));
 }
 
-async function getSeriesBooks(session: Session, seriesId: string) {
+async function getSeriesBooks(session: Session, seriesIds: string[]) {
   return db
     .select({
       id: schema.seriesBooks.id,
+      seriesId: schema.seriesBooks.seriesId,
       bookNumber: schema.seriesBooks.bookNumber,
       book: {
         id: schema.books.id,
@@ -87,7 +77,7 @@ async function getSeriesBooks(session: Session, seriesId: string) {
     .where(
       and(
         eq(schema.seriesBooks.url, session.url),
-        eq(schema.seriesBooks.seriesId, seriesId),
+        inArray(schema.seriesBooks.seriesId, seriesIds),
       ),
     )
     .orderBy(sql`CAST(book_number AS FLOAT)`);

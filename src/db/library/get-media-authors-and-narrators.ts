@@ -1,8 +1,8 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { requireValue } from "@/src/utils";
 import { and, asc, eq } from "drizzle-orm";
+import { MediaHeaderInfo } from "./get-media-header-info";
 
 export type MediaAuthorOrNarrator = {
   id: string;
@@ -12,28 +12,12 @@ export type MediaAuthorOrNarrator = {
   thumbnails: schema.Thumbnails | null;
 };
 
-/**
- * Retrieves and combines the authors and narrators associated with a given media item.
- *
- * This function fetches the authors of the book linked to the media, as well as the narrators
- * specific to the media. It then gathers the corresponding person records for both authors and narrators,
- * and returns a deduplicated, collapsed list of people, indicating their roles (author, narrator, or both),
- * their display names, real names, and thumbnails.
- *
- * @param session - The current user session containing the URL context.
- * @param mediaId - The ID of the media item for which to retrieve authors and narrators.
- * @returns A promise that resolves to an array of objects representing authors, narrators, or both,
- *          each containing the person's ID, role type, associated names, real name, and thumbnails.
- * @throws If any referenced author, narrator, or person cannot be found.
- */
 export async function getMediaAuthorsAndNarrators(
   session: Session,
-  mediaId: string,
+  media: MediaHeaderInfo,
 ) {
-  const media = await getMedia(session, mediaId);
-
-  const authors = await getAuthors(session, media.bookId);
-  const narrators = await getNarrators(session, mediaId);
+  const authors = await getAuthors(session, media.book.id);
+  const narrators = await getNarrators(session, media.id);
 
   const collapsedMap = new Map<string, MediaAuthorOrNarrator>();
 
@@ -58,19 +42,6 @@ export async function getMediaAuthorsAndNarrators(
   }
 
   return [...collapsedMap.values()];
-}
-
-async function getMedia(session: Session, mediaId: string) {
-  const rows = await db
-    .select({
-      id: schema.media.id,
-      bookId: schema.media.bookId,
-    })
-    .from(schema.media)
-    .where(and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)))
-    .limit(1);
-
-  return requireValue(rows[0], "Media not found");
 }
 
 async function getAuthors(session: Session, bookId: string) {

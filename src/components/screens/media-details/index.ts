@@ -3,6 +3,6 @@ export * from "./AuthorsAndNarrators";
 export * from "./BooksInSeries";
 export * from "./Header";
 export * from "./MediaDescription";
-export * from "./OtherBooksByAuthor";
+export * from "./OtherBooksByAuthors";
 export * from "./OtherEditions";
-export * from "./OtherMediaByNarrator";
+export * from "./OtherMediaByNarrators";

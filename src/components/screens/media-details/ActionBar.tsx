@@ -1,6 +1,5 @@
-import { FadeInOnMount, IconButton } from "@/src/components";
-import { MediaActionBarInfo } from "@/src/db/library";
-import { useMediaActionBarInfo } from "@/src/hooks/library";
+import { IconButton } from "@/src/components";
+import { MediaHeaderInfo } from "@/src/db/library";
 import useLoadMediaCallback from "@/src/hooks/use-load-media-callback";
 import { useShelvedMedia } from "@/src/hooks/use-shelved-media";
 import { startDownload, useDownloads } from "@/src/stores/downloads";
@@ -10,23 +9,21 @@ import { router } from "expo-router";
 import { Alert, Share, StyleSheet, View } from "react-native";
 
 type ActionBarProps = {
-  mediaId: string;
+  media: MediaHeaderInfo;
   session: Session;
 };
 
-export function ActionBar(props: ActionBarProps) {
-  const { mediaId, session } = props;
-  const { media } = useMediaActionBarInfo(session, mediaId);
+export function ActionBar({ media, session }: ActionBarProps) {
   const { isOnShelf, toggleOnShelf } = useShelvedMedia(
     session,
-    mediaId,
+    media.id,
     "saved",
   );
 
   if (!media) return null;
 
   return (
-    <FadeInOnMount style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.buttonsContainer}>
         <DownloadButton media={media} session={session} />
         <IconButton
@@ -45,7 +42,7 @@ export function ActionBar(props: ActionBarProps) {
           color={Colors.zinc[100]}
           onPress={async () => {
             const mediaURL =
-              session.url + "/audiobooks/" + atob(mediaId).split(":")[1];
+              session.url + "/audiobooks/" + atob(media.id).split(":")[1];
             Share.share({ message: mediaURL });
           }}
         />
@@ -63,12 +60,12 @@ export function ActionBar(props: ActionBarProps) {
         />
       </View>
       {/* <ExplanationText download={download} /> */}
-    </FadeInOnMount>
+    </View>
   );
 }
 
 type PlayButtonProps = {
-  media: MediaActionBarInfo;
+  media: MediaHeaderInfo;
   session: Session;
 };
 
@@ -88,7 +85,7 @@ function PlayButton({ session, media }: PlayButtonProps) {
 }
 
 type DownloadButtonProps = {
-  media: MediaActionBarInfo;
+  media: MediaHeaderInfo;
   session: Session;
 };
 

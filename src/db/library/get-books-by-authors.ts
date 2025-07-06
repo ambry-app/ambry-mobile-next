@@ -3,7 +3,8 @@ import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
-export type BooksByAuthorsType = Awaited<ReturnType<typeof getBooksByAuthors>>;
+export type AuthorsWithBooks = Awaited<ReturnType<typeof getBooksByAuthors>>;
+export type AuthorWithBooks = AuthorsWithBooks[number];
 
 type Author = {
   id: string;
@@ -11,24 +12,29 @@ type Author = {
 };
 
 export async function getBooksByAuthors(session: Session, authors: Author[]) {
-  const authorIds = authors.map((a) => a.id);
-  const books = await getBooks(session, authorIds);
+  if (authors.length === 0) return [];
 
-  const bookIds = books.map((b) => b.id);
+  const authorIds = authors.map((a) => a.id);
+  const booksByAuthorId = await getBooks(session, authorIds);
+
+  const bookIds = Object.values(booksByAuthorId).flatMap((books) =>
+    books.map((b) => b.id),
+  );
   const authorsForBooks = await getAuthorsForBooks(session, bookIds);
   const media = await getMediaForBooks(session, bookIds);
 
   const mediaIds = media.map((m) => m.id);
   const narrators = await getNarratorsForMedia(session, mediaIds);
 
-  const booksByAuthorId = Object.groupBy(books, (b) => b.authorId);
+  // const booksByAuthorId = Object.groupBy(books, (b) => b.authorId);
   const authorsByBookId = Object.groupBy(authorsForBooks, (a) => a.bookId);
   const mediaByBookId = Object.groupBy(media, (m) => m.bookId);
   const narratorsByMediaId = Object.groupBy(narrators, (n) => n.mediaId);
 
+  // NOTE: small improvement possible by missing out authors that have no books
   return authors.map((author) => ({
     ...author,
-    books: (booksByAuthorId[author.id] ?? []).map(({ authorId, ...book }) => ({
+    books: (booksByAuthorId[author.id] ?? []).map((book) => ({
       ...book,
       authors: (authorsByBookId[book.id] ?? []).map(
         ({ bookId, ...author }) => author,
@@ -44,13 +50,20 @@ export async function getBooksByAuthors(session: Session, authors: Author[]) {
 }
 
 async function getBooks(session: Session, authorIds: string[]) {
-  if (authorIds.length === 0) return [];
+  // NOTE: N+1 queries, but it's a small number of authors (usually 1) and it's easier than doing window functions/CTEs.
+  let map: Record<string, Awaited<ReturnType<typeof getBooksForAuthor>>> = {};
+  for (const authorId of authorIds) {
+    map[authorId] = await getBooksForAuthor(session, authorId);
+  }
 
-  const books = await db
+  return map;
+}
+
+async function getBooksForAuthor(session: Session, authorId: string) {
+  return db
     .select({
       id: schema.books.id,
       title: schema.books.title,
-      authorId: schema.bookAuthors.authorId,
     })
     .from(schema.bookAuthors)
     .innerJoin(
@@ -63,15 +76,11 @@ async function getBooks(session: Session, authorIds: string[]) {
     .where(
       and(
         eq(schema.bookAuthors.url, session.url),
-        inArray(schema.bookAuthors.authorId, authorIds),
+        eq(schema.bookAuthors.authorId, authorId),
       ),
     )
-    .orderBy(desc(schema.books.published));
-
-  // Limit to 10 books per authorId
-  // Doing it in JS right now because it's too hard to do window functions with drizzle-orm
-  const grouped = Object.groupBy(books, (b) => b.authorId);
-  return Object.values(grouped).flatMap((arr) => (arr ?? []).slice(0, 10));
+    .orderBy(desc(schema.books.published))
+    .limit(10);
 }
 
 async function getMediaForBooks(session: Session, bookIds: string[]) {

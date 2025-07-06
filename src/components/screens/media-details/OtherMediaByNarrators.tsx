@@ -1,36 +1,50 @@
-import { HeaderButton, MediaTile } from "@/src/components";
-import { useNarratorWithOtherMedia } from "@/src/hooks/library";
+import { FadeInOnMount, HeaderButton, MediaTile } from "@/src/components";
+import {
+  getOtherMediaByNarrators,
+  MediaHeaderInfo,
+  NarratorWithOtherMedia,
+} from "@/src/db/library";
+import { useLibraryData } from "@/src/hooks/use-library-data";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
 
-type OtherMediaByNarratorProps = {
-  narratorId: string;
+type OtherMediaByNarratorsProps = {
+  media: MediaHeaderInfo;
   session: Session;
-  withoutMediaId: string;
-  withoutSeriesIds: string[];
-  withoutAuthorIds: string[];
 };
 
-export function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
-  const {
-    narratorId,
-    session,
-    withoutMediaId,
-    withoutSeriesIds,
-    withoutAuthorIds,
-  } = props;
-  const screenWidth = useScreen((state) => state.screenWidth);
-  const { narrator } = useNarratorWithOtherMedia(
-    session,
-    narratorId,
-    withoutMediaId,
-    withoutSeriesIds,
-    withoutAuthorIds,
+export function OtherMediaByNarrators(props: OtherMediaByNarratorsProps) {
+  const { media, session } = props;
+  const narrators = useLibraryData(() =>
+    getOtherMediaByNarrators(session, media),
   );
 
-  if (!narrator) return null;
+  if (!narrators) return null;
+  if (narrators.length === 0) return null;
+
+  return (
+    <FadeInOnMount>
+      {narrators.map((narrator) => (
+        <OtherMediaByNarrator
+          key={`media-${narrator.id}`}
+          narrator={narrator}
+        />
+      ))}
+    </FadeInOnMount>
+  );
+}
+
+type OtherMediaByNarratorProps = {
+  narrator: NarratorWithOtherMedia;
+};
+
+function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
+  const { narrator } = props;
+  const screenWidth = useScreen((state) => state.screenWidth);
+
+  if (narrator.media.length === 0) return null;
 
   const navigateToPerson = () => {
     router.navigate({

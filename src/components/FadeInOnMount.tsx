@@ -9,7 +9,7 @@ type Props = ViewProps & {
 };
 
 export function FadeInOnMount(props: Props) {
-  const { children, style, duration = 500, ...rest } = props;
+  const { children, style, duration = 250, ...rest } = props;
 
   return (
     <Animated.View style={style} entering={FadeIn.duration(duration)} {...rest}>

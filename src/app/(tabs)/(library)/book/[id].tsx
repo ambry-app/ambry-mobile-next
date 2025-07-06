@@ -1,3 +1,4 @@
+import { Delay } from "@/src/components";
 import { BookDetails } from "@/src/components/screens";
 import { useSession } from "@/src/stores/session";
 import { RouterParams } from "@/src/types/router";
@@ -12,7 +13,9 @@ export default function BookDetailsScreen() {
   return (
     <>
       <Stack.Screen options={{ title }} />
-      <BookDetails session={session} bookId={bookId} />
+      <Delay delay={10}>
+        <BookDetails session={session} bookId={bookId} />
+      </Delay>
     </>
   );
 }

@@ -1,29 +1,21 @@
-import {
-  BookDetailsText,
-  FadeInOnMount,
-  ThumbnailImage,
-} from "@/src/components";
-import { useMediaHeaderInfo } from "@/src/hooks/library";
+import { BookDetailsText, ThumbnailImage } from "@/src/components";
+import { MediaHeaderInfo } from "@/src/db/library";
 import { useScreen } from "@/src/stores/screen";
-import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { durationDisplay } from "@/src/utils";
 import { StyleSheet, Text, View } from "react-native";
 
 type HeaderProps = {
-  mediaId: string;
-  session: Session;
+  media: MediaHeaderInfo;
 };
 
-export function Header(props: HeaderProps) {
-  const { mediaId, session } = props;
+export function Header({ media }: HeaderProps) {
   const shortScreen = useScreen((state) => state.shortScreen);
-  const { media } = useMediaHeaderInfo(session, mediaId);
 
   if (!media) return null;
 
   return (
-    <FadeInOnMount style={styles.container}>
+    <View style={styles.container}>
       <ThumbnailImage
         thumbnails={media.thumbnails}
         downloadedThumbnails={media.download?.thumbnails}
@@ -53,7 +45,7 @@ export function Header(props: HeaderProps) {
           </Text>
         </View>
       )}
-    </FadeInOnMount>
+    </View>
   );
 }
 

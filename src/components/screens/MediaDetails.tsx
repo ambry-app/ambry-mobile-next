@@ -1,15 +1,16 @@
-import { Delay } from "@/src/components";
+import { Delay, FadeInOnMount } from "@/src/components";
 import {
   ActionBar,
   AuthorsAndNarrators,
   BooksInSeries,
   Header,
   MediaDescription,
-  OtherBooksByAuthor,
+  OtherBooksByAuthors,
   OtherEditions,
-  OtherMediaByNarrator,
+  OtherMediaByNarrators,
 } from "@/src/components/screens/media-details";
-import { useMediaIds } from "@/src/hooks/library";
+import { getMediaHeaderInfo } from "@/src/db/library";
+import { useLibraryData } from "@/src/hooks/use-library-data";
 import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
 import { Session } from "@/src/stores/session";
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
@@ -21,10 +22,10 @@ type MediaDetailsProps = {
 
 export function MediaDetails(props: MediaDetailsProps) {
   const { session, mediaId } = props;
-  const { ids } = useMediaIds(session, mediaId);
   const { refreshing, onRefresh } = usePullToRefresh(session);
+  const media = useLibraryData(() => getMediaHeaderInfo(session, mediaId));
 
-  if (!ids) return null;
+  if (!media) return null;
 
   return (
     <ScrollView
@@ -34,39 +35,24 @@ export function MediaDetails(props: MediaDetailsProps) {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <Header mediaId={mediaId} session={session} />
-      <ActionBar mediaId={mediaId} session={session} />
-      <MediaDescription mediaId={mediaId} session={session} />
+      <FadeInOnMount>
+        <Header media={media} />
+        <ActionBar media={media} session={session} />
+        <MediaDescription media={media} />
+      </FadeInOnMount>
       <Delay delay={100}>
-        <AuthorsAndNarrators mediaId={mediaId} session={session} />
-        <OtherEditions mediaId={mediaId} session={session} />
+        <AuthorsAndNarrators media={media} session={session} />
+        <OtherEditions media={media} session={session} />
         <Delay delay={100}>
-          {ids.seriesIds.map((seriesId) => (
-            <BooksInSeries
-              key={`books-in-series-${seriesId}`}
-              seriesId={seriesId}
-              session={session}
-            />
-          ))}
-          {ids.authorIds.map((authorId) => (
-            <OtherBooksByAuthor
-              key={`other-books-${authorId}`}
-              authorId={authorId}
-              session={session}
-              withoutBookId={ids.bookId}
-              withoutSeriesIds={ids.seriesIds}
-            />
-          ))}
-          {ids.narratorIds.map((narratorId) => (
-            <OtherMediaByNarrator
-              key={`other-media-${narratorId}`}
-              narratorId={narratorId}
-              session={session}
-              withoutMediaId={mediaId}
-              withoutSeriesIds={ids.seriesIds}
-              withoutAuthorIds={ids.authorIds}
-            />
-          ))}
+          {media.book.series.length > 0 && (
+            <BooksInSeries media={media} session={session} />
+          )}
+          {media.book.authors.length > 0 && (
+            <OtherBooksByAuthors media={media} session={session} />
+          )}
+          {media.narrators.length > 0 && (
+            <OtherMediaByNarrators media={media} session={session} />
+          )}
         </Delay>
       </Delay>
     </ScrollView>

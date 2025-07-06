@@ -1,8 +1,8 @@
 import { BookTile, FadeInOnMount, HeaderButton } from "@/src/components";
 import {
-  BooksByAuthorsType,
-  getBooksByAuthors,
-  PersonHeaderInfo,
+  AuthorWithOtherBooks,
+  getOtherBooksByAuthors,
+  MediaHeaderInfo,
 } from "@/src/db/library";
 import { useLibraryData } from "@/src/hooks/use-library-data";
 import { useScreen } from "@/src/stores/screen";
@@ -10,47 +10,43 @@ import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
 
-type BooksByAuthorsProps = {
-  person: PersonHeaderInfo;
+type OtherBooksByAuthorsProps = {
+  media: MediaHeaderInfo;
   session: Session;
 };
 
-export function BooksByAuthors(props: BooksByAuthorsProps) {
-  const { person, session } = props;
+export function OtherBooksByAuthors(props: OtherBooksByAuthorsProps) {
+  const { media, session } = props;
   const authors = useLibraryData(() =>
-    getBooksByAuthors(session, person.authors),
+    getOtherBooksByAuthors(session, media.book),
   );
 
   if (!authors) return null;
+  if (authors.length === 0) return null;
 
   return (
     <FadeInOnMount>
       {authors.map((author) => (
-        <BooksByAuthor
-          key={`books-${author.id}`}
-          author={author}
-          personName={person.name}
-        />
+        <OtherBooksByAuthor key={`books-${author.id}`} author={author} />
       ))}
     </FadeInOnMount>
   );
 }
 
-type BooksByAuthorProps = {
-  author: BooksByAuthorsType[number];
-  personName: string;
+type OtherBooksByAuthorProps = {
+  author: AuthorWithOtherBooks;
 };
 
-function BooksByAuthor(props: BooksByAuthorProps) {
-  const { author, personName } = props;
+function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
+  const { author } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
 
   if (author.books.length === 0) return null;
 
-  const navigateToAuthor = () => {
+  const navigateToPerson = () => {
     router.navigate({
       pathname: "/person/[id]",
-      params: { id: author.id, title: author.name },
+      params: { id: author.person.id, title: author.person.name },
     });
   };
 
@@ -58,16 +54,11 @@ function BooksByAuthor(props: BooksByAuthorProps) {
     <View style={styles.container}>
       <View style={styles.headerContainer}>
         <HeaderButton
-          label={
-            author.name === personName
-              ? `By ${author.name}`
-              : `As ${author.name}`
-          }
-          onPress={navigateToAuthor}
+          label={`More by ${author.name}`}
+          onPress={navigateToPerson}
           showCaret={author.books.length === 10}
         />
       </View>
-
       <FlatList
         style={styles.list}
         data={author.books}

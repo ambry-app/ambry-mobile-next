@@ -1,8 +1,8 @@
-import { FadeInOnMount, HeaderButton, SeriesBookTile } from "@/src/components";
+import { BookTile, FadeInOnMount, HeaderButton } from "@/src/components";
 import {
-  getSeriesWithBooks,
-  MediaHeaderInfo,
-  SeriesWithBooks,
+  AuthorWithBooks,
+  getBooksByAuthors,
+  PersonHeaderInfo,
 } from "@/src/db/library";
 import { useLibraryData } from "@/src/hooks/use-library-data";
 import { useScreen } from "@/src/stores/screen";
@@ -10,46 +10,48 @@ import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
 
-type BooksInSeriesProps = {
-  media: MediaHeaderInfo;
+type BooksByAuthorsProps = {
+  person: PersonHeaderInfo;
   session: Session;
 };
 
-export function BooksInSeries(props: BooksInSeriesProps) {
-  const { media, session } = props;
-  const seriesList = useLibraryData(() =>
-    getSeriesWithBooks(
-      session,
-      media.book.series.map(({ bookNumber, ...rest }) => rest),
-    ),
+export function BooksByAuthors(props: BooksByAuthorsProps) {
+  const { person, session } = props;
+  const authors = useLibraryData(() =>
+    getBooksByAuthors(session, person.authors),
   );
 
-  if (!seriesList) return null;
-  if (seriesList.length === 0) return null;
+  if (!authors) return null;
+  if (authors.length === 0) return null;
 
   return (
     <FadeInOnMount>
-      {seriesList.map((series) => (
-        <BooksInOneSeries key={`series-${series.id}`} series={series} />
+      {authors.map((author) => (
+        <BooksByAuthor
+          key={`books-${author.id}`}
+          author={author}
+          personName={person.name}
+        />
       ))}
     </FadeInOnMount>
   );
 }
 
-type BooksInOneSeriesProps = {
-  series: SeriesWithBooks[number];
+type BooksByAuthorProps = {
+  author: AuthorWithBooks;
+  personName: string;
 };
 
-function BooksInOneSeries(props: BooksInOneSeriesProps) {
-  const { series } = props;
+function BooksByAuthor(props: BooksByAuthorProps) {
+  const { author, personName } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
 
-  if (series.seriesBooks.length === 0) return null;
+  if (author.books.length === 0) return null;
 
-  const navigateToSeries = () => {
+  const navigateToAuthor = () => {
     router.navigate({
-      pathname: "/series/[id]",
-      params: { id: series.id, title: series.name },
+      pathname: "/person/[id]",
+      params: { id: author.id, title: author.name },
     });
   };
 
@@ -57,23 +59,28 @@ function BooksInOneSeries(props: BooksInOneSeriesProps) {
     <View style={styles.container}>
       <View style={styles.headerContainer}>
         <HeaderButton
-          label={series.name}
-          onPress={navigateToSeries}
-          showCaret={series.seriesBooks.length === 10}
+          label={
+            author.name === personName
+              ? `By ${author.name}`
+              : `As ${author.name}`
+          }
+          onPress={navigateToAuthor}
+          showCaret={author.books.length === 10}
         />
       </View>
+
       <FlatList
         style={styles.list}
-        data={series.seriesBooks}
+        data={author.books}
         keyExtractor={(item) => item.id}
         horizontal={true}
         snapToInterval={screenWidth / 2.5 + 16}
         ListHeaderComponent={<View style={styles.listSpacer} />}
         renderItem={({ item }) => {
           return (
-            <SeriesBookTile
+            <BookTile
               style={[styles.tile, { width: screenWidth / 2.5 }]}
-              seriesBook={item}
+              book={item}
             />
           );
         }}

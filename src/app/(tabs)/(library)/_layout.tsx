@@ -2,26 +2,23 @@ import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { Stack } from "expo-router";
 import { Platform } from "react-native";
 
-const headerOptions: NativeStackNavigationOptions =
+const screenOptions: NativeStackNavigationOptions =
   Platform.OS === "ios"
     ? {
         // headerLargeTitle: true,
         headerTransparent: true,
         headerBlurEffect: "systemChromeMaterialDark",
       }
-    : {};
+    : { animation: "fade" };
 
 export default function LibraryStackLayout() {
   return (
-    <Stack>
-      <Stack.Screen
-        name="index"
-        options={{ title: "Library", ...headerOptions }}
-      />
-      <Stack.Screen name="media/[id]" options={headerOptions} />
-      <Stack.Screen name="person/[id]" options={headerOptions} />
-      <Stack.Screen name="series/[id]" options={headerOptions} />
-      <Stack.Screen name="book/[id]" options={headerOptions} />
+    <Stack screenOptions={screenOptions}>
+      <Stack.Screen name="index" options={{ title: "Library" }} />
+      <Stack.Screen name="media/[id]" />
+      <Stack.Screen name="person/[id]" />
+      <Stack.Screen name="series/[id]" />
+      <Stack.Screen name="book/[id]" />
     </Stack>
   );
 }

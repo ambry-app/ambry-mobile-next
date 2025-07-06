@@ -1,23 +1,18 @@
-import { Description, FadeInOnMount } from "@/src/components";
-import { useMediaDescription } from "@/src/hooks/library";
-import { Session } from "@/src/stores/session";
+import { Description } from "@/src/components";
+import { MediaHeaderInfo } from "@/src/db/library";
 import { Colors } from "@/src/styles";
 import { formatPublished } from "@/src/utils";
 import { StyleSheet, Text, View } from "react-native";
 
 type MediaDescriptionProps = {
-  mediaId: string;
-  session: Session;
+  media: MediaHeaderInfo;
 };
 
-export function MediaDescription(props: MediaDescriptionProps) {
-  const { mediaId, session } = props;
-  const { media } = useMediaDescription(session, mediaId);
-
+export function MediaDescription({ media }: MediaDescriptionProps) {
   if (!media?.description) return null;
 
   return (
-    <FadeInOnMount style={styles.container}>
+    <View style={styles.container}>
       <Description description={media.description} />
       <View>
         {media.book.published && (
@@ -37,7 +32,7 @@ export function MediaDescription(props: MediaDescriptionProps) {
         )}
         {media.notes && <Text style={styles.text}>Note: {media.notes}</Text>}
       </View>
-    </FadeInOnMount>
+    </View>
   );
 }
 

@@ -1,5 +1,6 @@
 import { PersonTile } from "@/src/components";
-import { useMediaAuthorsAndNarrators } from "@/src/hooks/library";
+import { getMediaAuthorsAndNarrators, MediaHeaderInfo } from "@/src/db/library";
+import { useLibraryData } from "@/src/hooks/use-library-data";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
@@ -7,16 +8,16 @@ import { requireValue } from "@/src/utils";
 import { FlatList, StyleSheet, View } from "react-native";
 
 type AuthorsAndNarratorsProps = {
-  mediaId: string;
+  media: MediaHeaderInfo;
   session: Session;
 };
 
-export function AuthorsAndNarrators({
-  mediaId,
-  session,
-}: AuthorsAndNarratorsProps) {
+export function AuthorsAndNarrators(props: AuthorsAndNarratorsProps) {
+  const { media, session } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
-  const { authorsAndNarrators } = useMediaAuthorsAndNarrators(session, mediaId);
+  const authorsAndNarrators = useLibraryData(() =>
+    getMediaAuthorsAndNarrators(session, media),
+  );
 
   if (!authorsAndNarrators) return null;
 

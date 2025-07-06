@@ -1,20 +1,20 @@
 import { HeaderButton, MediaTile } from "@/src/components";
-import { useBookOtherEditions } from "@/src/hooks/library";
+import { getBookOtherEditions, MediaHeaderInfo } from "@/src/db/library";
+import { useLibraryData } from "@/src/hooks/use-library-data";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
 
 type OtherEditionsProps = {
+  media: MediaHeaderInfo;
   session: Session;
-  mediaId: string;
 };
 
 export function OtherEditions(props: OtherEditionsProps) {
-  const { mediaId, session } = props;
+  const { media, session } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
-
-  const { book } = useBookOtherEditions(session, mediaId);
+  const book = useLibraryData(() => getBookOtherEditions(session, media));
 
   if (!book) return null;
   if (!book.media[0]) return null;

@@ -6,18 +6,6 @@ import { and, asc, eq } from "drizzle-orm";
 
 export type MediaHeaderInfo = Awaited<ReturnType<typeof getMediaHeaderInfo>>;
 
-/**
- * Retrieves comprehensive header information for a specific media item.
- *
- * This function gathers and returns detailed information about a media item,
- * including its metadata, download thumbnails, narrators, associated book details,
- * book authors, and series information.
- *
- * @param session - The current user session containing the URL context.
- * @param mediaId - The unique identifier of the media item to fetch information for.
- * @returns An object containing media metadata, download info, narrators, and nested book details (including authors and series).
- * @throws Will throw an error if the media entity cannot be found.
- */
 export async function getMediaHeaderInfo(session: Session, mediaId: string) {
   const media = await getMedia(session, mediaId);
   const narrators = await getNarrators(session, mediaId);
@@ -43,9 +31,17 @@ async function getMedia(session: Session, mediaId: string) {
       abridged: schema.media.abridged,
       thumbnails: schema.media.thumbnails,
       duration: schema.media.duration,
+      mp4Path: schema.media.mp4Path,
+      description: schema.media.description,
+      published: schema.media.published,
+      publishedFormat: schema.media.publishedFormat,
+      publisher: schema.media.publisher,
+      notes: schema.media.notes,
       book: {
         id: schema.books.id,
         title: schema.books.title,
+        published: schema.books.published,
+        publishedFormat: schema.books.publishedFormat,
       },
       download: {
         thumbnails: schema.downloads.thumbnails,
@@ -74,13 +70,27 @@ async function getMedia(session: Session, mediaId: string) {
 
 async function getNarrators(session: Session, mediaId: string) {
   return await db
-    .select({ name: schema.narrators.name })
+    .select({
+      id: schema.narrators.id,
+      name: schema.narrators.name,
+      person: {
+        id: schema.people.id,
+        name: schema.people.name,
+      },
+    })
     .from(schema.mediaNarrators)
     .innerJoin(
       schema.narrators,
       and(
         eq(schema.narrators.url, schema.mediaNarrators.url),
         eq(schema.narrators.id, schema.mediaNarrators.narratorId),
+      ),
+    )
+    .innerJoin(
+      schema.people,
+      and(
+        eq(schema.people.url, schema.narrators.url),
+        eq(schema.people.id, schema.narrators.personId),
       ),
     )
     .where(
@@ -94,13 +104,27 @@ async function getNarrators(session: Session, mediaId: string) {
 
 async function getAuthors(session: Session, bookId: string) {
   return db
-    .select({ name: schema.authors.name })
+    .select({
+      id: schema.authors.id,
+      name: schema.authors.name,
+      person: {
+        id: schema.people.id,
+        name: schema.people.name,
+      },
+    })
     .from(schema.bookAuthors)
     .innerJoin(
       schema.authors,
       and(
         eq(schema.authors.url, schema.bookAuthors.url),
         eq(schema.authors.id, schema.bookAuthors.authorId),
+      ),
+    )
+    .innerJoin(
+      schema.people,
+      and(
+        eq(schema.people.url, schema.authors.url),
+        eq(schema.people.id, schema.authors.personId),
       ),
     )
     .where(
@@ -115,6 +139,7 @@ async function getAuthors(session: Session, bookId: string) {
 async function getSeries(session: Session, bookId: string) {
   return await db
     .select({
+      id: schema.series.id,
       bookNumber: schema.seriesBooks.bookNumber,
       name: schema.series.name,
     })
