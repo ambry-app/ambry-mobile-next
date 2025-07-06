@@ -1,8 +1,8 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { getNarratorsForMedia } from "./shared-queries";
+import { and, desc, eq, inArray } from "drizzle-orm";
+import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
 
 export type AuthorsWithBooks = Awaited<ReturnType<typeof getBooksByAuthors>>;
 export type AuthorWithBooks = AuthorsWithBooks[number];
@@ -27,8 +27,6 @@ export async function getBooksByAuthors(session: Session, authors: Author[]) {
   const mediaIds = media.map((m) => m.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
 
-  // const booksByAuthorId = Object.groupBy(books, (b) => b.authorId);
-  const authorsByBookId = Object.groupBy(authorsForBooks, (a) => a.bookId);
   const mediaByBookId = Object.groupBy(media, (m) => m.bookId);
 
   // NOTE: small improvement possible by missing out authors that have no books
@@ -36,7 +34,7 @@ export async function getBooksByAuthors(session: Session, authors: Author[]) {
     ...author,
     books: (booksByAuthorId[author.id] ?? []).map((book) => ({
       ...book,
-      authors: (authorsByBookId[book.id] ?? []).map(
+      authors: (authorsForBooks[book.id] ?? []).map(
         ({ bookId, ...author }) => author,
       ),
       media: (mediaByBookId[book.id] ?? []).map(({ bookId, ...media }) => ({
@@ -108,29 +106,4 @@ async function getMediaForBooks(session: Session, bookIds: string[]) {
       ),
     )
     .orderBy(desc(schema.media.published));
-}
-
-async function getAuthorsForBooks(session: Session, bookIds: string[]) {
-  if (bookIds.length === 0) return [];
-
-  return db
-    .select({
-      bookId: schema.bookAuthors.bookId,
-      name: schema.authors.name,
-    })
-    .from(schema.bookAuthors)
-    .innerJoin(
-      schema.authors,
-      and(
-        eq(schema.authors.url, schema.bookAuthors.url),
-        eq(schema.authors.id, schema.bookAuthors.authorId),
-      ),
-    )
-    .where(
-      and(
-        eq(schema.bookAuthors.url, session.url),
-        inArray(schema.bookAuthors.bookId, bookIds),
-      ),
-    )
-    .orderBy(asc(schema.bookAuthors.insertedAt));
 }
