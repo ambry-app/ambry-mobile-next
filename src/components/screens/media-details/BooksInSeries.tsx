@@ -1,4 +1,9 @@
-import { FadeInOnMount, HeaderButton, SeriesBookTile } from "@/src/components";
+import {
+  FadeInOnMount,
+  HeaderButton,
+  SeeAllTile,
+  SeriesBookTile,
+} from "@/src/components";
 import {
   getSeriesWithBooks,
   MediaHeaderInfo,
@@ -9,6 +14,8 @@ import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
+
+const LIMIT = 10;
 
 type BooksInSeriesProps = {
   media: MediaHeaderInfo;
@@ -21,6 +28,7 @@ export function BooksInSeries(props: BooksInSeriesProps) {
     getSeriesWithBooks(
       session,
       media.book.series.map(({ bookNumber, ...rest }) => rest),
+      LIMIT,
     ),
   );
 
@@ -53,13 +61,15 @@ function BooksInOneSeries(props: BooksInOneSeriesProps) {
     });
   };
 
+  const hasMore = series.seriesBooks.length === LIMIT;
+
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
         <HeaderButton
           label={series.name}
           onPress={navigateToSeries}
-          showCaret={series.seriesBooks.length === 10}
+          showCaret={hasMore}
         />
       </View>
       <FlatList
@@ -69,6 +79,14 @@ function BooksInOneSeries(props: BooksInOneSeriesProps) {
         horizontal={true}
         snapToInterval={screenWidth / 2.5 + 16}
         ListHeaderComponent={<View style={styles.listSpacer} />}
+        ListFooterComponent={
+          hasMore ? (
+            <SeeAllTile
+              onPress={navigateToSeries}
+              style={{ width: screenWidth / 2.5, height: screenWidth / 2.5 }}
+            />
+          ) : null
+        }
         renderItem={({ item }) => {
           return (
             <SeriesBookTile

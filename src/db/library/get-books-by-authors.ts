@@ -17,11 +17,19 @@ type Author = {
   name: string;
 };
 
-export async function getBooksByAuthors(session: Session, authors: Author[]) {
+export async function getBooksByAuthors(
+  session: Session,
+  authors: Author[],
+  booksLimit: number,
+) {
   if (authors.length === 0) return [];
 
   const authorIds = authors.map((a) => a.id);
-  const booksForAuthors = await getBooksForAuthors(session, authorIds);
+  const booksForAuthors = await getBooksForAuthors(
+    session,
+    authorIds,
+    booksLimit,
+  );
 
   const bookIds = flatMapGroups(booksForAuthors, (book) => book.id);
   const authorsForBooks = await getAuthorsForBooks(session, bookIds);
@@ -44,11 +52,15 @@ export async function getBooksByAuthors(session: Session, authors: Author[]) {
   }));
 }
 
-async function getBooksForAuthors(session: Session, authorIds: string[]) {
+async function getBooksForAuthors(
+  session: Session,
+  authorIds: string[],
+  booksLimit: number,
+) {
   // NOTE: N+1 queries, but it's a small number of authors (usually 1) and it's easier than doing window functions/CTEs.
   let map: Record<string, BooksForAuthor[]> = {};
   for (const authorId of authorIds) {
-    map[authorId] = await getBooksForAuthor(session, authorId);
+    map[authorId] = await getBooksForAuthor(session, authorId, booksLimit);
   }
 
   return map;
@@ -56,7 +68,11 @@ async function getBooksForAuthors(session: Session, authorIds: string[]) {
 
 type BooksForAuthor = Awaited<ReturnType<typeof getBooksForAuthor>>[number];
 
-async function getBooksForAuthor(session: Session, authorId: string) {
+async function getBooksForAuthor(
+  session: Session,
+  authorId: string,
+  limit: number,
+) {
   return db
     .select({
       id: schema.books.id,
@@ -77,5 +93,5 @@ async function getBooksForAuthor(session: Session, authorId: string) {
       ),
     )
     .orderBy(desc(schema.books.published))
-    .limit(10);
+    .limit(limit);
 }

@@ -7,10 +7,14 @@ import { getNarratorsForMedia } from "./shared-queries";
 
 export type BookDetails = Awaited<ReturnType<typeof getBookDetails>>;
 
-export async function getBookDetails(session: Session, bookId: string) {
+export async function getBookDetails(
+  session: Session,
+  bookId: string,
+  mediaLimit: number,
+) {
   const book = await getBook(session, bookId);
   const authorsForBook = await getAuthorsForBook(session, bookId);
-  const mediaForBook = await getMediaForBook(session, bookId);
+  const mediaForBook = await getMediaForBook(session, bookId, mediaLimit);
 
   const mediaIds = mediaForBook.map((m) => m.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
@@ -61,7 +65,11 @@ async function getAuthorsForBook(session: Session, bookId: string) {
     .orderBy(asc(schema.bookAuthors.insertedAt));
 }
 
-async function getMediaForBook(session: Session, bookId: string) {
+async function getMediaForBook(
+  session: Session,
+  bookId: string,
+  limit: number,
+) {
   return db
     .select({
       id: schema.media.id,
@@ -82,5 +90,5 @@ async function getMediaForBook(session: Session, bookId: string) {
       and(eq(schema.media.url, session.url), eq(schema.media.bookId, bookId)),
     )
     .orderBy(desc(schema.media.published))
-    .limit(10);
+    .limit(limit);
 }

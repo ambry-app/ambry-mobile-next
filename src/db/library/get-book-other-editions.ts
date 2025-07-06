@@ -12,9 +12,10 @@ export type BookOtherEditions = Awaited<
 export async function getBookOtherEditions(
   session: Session,
   media: MediaHeaderInfo,
+  limit: number,
 ) {
   const { book } = media;
-  const otherMedia = await getOtherMedia(session, book.id, media.id);
+  const otherMedia = await getOtherMedia(session, book.id, media.id, limit);
 
   if (otherMedia.length === 0) return null;
 
@@ -34,6 +35,7 @@ async function getOtherMedia(
   session: Session,
   bookId: string,
   withoutMediaId: string,
+  limit: number,
 ) {
   return db
     .select({
@@ -59,5 +61,5 @@ async function getOtherMedia(
       ),
     )
     .orderBy(desc(schema.media.published))
-    .limit(10);
+    .limit(limit);
 }

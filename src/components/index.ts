@@ -15,6 +15,7 @@ export * from "./PlayButton";
 export * from "./ProgressBar";
 export * from "./ScreenCentered";
 export * from "./Scrubber";
+export * from "./SeeAllTile";
 export * from "./SeekButton";
 export * from "./TabBar";
 export * from "./ThumbnailImage";

@@ -1,4 +1,9 @@
-import { FadeInOnMount, HeaderButton, MediaTile } from "@/src/components";
+import {
+  FadeInOnMount,
+  HeaderButton,
+  MediaTile,
+  SeeAllTile,
+} from "@/src/components";
 import {
   getOtherMediaByNarrators,
   MediaHeaderInfo,
@@ -10,6 +15,8 @@ import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
 
+const LIMIT = 10;
+
 type OtherMediaByNarratorsProps = {
   media: MediaHeaderInfo;
   session: Session;
@@ -18,7 +25,7 @@ type OtherMediaByNarratorsProps = {
 export function OtherMediaByNarrators(props: OtherMediaByNarratorsProps) {
   const { media, session } = props;
   const narrators = useLibraryData(() =>
-    getOtherMediaByNarrators(session, media),
+    getOtherMediaByNarrators(session, media, LIMIT),
   );
 
   if (!narrators) return null;
@@ -53,13 +60,15 @@ function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
     });
   };
 
+  const hasMore = narrator.media.length === LIMIT;
+
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
         <HeaderButton
           label={`More read by ${narrator.name}`}
           onPress={navigateToPerson}
-          showCaret={narrator.media.length === 10}
+          showCaret={hasMore}
         />
       </View>
       <FlatList
@@ -69,6 +78,14 @@ function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
         horizontal={true}
         snapToInterval={screenWidth / 2.5 + 16}
         ListHeaderComponent={<View style={styles.listSpacer} />}
+        ListFooterComponent={
+          hasMore ? (
+            <SeeAllTile
+              onPress={navigateToPerson}
+              style={{ width: screenWidth / 2.5, height: screenWidth / 2.5 }}
+            />
+          ) : null
+        }
         renderItem={({ item }) => {
           return (
             <MediaTile

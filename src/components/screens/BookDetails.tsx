@@ -10,8 +10,10 @@ type BookDetailsProps = {
   session: Session;
 };
 
+// NOTE: Media is hard-limited to 64. This could be a paginated list,
+// but it seems really unlikely that a book will have that many media.
 export function BookDetails({ bookId, session }: BookDetailsProps) {
-  const book = useLibraryData(() => getBookDetails(session, bookId));
+  const book = useLibraryData(() => getBookDetails(session, bookId, 64));
 
   if (!book) return null;
 

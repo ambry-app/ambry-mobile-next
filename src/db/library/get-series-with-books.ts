@@ -16,11 +16,15 @@ type Series = {
   name: string;
 };
 
-export async function getSeriesWithBooks(session: Session, series: Series[]) {
+export async function getSeriesWithBooks(
+  session: Session,
+  series: Series[],
+  limit: number,
+) {
   if (series.length === 0) return [];
 
   const seriesIds = series.map((s) => s.id);
-  const seriesBooks = await getSeriesBooks(session, seriesIds);
+  const seriesBooks = await getSeriesBooks(session, seriesIds, limit);
 
   const bookIds = seriesBooks.map((sb) => sb.book.id);
   const authorsForBooks = await getAuthorsForBooks(session, bookIds);
@@ -53,7 +57,11 @@ export async function getSeriesWithBooks(session: Session, series: Series[]) {
   }));
 }
 
-async function getSeriesBooks(session: Session, seriesIds: string[]) {
+async function getSeriesBooks(
+  session: Session,
+  seriesIds: string[],
+  limit: number,
+) {
   return db
     .select({
       id: schema.seriesBooks.id,
@@ -78,5 +86,6 @@ async function getSeriesBooks(session: Session, seriesIds: string[]) {
         inArray(schema.seriesBooks.seriesId, seriesIds),
       ),
     )
-    .orderBy(sql`CAST(book_number AS FLOAT)`);
+    .orderBy(sql`CAST(book_number AS FLOAT)`)
+    .limit(limit);
 }

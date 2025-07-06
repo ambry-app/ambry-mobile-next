@@ -18,10 +18,11 @@ export type AuthorWithOtherBooks = AuthorsWithOtherBooks[number];
 export async function getOtherBooksByAuthors(
   session: Session,
   book: MediaHeaderInfo["book"],
+  booksLimit: number,
 ) {
   if (book.authors.length === 0) return [];
 
-  const booksByAuthorId = await getBooksForAuthors(session, book);
+  const booksByAuthorId = await getBooksForAuthors(session, book, booksLimit);
 
   const bookIds = flatMapGroups(booksByAuthorId, (book) => book.id);
   const authorsForBooks = await getAuthorsForBooks(session, bookIds);
@@ -46,6 +47,7 @@ export async function getOtherBooksByAuthors(
 async function getBooksForAuthors(
   session: Session,
   book: MediaHeaderInfo["book"],
+  booksLimit: number,
 ) {
   if (book.authors.length === 0) return {};
 
@@ -62,6 +64,7 @@ async function getBooksForAuthors(
       authorId,
       withoutBookId,
       withoutSeriesIds,
+      booksLimit,
     );
   }
 
@@ -75,6 +78,7 @@ async function getBooksForAuthor(
   authorId: string,
   withoutBookId: string,
   withoutSeriesIds: string[],
+  limit: number,
 ) {
   const results = await db
     .select({
@@ -121,7 +125,7 @@ async function getBooksForAuthor(
       ),
     )
     .orderBy(desc(schema.books.published))
-    .limit(10);
+    .limit(limit);
 
   return results.map(({ seriesIds, ...rest }) => rest);
 }

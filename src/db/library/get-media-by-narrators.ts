@@ -17,11 +17,16 @@ type Narrator = {
 export async function getMediaByNarrators(
   session: Session,
   narrators: Narrator[],
+  mediaLimit: number,
 ) {
   if (narrators.length === 0) return [];
 
   const narratorIds = narrators.map((n) => n.id);
-  const mediaForNarrators = await getMediaForNarrators(session, narratorIds);
+  const mediaForNarrators = await getMediaForNarrators(
+    session,
+    narratorIds,
+    mediaLimit,
+  );
 
   const bookIds = flatMapGroups(mediaForNarrators, (m) => m.book.id);
   const authorsForBooks = await getAuthorsForBooks(session, bookIds);
@@ -42,11 +47,19 @@ export async function getMediaByNarrators(
   }));
 }
 
-async function getMediaForNarrators(session: Session, narratorIds: string[]) {
+async function getMediaForNarrators(
+  session: Session,
+  narratorIds: string[],
+  mediaLimit: number,
+) {
   // NOTE: N+1 queries, but it's a small number of narrators (usually 1) and it's easier than doing window functions/CTEs.
   let map: Record<string, MediaForNarrator[]> = {};
   for (const narratorId of narratorIds) {
-    map[narratorId] = await getMediaForNarrator(session, narratorId);
+    map[narratorId] = await getMediaForNarrator(
+      session,
+      narratorId,
+      mediaLimit,
+    );
   }
 
   return map;
@@ -54,7 +67,11 @@ async function getMediaForNarrators(session: Session, narratorIds: string[]) {
 
 type MediaForNarrator = Awaited<ReturnType<typeof getMediaForNarrator>>[number];
 
-async function getMediaForNarrator(session: Session, narratorId: string) {
+async function getMediaForNarrator(
+  session: Session,
+  narratorId: string,
+  limit: number,
+) {
   return db
     .select({
       id: schema.media.id,
@@ -96,5 +113,5 @@ async function getMediaForNarrator(session: Session, narratorId: string) {
       ),
     )
     .orderBy(desc(schema.media.published))
-    .limit(10);
+    .limit(limit);
 }

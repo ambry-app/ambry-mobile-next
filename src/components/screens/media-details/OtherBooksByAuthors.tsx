@@ -1,4 +1,9 @@
-import { BookTile, FadeInOnMount, HeaderButton } from "@/src/components";
+import {
+  BookTile,
+  FadeInOnMount,
+  HeaderButton,
+  SeeAllTile,
+} from "@/src/components";
 import {
   AuthorWithOtherBooks,
   getOtherBooksByAuthors,
@@ -10,6 +15,8 @@ import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
 
+const LIMIT = 10;
+
 type OtherBooksByAuthorsProps = {
   media: MediaHeaderInfo;
   session: Session;
@@ -18,7 +25,7 @@ type OtherBooksByAuthorsProps = {
 export function OtherBooksByAuthors(props: OtherBooksByAuthorsProps) {
   const { media, session } = props;
   const authors = useLibraryData(() =>
-    getOtherBooksByAuthors(session, media.book),
+    getOtherBooksByAuthors(session, media.book, LIMIT),
   );
 
   if (!authors) return null;
@@ -50,13 +57,15 @@ function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
     });
   };
 
+  const hasMore = author.books.length === LIMIT;
+
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
         <HeaderButton
           label={`More by ${author.name}`}
           onPress={navigateToPerson}
-          showCaret={author.books.length === 10}
+          showCaret={hasMore}
         />
       </View>
       <FlatList
@@ -66,6 +75,14 @@ function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
         horizontal={true}
         snapToInterval={screenWidth / 2.5 + 16}
         ListHeaderComponent={<View style={styles.listSpacer} />}
+        ListFooterComponent={
+          hasMore ? (
+            <SeeAllTile
+              onPress={navigateToPerson}
+              style={{ width: screenWidth / 2.5, height: screenWidth / 2.5 }}
+            />
+          ) : null
+        }
         renderItem={({ item }) => {
           return (
             <BookTile

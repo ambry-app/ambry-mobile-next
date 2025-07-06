@@ -14,10 +14,15 @@ export type NarratorWithOtherMedia = NarratorsWithOtherMedia[number];
 export async function getOtherMediaByNarrators(
   session: Session,
   media: MediaHeaderInfo,
+  mediaLimit: number,
 ) {
   if (media.narrators.length === 0) return [];
 
-  const mediaByNarratorId = await getMediaForNarrators(session, media);
+  const mediaByNarratorId = await getMediaForNarrators(
+    session,
+    media,
+    mediaLimit,
+  );
 
   const bookIds = flatMapGroups(mediaByNarratorId, (media) => media.book.id);
   const authorsForBooks = await getAuthorsForBooks(session, bookIds);
@@ -38,7 +43,11 @@ export async function getOtherMediaByNarrators(
   }));
 }
 
-async function getMediaForNarrators(session: Session, media: MediaHeaderInfo) {
+async function getMediaForNarrators(
+  session: Session,
+  media: MediaHeaderInfo,
+  mediaLimit: number,
+) {
   if (media.narrators.length === 0) return {};
 
   const narratorIds = media.narrators.map((n) => n.id);
@@ -57,6 +66,7 @@ async function getMediaForNarrators(session: Session, media: MediaHeaderInfo) {
       withoutMediaId,
       withoutSeriesIds,
       withoutAuthorIds,
+      mediaLimit,
     );
   }
 
@@ -71,6 +81,7 @@ async function getMediaForNarrator(
   withoutMediaId: string,
   withoutSeriesIds: string[],
   withoutAuthorIds: string[],
+  limit: number,
 ) {
   const results = await db
     .select({
@@ -151,7 +162,7 @@ async function getMediaForNarrator(
       ),
     )
     .orderBy(desc(schema.media.published))
-    .limit(10);
+    .limit(limit);
 
   return results.map(({ authorIds, seriesIds, ...rest }) => rest);
 }
