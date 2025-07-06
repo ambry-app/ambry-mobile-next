@@ -5,6 +5,8 @@ import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { FlatList, StyleSheet, Text } from "react-native";
 
+const LIMIT = 64;
+
 type SearchResultsProps = {
   session: Session;
   searchQuery: string;
@@ -13,7 +15,7 @@ type SearchResultsProps = {
 export function SearchResults(props: SearchResultsProps) {
   const { session, searchQuery } = props;
   const media = useLibraryData(
-    () => getSearchedMedia(session, 64, searchQuery),
+    () => getSearchedMedia(session, LIMIT, searchQuery),
     [searchQuery],
   );
 

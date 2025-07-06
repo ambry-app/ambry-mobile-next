@@ -1,16 +1,23 @@
 import { FadeInOnMount, Loading, MediaTile } from "@/src/components";
-import { useMediaPages } from "@/src/hooks/library";
+import { getMediaPage } from "@/src/db/library";
+import { usePaginatedLibraryData } from "@/src/hooks/use-paginated-library-data";
 import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { FlatList, StyleSheet, Text } from "react-native";
+
+const PAGE_SIZE = 64;
 
 type FullLibraryProps = {
   session: Session;
 };
 
 export function FullLibrary({ session }: FullLibraryProps) {
-  const { media, hasMore, loadMore } = useMediaPages(session);
+  const getPage = (pageSize: number, cursor: Date | undefined) =>
+    getMediaPage(session, pageSize, cursor);
+  const getCursor = (item: { insertedAt: Date }) => item.insertedAt;
+  const page = usePaginatedLibraryData(PAGE_SIZE, getPage, getCursor);
+  const { items: media, hasMore, loadMore } = page;
   const { refreshing, onRefresh } = usePullToRefresh(session);
 
   if (!media) {

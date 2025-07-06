@@ -1,6 +1,6 @@
-import { IconButton } from "@/src/components";
 import { Colors } from "@/src/styles";
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
+import { IconButton } from "./IconButton";
 
 type Props = {
   onPress: () => void;

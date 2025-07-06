@@ -1,3 +1,5 @@
+import { Delay } from "@/src/components";
+import { NarratorDetails } from "@/src/components/screens";
 import { useSession } from "@/src/stores/session";
 import { RouterParams } from "@/src/types/router";
 import { Stack, useLocalSearchParams } from "expo-router";
@@ -11,6 +13,9 @@ export default function NarratorScreen() {
   return (
     <>
       <Stack.Screen options={{ title }} />
+      <Delay delay={10}>
+        <NarratorDetails session={session} narratorId={narratorId} />
+      </Delay>
     </>
   );
 }
