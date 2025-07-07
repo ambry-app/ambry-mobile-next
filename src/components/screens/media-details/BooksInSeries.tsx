@@ -12,10 +12,13 @@ import {
 import { useLibraryData } from "@/src/hooks/use-library-data";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
+import {
+  HORIZONTAL_LIST_LIMIT,
+  HORIZONTAL_TILE_SPACING,
+  HORIZONTAL_TILE_WIDTH_RATIO,
+} from "@/src/styles/constants";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
-
-const LIMIT = 10;
 
 type BooksInSeriesProps = {
   media: MediaHeaderInfo;
@@ -28,7 +31,7 @@ export function BooksInSeries(props: BooksInSeriesProps) {
     getSeriesWithBooks(
       session,
       media.book.series.map(({ bookNumber, ...rest }) => rest),
-      LIMIT,
+      HORIZONTAL_LIST_LIMIT,
     ),
   );
 
@@ -51,6 +54,7 @@ type BooksInOneSeriesProps = {
 function BooksInOneSeries(props: BooksInOneSeriesProps) {
   const { series } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
+  const tileSize = screenWidth / HORIZONTAL_TILE_WIDTH_RATIO;
 
   if (series.seriesBooks.length === 0) return null;
 
@@ -61,7 +65,7 @@ function BooksInOneSeries(props: BooksInOneSeriesProps) {
     });
   };
 
-  const hasMore = series.seriesBooks.length === LIMIT;
+  const hasMore = series.seriesBooks.length === HORIZONTAL_LIST_LIMIT;
 
   return (
     <View style={styles.container}>
@@ -77,20 +81,24 @@ function BooksInOneSeries(props: BooksInOneSeriesProps) {
         data={series.seriesBooks}
         keyExtractor={(item) => item.id}
         horizontal={true}
-        snapToInterval={screenWidth / 2.5 + 16}
-        ListHeaderComponent={<View style={styles.listSpacer} />}
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={tileSize + HORIZONTAL_TILE_SPACING}
+        ListHeaderComponent={<View style={styles.listHeader} />}
         ListFooterComponent={
           hasMore ? (
             <SeeAllTile
               onPress={navigateToSeries}
-              style={{ width: screenWidth / 2.5, height: screenWidth / 2.5 }}
+              style={{
+                width: tileSize,
+                height: tileSize,
+              }}
             />
           ) : null
         }
         renderItem={({ item }) => {
           return (
             <SeriesBookTile
-              style={[styles.tile, { width: screenWidth / 2.5 }]}
+              style={[styles.tile, { width: tileSize }]}
               seriesBook={item}
             />
           );
@@ -110,10 +118,10 @@ const styles = StyleSheet.create({
   list: {
     paddingVertical: 8,
   },
-  listSpacer: {
+  listHeader: {
     width: 16,
   },
   tile: {
-    marginRight: 16,
+    marginRight: HORIZONTAL_TILE_SPACING,
   },
 });

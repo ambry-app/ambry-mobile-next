@@ -3,10 +3,13 @@ import { getBookOtherEditions, MediaHeaderInfo } from "@/src/db/library";
 import { useLibraryData } from "@/src/hooks/use-library-data";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
+import {
+  HORIZONTAL_LIST_LIMIT,
+  HORIZONTAL_TILE_SPACING,
+  HORIZONTAL_TILE_WIDTH_RATIO,
+} from "@/src/styles/constants";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
-
-const LIMIT = 10;
 
 type OtherEditionsProps = {
   media: MediaHeaderInfo;
@@ -16,8 +19,9 @@ type OtherEditionsProps = {
 export function OtherEditions(props: OtherEditionsProps) {
   const { media, session } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
+  const tileSize = screenWidth / HORIZONTAL_TILE_WIDTH_RATIO;
   const book = useLibraryData(() =>
-    getBookOtherEditions(session, media, LIMIT),
+    getBookOtherEditions(session, media, HORIZONTAL_LIST_LIMIT),
   );
 
   if (!book) return null;
@@ -33,7 +37,7 @@ export function OtherEditions(props: OtherEditionsProps) {
     });
   };
 
-  const hasMore = book.media.length === LIMIT;
+  const hasMore = book.media.length === HORIZONTAL_LIST_LIMIT;
 
   return (
     <View style={styles.container}>
@@ -49,20 +53,24 @@ export function OtherEditions(props: OtherEditionsProps) {
         data={book.media}
         keyExtractor={(item) => item.id}
         horizontal={true}
-        snapToInterval={screenWidth / 2.5 + 16}
-        ListHeaderComponent={<View style={styles.listSpacer} />}
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={tileSize + HORIZONTAL_TILE_SPACING}
+        ListHeaderComponent={<View style={styles.listHeader} />}
         ListFooterComponent={
           hasMore ? (
             <SeeAllTile
               onPress={navigateToBook}
-              style={{ width: screenWidth / 2.5, height: screenWidth / 2.5 }}
+              style={{
+                width: tileSize,
+                height: tileSize,
+              }}
             />
           ) : null
         }
         renderItem={({ item }) => {
           return (
             <MediaTile
-              style={[styles.tile, { width: screenWidth / 2.5 }]}
+              style={[styles.tile, { width: tileSize }]}
               media={{ ...item, book: book }}
             />
           );
@@ -82,10 +90,10 @@ const styles = StyleSheet.create({
   list: {
     paddingVertical: 8,
   },
-  listSpacer: {
+  listHeader: {
     width: 16,
   },
   tile: {
-    marginRight: 16,
+    marginRight: HORIZONTAL_TILE_SPACING,
   },
 });

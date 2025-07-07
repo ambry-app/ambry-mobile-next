@@ -12,10 +12,13 @@ import {
 import { useLibraryData } from "@/src/hooks/use-library-data";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
+import {
+  HORIZONTAL_LIST_LIMIT,
+  HORIZONTAL_TILE_SPACING,
+  HORIZONTAL_TILE_WIDTH_RATIO,
+} from "@/src/styles/constants";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
-
-const LIMIT = 10;
 
 type OtherMediaByNarratorsProps = {
   media: MediaHeaderInfo;
@@ -25,7 +28,7 @@ type OtherMediaByNarratorsProps = {
 export function OtherMediaByNarrators(props: OtherMediaByNarratorsProps) {
   const { media, session } = props;
   const narrators = useLibraryData(() =>
-    getOtherMediaByNarrators(session, media, LIMIT),
+    getOtherMediaByNarrators(session, media, HORIZONTAL_LIST_LIMIT),
   );
 
   if (!narrators) return null;
@@ -50,6 +53,7 @@ type OtherMediaByNarratorProps = {
 function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
   const { narrator } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
+  const tileSize = screenWidth / HORIZONTAL_TILE_WIDTH_RATIO;
 
   if (narrator.media.length === 0) return null;
 
@@ -60,7 +64,7 @@ function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
     });
   };
 
-  const hasMore = narrator.media.length === LIMIT;
+  const hasMore = narrator.media.length === HORIZONTAL_LIST_LIMIT;
 
   return (
     <View style={styles.container}>
@@ -76,20 +80,24 @@ function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
         data={narrator.media}
         keyExtractor={(item) => item.id}
         horizontal={true}
-        snapToInterval={screenWidth / 2.5 + 16}
-        ListHeaderComponent={<View style={styles.listSpacer} />}
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={tileSize + HORIZONTAL_TILE_SPACING}
+        ListHeaderComponent={<View style={styles.listHeader} />}
         ListFooterComponent={
           hasMore ? (
             <SeeAllTile
               onPress={navigateToNarrator}
-              style={{ width: screenWidth / 2.5, height: screenWidth / 2.5 }}
+              style={{
+                width: tileSize,
+                height: tileSize,
+              }}
             />
           ) : null
         }
         renderItem={({ item }) => {
           return (
             <MediaTile
-              style={[styles.tile, { width: screenWidth / 2.5 }]}
+              style={[styles.tile, { width: tileSize }]}
               media={item}
             />
           );
@@ -109,10 +117,10 @@ const styles = StyleSheet.create({
   list: {
     paddingVertical: 8,
   },
-  listSpacer: {
+  listHeader: {
     width: 16,
   },
   tile: {
-    marginRight: 16,
+    marginRight: HORIZONTAL_TILE_SPACING,
   },
 });

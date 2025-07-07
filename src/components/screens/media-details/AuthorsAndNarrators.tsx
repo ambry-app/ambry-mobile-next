@@ -4,6 +4,10 @@ import { useLibraryData } from "@/src/hooks/use-library-data";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
+import {
+  HORIZONTAL_TILE_SPACING,
+  HORIZONTAL_TILE_WIDTH_RATIO,
+} from "@/src/styles/constants";
 import { requireValue } from "@/src/utils";
 import { FlatList, StyleSheet, View } from "react-native";
 
@@ -15,6 +19,7 @@ type AuthorsAndNarratorsProps = {
 export function AuthorsAndNarrators(props: AuthorsAndNarratorsProps) {
   const { media, session } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
+  const tileSize = screenWidth / HORIZONTAL_TILE_WIDTH_RATIO;
   const authorsAndNarrators = useLibraryData(() =>
     getMediaAuthorsAndNarrators(session, media),
   );
@@ -28,15 +33,16 @@ export function AuthorsAndNarrators(props: AuthorsAndNarratorsProps) {
         data={authorsAndNarrators}
         keyExtractor={(item) => item.id}
         horizontal={true}
-        snapToInterval={screenWidth / 2.5 + 16}
-        ListHeaderComponent={<View style={styles.listSpacer} />}
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={tileSize + HORIZONTAL_TILE_SPACING}
+        ListHeaderComponent={<View style={styles.listHeader} />}
         renderItem={({ item }) => {
           const label = labelFromType(item.type);
           // NOTE: we're displaying only the first name, we may be hiding info here
           const name = requireValue(item.names[0], "Name is required");
 
           return (
-            <View style={{ width: screenWidth / 2.5, marginRight: 16 }}>
+            <View style={[styles.tile, { width: tileSize }]}>
               <PersonTile
                 label={label}
                 personId={item.id}
@@ -76,7 +82,10 @@ const styles = StyleSheet.create({
   list: {
     paddingVertical: 8,
   },
-  listSpacer: {
+  listHeader: {
     width: 16,
+  },
+  tile: {
+    marginRight: HORIZONTAL_TILE_SPACING,
   },
 });
