@@ -1,9 +1,9 @@
 import { Delay, FadeInOnMount } from "@/src/components";
 import {
   ActionBar,
-  AuthorsAndNarrators,
   BooksInSeries,
   Header,
+  MediaAuthorsAndNarrators,
   MediaDescription,
   OtherBooksByAuthors,
   OtherEditions,
@@ -41,7 +41,7 @@ export function MediaDetails(props: MediaDetailsProps) {
         <MediaDescription media={media} />
       </FadeInOnMount>
       <Delay delay={100}>
-        <AuthorsAndNarrators media={media} session={session} />
+        <MediaAuthorsAndNarrators media={media} session={session} />
         <OtherEditions media={media} session={session} />
         <Delay delay={100}>
           {media.book.series.length > 0 && (

@@ -1,3 +1,0 @@
-export const HORIZONTAL_TILE_WIDTH_RATIO = 2.35;
-export const HORIZONTAL_TILE_SPACING = 10;
-export const HORIZONTAL_LIST_LIMIT = 10;

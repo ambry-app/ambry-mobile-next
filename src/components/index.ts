@@ -1,3 +1,4 @@
+export * from "./AuthorsAndNarrators";
 export * from "./BlurredImage";
 export * from "./BookDetailsText";
 export * from "./Button";

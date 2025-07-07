@@ -3,14 +3,7 @@ import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { and, asc, eq } from "drizzle-orm";
 import { MediaHeaderInfo } from "./get-media-header-info";
-
-export type MediaAuthorOrNarrator = {
-  id: string;
-  type: "author" | "narrator" | "authorAndNarrator";
-  names: string[];
-  realName: string;
-  thumbnails: schema.Thumbnails | null;
-};
+import { combineAuthorsAndNarrators } from "./shared-queries";
 
 export async function getMediaAuthorsAndNarrators(
   session: Session,
@@ -19,29 +12,7 @@ export async function getMediaAuthorsAndNarrators(
   const authors = await getAuthors(session, media.book.id);
   const narrators = await getNarrators(session, media.id);
 
-  const collapsedMap = new Map<string, MediaAuthorOrNarrator>();
-
-  for (const entry of [...authors, ...narrators]) {
-    const personId = entry.person.id;
-    let rec = collapsedMap.get(personId);
-
-    if (!rec) {
-      rec = {
-        id: personId,
-        type: entry.type,
-        names: [entry.name],
-        realName: entry.person.name,
-        thumbnails: entry.person.thumbnails,
-      };
-
-      collapsedMap.set(personId, rec);
-    } else {
-      if (!rec.names.includes(entry.name)) rec.names.push(entry.name);
-      if (rec.type !== entry.type) rec.type = "authorAndNarrator";
-    }
-  }
-
-  return [...collapsedMap.values()];
+  return combineAuthorsAndNarrators(authors, narrators);
 }
 
 async function getAuthors(session: Session, bookId: string) {
@@ -49,7 +20,6 @@ async function getAuthors(session: Session, bookId: string) {
     .select({
       id: schema.authors.id,
       name: schema.authors.name,
-      personId: schema.authors.personId,
       person: {
         id: schema.people.id,
         name: schema.people.name,

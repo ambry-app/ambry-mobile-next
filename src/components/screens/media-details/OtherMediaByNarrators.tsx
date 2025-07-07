@@ -5,6 +5,11 @@ import {
   SeeAllTile,
 } from "@/src/components";
 import {
+  HORIZONTAL_LIST_LIMIT,
+  HORIZONTAL_TILE_SPACING,
+  HORIZONTAL_TILE_WIDTH_RATIO,
+} from "@/src/constants";
+import {
   getOtherMediaByNarrators,
   MediaHeaderInfo,
   NarratorWithOtherMedia,
@@ -12,11 +17,6 @@ import {
 import { useLibraryData } from "@/src/hooks/use-library-data";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
-import {
-  HORIZONTAL_LIST_LIMIT,
-  HORIZONTAL_TILE_SPACING,
-  HORIZONTAL_TILE_WIDTH_RATIO,
-} from "@/src/styles/constants";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
 

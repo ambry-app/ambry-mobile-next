@@ -110,3 +110,62 @@ export async function getNarratorsForMedia(
     ({ mediaId, ...narrator }) => narrator,
   );
 }
+
+type AuthorForCombination = {
+  type: "author";
+  id: string;
+  name: string;
+  person: {
+    id: string;
+    name: string;
+    thumbnails: schema.Thumbnails | null;
+  };
+};
+
+type NarratorForCombination = {
+  type: "narrator";
+  id: string;
+  name: string;
+  person: {
+    id: string;
+    name: string;
+    thumbnails: schema.Thumbnails | null;
+  };
+};
+
+export type MediaAuthorOrNarrator = {
+  id: string;
+  type: "author" | "narrator" | "authorAndNarrator";
+  names: string[];
+  realName: string;
+  thumbnails: schema.Thumbnails | null;
+};
+
+export function combineAuthorsAndNarrators(
+  authors: AuthorForCombination[],
+  narrators: NarratorForCombination[],
+) {
+  const collapsedMap = new Map<string, MediaAuthorOrNarrator>();
+
+  for (const entry of [...authors, ...narrators]) {
+    const personId = entry.person.id;
+    let rec = collapsedMap.get(personId);
+
+    if (!rec) {
+      rec = {
+        id: personId,
+        type: entry.type,
+        names: [entry.name],
+        realName: entry.person.name,
+        thumbnails: entry.person.thumbnails,
+      };
+
+      collapsedMap.set(personId, rec);
+    } else {
+      if (!rec.names.includes(entry.name)) rec.names.push(entry.name);
+      if (rec.type !== entry.type) rec.type = "authorAndNarrator";
+    }
+  }
+
+  return [...collapsedMap.values()];
+}

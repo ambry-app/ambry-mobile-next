@@ -1,5 +1,5 @@
 import { Delay } from "@/src/components";
-import { SeriesDetailsFlatList } from "@/src/components/SeriesDetailsScreen/";
+import { SeriesDetails } from "@/src/components/screens";
 import { useSession } from "@/src/stores/session";
 import { RouterParams } from "@/src/types/router";
 import { Stack, useLocalSearchParams } from "expo-router";
@@ -14,7 +14,7 @@ export default function SeriesDetailsScreen() {
     <>
       <Stack.Screen options={{ title }} />
       <Delay delay={10}>
-        <SeriesDetailsFlatList session={session} seriesId={seriesId} />
+        <SeriesDetails session={session} seriesId={seriesId} />
       </Delay>
     </>
   );

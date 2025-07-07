@@ -6,7 +6,7 @@ import {
   PlayButton,
   ThumbnailImage,
 } from "@/src/components";
-import { playerHeight, tabBarBaseHeight } from "@/src/constants";
+import { PLAYER_HEIGHT, TAB_BAR_BASE_HEIGHT } from "@/src/constants";
 import { useMediaDetails } from "@/src/db/library-old";
 import useBackHandler from "@/src/hooks/use-back-handler";
 import {
@@ -104,11 +104,11 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
     expandPlayerHandled();
   }, [expandLocal, expanded, lastPlayerExpandRequest]);
 
-  const tabBarHeight = tabBarBaseHeight + insets.bottom;
+  const tabBarHeight = TAB_BAR_BASE_HEIGHT + insets.bottom;
   const largeImageSize = shortScreen ? screenWidth * 0.6 : screenWidth * 0.8;
   const imageGutterWidth = (screenWidth - largeImageSize) / 2;
 
-  const miniControlsWidth = screenWidth - playerHeight;
+  const miniControlsWidth = screenWidth - PLAYER_HEIGHT;
 
   const debugBackgrounds = false;
   const debugBackground = (background: any) => {
@@ -127,7 +127,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
         Math.max(
           0.0,
           whereItWas.value +
-            e.translationY / -(screenHeight - tabBarHeight - playerHeight),
+            e.translationY / -(screenHeight - tabBarHeight - PLAYER_HEIGHT),
         ),
       );
 
@@ -169,7 +169,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
       height: interpolate(
         expansion.value,
         [0, 1],
-        [playerHeight, screenHeight],
+        [PLAYER_HEIGHT, screenHeight],
       ),
       bottom: interpolate(expansion.value, [0, 1], [tabBarHeight, 0]),
       paddingTop: interpolate(expansion.value, [0, 1], [0, insets.top]),
@@ -233,12 +233,12 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
       height: interpolate(
         expansion.value,
         [0, 1],
-        [playerHeight, largeImageSize],
+        [PLAYER_HEIGHT, largeImageSize],
       ),
       width: interpolate(
         expansion.value,
         [0, 1],
-        [playerHeight, largeImageSize],
+        [PLAYER_HEIGHT, largeImageSize],
       ),
       padding: interpolate(expansion.value, [0, 1], [8, 0]),
     };
@@ -329,7 +329,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
           display: "flex",
           justifyContent: "flex-end",
           backgroundColor: Colors.zinc[900],
-          height: tabBarHeight + playerHeight,
+          height: tabBarHeight + PLAYER_HEIGHT,
         }}
       >
         <GestureDetector gesture={gestures}>
@@ -495,7 +495,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                 <Animated.View
                   style={[
                     {
-                      height: playerHeight,
+                      height: PLAYER_HEIGHT,
                       display: "flex",
                       flexDirection: "row",
                       alignItems: "center",

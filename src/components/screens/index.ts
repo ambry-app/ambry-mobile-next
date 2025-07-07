@@ -4,3 +4,4 @@ export * from "./Library";
 export * from "./MediaDetails";
 export * from "./NarratorDetails";
 export * from "./PersonDetails";
+export * from "./SeriesDetails";

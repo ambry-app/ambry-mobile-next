@@ -1,5 +1,6 @@
 import { FadeInOnMount, Tile } from "@/src/components";
 import { Header } from "@/src/components/screens/book-details";
+import { PAGE_SIZE } from "@/src/constants";
 import { getBookDetails } from "@/src/db/library";
 import { useLibraryData } from "@/src/hooks/use-library-data";
 import { Session } from "@/src/stores/session";
@@ -10,10 +11,10 @@ type BookDetailsProps = {
   session: Session;
 };
 
-// NOTE: Media is hard-limited to 64. This could be a paginated list,
+// NOTE: Media is hard-limited to PAGE_SIZE. This could be a paginated list,
 // but it seems really unlikely that a book will have that many media.
 export function BookDetails({ bookId, session }: BookDetailsProps) {
-  const book = useLibraryData(() => getBookDetails(session, bookId, 64));
+  const book = useLibraryData(() => getBookDetails(session, bookId, PAGE_SIZE));
 
   if (!book) return null;
 

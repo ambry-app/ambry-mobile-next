@@ -1,13 +1,13 @@
 import { HeaderButton, MediaTile, SeeAllTile } from "@/src/components";
-import { getBookOtherEditions, MediaHeaderInfo } from "@/src/db/library";
-import { useLibraryData } from "@/src/hooks/use-library-data";
-import { useScreen } from "@/src/stores/screen";
-import { Session } from "@/src/stores/session";
 import {
   HORIZONTAL_LIST_LIMIT,
   HORIZONTAL_TILE_SPACING,
   HORIZONTAL_TILE_WIDTH_RATIO,
-} from "@/src/styles/constants";
+} from "@/src/constants";
+import { getBookOtherEditions, MediaHeaderInfo } from "@/src/db/library";
+import { useLibraryData } from "@/src/hooks/use-library-data";
+import { useScreen } from "@/src/stores/screen";
+import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
 

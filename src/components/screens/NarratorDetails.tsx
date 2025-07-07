@@ -4,6 +4,7 @@ import {
   MediaTile,
   ThumbnailImage,
 } from "@/src/components";
+import { PAGE_SIZE } from "@/src/constants";
 import {
   getMediaByNarratorPage,
   getNarratorHeaderInfo,
@@ -22,8 +23,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
-const PAGE_SIZE = 64;
 
 type NarratorDetailsProps = {
   narratorId: string;
