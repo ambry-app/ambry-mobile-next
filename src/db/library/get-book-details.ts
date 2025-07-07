@@ -2,7 +2,7 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { requireValue } from "@/src/utils";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { getNarratorsForMedia } from "./shared-queries";
 
 export type BookDetails = Awaited<ReturnType<typeof getBookDetails>>;
@@ -86,9 +86,18 @@ async function getMediaForBook(
         eq(schema.downloads.mediaId, schema.media.id),
       ),
     )
+    .innerJoin(
+      schema.books,
+      and(
+        eq(schema.books.url, schema.media.url),
+        eq(schema.books.id, schema.media.bookId),
+      ),
+    )
     .where(
       and(eq(schema.media.url, session.url), eq(schema.media.bookId, bookId)),
     )
-    .orderBy(desc(schema.media.published))
+    .orderBy(
+      desc(sql`COALESCE(${schema.media.published}, ${schema.books.published})`),
+    )
     .limit(limit);
 }

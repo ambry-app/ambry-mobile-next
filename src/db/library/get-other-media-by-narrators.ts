@@ -161,7 +161,9 @@ async function getMediaForNarrator(
         ),
       ),
     )
-    .orderBy(desc(schema.media.published))
+    .orderBy(
+      desc(sql`COALESCE(${schema.media.published}, ${schema.books.published})`),
+    )
     .limit(limit);
 
   return results.map(({ authorIds, seriesIds, ...rest }) => rest);

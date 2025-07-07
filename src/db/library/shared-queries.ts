@@ -2,7 +2,7 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { groupMapBy } from "@/src/utils";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 export async function getAuthorsForBooks(session: Session, bookIds: string[]) {
   if (bookIds.length === 0) return {};
@@ -53,13 +53,22 @@ export async function getMediaForBooks(session: Session, bookIds: string[]) {
         eq(schema.downloads.mediaId, schema.media.id),
       ),
     )
+    .innerJoin(
+      schema.books,
+      and(
+        eq(schema.books.url, schema.media.url),
+        eq(schema.books.id, schema.media.bookId),
+      ),
+    )
     .where(
       and(
         eq(schema.media.url, session.url),
         inArray(schema.media.bookId, bookIds),
       ),
     )
-    .orderBy(desc(schema.media.published));
+    .orderBy(
+      desc(sql`COALESCE(${schema.media.published}, ${schema.books.published})`),
+    );
 
   return groupMapBy(
     media,

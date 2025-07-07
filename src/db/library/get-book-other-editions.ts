@@ -1,7 +1,7 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { MediaHeaderInfo } from "./get-media-header-info";
 import { getNarratorsForMedia } from "./shared-queries";
 
@@ -53,6 +53,13 @@ async function getOtherMedia(
         eq(schema.downloads.mediaId, schema.media.id),
       ),
     )
+    .innerJoin(
+      schema.books,
+      and(
+        eq(schema.books.url, schema.media.url),
+        eq(schema.books.id, schema.media.bookId),
+      ),
+    )
     .where(
       and(
         eq(schema.media.url, session.url),
@@ -60,6 +67,8 @@ async function getOtherMedia(
         ne(schema.media.id, withoutMediaId),
       ),
     )
-    .orderBy(desc(schema.media.published))
+    .orderBy(
+      desc(sql`COALESCE(${schema.media.published}, ${schema.books.published})`),
+    )
     .limit(limit);
 }

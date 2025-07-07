@@ -2,7 +2,7 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { flatMapGroups } from "@/src/utils";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
 
 export type MediaByNarratorsType = Awaited<
@@ -112,6 +112,8 @@ async function getMediaForNarrator(
         eq(schema.mediaNarrators.narratorId, narratorId),
       ),
     )
-    .orderBy(desc(schema.media.published))
+    .orderBy(
+      desc(sql`COALESCE(${schema.media.published}, ${schema.books.published})`),
+    )
     .limit(limit);
 }
