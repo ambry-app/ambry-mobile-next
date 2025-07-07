@@ -58,7 +58,7 @@ async function getBooksForAuthors(
   booksLimit: number,
 ) {
   // NOTE: N+1 queries, but it's a small number of authors (usually 1) and it's easier than doing window functions/CTEs.
-  let map: Record<string, BooksForAuthor[]> = {};
+  let map: Record<string, BooksForAuthor> = {};
   for (const authorId of authorIds) {
     map[authorId] = await getBooksForAuthor(session, authorId, booksLimit);
   }
@@ -66,7 +66,7 @@ async function getBooksForAuthors(
   return map;
 }
 
-type BooksForAuthor = Awaited<ReturnType<typeof getBooksForAuthor>>[number];
+type BooksForAuthor = Awaited<ReturnType<typeof getBooksForAuthor>>;
 
 async function getBooksForAuthor(
   session: Session,

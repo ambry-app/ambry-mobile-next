@@ -53,10 +53,10 @@ function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
 
   if (narrator.media.length === 0) return null;
 
-  const navigateToPerson = () => {
+  const navigateToNarrator = () => {
     router.navigate({
-      pathname: "/person/[id]",
-      params: { id: narrator.person.id, title: narrator.person.name },
+      pathname: "/narrator/[id]",
+      params: { id: narrator.id, title: narrator.name },
     });
   };
 
@@ -67,7 +67,7 @@ function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
       <View style={styles.headerContainer}>
         <HeaderButton
           label={`More read by ${narrator.name}`}
-          onPress={navigateToPerson}
+          onPress={navigateToNarrator}
           showCaret={hasMore}
         />
       </View>
@@ -81,7 +81,7 @@ function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
         ListFooterComponent={
           hasMore ? (
             <SeeAllTile
-              onPress={navigateToPerson}
+              onPress={navigateToNarrator}
               style={{ width: screenWidth / 2.5, height: screenWidth / 2.5 }}
             />
           ) : null

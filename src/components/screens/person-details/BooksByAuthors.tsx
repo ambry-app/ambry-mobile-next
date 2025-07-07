@@ -57,7 +57,7 @@ function BooksByAuthor(props: BooksByAuthorProps) {
 
   const navigateToAuthor = () => {
     router.navigate({
-      pathname: "/person/[id]",
+      pathname: "/author/[id]",
       params: { id: author.id, title: author.name },
     });
   };

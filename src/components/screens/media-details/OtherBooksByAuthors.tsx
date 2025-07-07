@@ -50,10 +50,10 @@ function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
 
   if (author.books.length === 0) return null;
 
-  const navigateToPerson = () => {
+  const navigateToAuthor = () => {
     router.navigate({
-      pathname: "/person/[id]",
-      params: { id: author.person.id, title: author.person.name },
+      pathname: "/author/[id]",
+      params: { id: author.id, title: author.name },
     });
   };
 
@@ -64,7 +64,7 @@ function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
       <View style={styles.headerContainer}>
         <HeaderButton
           label={`More by ${author.name}`}
-          onPress={navigateToPerson}
+          onPress={navigateToAuthor}
           showCaret={hasMore}
         />
       </View>
@@ -78,7 +78,7 @@ function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
         ListFooterComponent={
           hasMore ? (
             <SeeAllTile
-              onPress={navigateToPerson}
+              onPress={navigateToAuthor}
               style={{ width: screenWidth / 2.5, height: screenWidth / 2.5 }}
             />
           ) : null

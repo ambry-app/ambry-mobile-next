@@ -53,7 +53,7 @@ async function getMediaForNarrators(
   mediaLimit: number,
 ) {
   // NOTE: N+1 queries, but it's a small number of narrators (usually 1) and it's easier than doing window functions/CTEs.
-  let map: Record<string, MediaForNarrator[]> = {};
+  let map: Record<string, MediaForNarrator> = {};
   for (const narratorId of narratorIds) {
     map[narratorId] = await getMediaForNarrator(
       session,
@@ -65,7 +65,7 @@ async function getMediaForNarrators(
   return map;
 }
 
-type MediaForNarrator = Awaited<ReturnType<typeof getMediaForNarrator>>[number];
+type MediaForNarrator = Awaited<ReturnType<typeof getMediaForNarrator>>;
 
 async function getMediaForNarrator(
   session: Session,

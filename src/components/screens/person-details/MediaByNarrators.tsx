@@ -56,7 +56,7 @@ function MediaByNarrator(props: MediaByNarratorProps) {
 
   const navigateToNarrator = () => {
     router.navigate({
-      pathname: "/person/[id]",
+      pathname: "/narrator/[id]",
       params: { id: narrator.id, title: narrator.name },
     });
   };
