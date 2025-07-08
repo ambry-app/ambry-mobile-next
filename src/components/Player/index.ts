@@ -1,3 +1,4 @@
+// FIXME
 import ChapterControls from "./ChapterControls";
 import PlaybackControls from "./PlaybackControls";
 import PlayerProgressBar from "./PlayerProgressBar";

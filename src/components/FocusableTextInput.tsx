@@ -6,7 +6,7 @@ type FocusableTextInputProps = TextInputProps & {
   focusedStyle?: StyleProp<TextStyle>;
 };
 
-export default function FocusableTextInput(props: FocusableTextInputProps) {
+export function FocusableTextInput(props: FocusableTextInputProps) {
   const { focusedStyle, style, inputRef, ...rest } = props;
   const [isFocused, setIsFocused] = useState(false);
 

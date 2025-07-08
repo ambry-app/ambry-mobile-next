@@ -1,6 +1,6 @@
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 import { useSession } from "@/src/stores/session";
-import { documentDirectoryFilePath } from "@/src/utils/paths";
+import { documentDirectoryFilePath } from "@/src/utils";
 import { Image, ImageStyle } from "expo-image";
 import { StyleProp } from "react-native";
 
@@ -13,7 +13,7 @@ type BlurredImageProps = {
   style?: StyleProp<ImageStyle>;
 };
 
-export default function BlurredImage(props: BlurredImageProps) {
+export function BlurredImage(props: BlurredImageProps) {
   const { downloadedThumbnails, thumbnails, size, style } = props;
   const session = useSession((state) => state.session);
 

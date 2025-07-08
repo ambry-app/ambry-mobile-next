@@ -1,9 +1,9 @@
 import { playOrPause, usePlayer } from "@/src/stores/player";
-import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { State } from "@weights-ai/react-native-track-player";
+import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { useDebounce } from "use-debounce";
-import IconButton from "./IconButton";
-import Loading from "./Loading";
+import { IconButton } from "./IconButton";
+import { Loading } from "./Loading";
 
 type PlayButtonProps = {
   size: number;
@@ -11,7 +11,7 @@ type PlayButtonProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export default function PlayButton(props: PlayButtonProps) {
+export function PlayButton(props: PlayButtonProps) {
   const { size, color, style } = props;
   const state = usePlayer((state) => state.state);
   const [debouncedState] = useDebounce(state, 100);

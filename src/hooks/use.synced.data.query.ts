@@ -6,10 +6,24 @@ import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { SQLiteRelationalQuery } from "drizzle-orm/sqlite-core/query-builders/query";
 import { useEffect, useState } from "react";
 
+/**
+ * @deprecated
+ */
 type LiveQueryParams = Parameters<typeof useLiveQuery>;
+
+/**
+ * @deprecated
+ */
 type Query = LiveQueryParams[0];
+
+/**
+ * @deprecated
+ */
 type Deps = LiveQueryParams[1];
 
+/**
+ * @deprecated
+ */
 export default function useSyncedDataQuery<T extends Query>(
   session: Session,
   query: T,
