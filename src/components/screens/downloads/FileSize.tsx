@@ -1,18 +1,21 @@
-import { ListedDownload } from "@/src/db/downloads";
 import { Colors } from "@/src/styles";
 import { documentDirectoryFilePath } from "@/src/utils";
 import * as FileSystem from "expo-file-system";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text } from "react-native";
 
-export default function FileSize({ download }: { download: ListedDownload }) {
+type FileSizeProps = {
+  filePath: string;
+};
+
+export function FileSize({ filePath }: FileSizeProps) {
   const [size, setSize] = useState<string | null>(null);
   const [isMissing, setIsMissing] = useState(false);
 
   useEffect(() => {
     (async function () {
       const info = await FileSystem.getInfoAsync(
-        documentDirectoryFilePath(download.filePath),
+        documentDirectoryFilePath(filePath),
       );
       if (!info.exists) {
         setIsMissing(true);
@@ -21,7 +24,7 @@ export default function FileSize({ download }: { download: ListedDownload }) {
         setSize(formatBytes(info.size));
       }
     })();
-  }, [download.filePath]);
+  }, [filePath]);
 
   if (isMissing) return <Text style={styles.errorText}>file is missing!</Text>;
 

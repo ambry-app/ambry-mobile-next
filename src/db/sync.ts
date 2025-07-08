@@ -10,19 +10,6 @@ import { useDataVersion } from "@/src/stores/data-version";
 import { forceUnloadPlayer } from "@/src/stores/player";
 import { Session, forceSignOut } from "@/src/stores/session";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
-import { useLiveQuery } from "drizzle-orm/expo-sqlite";
-
-export function useLastDownSync(session: Session) {
-  const query = db
-    .select({ lastDownSync: schema.syncedServers.lastDownSync })
-    .from(schema.syncedServers)
-    .where(eq(schema.syncedServers.url, session.url))
-    .limit(1);
-
-  const { data } = useLiveQuery(query);
-
-  return data[0]?.lastDownSync || undefined;
-}
 
 export async function getServerSyncTimestamps(session: Session) {
   const result = await db

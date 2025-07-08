@@ -7,6 +7,7 @@ import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { router } from "expo-router";
 import { Alert, Share, StyleSheet, View } from "react-native";
+import { useShallow } from "zustand/shallow";
 
 type ActionBarProps = {
   media: MediaHeaderInfo;
@@ -90,9 +91,11 @@ type DownloadButtonProps = {
 };
 
 function DownloadButton({ media, session }: DownloadButtonProps) {
-  const download = useDownloads((state) => state.downloads[media.id]);
+  const status = useDownloads(
+    useShallow((state) => state.downloads[media.id]?.status),
+  );
 
-  if (download?.progress || download?.status === "pending") {
+  if (status === "pending") {
     return (
       <IconButton
         icon="loading"
@@ -104,7 +107,7 @@ function DownloadButton({ media, session }: DownloadButtonProps) {
     );
   }
 
-  if (download?.status === "ready") {
+  if (status === "ready") {
     return (
       <IconButton
         icon="circle-check"

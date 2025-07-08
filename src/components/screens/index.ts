@@ -1,5 +1,7 @@
 export * from "./AuthorDetails";
 export * from "./BookDetails";
+export * from "./DownloadActions";
+export * from "./Downloads";
 export * from "./Library";
 export * from "./MediaDetails";
 export * from "./NarratorDetails";

@@ -5,14 +5,23 @@ import useSyncedDataQuery from "./use.synced.data.query";
 
 export const fadeInTime = 500;
 
+/**
+ * @deprecated
+ */
 type SyncedDataQueryParams = Parameters<typeof useSyncedDataQuery>;
+
+/**
+ * @deprecated
+ */
 type Query = SyncedDataQueryParams[1];
+
+/**
+ * @deprecated
+ */
 type Deps = SyncedDataQueryParams[2];
 
 /**
- * @deprecated This hook is deprecated and will be removed soon.
- * This hook is a wrapper around useSyncedDataQuery that fades in an opacity
- * value when the query first returns.
+ * @deprecated
  */
 export default function useFadeInSyncedDataQuery<T extends Query>(
   session: Session,

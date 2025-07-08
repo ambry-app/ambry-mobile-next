@@ -4,14 +4,23 @@ import { useSharedValue, withTiming } from "react-native-reanimated";
 
 export const fadeInTime = 500;
 
+/**
+ * @deprecated
+ */
 type LiveQueryParams = Parameters<typeof useLiveQuery>;
+
+/**
+ * @deprecated
+ */
 type Query = LiveQueryParams[0];
+
+/**
+ * @deprecated
+ */
 type Deps = LiveQueryParams[1];
 
 /**
- * @deprecated This hook is deprecated and will be removed soon.
- * This hook is a wrapper around useLiveQuery that fades in an opacity
- * value when the query first returns.
+ * @deprecated
  */
 export default function useFadeInQuery<T extends Query>(
   query: T,

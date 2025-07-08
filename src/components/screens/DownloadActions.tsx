@@ -8,16 +8,19 @@ import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { router, useLocalSearchParams } from "expo-router";
 import { StyleSheet, Text } from "react-native";
+import { useShallow } from "zustand/shallow";
 
-export default function DownloadActions({ session }: { session: Session }) {
+export function DownloadActions({ session }: { session: Session }) {
   const { id: mediaId } = useLocalSearchParams<{ id: string }>();
-  const download = useDownloads((state) => state.downloads[mediaId]);
+  const status = useDownloads(
+    useShallow((state) => state.downloads[mediaId]?.status),
+  );
 
-  if (!download) return null;
+  if (!status) return null;
 
   return (
     <FadeInOnMount style={styles.container}>
-      {download.status === "ready" ? (
+      {status === "ready" ? (
         <DeleteButton session={session} mediaId={mediaId} />
       ) : (
         <CancelButton session={session} mediaId={mediaId} />

@@ -1,54 +1,8 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
-import useFadeInQuery from "@/src/hooks/use-fade-in-query";
 import { Session } from "@/src/stores/session";
 import { requireValue } from "@/src/utils";
 import { and, desc, eq } from "drizzle-orm";
-
-export type ListedDownload = ReturnType<
-  typeof useDownloadsList
->["downloads"][0];
-
-// FIXME: remove this function, whatever uses it should use the zustand store instead
-export function useDownloadsList(session: Session) {
-  const query = db.query.downloads.findMany({
-    columns: { status: true, thumbnails: true, filePath: true },
-    where: eq(schema.downloads.url, session.url),
-    orderBy: desc(schema.downloads.downloadedAt),
-    with: {
-      media: {
-        columns: { id: true, thumbnails: true },
-        with: {
-          mediaNarrators: {
-            columns: { id: true },
-            with: {
-              narrator: {
-                columns: { id: true, name: true },
-              },
-            },
-          },
-          book: {
-            columns: { id: true, title: true },
-            with: {
-              bookAuthors: {
-                columns: { id: true },
-                with: {
-                  author: {
-                    columns: { id: true, name: true },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-
-  const { data, ...rest } = useFadeInQuery(query);
-
-  return { downloads: data, ...rest };
-}
 
 /**
  * Retrieves all download records associated with the given session.

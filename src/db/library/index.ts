@@ -3,6 +3,7 @@ export * from "./get-book-details";
 export * from "./get-book-other-editions";
 export * from "./get-books-by-author-page";
 export * from "./get-books-by-authors";
+export * from "./get-downloaded-media";
 export * from "./get-media-authors-and-narrators";
 export * from "./get-media-by-narrator-page";
 export * from "./get-media-by-narrators";

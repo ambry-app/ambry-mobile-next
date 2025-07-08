@@ -4,29 +4,35 @@ import {
   Loading,
   ThumbnailImage,
 } from "@/src/components";
-import { ListedDownload } from "@/src/db/downloads";
+import { DownloadedMedia } from "@/src/db/library";
 import { useDownloads } from "@/src/stores/downloads";
 import { Colors } from "@/src/styles";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
-import FileSize from "./FileSize";
+import { useShallow } from "zustand/shallow";
+import { FileSize } from "./FileSize";
 
 type DownloadRowProps = {
-  download: ListedDownload;
+  media: DownloadedMedia;
 };
 
-export default function DownloadRow({ download }: DownloadRowProps) {
-  const inProgress = useDownloads(
-    (state) => download.media.id in state.downloadProgresses,
+export function DownloadRow({ media }: DownloadRowProps) {
+  const { filePath, status } = useDownloads(
+    useShallow((state) => {
+      const { filePath, status } = state.downloads[media.id] || {};
+      return { filePath, status };
+    }),
   );
+
+  if (!status) return null;
 
   const navigateToBook = () => {
     router.navigate({
       pathname: "/media/[id]",
       params: {
-        id: download.media.id,
-        title: download.media.book.title,
+        id: media.id,
+        title: media.book.title,
       },
     });
   };
@@ -35,7 +41,7 @@ export default function DownloadRow({ download }: DownloadRowProps) {
     router.navigate({
       pathname: "/download-actions-modal/[id]",
       params: {
-        id: download.media.id,
+        id: media.id,
       },
     });
   };
@@ -45,8 +51,8 @@ export default function DownloadRow({ download }: DownloadRowProps) {
       <View style={styles.container}>
         <TouchableOpacity onPress={navigateToBook}>
           <ThumbnailImage
-            downloadedThumbnails={download.thumbnails}
-            thumbnails={download.media.thumbnails}
+            downloadedThumbnails={media.download.thumbnails}
+            thumbnails={media.thumbnails}
             size="small"
             style={{ width: 70, height: 70, borderRadius: 6 }}
           />
@@ -55,19 +61,15 @@ export default function DownloadRow({ download }: DownloadRowProps) {
           <TouchableOpacity onPress={navigateToBook}>
             <BookDetailsText
               baseFontSize={14}
-              title={download.media.book.title}
-              authors={download.media.book.bookAuthors.map(
-                (ba) => ba.author.name,
-              )}
-              narrators={download.media.mediaNarrators.map(
-                (mn) => mn.narrator.name,
-              )}
+              title={media.book.title}
+              authors={media.book.authors.map((author) => author.name)}
+              narrators={media.narrators.map((narrator) => narrator.name)}
             />
-            {download.status === "ready" && <FileSize download={download} />}
+            {status === "ready" && <FileSize filePath={filePath!} />}
           </TouchableOpacity>
         </View>
         <View>
-          {download.status === "error" && (
+          {status === "error" && (
             <FontAwesome6
               size={24}
               name="circle-exclamation"
@@ -75,7 +77,7 @@ export default function DownloadRow({ download }: DownloadRowProps) {
             />
           )}
         </View>
-        <View>{inProgress && <Loading size={24} />}</View>
+        <LoadingIndicator mediaId={media.id} />
         <View>
           <IconButton
             size={16}
@@ -85,14 +87,31 @@ export default function DownloadRow({ download }: DownloadRowProps) {
           />
         </View>
       </View>
-      <DownloadProgressBar download={download} />
+      <DownloadProgressBar mediaId={media.id} />
     </>
   );
 }
 
-function DownloadProgressBar({ download }: { download: ListedDownload }) {
+function LoadingIndicator({ mediaId }: { mediaId: string }) {
+  const { progress, status } = useDownloads(
+    useShallow((state) => {
+      const { progress, status } = state.downloads[mediaId] || {};
+      return { progress, status };
+    }),
+  );
+
+  if (!status || (!progress && status !== "pending")) return null;
+
+  return (
+    <View>
+      <Loading size={24} />
+    </View>
+  );
+}
+
+function DownloadProgressBar({ mediaId }: { mediaId: string }) {
   const progress = useDownloads(
-    (state) => state.downloadProgresses[download.media.id],
+    useShallow((state) => state.downloads[mediaId]?.progress),
   );
 
   if (!progress) return null;

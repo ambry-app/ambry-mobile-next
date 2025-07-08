@@ -1,4 +1,5 @@
-import { DownloadsFlatList } from "@/src/components/DownloadsScreen";
+import { Delay } from "@/src/components";
+import { Downloads } from "@/src/components/screens";
 import { useSession } from "@/src/stores/session";
 
 export default function DownloadsScreen() {
@@ -6,5 +7,9 @@ export default function DownloadsScreen() {
 
   if (!session) return null;
 
-  return <DownloadsFlatList session={session} />;
+  return (
+    <Delay delay={10}>
+      <Downloads session={session} />
+    </Delay>
+  );
 }

@@ -180,6 +180,9 @@ export async function getMostRecentInProgressLocalMedia(
   });
 }
 
+/**
+ * @deprecated
+ */
 export function useInProgressMedia(
   session: Session,
   withoutMediaId?: string | null,

@@ -2,8 +2,11 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import useFadeInSyncedDataQuery from "@/src/hooks/use-fade-in-synced-data-query";
 import { Session } from "@/src/stores/session";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
+/**
+ * @deprecated
+ */
 export function useMediaListByIds(session: Session, mediaIds: string[]) {
   const query = db.query.media.findMany({
     columns: { id: true, thumbnails: true, duration: true },
@@ -54,6 +57,9 @@ export function useMediaListByIds(session: Session, mediaIds: string[]) {
   return { media: data, ...rest };
 }
 
+/**
+ * @deprecated
+ */
 export function useMediaDetails(session: Session, mediaId: string) {
   const query = db.query.media.findFirst({
     columns: {
@@ -105,72 +111,4 @@ export function useMediaDetails(session: Session, mediaId: string) {
   const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [mediaId]);
 
   return { media: data, ...rest };
-}
-
-// TODO: break this up into smaller hooks
-export function useSeriesDetails(session: Session, seriesId: string) {
-  const query = db.query.series.findFirst({
-    columns: { id: true, name: true },
-    where: and(
-      eq(schema.series.url, session.url),
-      eq(schema.series.id, seriesId),
-    ),
-    with: {
-      seriesBooks: {
-        columns: { id: true, bookNumber: true },
-        orderBy: sql`CAST(book_number AS FLOAT)`,
-        with: {
-          book: {
-            columns: { id: true, title: true },
-            with: {
-              bookAuthors: {
-                columns: {},
-                with: {
-                  author: {
-                    columns: { id: true, name: true },
-                    with: {
-                      person: {
-                        columns: { id: true, name: true, thumbnails: true },
-                      },
-                    },
-                  },
-                },
-              },
-              media: {
-                columns: { id: true, thumbnails: true },
-                with: {
-                  mediaNarrators: {
-                    columns: {},
-                    with: {
-                      narrator: {
-                        columns: { id: true, name: true },
-                        with: {
-                          person: {
-                            columns: {
-                              id: true,
-                              name: true,
-                              thumbnails: true,
-                            },
-                          },
-                        },
-                      },
-                    },
-                  },
-                  download: {
-                    columns: { thumbnails: true },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-
-  const { data, ...rest } = useFadeInSyncedDataQuery(session, query, [
-    seriesId,
-  ]);
-
-  return { series: data, ...rest };
 }
