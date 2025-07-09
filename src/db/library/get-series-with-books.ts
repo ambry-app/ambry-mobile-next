@@ -2,7 +2,7 @@ import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { flatMapGroups } from "@/src/utils";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import {
   getAuthorsForBooks,
   getMediaForBooks,
@@ -24,19 +24,14 @@ export async function getSeriesWithBooks(
   if (series.length === 0) return [];
 
   const seriesIds = series.map((s) => s.id);
-  const seriesBooks = await getSeriesBooks(session, seriesIds, limit);
+  const seriesBooksBySeriesId = await getSeriesBooks(session, seriesIds, limit);
 
-  const bookIds = seriesBooks.map((sb) => sb.book.id);
+  const bookIds = flatMapGroups(seriesBooksBySeriesId, (sb) => sb.book.id);
   const authorsForBooks = await getAuthorsForBooks(session, bookIds);
   const mediaForBooks = await getMediaForBooks(session, bookIds);
 
   const mediaIds = flatMapGroups(mediaForBooks, (media) => media.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
-
-  const seriesBooksBySeriesId = Object.groupBy(
-    seriesBooks,
-    (sb) => sb.seriesId,
-  );
 
   // NOTE: small improvement possible by missing out series that have no books
   return series.map((series) => ({
@@ -62,6 +57,22 @@ async function getSeriesBooks(
   seriesIds: string[],
   limit: number,
 ) {
+  // NOTE: N+1 queries, but it's a small number of series (usually 1) and it's easier than doing window functions/CTEs.
+  let map: Record<string, SeriesBooks> = {};
+  for (const seriesId of seriesIds) {
+    map[seriesId] = await getSeriesBooksForSeries(session, seriesId, limit);
+  }
+
+  return map;
+}
+
+type SeriesBooks = Awaited<ReturnType<typeof getSeriesBooksForSeries>>;
+
+async function getSeriesBooksForSeries(
+  session: Session,
+  seriesId: string,
+  limit: number,
+) {
   return db
     .select({
       id: schema.seriesBooks.id,
@@ -83,7 +94,7 @@ async function getSeriesBooks(
     .where(
       and(
         eq(schema.seriesBooks.url, session.url),
-        inArray(schema.seriesBooks.seriesId, seriesIds),
+        eq(schema.seriesBooks.seriesId, seriesId),
       ),
     )
     .orderBy(sql`CAST(book_number AS FLOAT)`)

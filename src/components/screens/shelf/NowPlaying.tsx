@@ -1,17 +1,17 @@
 import { TileImage, TileText } from "@/src/components";
 import { PlayerProgressBar } from "@/src/components/Player";
-import { useMediaDetails } from "@/src/db/library-old";
+import { getMedia } from "@/src/db/library";
+import { useLibraryData } from "@/src/hooks/use-library-data";
 import { requestExpandPlayer, usePlayer } from "@/src/stores/player";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { StyleSheet, Text, View } from "react-native";
-import Animated from "react-native-reanimated";
 
 type NowPlayingProps = {
   session: Session;
 };
 
-export default function NowPlaying({ session }: NowPlayingProps) {
+export function NowPlaying({ session }: NowPlayingProps) {
   const mediaId = usePlayer((state) => state.mediaId);
 
   if (!mediaId) return null;
@@ -25,19 +25,25 @@ type NowPlayingDetailsProps = {
 };
 
 function NowPlayingDetails({ session, mediaId }: NowPlayingDetailsProps) {
-  const { media, opacity } = useMediaDetails(session, mediaId);
+  const mediaResult = useLibraryData(
+    () => getMedia(session, [mediaId]),
+    [mediaId],
+  );
   const expandPlayer = () => requestExpandPlayer();
 
-  if (!media) return null;
+  if (!mediaResult) return null;
+  if (!mediaResult[0]) return null;
+
+  const media = mediaResult[0]!;
 
   return (
-    <Animated.View style={[styles.container, { opacity }]}>
+    <View style={styles.container}>
       <Text style={styles.label} numberOfLines={1}>
         Now Playing
       </Text>
       <View style={styles.rowContainer}>
         <View style={styles.leftContainer}>
-          <TileImage media={[media]} book={media.book} onPress={expandPlayer} />
+          <TileImage media={[media]} onPress={expandPlayer} />
         </View>
         <View style={styles.rightContainer}>
           <TileText media={[media]} book={media.book} onPress={expandPlayer} />
@@ -45,7 +51,7 @@ function NowPlayingDetails({ session, mediaId }: NowPlayingDetailsProps) {
           <PlayerProgressBar />
         </View>
       </View>
-    </Animated.View>
+    </View>
   );
 }
 

@@ -4,6 +4,43 @@ import { Session } from "@/src/stores/session";
 import { groupMapBy } from "@/src/utils";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
+export async function getMediaByIds(session: Session, mediaIds: string[]) {
+  return db
+    .select({
+      id: schema.media.id,
+      thumbnails: schema.media.thumbnails,
+      book: {
+        id: schema.books.id,
+        title: schema.books.title,
+      },
+      download: {
+        thumbnails: schema.downloads.thumbnails,
+      },
+    })
+    .from(schema.media)
+    .innerJoin(
+      schema.books,
+      and(
+        eq(schema.books.url, schema.media.url),
+        eq(schema.books.id, schema.media.bookId),
+      ),
+    )
+    .leftJoin(
+      schema.downloads,
+      and(
+        eq(schema.downloads.url, schema.media.url),
+        eq(schema.downloads.mediaId, schema.media.id),
+      ),
+    )
+    .where(
+      and(
+        eq(schema.media.url, session.url),
+        inArray(schema.media.id, mediaIds),
+      ),
+    )
+    .orderBy(desc(schema.downloads.downloadedAt));
+}
+
 export async function getAuthorsForBooks(session: Session, bookIds: string[]) {
   if (bookIds.length === 0) return {};
 

@@ -54,7 +54,6 @@ type MediaByNarratorProps = {
 function MediaByNarrator(props: MediaByNarratorProps) {
   const { narrator, personName } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
-  const tileSize = screenWidth / HORIZONTAL_TILE_WIDTH_RATIO;
 
   if (narrator.media.length === 0) return null;
 
@@ -65,6 +64,7 @@ function MediaByNarrator(props: MediaByNarratorProps) {
     });
   };
 
+  const tileSize = screenWidth / HORIZONTAL_TILE_WIDTH_RATIO;
   const hasMore = narrator.media.length === HORIZONTAL_LIST_LIMIT;
 
   return (

@@ -1,3 +1,4 @@
+export * from "./AllInProgress";
 export * from "./AuthorDetails";
 export * from "./BookDetails";
 export * from "./DownloadActions";
@@ -7,3 +8,4 @@ export * from "./MediaDetails";
 export * from "./NarratorDetails";
 export * from "./PersonDetails";
 export * from "./SeriesDetails";
+export * from "./Shelf";

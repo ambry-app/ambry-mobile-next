@@ -55,7 +55,6 @@ type BooksByAuthorProps = {
 function BooksByAuthor(props: BooksByAuthorProps) {
   const { author, personName } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
-  const tileSize = screenWidth / HORIZONTAL_TILE_WIDTH_RATIO;
 
   if (author.books.length === 0) return null;
 
@@ -66,6 +65,7 @@ function BooksByAuthor(props: BooksByAuthorProps) {
     });
   };
 
+  const tileSize = screenWidth / HORIZONTAL_TILE_WIDTH_RATIO;
   const hasMore = author.books.length === HORIZONTAL_LIST_LIMIT;
 
   return (

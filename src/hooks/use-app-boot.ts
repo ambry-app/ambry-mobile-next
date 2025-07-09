@@ -44,21 +44,21 @@ const useAppBoot = () => {
         }
       }
 
-      // try {
-      //   console.debug("[AppBoot] setting up trackPlayer...");
-      //   await setupPlayer(session);
-      //   console.debug("[AppBoot] trackPlayer setup complete");
-      // } catch (e) {
-      //   console.error("[AppBoot] trackPlayer setup error", e);
-      // }
+      try {
+        console.debug("[AppBoot] setting up trackPlayer...");
+        await setupPlayer(session);
+        console.debug("[AppBoot] trackPlayer setup complete");
+      } catch (e) {
+        console.error("[AppBoot] trackPlayer setup error", e);
+      }
 
-      // try {
-      //   console.debug("[AppBoot] loading most recent media...");
-      //   await loadMostRecentMedia(session);
-      //   console.debug("[AppBoot] most recent media loaded");
-      // } catch (e) {
-      //   console.error("[AppBoot] most recent media load error", e);
-      // }
+      try {
+        console.debug("[AppBoot] loading most recent media...");
+        await loadMostRecentMedia(session);
+        console.debug("[AppBoot] most recent media loaded");
+      } catch (e) {
+        console.error("[AppBoot] most recent media load error", e);
+      }
 
       try {
         await registerBackgroundSyncTask();

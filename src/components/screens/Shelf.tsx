@@ -2,8 +2,7 @@ import { syncDown } from "@/src/db/sync";
 import { Session } from "@/src/stores/session";
 import { useCallback, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
-import NowPlaying from "./NowPlaying";
-import RecentInProgress from "./RecentInProgress";
+import { NowPlaying, RecentInProgress } from "./shelf";
 
 // sections:
 // 1. now listening
@@ -11,11 +10,11 @@ import RecentInProgress from "./RecentInProgress";
 // 3. saved for later (coming soon)
 // 4. finished (coming soon)
 
-type ShelfFlatListProps = {
+type ShelfProps = {
   session: Session;
 };
 
-export default function ShelfFlatList(props: ShelfFlatListProps) {
+export function Shelf(props: ShelfProps) {
   const { session } = props;
   const sections = ["now_playing", "in_progress"];
   const [refreshing, setRefreshing] = useState(false);

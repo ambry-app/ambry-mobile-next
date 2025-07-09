@@ -1,4 +1,5 @@
-import { ShelfFlatList } from "@/src/components/ShelfScreen";
+import { Delay } from "@/src/components";
+import { Shelf } from "@/src/components/screens";
 import { useSession } from "@/src/stores/session";
 
 export default function ShelfScreen() {
@@ -6,5 +7,9 @@ export default function ShelfScreen() {
 
   if (!session) return null;
 
-  return <ShelfFlatList session={session} />;
+  return (
+    <Delay delay={10}>
+      <Shelf session={session} />
+    </Delay>
+  );
 }

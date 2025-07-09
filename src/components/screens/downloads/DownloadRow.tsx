@@ -4,7 +4,7 @@ import {
   Loading,
   ThumbnailImage,
 } from "@/src/components";
-import { DownloadedMedia } from "@/src/db/library";
+import { Media } from "@/src/db/library";
 import { useDownloads } from "@/src/stores/downloads";
 import { Colors } from "@/src/styles";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
@@ -14,7 +14,7 @@ import { useShallow } from "zustand/shallow";
 import { FileSize } from "./FileSize";
 
 type DownloadRowProps = {
-  media: DownloadedMedia;
+  media: Media;
 };
 
 export function DownloadRow({ media }: DownloadRowProps) {
@@ -51,7 +51,7 @@ export function DownloadRow({ media }: DownloadRowProps) {
       <View style={styles.container}>
         <TouchableOpacity onPress={navigateToBook}>
           <ThumbnailImage
-            downloadedThumbnails={media.download.thumbnails}
+            downloadedThumbnails={media.download?.thumbnails}
             thumbnails={media.thumbnails}
             size="small"
             style={{ width: 70, height: 70, borderRadius: 6 }}

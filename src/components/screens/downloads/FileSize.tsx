@@ -3,6 +3,7 @@ import { documentDirectoryFilePath } from "@/src/utils";
 import * as FileSystem from "expo-file-system";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text } from "react-native";
+import { FadeInOnMount } from "../../FadeInOnMount";
 
 type FileSizeProps = {
   filePath: string;
@@ -28,12 +29,14 @@ export function FileSize({ filePath }: FileSizeProps) {
 
   if (isMissing) return <Text style={styles.errorText}>file is missing!</Text>;
 
-  if (!size) return null;
+  if (!size) return <Text style={styles.text}></Text>;
 
   return (
-    <Text style={styles.text} numberOfLines={1}>
-      {size}
-    </Text>
+    <FadeInOnMount>
+      <Text style={styles.text} numberOfLines={1}>
+        {size}
+      </Text>
+    </FadeInOnMount>
   );
 }
 

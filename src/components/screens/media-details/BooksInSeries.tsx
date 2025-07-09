@@ -54,7 +54,6 @@ type BooksInOneSeriesProps = {
 function BooksInOneSeries(props: BooksInOneSeriesProps) {
   const { series } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
-  const tileSize = screenWidth / HORIZONTAL_TILE_WIDTH_RATIO;
 
   if (series.seriesBooks.length === 0) return null;
 
@@ -65,6 +64,7 @@ function BooksInOneSeries(props: BooksInOneSeriesProps) {
     });
   };
 
+  const tileSize = screenWidth / HORIZONTAL_TILE_WIDTH_RATIO;
   const hasMore = series.seriesBooks.length === HORIZONTAL_LIST_LIMIT;
 
   return (

@@ -51,9 +51,10 @@ type PlayerState = {
 type MediaProp = Media & { book: Book };
 type BookProp = Book & { media: Media[] };
 type SeriesBookProp = SeriesBook & { book: BookProp };
-type MediaWithPlayerStateProp = MediaProp & {
-  playerState: PlayerState;
-  duration: string | null;
+type PlayerStateWithMediaProp = PlayerState & {
+  media: MediaProp & {
+    duration: string | null;
+  };
 };
 
 type MediaTileProps = { media: MediaProp; style?: StyleProp<ViewStyle> };
@@ -64,7 +65,7 @@ type SeriesBookTileProps = {
 };
 type PlayerStateTileProps = {
   session: Session;
-  media: MediaWithPlayerStateProp;
+  playerState: PlayerStateWithMediaProp;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -226,20 +227,20 @@ export const PersonTile = React.memo(function PersonTile(
 export const PlayerStateTile = React.memo(function PlayerStateTile(
   props: PlayerStateTileProps,
 ) {
-  const { media, style, session } = props;
-  const loadMedia = useLoadMediaCallback(session, media.id);
-  const duration = media.duration ? Number(media.duration) : false;
-  const percent = duration
-    ? (media.playerState.position / duration) * 100
+  const { playerState, style, session } = props;
+  const loadMedia = useLoadMediaCallback(session, playerState.media.id);
+  const duration = playerState.media.duration
+    ? Number(playerState.media.duration)
     : false;
+  const percent = duration ? (playerState.position / duration) * 100 : false;
 
   return (
     <View style={[styles.playerStateTileContainer, style]}>
       <Pressable onPress={loadMedia}>
         <View style={styles.playerStateThumbnailContainer}>
           <ThumbnailImage
-            thumbnails={media.thumbnails}
-            downloadedThumbnails={media.download?.thumbnails}
+            thumbnails={playerState.media.thumbnails}
+            downloadedThumbnails={playerState.media.download?.thumbnails}
             size="large"
             style={styles.playerStateThumbnail}
           />
@@ -252,10 +253,7 @@ export const PlayerStateTile = React.memo(function PlayerStateTile(
           />
         </View>
         {duration !== false && (
-          <ProgressBar
-            position={media.playerState.position}
-            duration={duration}
-          />
+          <ProgressBar position={playerState.position} duration={duration} />
         )}
         {percent !== false && (
           <Text style={styles.progressText} numberOfLines={1}>
@@ -263,7 +261,11 @@ export const PlayerStateTile = React.memo(function PlayerStateTile(
           </Text>
         )}
       </Pressable>
-      <TileText book={media.book} media={[media]} onPress={loadMedia} />
+      <TileText
+        book={playerState.media.book}
+        media={[playerState.media]}
+        onPress={loadMedia}
+      />
     </View>
   );
 });

@@ -1,4 +1,5 @@
-import { AllInProgress } from "@/src/components/ShelfScreen";
+import { Delay } from "@/src/components";
+import { AllInProgress } from "@/src/components/screens";
 import { useSession } from "@/src/stores/session";
 
 export default function InProgressScreen() {
@@ -6,5 +7,9 @@ export default function InProgressScreen() {
 
   if (!session) return null;
 
-  return <AllInProgress session={session} />;
+  return (
+    <Delay delay={10}>
+      <AllInProgress session={session} />
+    </Delay>
+  );
 }

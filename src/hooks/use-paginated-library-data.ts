@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDataVersion } from "@/src/stores/data-version";
 
+// TODO: honor deps
 export function usePaginatedLibraryData<T, Cursor>(
   pageSize: number,
   getPage: (pageSize: number, cursor?: Cursor | undefined) => Promise<T[]>,
   getCursor: (item: T) => Cursor,
+  deps: any[] = [],
 ) {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);

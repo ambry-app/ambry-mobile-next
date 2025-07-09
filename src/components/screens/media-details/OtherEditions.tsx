@@ -19,7 +19,6 @@ type OtherEditionsProps = {
 export function OtherEditions(props: OtherEditionsProps) {
   const { media, session } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
-  const tileSize = screenWidth / HORIZONTAL_TILE_WIDTH_RATIO;
   const book = useLibraryData(() =>
     getBookOtherEditions(session, media, HORIZONTAL_LIST_LIMIT),
   );
@@ -37,6 +36,7 @@ export function OtherEditions(props: OtherEditionsProps) {
     });
   };
 
+  const tileSize = screenWidth / HORIZONTAL_TILE_WIDTH_RATIO;
   const hasMore = book.media.length === HORIZONTAL_LIST_LIMIT;
 
   return (
