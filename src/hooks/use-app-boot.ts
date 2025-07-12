@@ -12,6 +12,7 @@ import { loadAllDownloads } from "../stores/downloads";
 
 const useAppBoot = () => {
   const [isReady, setIsReady] = useState(false);
+  const [initialSyncComplete, setInitialSyncComplete] = useState(false);
   const { success: migrationSuccess, error: migrationError } = useMigrations(
     db,
     migrations,
@@ -39,9 +40,13 @@ const useAppBoot = () => {
           console.debug("[AppBoot] down sync...");
           await syncDown(session);
           console.debug("[AppBoot] down sync complete");
+          setInitialSyncComplete(true);
         } catch (e) {
           console.error("[AppBoot] down sync error", e);
+          setInitialSyncComplete(true);
         }
+      } else {
+        setInitialSyncComplete(true);
       }
 
       try {
@@ -133,7 +138,7 @@ const useAppBoot = () => {
     };
   }, [session, setLibraryDataVersion]);
 
-  return { isReady, migrationError };
+  return { isReady, migrationError, initialSyncComplete };
 };
 
 export { useAppBoot };

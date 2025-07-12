@@ -1,4 +1,4 @@
-import { MeasureScreenHeight } from "@/src/components";
+import { Loading, MeasureScreenHeight, ScreenCentered } from "@/src/components";
 import { expoDb } from "@/src/db/db";
 import { useAppBoot } from "@/src/hooks/use-app-boot";
 import { usePlayer } from "@/src/stores/player";
@@ -48,7 +48,8 @@ function useSentryNavigationIntegration() {
 
 function RootLayout() {
   useSentryNavigationIntegration();
-  const { isReady, migrationError } = useAppBoot();
+  const { isReady, migrationError, initialSyncComplete } = useAppBoot();
+  const isLoggedIn = useSession((state) => !!state.session);
 
   useEffect(() => {
     if (isReady) {
@@ -69,6 +70,15 @@ function RootLayout() {
 
   if (!isReady) {
     return null;
+  }
+
+  // Show loading spinner if logged in but initial sync not complete
+  if (isLoggedIn && !initialSyncComplete) {
+    return (
+      <ScreenCentered>
+        <Loading />
+      </ScreenCentered>
+    );
   }
 
   return (
