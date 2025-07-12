@@ -1,4 +1,9 @@
-import { HeaderButton, MediaTile, SeeAllTile } from "@/src/components";
+import {
+  FadeInOnMount,
+  HeaderButton,
+  MediaTile,
+  SeeAllTile,
+} from "@/src/components";
 import {
   HORIZONTAL_LIST_LIMIT,
   HORIZONTAL_TILE_SPACING,
@@ -69,10 +74,9 @@ export function OtherEditions(props: OtherEditionsProps) {
         }
         renderItem={({ item }) => {
           return (
-            <MediaTile
-              style={[styles.tile, { width: tileSize }]}
-              media={{ ...item, book: book }}
-            />
+            <FadeInOnMount style={[styles.tile, { width: tileSize }]}>
+              <MediaTile media={{ ...item, book: book }} />
+            </FadeInOnMount>
           );
         }}
       />

@@ -1,4 +1,9 @@
-import { HeaderButton, PlayerStateTile, SeeAllTile } from "@/src/components";
+import {
+  FadeInOnMount,
+  HeaderButton,
+  PlayerStateTile,
+  SeeAllTile,
+} from "@/src/components";
 import {
   HORIZONTAL_LIST_LIMIT,
   HORIZONTAL_TILE_SPACING,
@@ -45,7 +50,11 @@ export function RecentInProgress({ session }: RecentInProgressProps) {
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
-        <HeaderButton label="In Progress" onPress={navigateToAll} />
+        <HeaderButton
+          label="In Progress"
+          onPress={navigateToAll}
+          showCaret={hasMore}
+        />
       </View>
       <FlatList
         style={styles.list}
@@ -64,11 +73,9 @@ export function RecentInProgress({ session }: RecentInProgressProps) {
           ) : null
         }
         renderItem={({ item }) => (
-          <PlayerStateTile
-            style={[styles.tile, { width: tileSize }]}
-            playerState={item}
-            session={session}
-          />
+          <FadeInOnMount style={[styles.tile, { width: tileSize }]}>
+            <PlayerStateTile playerState={item} session={session} />
+          </FadeInOnMount>
         )}
       />
     </View>

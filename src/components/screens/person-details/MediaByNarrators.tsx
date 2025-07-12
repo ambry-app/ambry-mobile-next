@@ -34,7 +34,7 @@ export function MediaByNarrators(props: MediaByNarratorsProps) {
   if (!narrators) return null;
 
   return (
-    <FadeInOnMount>
+    <>
       {narrators.map((narrator) => (
         <MediaByNarrator
           key={`media-${narrator.id}`}
@@ -42,7 +42,7 @@ export function MediaByNarrators(props: MediaByNarratorsProps) {
           personName={person.name}
         />
       ))}
-    </FadeInOnMount>
+    </>
   );
 }
 
@@ -69,7 +69,7 @@ function MediaByNarrator(props: MediaByNarratorProps) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerContainer}>
+      <FadeInOnMount style={styles.headerContainer}>
         <HeaderButton
           label={
             narrator.name === personName
@@ -79,7 +79,7 @@ function MediaByNarrator(props: MediaByNarratorProps) {
           onPress={navigateToNarrator}
           showCaret={hasMore}
         />
-      </View>
+      </FadeInOnMount>
 
       <FlatList
         style={styles.list}
@@ -99,10 +99,9 @@ function MediaByNarrator(props: MediaByNarratorProps) {
         }
         renderItem={({ item }) => {
           return (
-            <MediaTile
-              style={[styles.tile, { width: tileSize }]}
-              media={item}
-            />
+            <FadeInOnMount style={[styles.tile, { width: tileSize }]}>
+              <MediaTile media={item} />
+            </FadeInOnMount>
           );
         }}
       />

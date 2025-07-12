@@ -39,11 +39,11 @@ export function BooksInSeries(props: BooksInSeriesProps) {
   if (seriesList.length === 0) return null;
 
   return (
-    <FadeInOnMount>
+    <>
       {seriesList.map((series) => (
         <BooksInOneSeries key={`series-${series.id}`} series={series} />
       ))}
-    </FadeInOnMount>
+    </>
   );
 }
 
@@ -97,10 +97,9 @@ function BooksInOneSeries(props: BooksInOneSeriesProps) {
         }
         renderItem={({ item }) => {
           return (
-            <SeriesBookTile
-              style={[styles.tile, { width: tileSize }]}
-              seriesBook={item}
-            />
+            <FadeInOnMount style={[styles.tile, { width: tileSize }]}>
+              <SeriesBookTile seriesBook={item} />
+            </FadeInOnMount>
           );
         }}
       />

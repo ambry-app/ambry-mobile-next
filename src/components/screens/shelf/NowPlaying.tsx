@@ -1,4 +1,4 @@
-import { TileImage, TileText } from "@/src/components";
+import { FadeInOnMount, TileImage, TileText } from "@/src/components";
 import { PlayerProgressBar } from "@/src/components/Player";
 import { getMedia } from "@/src/db/library";
 import { useLibraryData } from "@/src/hooks/use-library-data";
@@ -37,7 +37,7 @@ function NowPlayingDetails({ session, mediaId }: NowPlayingDetailsProps) {
   const media = mediaResult[0]!;
 
   return (
-    <View style={styles.container}>
+    <FadeInOnMount style={styles.container}>
       <Text style={styles.label} numberOfLines={1}>
         Now Playing
       </Text>
@@ -51,7 +51,7 @@ function NowPlayingDetails({ session, mediaId }: NowPlayingDetailsProps) {
           <PlayerProgressBar />
         </View>
       </View>
-    </View>
+    </FadeInOnMount>
   );
 }
 

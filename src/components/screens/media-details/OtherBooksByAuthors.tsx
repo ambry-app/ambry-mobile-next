@@ -35,11 +35,11 @@ export function OtherBooksByAuthors(props: OtherBooksByAuthorsProps) {
   if (authors.length === 0) return null;
 
   return (
-    <FadeInOnMount>
+    <>
       {authors.map((author) => (
         <OtherBooksByAuthor key={`books-${author.id}`} author={author} />
       ))}
-    </FadeInOnMount>
+    </>
   );
 }
 
@@ -92,7 +92,9 @@ function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
         }
         renderItem={({ item }) => {
           return (
-            <BookTile style={[styles.tile, { width: tileSize }]} book={item} />
+            <FadeInOnMount style={[styles.tile, { width: tileSize }]}>
+              <BookTile book={item} />
+            </FadeInOnMount>
           );
         }}
       />

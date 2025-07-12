@@ -2,7 +2,7 @@ import { Stack } from "expo-router";
 
 export default function ShelfLayout() {
   return (
-    <Stack>
+    <Stack screenOptions={{ animation: "fade" }}>
       <Stack.Screen
         name="index"
         options={{

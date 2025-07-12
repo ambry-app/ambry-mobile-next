@@ -35,7 +35,7 @@ export function BooksByAuthors(props: BooksByAuthorsProps) {
   if (authors.length === 0) return null;
 
   return (
-    <FadeInOnMount>
+    <>
       {authors.map((author) => (
         <BooksByAuthor
           key={`books-${author.id}`}
@@ -43,7 +43,7 @@ export function BooksByAuthors(props: BooksByAuthorsProps) {
           personName={person.name}
         />
       ))}
-    </FadeInOnMount>
+    </>
   );
 }
 
@@ -70,7 +70,7 @@ function BooksByAuthor(props: BooksByAuthorProps) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerContainer}>
+      <FadeInOnMount style={styles.headerContainer}>
         <HeaderButton
           label={
             author.name === personName
@@ -80,7 +80,7 @@ function BooksByAuthor(props: BooksByAuthorProps) {
           onPress={navigateToAuthor}
           showCaret={hasMore}
         />
-      </View>
+      </FadeInOnMount>
 
       <FlatList
         style={styles.list}
@@ -103,7 +103,9 @@ function BooksByAuthor(props: BooksByAuthorProps) {
         }
         renderItem={({ item }) => {
           return (
-            <BookTile style={[styles.tile, { width: tileSize }]} book={item} />
+            <FadeInOnMount style={[styles.tile, { width: tileSize }]}>
+              <BookTile book={item} />
+            </FadeInOnMount>
           );
         }}
       />

@@ -35,14 +35,14 @@ export function OtherMediaByNarrators(props: OtherMediaByNarratorsProps) {
   if (narrators.length === 0) return null;
 
   return (
-    <FadeInOnMount>
+    <>
       {narrators.map((narrator) => (
         <OtherMediaByNarrator
           key={`media-${narrator.id}`}
           narrator={narrator}
         />
       ))}
-    </FadeInOnMount>
+    </>
   );
 }
 
@@ -96,10 +96,9 @@ function OtherMediaByNarrator(props: OtherMediaByNarratorProps) {
         }
         renderItem={({ item }) => {
           return (
-            <MediaTile
-              style={[styles.tile, { width: tileSize }]}
-              media={item}
-            />
+            <FadeInOnMount style={[styles.tile, { width: tileSize }]}>
+              <MediaTile media={item} />
+            </FadeInOnMount>
           );
         }}
       />

@@ -1,3 +1,4 @@
+import { FadeInOnMount } from "@/src/components";
 import {
   HORIZONTAL_TILE_SPACING,
   HORIZONTAL_TILE_WIDTH_RATIO,
@@ -35,7 +36,7 @@ export function AuthorsAndNarrators({
           const name = requireValue(item.names[0], "Name is required");
 
           return (
-            <View style={[styles.tile, { width: tileSize }]}>
+            <FadeInOnMount style={[styles.tile, { width: tileSize }]}>
               <PersonTile
                 label={label}
                 personId={item.id}
@@ -43,7 +44,7 @@ export function AuthorsAndNarrators({
                 realName={item.realName}
                 thumbnails={item.thumbnails}
               />
-            </View>
+            </FadeInOnMount>
           );
         }}
       />

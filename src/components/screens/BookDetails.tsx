@@ -19,19 +19,25 @@ export function BookDetails({ bookId, session }: BookDetailsProps) {
   if (!book) return null;
 
   return (
-    <FadeInOnMount>
-      <FlatList
-        contentInsetAdjustmentBehavior="automatic"
-        style={styles.container}
-        data={book.media}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        ListHeaderComponent={() => <Header book={book} />}
-        renderItem={({ item }) => {
-          return <Tile style={styles.tile} media={[item]} book={book} />;
-        }}
-      />
-    </FadeInOnMount>
+    <FlatList
+      contentInsetAdjustmentBehavior="automatic"
+      style={styles.container}
+      data={book.media}
+      keyExtractor={(item) => item.id}
+      numColumns={2}
+      ListHeaderComponent={() => (
+        <FadeInOnMount>
+          <Header book={book} />
+        </FadeInOnMount>
+      )}
+      renderItem={({ item }) => {
+        return (
+          <FadeInOnMount style={styles.tile}>
+            <Tile media={[item]} book={book} />
+          </FadeInOnMount>
+        );
+      }}
+    />
   );
 }
 
