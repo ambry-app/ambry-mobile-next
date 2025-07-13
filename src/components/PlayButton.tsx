@@ -1,5 +1,5 @@
 import { playOrPause, usePlayer } from "@/src/stores/player";
-import { State } from "@weights-ai/react-native-track-player";
+import { State } from "react-native-track-player";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { useDebounce } from "use-debounce";
 import { IconButton } from "./IconButton";

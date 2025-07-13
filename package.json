@@ -19,7 +19,7 @@
     "generate-migrations": "bunx drizzle-kit generate"
   },
   "expo": {
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "install": {
       "exclude": [
         "@react-native-community/slider",
@@ -30,11 +30,11 @@
       "reactNativeDirectoryCheck": {
         "exclude": [
           "@react-hook/previous",
-          "@weights-ai/react-native-track-player",
           "core-js",
           "drizzle-orm",
           "expo-sqlite-devtools",
           "immer",
+          "react-native-track-player",
           "use-debounce"
         ]
       }
@@ -50,7 +50,6 @@
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
     "@sentry/react-native": "^6.9.1",
-    "@weights-ai/react-native-track-player": "^4.1.5",
     "core-js": "^3.43.0",
     "drizzle-orm": "^0.44.2",
     "expo": "53.0.19",
@@ -84,6 +83,7 @@
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
     "react-native-svg": "15.11.2",
+    "react-native-track-player": "./vendor/react-native-track-player-v4.1.1.tgz",
     "use-debounce": "^10.0.4",
     "zustand": "^5.0.5"
   },
