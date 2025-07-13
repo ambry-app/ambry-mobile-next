@@ -1,4 +1,3 @@
-import { FadeInOnMount } from "@/src/components";
 import {
   HORIZONTAL_TILE_SPACING,
   HORIZONTAL_TILE_WIDTH_RATIO,
@@ -8,6 +7,7 @@ import { useScreen } from "@/src/stores/screen";
 import { Colors } from "@/src/styles";
 import { requireValue } from "@/src/utils";
 import { FlatList, StyleSheet, View } from "react-native";
+import { FadeInOnMount } from "./FadeInOnMount";
 import { PersonTile } from "./Tiles";
 
 type AuthorsAndNarratorsProps = {

@@ -7,7 +7,6 @@ import {
   ThumbnailImage,
 } from "@/src/components";
 import { PLAYER_HEIGHT, TAB_BAR_BASE_HEIGHT } from "@/src/constants";
-import { useMediaDetails } from "@/src/db/library-old";
 import useBackHandler from "@/src/hooks/use-back-handler";
 import {
   expandPlayerHandled,
@@ -45,6 +44,8 @@ import PlaybackControls from "./PlaybackControls";
 import PlayerProgressBar from "./PlayerProgressBar";
 import PlayerScrubber from "./PlayerScrubber";
 import PlayerSettingButtons from "./PlayerSettingButtons";
+import { useLibraryData } from "@/src/hooks/use-library-data";
+import { getSingleMedia } from "@/src/db/library";
 
 type TabBarWithPlayerProps = BottomTabBarProps & {
   session: Session;
@@ -60,7 +61,10 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
       loadingNewMedia,
     })),
   );
-  const { media } = useMediaDetails(session, mediaId);
+  const media = useLibraryData(
+    () => getSingleMedia(session, mediaId),
+    [mediaId],
+  );
   const [expanded, setExpanded] = useState(true);
   const expansion = useSharedValue(1.0);
   const { screenHeight, screenWidth, shortScreen } = useScreen(
@@ -516,12 +520,8 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                       <BookDetailsText
                         baseFontSize={14}
                         title={media.book.title}
-                        authors={media.book.bookAuthors.map(
-                          (ba) => ba.author.name,
-                        )}
-                        narrators={media.mediaNarrators.map(
-                          (mn) => mn.narrator.name,
-                        )}
+                        authors={media.book.authors.map((a) => a.name)}
+                        narrators={media.narrators.map((n) => n.name)}
                       />
                     </Pressable>
                   </View>
@@ -559,12 +559,8 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                       baseFontSize={16}
                       titleWeight={700}
                       title={media.book.title}
-                      authors={media.book.bookAuthors.map(
-                        (ba) => ba.author.name,
-                      )}
-                      narrators={media.mediaNarrators.map(
-                        (mn) => mn.narrator.name,
-                      )}
+                      authors={media.book.authors.map((a) => a.name)}
+                      narrators={media.narrators.map((n) => n.name)}
                     />
                   </TouchableOpacity>
                 </View>
