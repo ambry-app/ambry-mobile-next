@@ -33,6 +33,7 @@ function AppTabs({ session }: { session: Session }) {
           <TabBar {...props} />
         )
       }
+      backBehavior="history"
     >
       <Tabs.Screen
         name="(library)"

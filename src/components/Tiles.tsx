@@ -250,6 +250,7 @@ export const PlayerStateTile = React.memo(function PlayerStateTile(
             style={styles.playButton}
             iconStyle={styles.playButtonIcon}
             color={Colors.zinc[100]}
+            onPress={loadMedia}
           />
         </View>
         {duration !== false && (
