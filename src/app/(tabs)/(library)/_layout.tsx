@@ -9,7 +9,7 @@ const screenOptions: NativeStackNavigationOptions =
         headerTransparent: true,
         headerBlurEffect: "systemChromeMaterialDark",
       }
-    : { animation: "fade" };
+    : {};
 
 export default function LibraryStackLayout() {
   return (

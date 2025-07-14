@@ -106,7 +106,7 @@ function RootStack() {
   const playerLoaded = usePlayer((state) => !!state.mediaId);
 
   return (
-    <Stack screenOptions={{ animation: "fade" }}>
+    <Stack>
       <Stack.Protected guard={isLoggedIn}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Protected guard={playerLoaded}>
