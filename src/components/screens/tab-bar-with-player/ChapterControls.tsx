@@ -8,7 +8,7 @@ import { Colors } from "@/src/styles";
 import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
-export default function ChapterControls() {
+export function ChapterControls() {
   const chapterState = usePlayer((state) => state.chapterState);
 
   if (!chapterState) return null;

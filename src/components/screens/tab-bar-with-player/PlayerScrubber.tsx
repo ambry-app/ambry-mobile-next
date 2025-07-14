@@ -3,7 +3,7 @@ import { seekTo, usePlayer } from "@/src/stores/player";
 import { Colors } from "@/src/styles";
 import { useShallow } from "zustand/react/shallow";
 
-export default function PlayerScrubber() {
+export function PlayerScrubber() {
   const { playbackRate, position, duration, chapterState } = usePlayer(
     useShallow(({ playbackRate, position, duration, chapterState }) => ({
       playbackRate,

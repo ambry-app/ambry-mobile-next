@@ -4,6 +4,7 @@ import {
   IconButton,
   Loading,
   PlayButton,
+  PlayerProgressBar,
   ThumbnailImage,
 } from "@/src/components";
 import { PLAYER_HEIGHT, TAB_BAR_BASE_HEIGHT } from "@/src/constants";
@@ -41,18 +42,19 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
-import ChapterControls from "./ChapterControls";
-import PlaybackControls from "./PlaybackControls";
-import PlayerProgressBar from "./PlayerProgressBar";
-import PlayerScrubber from "./PlayerScrubber";
-import PlayerSettingButtons from "./PlayerSettingButtons";
+import {
+  ChapterControls,
+  PlaybackControls,
+  PlayerScrubber,
+  PlayerSettingButtons,
+} from "./tab-bar-with-player";
 
 type TabBarWithPlayerProps = BottomTabBarProps & {
   session: Session;
   mediaId: string;
 };
 
-export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
+export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
   const { state, descriptors, navigation, insets, session, mediaId } = props;
   const { lastPlayerExpandRequest, streaming, loadingNewMedia } = usePlayer(
     useShallow(({ lastPlayerExpandRequest, streaming, loadingNewMedia }) => ({

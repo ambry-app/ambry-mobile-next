@@ -13,6 +13,7 @@ export * from "./MeasureScreenHeight";
 export * from "./MultiThumbnailImage";
 export * from "./NamesList";
 export * from "./PlayButton";
+export * from "./PlayerProgressBar";
 export * from "./ProgressBar";
 export * from "./ScreenCentered";
 export * from "./Scrubber";

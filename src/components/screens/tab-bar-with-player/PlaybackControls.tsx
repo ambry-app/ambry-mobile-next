@@ -2,7 +2,7 @@ import { PlayButton, SeekButton } from "@/src/components";
 import { Colors } from "@/src/styles";
 import { StyleSheet, View } from "react-native";
 
-export default function PlaybackControls() {
+export function PlaybackControls() {
   return (
     <View style={styles.container}>
       <SeekButton

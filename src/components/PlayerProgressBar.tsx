@@ -1,11 +1,11 @@
-import { ProgressBar } from "@/src/components";
 import { usePlayer } from "@/src/stores/player";
 import { Colors } from "@/src/styles";
 import { secondsDisplay } from "@/src/utils";
 import { StyleSheet, Text, View } from "react-native";
 import { useShallow } from "zustand/react/shallow";
+import { ProgressBar } from "./ProgressBar";
 
-export default function PlayerProgressBar() {
+export function PlayerProgressBar() {
   const { position, duration, playbackRate } = usePlayer(
     useShallow(({ position, duration, playbackRate }) => ({
       position,

@@ -1,5 +1,9 @@
-import { FadeInOnMount, TileImage, TileText } from "@/src/components";
-import { PlayerProgressBar } from "@/src/components/Player";
+import {
+  FadeInOnMount,
+  PlayerProgressBar,
+  TileImage,
+  TileText,
+} from "@/src/components";
 import { getMedia } from "@/src/db/library";
 import { useLibraryData } from "@/src/hooks/use-library-data";
 import { requestExpandPlayer, usePlayer } from "@/src/stores/player";

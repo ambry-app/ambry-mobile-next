@@ -9,3 +9,4 @@ export * from "./NarratorScreen";
 export * from "./PersonScreen";
 export * from "./SeriesScreen";
 export * from "./ShelfScreen";
+export * from "./TabBarWithPlayer";

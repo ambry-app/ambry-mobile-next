@@ -7,7 +7,7 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-export default function PlayerSettingButtons() {
+export function PlayerSettingButtons() {
   const playbackRate = usePlayer((state) => state.playbackRate);
   const sleepTimer = usePlayer((state) => state.sleepTimer);
   const sleepTimerEnabled = usePlayer((state) => state.sleepTimerEnabled);
