@@ -3,7 +3,7 @@ import { signOut, useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { Button, StyleSheet, Text, View } from "react-native";
 
-export default function SettingsScreen() {
+export default function SettingsRoute() {
   const session = useSession((state) => state.session);
 
   if (!session) return null;

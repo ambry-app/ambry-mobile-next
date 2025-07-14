@@ -1,15 +1,15 @@
 import { Delay } from "@/src/components";
-import { Downloads } from "@/src/components/screens";
+import { DownloadsScreen } from "@/src/components/screens";
 import { useSession } from "@/src/stores/session";
 
-export default function DownloadsScreen() {
+export default function DownloadsRoute() {
   const session = useSession((state) => state.session);
 
   if (!session) return null;
 
   return (
     <Delay delay={10}>
-      <Downloads session={session} />
+      <DownloadsScreen session={session} />
     </Delay>
   );
 }

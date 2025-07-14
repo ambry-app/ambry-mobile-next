@@ -1,15 +1,15 @@
 import { Delay } from "@/src/components";
-import { Shelf } from "@/src/components/screens";
+import { ShelfScreen } from "@/src/components/screens";
 import { useSession } from "@/src/stores/session";
 
-export default function ShelfScreen() {
+export default function ShelfRoute() {
   const session = useSession((state) => state.session);
 
   if (!session) return null;
 
   return (
     <Delay delay={10}>
-      <Shelf session={session} />
+      <ShelfScreen session={session} />
     </Delay>
   );
 }

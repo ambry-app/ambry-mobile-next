@@ -14,7 +14,7 @@ function formatSeconds(seconds: number) {
   return Math.round(seconds / 60);
 }
 
-export default function SleepTimerModal() {
+export default function SleepTimerRoute() {
   const { bottom } = useSafeAreaInsets();
 
   const { sleepTimer, sleepTimerEnabled } = usePlayer((state) => state);

@@ -1,10 +1,10 @@
-import { Library } from "@/src/components/screens";
+import { LibraryScreen } from "@/src/components/screens";
 import { useSession } from "@/src/stores/session";
 
-export default function LibraryScreen() {
+export default function LibraryRoute() {
   const session = useSession((state) => state.session);
 
   if (!session) return null;
 
-  return <Library session={session} />;
+  return <LibraryScreen session={session} />;
 }

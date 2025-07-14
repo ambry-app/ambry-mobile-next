@@ -2,7 +2,7 @@ import { syncDown } from "@/src/db/sync";
 import { Session } from "@/src/stores/session";
 import { useCallback, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
-import { NowPlaying, RecentInProgress } from "./shelf";
+import { NowPlaying, RecentInProgress } from "./shelf-screen";
 
 // sections:
 // 1. now listening
@@ -10,11 +10,11 @@ import { NowPlaying, RecentInProgress } from "./shelf";
 // 3. saved for later (coming soon)
 // 4. finished (coming soon)
 
-type ShelfProps = {
+type ShelfScreenProps = {
   session: Session;
 };
 
-export function Shelf(props: ShelfProps) {
+export function ShelfScreen(props: ShelfScreenProps) {
   const { session } = props;
   const [refreshing, setRefreshing] = useState(false);
 

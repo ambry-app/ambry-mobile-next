@@ -1,10 +1,10 @@
 import { Delay } from "@/src/components";
-import { NarratorDetails } from "@/src/components/screens";
+import { NarratorScreen } from "@/src/components/screens";
 import { useSession } from "@/src/stores/session";
 import { RouterParams } from "@/src/types/router";
 import { Stack, useLocalSearchParams } from "expo-router";
 
-export default function NarratorScreen() {
+export default function NarratorRoute() {
   const session = useSession((state) => state.session);
   const { id: narratorId, title } = useLocalSearchParams<RouterParams>();
 
@@ -14,7 +14,7 @@ export default function NarratorScreen() {
     <>
       <Stack.Screen options={{ title }} />
       <Delay delay={10}>
-        <NarratorDetails session={session} narratorId={narratorId} />
+        <NarratorScreen session={session} narratorId={narratorId} />
       </Delay>
     </>
   );

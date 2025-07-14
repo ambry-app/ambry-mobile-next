@@ -24,12 +24,12 @@ import {
   View,
 } from "react-native";
 
-type AuthorDetailsProps = {
+type AuthorScreenProps = {
   authorId: string;
   session: Session;
 };
 
-export function AuthorDetails({ session, authorId }: AuthorDetailsProps) {
+export function AuthorScreen({ session, authorId }: AuthorScreenProps) {
   const author = useLibraryData(() => getAuthorHeaderInfo(session, authorId));
   const getPage = (pageSize: number, cursor: Date | undefined) =>
     getBooksByAuthorPage(session, authorId, pageSize, cursor);

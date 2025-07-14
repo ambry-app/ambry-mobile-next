@@ -10,7 +10,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { StyleSheet, Text } from "react-native";
 import { useShallow } from "zustand/shallow";
 
-export function DownloadActions({ session }: { session: Session }) {
+export function DownloadActionsModal({ session }: { session: Session }) {
   const { id: mediaId } = useLocalSearchParams<{ id: string }>();
   const status = useDownloads(
     useShallow((state) => state.downloads[mediaId]?.status),

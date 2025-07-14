@@ -1,19 +1,19 @@
 import { FadeInOnMount, Tile } from "@/src/components";
-import { Header } from "@/src/components/screens/book-details";
+import { Header } from "@/src/components/screens/book-screen";
 import { PAGE_SIZE } from "@/src/constants";
 import { getBookDetails } from "@/src/db/library";
 import { useLibraryData } from "@/src/hooks/use-library-data";
 import { Session } from "@/src/stores/session";
 import { FlatList, StyleSheet } from "react-native";
 
-type BookDetailsProps = {
+type BookScreenProps = {
   bookId: string;
   session: Session;
 };
 
 // NOTE: Media is hard-limited to PAGE_SIZE. This could be a paginated list,
 // but it seems really unlikely that a book will have that many media.
-export function BookDetails({ bookId, session }: BookDetailsProps) {
+export function BookScreen({ bookId, session }: BookScreenProps) {
   const book = useLibraryData(() => getBookDetails(session, bookId, PAGE_SIZE));
 
   if (!book) return null;

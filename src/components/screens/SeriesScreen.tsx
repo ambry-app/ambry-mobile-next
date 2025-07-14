@@ -6,14 +6,14 @@ import { usePaginatedLibraryData } from "@/src/hooks/use-paginated-library-data"
 import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
 import { Session } from "@/src/stores/session";
 import { FlatList, StyleSheet } from "react-native";
-import { Header } from "./series-details";
+import { Header } from "./series-screen";
 
-type SeriesDetailsProps = {
+type SeriesScreenProps = {
   seriesId: string;
   session: Session;
 };
 
-export function SeriesDetails({ seriesId, session }: SeriesDetailsProps) {
+export function SeriesScreen({ seriesId, session }: SeriesScreenProps) {
   const series = useLibraryData(() => getSeriesDetails(session, seriesId));
 
   const getPage = (pageSize: number, cursor: string | undefined) =>

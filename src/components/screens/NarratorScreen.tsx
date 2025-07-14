@@ -24,12 +24,12 @@ import {
   View,
 } from "react-native";
 
-type NarratorDetailsProps = {
+type NarratorScreenProps = {
   narratorId: string;
   session: Session;
 };
 
-export function NarratorDetails({ session, narratorId }: NarratorDetailsProps) {
+export function NarratorScreen({ session, narratorId }: NarratorScreenProps) {
   const narrator = useLibraryData(() =>
     getNarratorHeaderInfo(session, narratorId),
   );

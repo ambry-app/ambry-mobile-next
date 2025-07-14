@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const chapterRowHeight = 54;
 
-export default function ChapterSelectModal() {
+export default function ChapterSelectRoute() {
   useBackHandler(() => {
     router.back();
     return true;

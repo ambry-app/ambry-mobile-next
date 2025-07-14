@@ -8,11 +8,11 @@ import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { FlatList, StyleSheet, Text } from "react-native";
 
-type AllInProgressProps = {
+type InProgressScreenProps = {
   session: Session;
 };
 
-export function AllInProgress({ session }: AllInProgressProps) {
+export function InProgressScreen({ session }: InProgressScreenProps) {
   const mediaId = usePlayer((state) => state.mediaId);
   const getPage = (pageSize: number, cursor: Date | undefined) =>
     getPlayerStatesPage(session, pageSize, "in_progress", mediaId, cursor);

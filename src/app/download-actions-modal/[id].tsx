@@ -1,10 +1,10 @@
-import { DownloadActions } from "@/src/components/screens";
+import { DownloadActionsModal } from "@/src/components/screens";
 import { useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-export default function DownloadActionsModal() {
+export default function DownloadActionsRoute() {
   const { bottom } = useSafeAreaInsets();
   const session = useSession((state) => state.session);
 
@@ -13,7 +13,7 @@ export default function DownloadActionsModal() {
   return (
     <View style={{ paddingBottom: Platform.OS === "android" ? bottom : 0 }}>
       {Platform.OS === "android" && <View style={styles.handle} />}
-      <DownloadActions session={session} />
+      <DownloadActionsModal session={session} />
     </View>
   );
 }

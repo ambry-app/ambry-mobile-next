@@ -9,7 +9,7 @@ import { Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
 
-export default function PlaybackRateModal() {
+export default function PlaybackRateRoute() {
   const { bottom } = useSafeAreaInsets();
 
   const session = useSession((state) => state.session);

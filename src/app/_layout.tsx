@@ -46,7 +46,7 @@ function useSentryNavigationIntegration() {
   return ref;
 }
 
-function RootLayout() {
+function RootStackLayout() {
   useSentryNavigationIntegration();
   const { isReady, migrationError, initialSyncComplete } = useAppBoot();
   const isLoggedIn = useSession((state) => !!state.session);
@@ -88,7 +88,7 @@ function RootLayout() {
         <GestureHandlerRootView>
           <MeasureScreenHeight />
           <ThemeProvider value={Theme}>
-            <RootStackLayout />
+            <RootStack />
           </ThemeProvider>
         </GestureHandlerRootView>
       </KeyboardProvider>
@@ -101,7 +101,7 @@ function SQLiteDevTools() {
   return null;
 }
 
-function RootStackLayout() {
+function RootStack() {
   const isLoggedIn = useSession((state) => !!state.session);
   const playerLoaded = usePlayer((state) => !!state.mediaId);
 
@@ -126,7 +126,7 @@ function RootStackLayout() {
   );
 }
 
-export default Sentry.wrap(RootLayout);
+export default Sentry.wrap(RootStackLayout);
 
 const Theme = {
   ...DefaultTheme,

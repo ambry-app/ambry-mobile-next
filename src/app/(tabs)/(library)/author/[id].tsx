@@ -1,10 +1,10 @@
 import { Delay } from "@/src/components";
-import { AuthorDetails } from "@/src/components/screens";
+import { AuthorScreen } from "@/src/components/screens";
 import { useSession } from "@/src/stores/session";
 import { RouterParams } from "@/src/types/router";
 import { Stack, useLocalSearchParams } from "expo-router";
 
-export default function AuthorScreen() {
+export default function AuthorRoute() {
   const session = useSession((state) => state.session);
   const { id: authorId, title } = useLocalSearchParams<RouterParams>();
 
@@ -14,7 +14,7 @@ export default function AuthorScreen() {
     <>
       <Stack.Screen options={{ title }} />
       <Delay delay={10}>
-        <AuthorDetails session={session} authorId={authorId} />
+        <AuthorScreen session={session} authorId={authorId} />
       </Delay>
     </>
   );

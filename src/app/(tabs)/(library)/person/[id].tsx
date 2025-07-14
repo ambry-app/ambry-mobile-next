@@ -1,10 +1,10 @@
 import { Delay } from "@/src/components";
-import { PersonDetails } from "@/src/components/screens";
+import { PersonScreen } from "@/src/components/screens";
 import { useSession } from "@/src/stores/session";
 import { RouterParams } from "@/src/types/router";
 import { Stack, useLocalSearchParams } from "expo-router";
 
-export default function PersonDetailsScreen() {
+export default function PersonRoute() {
   const session = useSession((state) => state.session);
   const { id: personId, title } = useLocalSearchParams<RouterParams>();
 
@@ -14,7 +14,7 @@ export default function PersonDetailsScreen() {
     <>
       <Stack.Screen options={{ title }} />
       <Delay delay={10}>
-        <PersonDetails session={session} personId={personId} />
+        <PersonScreen session={session} personId={personId} />
       </Delay>
     </>
   );

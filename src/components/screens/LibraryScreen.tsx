@@ -1,15 +1,18 @@
-import { FullLibrary, SearchResults } from "@/src/components/screens/library";
+import {
+  FullLibrary,
+  SearchResults,
+} from "@/src/components/screens/library-screen";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { useNavigation } from "expo-router";
 import { useLayoutEffect } from "react";
 import { useDebounce } from "use-debounce";
 
-type LibraryProps = {
+type LibraryScreenProps = {
   session: Session;
 };
 
-export function Library({ session }: LibraryProps) {
+export function LibraryScreen({ session }: LibraryScreenProps) {
   const [search, setSearch] = useDebounce("", 500);
   const navigation = useNavigation();
 

@@ -6,7 +6,7 @@ import { Colors } from "@/src/styles";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { Tabs } from "expo-router";
 
-export default function AppTabLayout() {
+export default function TabsLayout() {
   const session = useSession((state) => state.session);
 
   if (!session) return null;
