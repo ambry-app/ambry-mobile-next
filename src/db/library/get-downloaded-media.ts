@@ -1,29 +1,35 @@
 import { db } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
-import { requireValue } from "@/src/utils";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
 
-export type Media = Awaited<ReturnType<typeof getMedia>>;
+export type DownloadedMedia = Awaited<
+  ReturnType<typeof getDownloadedMedia>
+>[number];
 
-export async function getMedia(session: Session, mediaId: string) {
-  const media = await getMediaById(session, mediaId);
-  const authorsForBooks = await getAuthorsForBooks(session, [media.book.id]);
-  const narratorsForMedia = await getNarratorsForMedia(session, [media.id]);
+export async function getDownloadedMedia(session: Session, mediaIds: string[]) {
+  if (mediaIds.length === 0) return [];
 
-  return {
+  const media = await getDownloadedMediaByIds(session, mediaIds);
+
+  const bookIds = media.map((m) => m.book.id);
+  const authorsForBooks = await getAuthorsForBooks(session, bookIds);
+
+  const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+
+  return media.map((media) => ({
     ...media,
     book: {
       ...media.book,
       authors: authorsForBooks[media.book.id] || [],
     },
     narrators: narratorsForMedia[media.id] || [],
-  };
+  }));
 }
 
-async function getMediaById(session: Session, mediaId: string) {
-  const rows = await db
+async function getDownloadedMediaByIds(session: Session, mediaIds: string[]) {
+  return db
     .select({
       id: schema.media.id,
       thumbnails: schema.media.thumbnails,
@@ -43,7 +49,7 @@ async function getMediaById(session: Session, mediaId: string) {
         eq(schema.books.id, schema.media.bookId),
       ),
     )
-    .leftJoin(
+    .innerJoin(
       schema.downloads,
       and(
         eq(schema.downloads.url, schema.media.url),
@@ -51,8 +57,10 @@ async function getMediaById(session: Session, mediaId: string) {
       ),
     )
     .where(
-      and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)),
-    );
-
-  return requireValue(rows[0], `Media with ID ${mediaId} not found`);
+      and(
+        eq(schema.media.url, session.url),
+        inArray(schema.media.id, mediaIds),
+      ),
+    )
+    .orderBy(desc(schema.downloads.downloadedAt));
 }

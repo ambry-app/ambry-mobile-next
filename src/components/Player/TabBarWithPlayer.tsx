@@ -7,7 +7,9 @@ import {
   ThumbnailImage,
 } from "@/src/components";
 import { PLAYER_HEIGHT, TAB_BAR_BASE_HEIGHT } from "@/src/constants";
+import { getMedia } from "@/src/db/library";
 import useBackHandler from "@/src/hooks/use-back-handler";
+import { useLibraryData } from "@/src/hooks/use-library-data";
 import {
   expandPlayerHandled,
   setIsFullyCollapsed,
@@ -44,8 +46,6 @@ import PlaybackControls from "./PlaybackControls";
 import PlayerProgressBar from "./PlayerProgressBar";
 import PlayerScrubber from "./PlayerScrubber";
 import PlayerSettingButtons from "./PlayerSettingButtons";
-import { useLibraryData } from "@/src/hooks/use-library-data";
-import { getSingleMedia } from "@/src/db/library";
 
 type TabBarWithPlayerProps = BottomTabBarProps & {
   session: Session;
@@ -61,10 +61,7 @@ export default function TabBarWithPlayer(props: TabBarWithPlayerProps) {
       loadingNewMedia,
     })),
   );
-  const media = useLibraryData(
-    () => getSingleMedia(session, mediaId),
-    [mediaId],
-  );
+  const media = useLibraryData(() => getMedia(session, mediaId), [mediaId]);
   const [expanded, setExpanded] = useState(true);
   const expansion = useSharedValue(1.0);
   const { screenHeight, screenWidth, shortScreen } = useScreen(

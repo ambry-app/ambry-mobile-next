@@ -4,7 +4,7 @@ import {
   Loading,
   ThumbnailImage,
 } from "@/src/components";
-import { Media } from "@/src/db/library";
+import { DownloadedMedia } from "@/src/db/library";
 import { useDownloads } from "@/src/stores/downloads";
 import { Colors } from "@/src/styles";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
@@ -14,7 +14,7 @@ import { useShallow } from "zustand/shallow";
 import { FileSize } from "./FileSize";
 
 type DownloadRowProps = {
-  media: Media;
+  media: DownloadedMedia;
 };
 
 export function DownloadRow({ media }: DownloadRowProps) {

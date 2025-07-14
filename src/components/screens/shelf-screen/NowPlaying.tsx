@@ -25,16 +25,10 @@ type NowPlayingDetailsProps = {
 };
 
 function NowPlayingDetails({ session, mediaId }: NowPlayingDetailsProps) {
-  const mediaResult = useLibraryData(
-    () => getMedia(session, [mediaId]),
-    [mediaId],
-  );
+  const media = useLibraryData(() => getMedia(session, mediaId), [mediaId]);
   const expandPlayer = () => requestExpandPlayer();
 
-  if (!mediaResult) return null;
-  if (!mediaResult[0]) return null;
-
-  const media = mediaResult[0]!;
+  if (!media) return null;
 
   return (
     <FadeInOnMount style={styles.container}>

@@ -25,8 +25,6 @@ export function SeeAllTile(props: Props) {
   );
 }
 
-// StyleProp<ViewStyle>
-
 const styles = StyleSheet.create({
   tile: {
     display: "flex",

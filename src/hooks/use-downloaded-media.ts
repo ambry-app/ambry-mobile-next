@@ -1,4 +1,4 @@
-import { getMedia } from "@/src/db/library";
+import { getDownloadedMedia } from "@/src/db/library";
 import { useDownloads } from "@/src/stores/downloads";
 import { Session } from "@/src/stores/session";
 import { useShallow } from "zustand/shallow";
@@ -9,7 +9,11 @@ export function useDownloadedMedia(session: Session) {
     useShallow((state) => Object.keys(state.downloads)),
   );
 
-  const media = useLibraryData(() => getMedia(session, mediaIds), [mediaIds]);
+  // NOTE: if the user has downloaded many media, this could be a large query.
+  const media = useLibraryData(
+    () => getDownloadedMedia(session, mediaIds),
+    [mediaIds],
+  );
 
   return media;
 }
