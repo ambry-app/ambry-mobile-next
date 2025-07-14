@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDataVersion } from "@/src/stores/data-version";
 
-// TODO: honor deps
 export function usePaginatedLibraryData<T, Cursor>(
   pageSize: number,
   getPage: (pageSize: number, cursor?: Cursor | undefined) => Promise<T[]>,
@@ -15,7 +14,7 @@ export function usePaginatedLibraryData<T, Cursor>(
   const libraryDataVersion = useDataVersion(
     (state) => state.libraryDataVersion,
   );
-  const initialDataVersion = useRef(libraryDataVersion);
+  const isInitialMount = useRef(true);
 
   // Initial load (only on mount)
   const loadInitial = useCallback(async () => {
@@ -73,20 +72,15 @@ export function usePaginatedLibraryData<T, Cursor>(
     setLoading(false);
   }, [getPage, getCursor, items?.length, pageSize]);
 
-  // Initial load on mount
   useEffect(() => {
-    loadInitial();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Reload when libraryDataVersion changes (but not on initial mount)
-  useEffect(() => {
-    if (initialDataVersion.current !== libraryDataVersion) {
+    if (isInitialMount.current) {
+      loadInitial();
+      isInitialMount.current = false;
+    } else {
       reload();
-      initialDataVersion.current = libraryDataVersion;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [libraryDataVersion]);
+  }, [libraryDataVersion, ...deps]);
 
   return { items, hasMore, loadMore, loading };
 }
