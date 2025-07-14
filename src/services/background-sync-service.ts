@@ -6,25 +6,19 @@ import * as TaskManager from "expo-task-manager";
 
 const BACKGROUND_SYNC_TASK_NAME = "ambry-background-sync";
 
-// Define the background task
 TaskManager.defineTask(BACKGROUND_SYNC_TASK_NAME, async () => {
   try {
     console.debug("[BackgroundSync] started");
 
-    // Get the current session
     const session = useSession.getState().session;
     if (!session) {
       console.debug("[BackgroundSync] No session available, skipping sync");
       return BackgroundTask.BackgroundTaskResult.Success;
     }
 
-    // Sync down library and user data
     await syncDown(session);
-
-    // Sync up local player states
     await syncUp(session);
 
-    // WAL checkpoint
     console.debug("[BackgroundSync] performing WAL checkpoint");
     expoDb.execSync("PRAGMA wal_checkpoint(TRUNCATE);");
 

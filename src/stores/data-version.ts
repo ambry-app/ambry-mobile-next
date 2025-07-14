@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 interface DataVersionState {
-  libraryDataVersion: number | null; // Unix ms timestamp
+  libraryDataVersion: number | null;
   setLibraryDataVersion: (version: Date) => void;
 }
 

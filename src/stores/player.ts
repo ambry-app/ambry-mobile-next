@@ -15,6 +15,7 @@ import {
   setSleepTimerTime,
 } from "@/src/db/settings";
 import { documentDirectoryFilePath } from "@/src/utils";
+import { Platform } from "react-native";
 import TrackPlayer, {
   AndroidAudioContentType,
   Capability,
@@ -24,7 +25,6 @@ import TrackPlayer, {
   State,
   TrackType,
 } from "react-native-track-player";
-import { Platform } from "react-native";
 import { create } from "zustand";
 import { Session, useSession } from "./session";
 
@@ -212,7 +212,7 @@ export async function pause() {
   stopSleepTimer();
   await TrackPlayer.pause();
   await seekRelative(-1);
-  return savePosition(); // Removed force sync - handled by background sync
+  return savePosition();
 }
 
 export function onPlaybackProgressUpdated(position: number, duration: number) {
@@ -229,7 +229,7 @@ export function onPlaybackQueueEnded() {
   stopSleepTimer();
   const { duration } = usePlayer.getState();
   updateProgress(duration, duration);
-  return savePosition(); // Removed force sync - handled by background sync
+  return savePosition();
 }
 
 export function updateProgress(position: number, duration: number) {
