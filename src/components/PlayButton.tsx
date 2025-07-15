@@ -1,7 +1,7 @@
+import { useDebounce } from "@/src/hooks/use-debounce";
 import { playOrPause, usePlayer } from "@/src/stores/player";
-import { State } from "react-native-track-player";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
-import { useDebounce } from "use-debounce";
+import { State } from "react-native-track-player";
 import { IconButton } from "./IconButton";
 import { Loading } from "./Loading";
 
@@ -14,7 +14,7 @@ type PlayButtonProps = {
 export function PlayButton(props: PlayButtonProps) {
   const { size, color, style } = props;
   const state = usePlayer((state) => state.state);
-  const [debouncedState] = useDebounce(state, 100);
+  const debouncedState = useDebounce(state, 100);
   const icon = stateIcon(debouncedState);
 
   if (!debouncedState || !icon || icon === "spinner") {

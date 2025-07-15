@@ -33,8 +33,7 @@
           "drizzle-orm",
           "expo-sqlite-devtools",
           "immer",
-          "react-native-track-player",
-          "use-debounce"
+          "react-native-track-player"
         ]
       }
     }
@@ -83,7 +82,6 @@
     "react-native-screens": "~4.11.1",
     "react-native-svg": "15.11.2",
     "react-native-track-player": "./vendor/react-native-track-player.tgz",
-    "use-debounce": "^10.0.4",
     "zustand": "^5.0.5"
   },
   "devDependencies": {

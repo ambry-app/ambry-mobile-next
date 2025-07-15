@@ -2,18 +2,19 @@ import {
   FullLibrary,
   SearchResults,
 } from "@/src/components/screens/library-screen";
+import { useDebounce } from "@/src/hooks/use-debounce";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { useNavigation } from "expo-router";
-import { useLayoutEffect } from "react";
-import { useDebounce } from "use-debounce";
+import { useLayoutEffect, useState } from "react";
 
 type LibraryScreenProps = {
   session: Session;
 };
 
 export function LibraryScreen({ session }: LibraryScreenProps) {
-  const [search, setSearch] = useDebounce("", 500);
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
   const navigation = useNavigation();
 
   useLayoutEffect(() => {
@@ -29,8 +30,8 @@ export function LibraryScreen({ session }: LibraryScreenProps) {
     });
   }, [navigation, setSearch]);
 
-  if (search && search.length >= 3) {
-    return <SearchResults session={session} searchQuery={search} />;
+  if (debouncedSearch && debouncedSearch.length >= 3) {
+    return <SearchResults session={session} searchQuery={debouncedSearch} />;
   } else {
     return <FullLibrary session={session} />;
   }

@@ -9,7 +9,7 @@ import { useLibraryData } from "@/src/hooks/use-library-data";
 import { requestExpandPlayer, usePlayer } from "@/src/stores/player";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type NowPlayingProps = {
   session: Session;
@@ -39,16 +39,18 @@ function NowPlayingDetails({ session, mediaId }: NowPlayingDetailsProps) {
       <Text style={styles.label} numberOfLines={1}>
         Now Playing
       </Text>
-      <View style={styles.rowContainer}>
-        <View style={styles.leftContainer}>
-          <TileImage media={[media]} onPress={expandPlayer} />
+      <Pressable onPress={expandPlayer}>
+        <View style={styles.rowContainer}>
+          <View style={styles.leftContainer}>
+            <TileImage media={[media]} />
+          </View>
+          <View style={styles.rightContainer}>
+            <TileText media={[media]} book={media.book} />
+            <View style={styles.spacer} />
+            <PlayerProgressBar />
+          </View>
         </View>
-        <View style={styles.rightContainer}>
-          <TileText media={[media]} book={media.book} onPress={expandPlayer} />
-          <View style={styles.spacer} />
-          <PlayerProgressBar />
-        </View>
-      </View>
+      </Pressable>
     </FadeInOnMount>
   );
 }

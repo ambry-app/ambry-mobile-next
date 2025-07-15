@@ -5,6 +5,7 @@ import {
   ThumbnailImage,
 } from "@/src/components";
 import { DownloadedMedia } from "@/src/db/library";
+import { useThrottle } from "@/src/hooks/use-throttle";
 import { useDownloads } from "@/src/stores/downloads";
 import { Colors } from "@/src/styles";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
@@ -93,14 +94,14 @@ export function DownloadRow({ media }: DownloadRowProps) {
 }
 
 function LoadingIndicator({ mediaId }: { mediaId: string }) {
-  const { progress, status } = useDownloads(
+  const { inProgress, status } = useDownloads(
     useShallow((state) => {
       const { progress, status } = state.downloads[mediaId] || {};
-      return { progress, status };
+      return { inProgress: !!progress, status };
     }),
   );
 
-  if (!status || (!progress && status !== "pending")) return null;
+  if (!status || (!inProgress && status !== "pending")) return null;
 
   return (
     <View>
@@ -113,10 +114,15 @@ function DownloadProgressBar({ mediaId }: { mediaId: string }) {
   const progress = useDownloads(
     useShallow((state) => state.downloads[mediaId]?.progress),
   );
+  const throttledProgress = useThrottle(progress, 100);
 
-  if (!progress) return null;
+  if (!throttledProgress) return null;
 
-  return <View style={[styles.progressBar, { width: `${progress * 100}%` }]} />;
+  return (
+    <View
+      style={[styles.progressBar, { width: `${throttledProgress * 100}%` }]}
+    />
+  );
 }
 
 const styles = StyleSheet.create({
