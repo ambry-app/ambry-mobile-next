@@ -1,33 +1,31 @@
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
-import useLoadMediaCallback from "@/src/hooks/use.load.media.callback";
-import useNavigateToBookCallback from "@/src/hooks/use.navigate.to.book.callback";
+import useLoadMediaCallback from "@/src/hooks/use-load-media-callback";
+import useNavigateToBookCallback from "@/src/hooks/use-navigate-to-book-callback";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { router } from "expo-router";
+import React from "react";
 import {
+  Pressable,
   StyleProp,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   ViewStyle,
 } from "react-native";
-import BookDetailsText from "./BookDetailsText";
-import IconButton from "./IconButton";
-import MultiThumbnailImage from "./MultiThumbnailImage";
-import { PressableScale } from "./PressableScale";
-import ProgressBar from "./ProgressBar";
-import ThumbnailImage from "./ThumbnailImage";
+import { BookDetailsText } from "./BookDetailsText";
+import { IconButton } from "./IconButton";
+import { MultiThumbnailImage } from "./MultiThumbnailImage";
+import { ProgressBar } from "./ProgressBar";
+import { ThumbnailImage } from "./ThumbnailImage";
 
 type Media = {
   id: string;
   thumbnails: Thumbnails | null;
-  mediaNarrators: {
-    narrator: {
-      name: string;
-    };
+  narrators: {
+    name: string;
   }[];
-  download: {
+  download?: {
     thumbnails: DownloadedThumbnails | null;
   } | null;
 };
@@ -35,10 +33,8 @@ type Media = {
 type Book = {
   id: string;
   title: string;
-  bookAuthors: {
-    author: {
-      name: string;
-    };
+  authors: {
+    name: string;
   }[];
 };
 
@@ -55,9 +51,10 @@ type PlayerState = {
 type MediaProp = Media & { book: Book };
 type BookProp = Book & { media: Media[] };
 type SeriesBookProp = SeriesBook & { book: BookProp };
-type MediaWithPlayerStateProp = MediaProp & {
-  playerState: PlayerState;
-  duration: string | null;
+type PlayerStateWithMediaProp = PlayerState & {
+  media: MediaProp & {
+    duration: string | null;
+  };
 };
 
 type MediaTileProps = { media: MediaProp; style?: StyleProp<ViewStyle> };
@@ -68,7 +65,7 @@ type SeriesBookTileProps = {
 };
 type PlayerStateTileProps = {
   session: Session;
-  media: MediaWithPlayerStateProp;
+  playerState: PlayerStateWithMediaProp;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -80,16 +77,13 @@ type TileProps = {
 };
 
 type TileImageProps = {
-  book: Book;
   media: Media[];
   seriesBook?: SeriesBook;
-  onPress: () => void;
 };
 
 type TileTextProps = {
   book: Book;
   media: Media[];
-  onPress: () => void;
 };
 
 type PersonTileProps = {
@@ -101,16 +95,22 @@ type PersonTileProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export function MediaTile({ media, style }: MediaTileProps) {
-  return <Tile book={media.book} media={[media]} style={style} />;
-}
+export const MediaTile = React.memo(function MediaTile(props: MediaTileProps) {
+  const { media, style } = props;
+  const tile = <Tile book={media.book} media={[media]} style={style} />;
+  return tile;
+});
 
-export function BookTile({ book, style }: BookTileProps) {
+export const BookTile = React.memo(function BookTile(props: BookTileProps) {
+  const { book, style } = props;
   if (book.media.length === 0) return null;
   return <Tile book={book} media={book.media} style={style} />;
-}
+});
 
-export function SeriesBookTile({ seriesBook, style }: SeriesBookTileProps) {
+export const SeriesBookTile = React.memo(function SeriesBookTile(
+  props: SeriesBookTileProps,
+) {
+  const { seriesBook, style } = props;
   if (seriesBook.book.media.length === 0) return null;
   return (
     <Tile
@@ -120,26 +120,24 @@ export function SeriesBookTile({ seriesBook, style }: SeriesBookTileProps) {
       style={style}
     />
   );
-}
+});
 
-export function Tile({ book, media, seriesBook, style }: TileProps) {
+export const Tile = React.memo(function Tile(props: TileProps) {
+  const { book, media, seriesBook, style } = props;
   const navigateToBook = useNavigateToBookCallback(book, media);
 
   return (
-    <View style={[styles.container, style]}>
-      <TileImage
-        book={book}
-        media={media}
-        seriesBook={seriesBook}
-        onPress={navigateToBook}
-      />
-      <TileText book={book} media={media} onPress={navigateToBook} />
-    </View>
+    <Pressable onPress={navigateToBook}>
+      <View style={[styles.container, style]}>
+        <TileImage media={media} seriesBook={seriesBook} />
+        <TileText book={book} media={media} />
+      </View>
+    </Pressable>
   );
-}
+});
 
-export function TileImage(props: TileImageProps) {
-  const { media, seriesBook, onPress } = props;
+export const TileImage = React.memo(function TileImage(props: TileImageProps) {
+  const { media, seriesBook } = props;
 
   return (
     <View style={styles.tileImageContainer}>
@@ -148,40 +146,41 @@ export function TileImage(props: TileImageProps) {
           Book {seriesBook.bookNumber}
         </Text>
       )}
-      <PressableScale weight="light" onPress={onPress} isInList={true}>
-        <MultiThumbnailImage
-          thumbnailPairs={media.map((m) => ({
-            thumbnails: m.thumbnails,
-            downloadedThumbnails: m.download?.thumbnails || null,
-          }))}
-          size="large"
-          style={styles.bookThumbnail}
-        />
-      </PressableScale>
+      <MultiThumbnailImage
+        thumbnailPairs={media.map((m) => ({
+          thumbnails: m.thumbnails,
+          downloadedThumbnails: m.download?.thumbnails || null,
+        }))}
+        size="large"
+        style={styles.bookThumbnail}
+      />
     </View>
   );
-}
+});
 
-export function TileText({ book, media, onPress }: TileTextProps) {
+export const TileText = React.memo(function TileText(props: TileTextProps) {
+  const { book, media } = props;
+
   return (
-    <TouchableOpacity onPress={onPress}>
-      <View>
-        <BookDetailsText
-          baseFontSize={16}
-          title={book.title}
-          authors={book.bookAuthors.map((ba) => ba.author.name)}
-          narrators={
-            media.length === 1
-              ? media[0].mediaNarrators.map((mn) => mn.narrator.name)
-              : undefined
-          }
-        />
-      </View>
-    </TouchableOpacity>
+    <View>
+      <BookDetailsText
+        baseFontSize={16}
+        title={book.title}
+        authors={book.authors.map((author) => author.name)}
+        narrators={
+          // only show narrators if there is exactly one media
+          media[0] && media.length === 1
+            ? media[0].narrators.map((narrator) => narrator.name)
+            : undefined
+        }
+      />
+    </View>
   );
-}
+});
 
-export function PersonTile(props: PersonTileProps) {
+export const PersonTile = React.memo(function PersonTile(
+  props: PersonTileProps,
+) {
   const { personId, name, realName, thumbnails, label, style } = props;
 
   const navigateToPerson = () => {
@@ -192,15 +191,13 @@ export function PersonTile(props: PersonTileProps) {
   };
 
   return (
-    <View style={[styles.container, style]}>
-      <PressableScale weight="light" onPress={navigateToPerson} isInList={true}>
+    <Pressable onPress={navigateToPerson}>
+      <View style={[styles.container, style]}>
         <ThumbnailImage
           thumbnails={thumbnails}
           size="large"
           style={styles.personThumbnail}
         />
-      </PressableScale>
-      <TouchableOpacity onPress={navigateToPerson}>
         <View>
           <Text style={styles.name} numberOfLines={1}>
             {name}
@@ -212,53 +209,55 @@ export function PersonTile(props: PersonTileProps) {
           )}
           <Text style={styles.label}>{label}</Text>
         </View>
-      </TouchableOpacity>
-    </View>
+      </View>
+    </Pressable>
   );
-}
+});
 
-export function PlayerStateTile(props: PlayerStateTileProps) {
-  const { media, style, session } = props;
-  const loadMedia = useLoadMediaCallback(session, media.id);
-  const duration = media.duration ? Number(media.duration) : false;
-  const percent = duration
-    ? (media.playerState.position / duration) * 100
+export const PlayerStateTile = React.memo(function PlayerStateTile(
+  props: PlayerStateTileProps,
+) {
+  const { playerState, style, session } = props;
+  const loadMedia = useLoadMediaCallback(session, playerState.media.id);
+  const duration = playerState.media.duration
+    ? Number(playerState.media.duration)
     : false;
+  const percent = duration ? (playerState.position / duration) * 100 : false;
 
   return (
-    <View style={[styles.playerStateTileContainer, style]}>
-      <PressableScale weight="light" onPress={loadMedia} isInList={true}>
-        <View style={styles.playerStateThumbnailContainer}>
-          <ThumbnailImage
-            thumbnails={media.thumbnails}
-            downloadedThumbnails={media.download?.thumbnails}
-            size="large"
-            style={styles.playerStateThumbnail}
-          />
-          <IconButton
-            icon="play"
-            size={32}
-            style={styles.playButton}
-            iconStyle={styles.playButtonIcon}
-            color={Colors.zinc[100]}
-          />
+    <Pressable onPress={loadMedia}>
+      <View style={[styles.playerStateTileContainer, style]}>
+        <View>
+          <View style={styles.playerStateThumbnailContainer}>
+            <ThumbnailImage
+              thumbnails={playerState.media.thumbnails}
+              downloadedThumbnails={playerState.media.download?.thumbnails}
+              size="large"
+              style={styles.playerStateThumbnail}
+            />
+            <IconButton
+              icon="play"
+              size={32}
+              style={styles.playButton}
+              iconStyle={styles.playButtonIcon}
+              color={Colors.zinc[100]}
+              onPress={loadMedia}
+            />
+          </View>
+          {duration !== false && (
+            <ProgressBar position={playerState.position} duration={duration} />
+          )}
+          {percent !== false && (
+            <Text style={styles.progressText} numberOfLines={1}>
+              {percent.toFixed(1)}%
+            </Text>
+          )}
         </View>
-        {duration !== false && (
-          <ProgressBar
-            position={media.playerState.position}
-            duration={duration}
-          />
-        )}
-        {percent !== false && (
-          <Text style={styles.progressText} numberOfLines={1}>
-            {percent.toFixed(1)}%
-          </Text>
-        )}
-      </PressableScale>
-      <TileText book={media.book} media={[media]} onPress={loadMedia} />
-    </View>
+        <TileText book={playerState.media.book} media={[playerState.media]} />
+      </View>
+    </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -270,6 +269,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   tileImageContainer: {
+    display: "flex",
     gap: 4,
   },
   bookThumbnail: {

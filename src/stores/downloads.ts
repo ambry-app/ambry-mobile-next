@@ -1,30 +1,106 @@
 import {
   createDownload,
   deleteDownload,
+  getAllDownloads,
   getDownload,
   updateDownload,
 } from "@/src/db/downloads";
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
-import { documentDirectoryFilePath } from "@/src/utils/paths";
+import { documentDirectoryFilePath } from "@/src/utils";
 import * as FileSystem from "expo-file-system";
 import { create } from "zustand";
 import { loadMedia, usePlayer } from "./player";
 import { Session } from "./session";
 
-export type DownloadProgresses = Partial<Record<string, number>>;
-export type DownloadResumables = Partial<
-  Record<string, FileSystem.DownloadResumable>
->;
+export type DownloadStatus = "pending" | "error" | "ready";
+
+export interface Download {
+  mediaId: string;
+  filePath: string;
+  status: DownloadStatus;
+  thumbnails?: DownloadedThumbnails | null;
+  progress?: number;
+  resumable?: FileSystem.DownloadResumable;
+}
 
 export interface DownloadsState {
-  downloadProgresses: DownloadProgresses;
-  downloadResumables: DownloadResumables;
+  downloads: Record<string, Download>;
 }
 
 export const useDownloads = create<DownloadsState>(() => ({
-  downloadProgresses: {},
-  downloadResumables: {},
+  downloads: {},
 }));
+
+export async function loadAllDownloads(session: Session) {
+  const all = await getAllDownloads(session);
+  const downloads: Record<string, Download> = {};
+  for (const d of all) {
+    downloads[d.mediaId] = {
+      mediaId: d.mediaId,
+      filePath: d.filePath,
+      status: d.status,
+      thumbnails: d.thumbnails,
+    };
+  }
+  useDownloads.setState({ downloads });
+}
+
+function addOrUpdateDownload(download: Download) {
+  useDownloads.setState((state) => ({
+    downloads: {
+      ...state.downloads,
+      [download.mediaId]: {
+        ...state.downloads[download.mediaId],
+        ...download,
+      },
+    },
+  }));
+}
+
+function removeDownloadFromStore(mediaId: string) {
+  useDownloads.setState((state) => {
+    const { [mediaId]: _removed, ...rest } = state.downloads;
+    return { downloads: rest };
+  });
+}
+
+function setDownloadProgress(mediaId: string, progress: number | undefined) {
+  // on iOS, the progress callback fires again after the download is complete, and I've only seen it called with a value of 1.
+  const progressToSet = progress === 1 ? undefined : progress;
+
+  useDownloads.setState((state) => {
+    const prev = state.downloads[mediaId];
+    if (!prev) return state;
+    return {
+      downloads: {
+        ...state.downloads,
+        [mediaId]: {
+          ...prev,
+          progress: progressToSet,
+        },
+      },
+    };
+  });
+}
+
+function setDownloadResumable(
+  mediaId: string,
+  resumable: FileSystem.DownloadResumable | undefined,
+) {
+  useDownloads.setState((state) => {
+    const prev = state.downloads[mediaId];
+    if (!prev) return state;
+    return {
+      downloads: {
+        ...state.downloads,
+        [mediaId]: {
+          ...prev,
+          resumable,
+        },
+      },
+    };
+  });
+}
 
 export async function startDownload(
   session: Session,
@@ -32,28 +108,25 @@ export async function startDownload(
   uri: string,
   thumbnails: Thumbnails | null,
 ) {
-  useDownloads.setState((state) => ({
-    downloadProgresses: {
-      ...state.downloadProgresses,
-      [mediaId]: 0,
-    },
-  }));
-
   const destinationFilePath = FileSystem.documentDirectory + `${mediaId}.mp4`;
 
   console.debug("[Downloads] Downloading to", destinationFilePath);
 
   // FIXME: stored file paths should be relative, not absolute
-  await createDownload(session, mediaId, destinationFilePath);
+  let download = await createDownload(session, mediaId, destinationFilePath);
+  addOrUpdateDownload(download);
+  setDownloadProgress(mediaId, 0);
+
   if (thumbnails) {
     const downloadedThumbnails = await downloadThumbnails(
       session,
       mediaId,
       thumbnails,
     );
-    await updateDownload(session, mediaId, {
+    download = await updateDownload(session, mediaId, {
       thumbnails: downloadedThumbnails,
     });
+    addOrUpdateDownload(download);
   }
 
   const progressCallback = (
@@ -62,12 +135,7 @@ export async function startDownload(
     const progress =
       downloadProgress.totalBytesWritten /
       downloadProgress.totalBytesExpectedToWrite;
-    useDownloads.setState((state) => ({
-      downloadProgresses: {
-        ...state.downloadProgresses,
-        [mediaId]: progress,
-      },
-    }));
+    setDownloadProgress(mediaId, progress);
   };
 
   const downloadResumable = FileSystem.createDownloadResumable(
@@ -77,19 +145,15 @@ export async function startDownload(
     progressCallback,
   );
 
-  useDownloads.setState((state) => ({
-    downloadResumables: {
-      ...state.downloadResumables,
-      [mediaId]: downloadResumable,
-    },
-  }));
+  setDownloadResumable(mediaId, downloadResumable);
 
   try {
     const result = await downloadResumable.downloadAsync();
 
     if (result) {
       console.debug("[Downloads] Download succeeded");
-      await updateDownload(session, mediaId, { status: "ready" });
+      download = await updateDownload(session, mediaId, { status: "ready" });
+      addOrUpdateDownload(download);
       // reload player if the download is for the currently loaded media
       if (usePlayer.getState().mediaId === mediaId) {
         loadMedia(session, mediaId);
@@ -99,29 +163,25 @@ export async function startDownload(
     }
   } catch (error) {
     console.warn("[Downloads] Download failed:", error);
-    await updateDownload(session, mediaId, { status: "error" });
+    download = await updateDownload(session, mediaId, { status: "error" });
+    addOrUpdateDownload(download);
   } finally {
-    useDownloads.setState((state) => {
-      const { [mediaId]: _dp, ...downloadProgresses } =
-        state.downloadProgresses;
-      const { [mediaId]: _dr, ...downloadResumables } =
-        state.downloadResumables;
-      return { downloadProgresses, downloadResumables };
-    });
+    setDownloadResumable(mediaId, undefined);
+    setDownloadProgress(mediaId, undefined);
   }
 }
 
 export async function cancelDownload(session: Session, mediaId: string) {
-  const downloadResumable = useDownloads.getState().downloadResumables[mediaId];
+  const download = useDownloads.getState().downloads[mediaId];
 
-  if (downloadResumable) {
+  if (download?.resumable) {
     try {
-      await downloadResumable.cancelAsync();
+      await download.resumable.cancelAsync();
     } catch (e) {
       console.warn("[Downloads] Error canceling download resumable:", e);
     }
   }
-  removeDownload(session, mediaId);
+  await removeDownload(session, mediaId);
 }
 
 export async function removeDownload(session: Session, mediaId: string) {
@@ -143,6 +203,7 @@ export async function removeDownload(session: Session, mediaId: string) {
     await tryDelete(download.thumbnails.extraLarge);
   }
   await deleteDownload(session, mediaId);
+  removeDownloadFromStore(mediaId);
 
   // reload player if the download is for the currently loaded media
   if (usePlayer.getState().mediaId === mediaId) {

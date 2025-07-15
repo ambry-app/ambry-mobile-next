@@ -272,6 +272,11 @@ export const media = sqliteTable(
     index("media_status_index").on(table.status),
     index("media_inserted_at_index").on(table.insertedAt),
     index("media_published_index").on(table.published),
+    index("media_url_status_inserted_at_idx").on(
+      table.url,
+      table.status,
+      table.insertedAt,
+    ),
   ],
 );
 

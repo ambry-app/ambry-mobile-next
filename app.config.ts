@@ -33,7 +33,6 @@ export default {
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "ambry",
-    newArchEnabled: false,
     userInterfaceStyle: "dark",
     backgroundColor: "#000000",
     primaryColor: "#84cc16",
@@ -41,7 +40,7 @@ export default {
       supportsTablet: false,
       bundleIdentifier: getUniqueIdentifier(),
       infoPlist: {
-        UIBackgroundModes: ["audio"],
+        UIBackgroundModes: ["audio", "processing"],
         ITSAppUsesNonExemptEncryption: false,
       },
     },
@@ -78,6 +77,7 @@ export default {
     ],
     experiments: {
       typedRoutes: true,
+      turboModules: true,
     },
     owner: "ambry-app",
     extra: {

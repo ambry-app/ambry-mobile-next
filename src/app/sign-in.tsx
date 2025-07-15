@@ -9,7 +9,7 @@ import { useCallback, useRef, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
-export default function SignInScreen() {
+export default function SignInRoute() {
   const { session } = useSession((state) => state);
 
   const [email, setEmail] = useState(session?.email || "");

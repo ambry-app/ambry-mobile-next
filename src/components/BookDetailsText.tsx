@@ -1,6 +1,6 @@
 import { Colors } from "@/src/styles";
 import { StyleProp, StyleSheet, Text, TextStyle } from "react-native";
-import NamesList from "./NamesList";
+import { NamesList } from "./NamesList";
 
 type BookDetailsTextProps = {
   title: string;
@@ -13,7 +13,7 @@ type BookDetailsTextProps = {
   titleWeight?: 500 | 700;
 };
 
-export default function BookDetailsText(props: BookDetailsTextProps) {
+export function BookDetailsText(props: BookDetailsTextProps) {
   const {
     title,
     series,

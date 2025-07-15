@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 
-export default function ScreenCentered({ children }: { children: ReactNode }) {
+export function ScreenCentered({ children }: { children: ReactNode }) {
   return <View style={styles.centered}>{children}</View>;
 }
 

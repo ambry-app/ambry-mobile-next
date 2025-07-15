@@ -7,7 +7,7 @@ type NamesListProps = {
   style?: StyleProp<TextStyle>;
 };
 
-export default function NamesList(props: NamesListProps) {
+export function NamesList(props: NamesListProps) {
   const { names, numberOfLines, prefix, style } = props;
 
   return (

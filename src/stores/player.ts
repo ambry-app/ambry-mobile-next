@@ -7,15 +7,14 @@ import {
   getMostRecentInProgressSyncedMedia,
   getSyncedPlayerState,
   updatePlayerState,
-} from "@/src/db/playerStates";
+} from "@/src/db/player-states";
 import * as schema from "@/src/db/schema";
 import {
   getSleepTimerSettings,
   setSleepTimerEnabled,
   setSleepTimerTime,
 } from "@/src/db/settings";
-import { syncUp } from "@/src/db/sync";
-import { documentDirectoryFilePath } from "@/src/utils/paths";
+import { documentDirectoryFilePath } from "@/src/utils";
 import { Platform } from "react-native";
 import TrackPlayer, {
   AndroidAudioContentType,
@@ -25,7 +24,7 @@ import TrackPlayer, {
   PitchAlgorithm,
   State,
   TrackType,
-} from "@weights-ai/react-native-track-player";
+} from "react-native-track-player";
 import { create } from "zustand";
 import { Session, useSession } from "./session";
 
@@ -213,7 +212,7 @@ export async function pause() {
   stopSleepTimer();
   await TrackPlayer.pause();
   await seekRelative(-1);
-  return savePosition(true);
+  return savePosition();
 }
 
 export function onPlaybackProgressUpdated(position: number, duration: number) {
@@ -230,7 +229,7 @@ export function onPlaybackQueueEnded() {
   stopSleepTimer();
   const { duration } = usePlayer.getState();
   updateProgress(duration, duration);
-  return savePosition(true);
+  return savePosition();
 }
 
 export function updateProgress(position: number, duration: number) {
@@ -288,7 +287,6 @@ export async function setPlaybackRate(session: Session, playbackRate: number) {
     TrackPlayer.setRate(playbackRate),
     updatePlayerState(session, usePlayer.getState().mediaId!, { playbackRate }),
   ]);
-  return syncUp(session, true);
 }
 
 export async function setSleepTimerState(enabled: boolean) {
@@ -379,7 +377,6 @@ async function savePosition(force: boolean = false) {
         : "in_progress";
 
   await updatePlayerState(session, mediaId, { position, status });
-  return syncUp(session, force);
 }
 
 function shouldSeek(state: State | undefined): boolean {
@@ -445,7 +442,7 @@ async function setupTrackPlayer(
       Capability.JumpForward,
       Capability.JumpBackward,
     ],
-    compactCapabilities: [
+    notificationCapabilities: [
       Capability.Play,
       Capability.Pause,
       Capability.JumpBackward,
@@ -485,7 +482,9 @@ async function loadPlayerState(
         .map((bookAuthor) => bookAuthor.author.name)
         .join(", "),
       artwork: playerState.media.download.thumbnails
-        ? playerState.media.download.thumbnails.extraLarge
+        ? documentDirectoryFilePath(
+            playerState.media.download.thumbnails.extraLarge,
+          )
         : undefined,
       description: playerState.media.id,
     });
