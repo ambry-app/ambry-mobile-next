@@ -442,7 +442,7 @@ async function setupTrackPlayer(
       Capability.JumpForward,
       Capability.JumpBackward,
     ],
-    compactCapabilities: [
+    notificationCapabilities: [
       Capability.Play,
       Capability.Pause,
       Capability.JumpBackward,

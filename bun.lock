@@ -43,7 +43,7 @@
         "react-native-safe-area-context": "5.4.0",
         "react-native-screens": "~4.11.1",
         "react-native-svg": "15.11.2",
-        "react-native-track-player": "./vendor/react-native-track-player-v4.1.1.tgz",
+        "react-native-track-player": "./vendor/react-native-track-player.tgz",
         "use-debounce": "^10.0.4",
         "zustand": "^5.0.5",
       },
@@ -2126,7 +2126,7 @@
 
     "react-native-svg-transformer": ["react-native-svg-transformer@1.5.1", "", { "dependencies": { "@svgr/core": "^8.1.0", "@svgr/plugin-jsx": "^8.1.0", "@svgr/plugin-svgo": "^8.1.0", "path-dirname": "^1.0.2" }, "peerDependencies": { "react-native": ">=0.59.0", "react-native-svg": ">=12.0.0" } }, "sha512-dFvBNR8A9VPum9KCfh+LE49YiJEF8zUSnEFciKQroR/bEOhlPoZA0SuQ0qNk7m2iZl2w59FYjdRe0pMHWMDl0Q=="],
 
-    "react-native-track-player": ["react-native-track-player@./vendor/react-native-track-player-v4.1.1.tgz", { "peerDependencies": { "react": ">=16.8.6", "react-native": ">=0.60.0-rc.2", "react-native-windows": ">=0.63.0", "shaka-player": "^4.7.9" }, "optionalPeers": ["react-native-windows", "shaka-player"] }],
+    "react-native-track-player": ["react-native-track-player@./vendor/react-native-track-player.tgz", { "peerDependencies": { "react": "*", "react-native": "*", "shaka-player": "^4.7.9" }, "optionalPeers": ["shaka-player"] }],
 
     "react-refresh": ["react-refresh@0.14.2", "", {}, "sha512-jCvmsr+1IUSMUyzOkRcvnVbX3ZYC6g9TDrDbFuFmRDq7PD4yaGbLKNQL6k2jnArV8hjYxh7hVhAZB6s9HDGpZA=="],
 
