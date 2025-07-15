@@ -119,10 +119,10 @@ const useAppBoot = () => {
   // Handle app state changes to reload data when app resumes
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: string) => {
+      console.debug("[AppState] changed to", nextAppState);
+
       if (session && nextAppState === "active") {
-        console.debug(
-          "[AppState] app became active, reloading library data version",
-        );
+        console.debug("[AppState] reloading library data version");
         const { newDataAsOf } = await getServerSyncTimestamps(session);
         if (newDataAsOf) setLibraryDataVersion(newDataAsOf);
       }

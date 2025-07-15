@@ -482,7 +482,9 @@ async function loadPlayerState(
         .map((bookAuthor) => bookAuthor.author.name)
         .join(", "),
       artwork: playerState.media.download.thumbnails
-        ? playerState.media.download.thumbnails.extraLarge
+        ? documentDirectoryFilePath(
+            playerState.media.download.thumbnails.extraLarge,
+          )
         : undefined,
       description: playerState.media.id,
     });
