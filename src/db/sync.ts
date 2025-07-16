@@ -6,7 +6,7 @@ import {
   updatePlayerState,
 } from "@/src/graphql/api";
 import { ExecuteAuthenticatedErrorCode } from "@/src/graphql/client/execute";
-import { useDataVersion } from "@/src/stores/data-version";
+import { setLibraryDataVersion } from "@/src/stores/data-version";
 import { forceUnloadPlayer } from "@/src/stores/player";
 import { Session, forceSignOut } from "@/src/stores/session";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
@@ -429,7 +429,7 @@ export async function syncDownLibrary(session: Session) {
   });
 
   // Update global data version store
-  if (newDataAsOf) useDataVersion.getState().setLibraryDataVersion(newDataAsOf);
+  if (newDataAsOf) setLibraryDataVersion(newDataAsOf);
 
   console.debug("[SyncDown] library sync complete");
 }

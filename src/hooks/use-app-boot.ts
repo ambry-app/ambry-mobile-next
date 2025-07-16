@@ -1,13 +1,12 @@
 import migrations from "@/drizzle/migrations";
-import { db, expoDb } from "@/src/db/db";
-import { getServerSyncTimestamps, syncDown, syncUp } from "@/src/db/sync";
+import { db } from "@/src/db/db";
+import { getServerSyncTimestamps, syncDown } from "@/src/db/sync";
 import { registerBackgroundSyncTask } from "@/src/services/background-sync-service";
-import { useDataVersion } from "@/src/stores/data-version";
+import { setLibraryDataVersion } from "@/src/stores/data-version";
 import { loadMostRecentMedia, setupPlayer } from "@/src/stores/player";
 import { useSession } from "@/src/stores/session";
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import { useEffect, useState } from "react";
-import { AppState } from "react-native";
 import { loadAllDownloads } from "../stores/downloads";
 
 const useAppBoot = () => {
@@ -18,7 +17,6 @@ const useAppBoot = () => {
     migrations,
   );
   const session = useSession((state) => state.session);
-  const setLibraryDataVersion = useDataVersion((s) => s.setLibraryDataVersion);
 
   useEffect(() => {
     async function boot() {
@@ -77,66 +75,7 @@ const useAppBoot = () => {
     if (migrationSuccess) {
       boot();
     }
-  }, [migrationSuccess, session, setLibraryDataVersion]);
-
-  // Periodic sync every 15 minutes
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout | undefined;
-
-    async function periodicSync() {
-      const session = useSession.getState().session;
-
-      if (!session) {
-        console.debug("[ForegroundSync] No session available, skipping sync");
-        return;
-      }
-
-      try {
-        await syncDown(session);
-        await syncUp(session);
-        console.debug("[ForegroundSync] performing WAL checkpoint");
-        expoDb.execSync("PRAGMA wal_checkpoint(TRUNCATE);");
-        console.debug("[ForegroundSync] completed successfully");
-      } catch (error) {
-        console.error("[ForegroundSync] failed:", error);
-      }
-    }
-
-    if (migrationSuccess && session) {
-      console.debug("[ForegroundSync] starting periodic sync interval");
-      // Start periodic sync every 15 minutes (900,000 ms)
-      intervalId = setInterval(periodicSync, 15 * 60 * 1000);
-    }
-
-    return () => {
-      if (intervalId) {
-        console.debug("[ForegroundSync] clearing periodic sync interval");
-        clearInterval(intervalId);
-      }
-    };
   }, [migrationSuccess, session]);
-
-  // Handle app state changes to reload data when app resumes
-  useEffect(() => {
-    const handleAppStateChange = async (nextAppState: string) => {
-      console.debug("[AppState] changed to", nextAppState);
-
-      if (session && nextAppState === "active") {
-        console.debug("[AppState] reloading library data version");
-        const { newDataAsOf } = await getServerSyncTimestamps(session);
-        if (newDataAsOf) setLibraryDataVersion(newDataAsOf);
-      }
-    };
-
-    const subscription = AppState.addEventListener(
-      "change",
-      handleAppStateChange,
-    );
-
-    return () => {
-      subscription.remove();
-    };
-  }, [session, setLibraryDataVersion]);
 
   return { isReady, migrationError, initialSyncComplete };
 };
