@@ -40,7 +40,7 @@ export default {
       supportsTablet: false,
       bundleIdentifier: getUniqueIdentifier(),
       infoPlist: {
-        UIBackgroundModes: ["audio", "processing"],
+        UIBackgroundModes: ["audio"],
         ITSAppUsesNonExemptEncryption: false,
       },
     },
@@ -74,6 +74,7 @@ export default {
       "react-native-edge-to-edge",
       "expo-build-properties",
       "expo-sqlite",
+      "expo-background-task",
     ],
     experiments: {
       typedRoutes: true,
