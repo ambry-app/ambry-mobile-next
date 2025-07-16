@@ -11,15 +11,11 @@ import { PLAYER_HEIGHT, TAB_BAR_BASE_HEIGHT } from "@/src/constants";
 import { getMedia } from "@/src/db/library";
 import useBackHandler from "@/src/hooks/use-back-handler";
 import { useLibraryData } from "@/src/hooks/use-library-data";
-import {
-  expandPlayerHandled,
-  setIsFullyCollapsed,
-  setIsFullyExpanded,
-  usePlayer,
-} from "@/src/stores/player";
+import { usePlayer } from "@/src/stores/player";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
+import { EventBus } from "@/src/utils";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { BottomTabBar, BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { router } from "expo-router";
@@ -56,9 +52,8 @@ type TabBarWithPlayerProps = BottomTabBarProps & {
 
 export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
   const { state, descriptors, navigation, insets, session, mediaId } = props;
-  const { lastPlayerExpandRequest, streaming, loadingNewMedia } = usePlayer(
-    useShallow(({ lastPlayerExpandRequest, streaming, loadingNewMedia }) => ({
-      lastPlayerExpandRequest,
+  const { streaming, loadingNewMedia } = usePlayer(
+    useShallow(({ streaming, loadingNewMedia }) => ({
       streaming,
       loadingNewMedia,
     })),
@@ -72,40 +67,39 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
   const whereItWas = useSharedValue(0);
   const onPanEndAction = useSharedValue<"none" | "expand" | "collapse">("none");
 
-  const expandLocal = useCallback(() => {
+  const expand = useCallback(() => {
     "worklet";
-    runOnJS(setIsFullyCollapsed)(false);
 
     expansion.value = withTiming(
       1.0,
       { duration: 400, easing: Easing.out(Easing.exp) },
       () => {
         runOnJS(setExpanded)(true);
-        runOnJS(setIsFullyExpanded)(true);
       },
     );
   }, [expansion]);
 
-  const collapseLocal = () => {
+  const collapse = () => {
     "worklet";
-    runOnJS(setIsFullyExpanded)(false);
 
     expansion.value = withTiming(
       0.0,
       { duration: 400, easing: Easing.out(Easing.exp) },
       () => {
         runOnJS(setExpanded)(false);
-        runOnJS(setIsFullyCollapsed)(true);
       },
     );
   };
 
   useEffect(() => {
-    if (!expanded && lastPlayerExpandRequest) {
-      expandLocal();
-    }
-    expandPlayerHandled();
-  }, [expandLocal, expanded, lastPlayerExpandRequest]);
+    const handler = () => {
+      expand();
+    };
+    EventBus.on("expandPlayer", handler);
+    return () => {
+      EventBus.off("expandPlayer", handler);
+    };
+  }, [expand]);
 
   const tabBarHeight = TAB_BAR_BASE_HEIGHT + insets.bottom;
   const largeImageSize = shortScreen ? screenWidth * 0.6 : screenWidth * 0.8;
@@ -120,8 +114,6 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
 
   const panGesture = Gesture.Pan()
     .onStart((e) => {
-      runOnJS(setIsFullyExpanded)(false);
-      runOnJS(setIsFullyCollapsed)(false);
       whereItWas.value = expansion.value;
     })
     .onUpdate((e) => {
@@ -141,9 +133,9 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
     })
     .onEnd((e) => {
       if (onPanEndAction.value === "expand") {
-        expandLocal();
+        expand();
       } else if (onPanEndAction.value === "collapse") {
-        collapseLocal();
+        collapse();
       }
     });
 
@@ -151,7 +143,7 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
 
   useBackHandler(() => {
     if (expanded) {
-      collapseLocal();
+      collapse();
       return true;
     }
     return false;
@@ -411,7 +403,7 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                   size={24}
                   icon="chevron-down"
                   color={Colors.zinc[100]}
-                  onPress={() => collapseLocal()}
+                  onPress={() => collapse()}
                 />
 
                 {streaming !== undefined && (
@@ -471,9 +463,9 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                   <Pressable
                     onPress={() => {
                       if (!expanded) {
-                        expandLocal();
+                        expand();
                       } else {
-                        collapseLocal();
+                        collapse();
                         setTimeout(() => {
                           router.navigate({
                             pathname: "/media/[id]",
@@ -515,7 +507,7 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                       flexBasis: 0,
                     }}
                   >
-                    <Pressable onPress={() => expandLocal()}>
+                    <Pressable onPress={() => expand()}>
                       <BookDetailsText
                         baseFontSize={14}
                         title={media.book.title}
@@ -544,7 +536,7 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                 <View style={{ width: "80%" }}>
                   <TouchableOpacity
                     onPress={() => {
-                      collapseLocal();
+                      collapse();
                       setTimeout(() => {
                         router.navigate({
                           pathname: "/media/[id]",
