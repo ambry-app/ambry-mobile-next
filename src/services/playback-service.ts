@@ -1,8 +1,11 @@
+import { EventBus } from "@/src/utils";
 import { seek, seekImmediateNoLog } from "@/src/utils/seek";
 import TrackPlayer, { Event } from "react-native-track-player";
 
 export const PlaybackService = async function () {
   console.debug("[TrackPlayer Service] Initializing");
+
+  // TrackPlayer Events
 
   // TrackPlayer.addEventListener(Event.AndroidConnectorConnected, (args) => {
   //   console.debug("[TrackPlayer Service] AndroidConnectorConnected", args);
@@ -64,9 +67,9 @@ export const PlaybackService = async function () {
   //   console.debug("[TrackPlayer Service] RemoteDislike");
   // });
 
-  TrackPlayer.addEventListener(Event.RemoteDuck, (args) => {
-    console.debug("[TrackPlayer Service] RemoteDuck", args);
-  });
+  // TrackPlayer.addEventListener(Event.RemoteDuck, (args) => {
+  //   console.debug("[TrackPlayer Service] RemoteDuck", args);
+  // });
 
   TrackPlayer.addEventListener(Event.RemoteJumpBackward, async (args) => {
     console.debug("[TrackPlayer Service] RemoteJumpBackward", args);
@@ -94,22 +97,24 @@ export const PlaybackService = async function () {
     console.debug("[TrackPlayer Service] RemotePause");
 
     await TrackPlayer.pause();
-    seekImmediateNoLog(-1, true);
+    EventBus.emit("playbackPaused", { remote: true });
+    seekImmediateNoLog(-1);
   });
 
-  TrackPlayer.addEventListener(Event.RemotePlay, () => {
+  TrackPlayer.addEventListener(Event.RemotePlay, async () => {
     console.debug("[TrackPlayer Service] RemotePlay");
 
-    TrackPlayer.play();
+    await TrackPlayer.play();
+    EventBus.emit("playbackStarted", { remote: true });
   });
 
   // TrackPlayer.addEventListener(Event.RemotePlayId, (args) => {
   //   console.debug("[TrackPlayer Service] RemotePlayId", args);
   // });
 
-  TrackPlayer.addEventListener(Event.RemotePlayPause, () => {
-    console.debug("[TrackPlayer Service] RemotePlayPause");
-  });
+  // TrackPlayer.addEventListener(Event.RemotePlayPause, () => {
+  //   console.debug("[TrackPlayer Service] RemotePlayPause");
+  // });
 
   // TrackPlayer.addEventListener(Event.RemotePlaySearch, (args) => {
   //   console.debug("[TrackPlayer Service] RemotePlaySearch", args);
@@ -119,9 +124,9 @@ export const PlaybackService = async function () {
   //   console.debug("[TrackPlayer Service] RemotePrevious");
   // });
 
-  TrackPlayer.addEventListener(Event.RemoteSeek, (args) => {
-    console.debug("[TrackPlayer Service] RemoteSeek", args);
-  });
+  // TrackPlayer.addEventListener(Event.RemoteSeek, (args) => {
+  //   console.debug("[TrackPlayer Service] RemoteSeek", args);
+  // });
 
   // TrackPlayer.addEventListener(Event.RemoteSetRating, (args) => {
   //   console.debug("[TrackPlayer Service] RemoteSetRating", args);
@@ -134,4 +139,18 @@ export const PlaybackService = async function () {
   // TrackPlayer.addEventListener(Event.RemoteStop, () => {
   //   console.debug("[TrackPlayer Service] RemoteStop");
   // });
+
+  // Custom Events
+
+  EventBus.on("seekApplied", (payload) => {
+    console.debug("[TrackPlayer Service] seekApplied", payload);
+  });
+
+  EventBus.on("playbackStarted", (payload) => {
+    console.debug("[TrackPlayer Service] playbackStarted", payload);
+  });
+
+  EventBus.on("playbackPaused", (payload) => {
+    console.debug("[TrackPlayer Service] playbackPaused", payload);
+  });
 };
