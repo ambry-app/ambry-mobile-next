@@ -37,12 +37,13 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { useShallow } from "zustand/react/shallow";
+import { useShallow } from "zustand/shallow";
 import {
   ChapterControls,
   PlaybackControls,
   PlayerScrubber,
   PlayerSettingButtons,
+  SeekIndicator,
 } from "./tab-bar-with-player";
 
 type TabBarWithPlayerProps = BottomTabBarProps & {
@@ -583,6 +584,7 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                     <PlayerProgressBar />
                   </View>
                   <View>
+                    <SeekIndicator />
                     <PlaybackControls />
                     <ChapterControls />
                   </View>

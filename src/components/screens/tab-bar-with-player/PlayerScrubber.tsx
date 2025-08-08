@@ -1,15 +1,15 @@
 import { Scrubber } from "@/src/components";
 import { seekTo, usePlayer } from "@/src/stores/player";
 import { Colors } from "@/src/styles";
-import { useShallow } from "zustand/react/shallow";
+import { useShallow } from "zustand/shallow";
 
 export function PlayerScrubber() {
-  const { playbackRate, position, duration, chapterState } = usePlayer(
-    useShallow(({ playbackRate, position, duration, chapterState }) => ({
+  const { playbackRate, position, duration, chapters } = usePlayer(
+    useShallow(({ playbackRate, position, duration, chapters }) => ({
       playbackRate,
       position,
       duration,
-      chapterState,
+      chapters,
     })),
   );
   const theme = {
@@ -20,8 +20,7 @@ export function PlayerScrubber() {
     dimmed: Colors.zinc[500],
     weak: Colors.zinc[800],
   };
-  const markers =
-    chapterState?.chapters.map((chapter) => chapter.startTime) || [];
+  const markers = chapters?.map((chapter) => chapter.startTime) || [];
 
   return (
     <Scrubber

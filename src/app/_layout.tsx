@@ -3,9 +3,8 @@ import { expoDb } from "@/src/db/db";
 import { useAppBoot } from "@/src/hooks/use-app-boot";
 import { useAppState } from "@/src/hooks/use-app-state";
 import { useForegroundSync } from "@/src/hooks/use-foreground-sync";
-// import { usePlayerSubscriptions } from "@/src/hooks/use-player-subscriptions";
 import { useRefreshLibraryDataVersion } from "@/src/hooks/use-refresh-library-data-version";
-import { usePlayer } from "@/src/stores/player";
+import { usePlayer, usePlayerSubscriptions } from "@/src/stores/player";
 import { useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
@@ -113,7 +112,7 @@ function RootStack() {
   const appState = useAppState();
   useForegroundSync(appState);
   useRefreshLibraryDataVersion(appState);
-  // usePlayerSubscriptions(appState);
+  usePlayerSubscriptions(appState);
 
   return (
     <Stack>
