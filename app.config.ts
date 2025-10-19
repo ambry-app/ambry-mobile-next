@@ -75,6 +75,7 @@ export default {
       "expo-build-properties",
       "expo-sqlite",
       "expo-background-task",
+      "expo-font",
     ],
     experiments: {
       typedRoutes: true,
