@@ -1,12 +1,12 @@
 import usePrevious from "@react-hook/previous";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, StyleSheet } from "react-native";
-import AnimateableText from "react-native-animateable-text";
+// import AnimateableText from "react-native-animateable-text";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
   runOnJS,
-  useAnimatedProps,
+  // useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
   withDecay,
@@ -31,10 +31,10 @@ const HEIGHT = 60;
 const HALF_WIDTH = WIDTH / 2;
 const NUM_TICKS = Math.ceil(WIDTH / SPACING);
 
-const clamp = (value: number, lowerBound: number, upperBound: number) => {
-  "worklet";
-  return Math.min(Math.max(lowerBound, value), upperBound);
-};
+// const clamp = (value: number, lowerBound: number, upperBound: number) => {
+//   "worklet";
+//   return Math.min(Math.max(lowerBound, value), upperBound);
+// };
 
 function friction(value: number) {
   "worklet";
@@ -284,24 +284,24 @@ export function Scrubber(props: ScrubberProps) {
     return { transform: [{ translateX: HALF_WIDTH + value }] };
   });
 
-  const animatedTimecodeStyle = useAnimatedStyle(() => {
-    return { opacity: withTiming(timecodeOpacity.value) };
-  });
+  // const animatedTimecodeStyle = useAnimatedStyle(() => {
+  //   return { opacity: withTiming(timecodeOpacity.value) };
+  // });
 
-  const animatedTimecodeProps = useAnimatedProps(() => {
-    const total = clamp(translateXToTime(translateX.value), 0, duration);
-    const hours = Math.floor(total / 3600).toString();
-    const minutes = Math.floor((total % 3600) / 60).toString();
-    const seconds = Math.floor((total % 3600) % 60).toString();
+  // const animatedTimecodeProps = useAnimatedProps(() => {
+  //   const total = clamp(translateXToTime(translateX.value), 0, duration);
+  //   const hours = Math.floor(total / 3600).toString();
+  //   const minutes = Math.floor((total % 3600) / 60).toString();
+  //   const seconds = Math.floor((total % 3600) % 60).toString();
 
-    if (hours === "0") {
-      return { text: `${minutes}:${seconds.padStart(2, "0")}` };
-    } else {
-      return {
-        text: `${hours}:${minutes.padStart(2, "0")}:${seconds.padStart(2, "0")}`,
-      };
-    }
-  });
+  //   if (hours === "0") {
+  //     return { text: `${minutes}:${seconds.padStart(2, "0")}` };
+  //   } else {
+  //     return {
+  //       text: `${hours}:${minutes.padStart(2, "0")}:${seconds.padStart(2, "0")}`,
+  //     };
+  //   }
+  // });
 
   useEffect(() => {
     timecodeOpacity.value = isScrubbing || isJumping ? 1 : 0;
@@ -344,14 +344,14 @@ export function Scrubber(props: ScrubberProps) {
   return (
     <GestureDetector gesture={panGestureHandler}>
       <Animated.View>
-        <AnimateableText
+        {/* <AnimateableText
           animatedProps={animatedTimecodeProps}
           style={[
             styles.timecode,
             { color: theme.strong },
             animatedTimecodeStyle,
           ]}
-        />
+        /> */}
         <Svg style={styles.indicator} height="8" width="8" viewBox="0 0 8 8">
           <Path
             d="m 0.17 0 c -1 -0 2.83 8 3.83 8 c 1 0 4.83 -8 3.83 -8 z"
