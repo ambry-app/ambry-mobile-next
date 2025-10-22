@@ -9,9 +9,9 @@ import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 export function ChapterControls() {
-  const chapterState = usePlayer((state) => state.chapterState);
+  const currentChapter = usePlayer((state) => state.currentChapter);
 
-  if (!chapterState) return null;
+  if (!currentChapter) return null;
 
   return (
     <>
@@ -29,7 +29,7 @@ export function ChapterControls() {
           onPress={() => router.navigate("/chapter-select")}
         >
           <Text style={styles.chapterText} numberOfLines={1}>
-            {chapterState.currentChapter.title}
+            {currentChapter.title}
           </Text>
         </Button>
         <IconButton

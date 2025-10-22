@@ -9,6 +9,7 @@ import { router } from "expo-router";
 import { useCallback, useRef } from "react";
 import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useShallow } from "zustand/shallow";
 
 const chapterRowHeight = 54;
 
@@ -18,14 +19,21 @@ export default function ChapterSelectRoute() {
     return true;
   });
   const { bottom } = useSafeAreaInsets();
-  const chapterState = usePlayer((state) => state.chapterState);
+
+  const { chapters, currentChapter } = usePlayer(
+    useShallow(({ chapters, currentChapter }) => ({
+      chapters,
+      currentChapter,
+    })),
+  );
+
   const flatlistRef = useRef<FlatList>(null);
 
   const scrollToChapter = useCallback(() => {
-    if (!chapterState) return;
+    if (!currentChapter) return;
 
-    const index = chapterState.chapters.findIndex(
-      (chapter) => chapter.id === chapterState.currentChapter?.id,
+    const index = chapters.findIndex(
+      (chapter) => chapter.id === currentChapter.id,
     );
 
     flatlistRef.current?.scrollToIndex({
@@ -33,9 +41,9 @@ export default function ChapterSelectRoute() {
       animated: false,
       viewPosition: 0.5,
     });
-  }, [chapterState]);
+  }, [chapters, currentChapter]);
 
-  if (!chapterState) return null;
+  if (!currentChapter) return null;
 
   return (
     <View style={styles.container}>
@@ -43,7 +51,7 @@ export default function ChapterSelectRoute() {
         ref={flatlistRef}
         onLayout={scrollToChapter}
         style={styles.chapterList}
-        data={chapterState.chapters}
+        data={chapters}
         keyExtractor={(item) => item.id}
         getItemLayout={(_, index) => ({
           length: chapterRowHeight,
@@ -51,10 +59,7 @@ export default function ChapterSelectRoute() {
           index,
         })}
         renderItem={({ item }) => (
-          <Chapter
-            chapter={item}
-            currentChapterId={chapterState.currentChapter.id}
-          />
+          <Chapter chapter={item} currentChapterId={currentChapter.id} />
         )}
         ListFooterComponent={<View style={{ height: bottom }} />}
       />

@@ -7,15 +7,15 @@ import * as TaskManager from "expo-task-manager";
 const BACKGROUND_SYNC_TASK_NAME = "ambry-background-sync";
 
 TaskManager.defineTask(BACKGROUND_SYNC_TASK_NAME, async () => {
+  console.debug("[BackgroundSync] started");
+
+  const session = useSession.getState().session;
+  if (!session) {
+    console.debug("[BackgroundSync] No session available, skipping sync");
+    return BackgroundTask.BackgroundTaskResult.Success;
+  }
+
   try {
-    console.debug("[BackgroundSync] started");
-
-    const session = useSession.getState().session;
-    if (!session) {
-      console.debug("[BackgroundSync] No session available, skipping sync");
-      return BackgroundTask.BackgroundTaskResult.Success;
-    }
-
     await syncDown(session);
     await syncUp(session);
 

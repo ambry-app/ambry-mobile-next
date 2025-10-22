@@ -10,11 +10,15 @@ export function secondsDisplay(total: number): string {
   }
 }
 
-export function secondsDisplayMinutesOnly(total: number): string {
-  const minutes = String(Math.floor(total / 60));
-  const seconds = String(Math.floor(total % 60));
+export function secondsDisplayMinutesOnly(
+  total: number,
+  showPlus: boolean = false,
+): string {
+  const totalInSeconds = Math.abs(total);
+  const minutes = String(Math.floor(totalInSeconds / 60));
+  const seconds = String(Math.floor(totalInSeconds % 60));
 
-  return `${minutes}:${seconds.padStart(2, "0")}`;
+  return `${total < 0 ? "-" : showPlus ? "+" : ""}${minutes}:${seconds.padStart(2, "0")}`;
 }
 
 export function durationDisplay(input: string): string {

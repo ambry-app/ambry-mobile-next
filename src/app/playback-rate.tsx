@@ -7,7 +7,7 @@ import Slider from "@react-native-community/slider";
 import { useCallback, useEffect, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useShallow } from "zustand/react/shallow";
+import { useShallow } from "zustand/shallow";
 
 export default function PlaybackRateRoute() {
   const { bottom } = useSafeAreaInsets();
