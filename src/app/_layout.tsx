@@ -8,9 +8,9 @@ import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import * as Sentry from "@sentry/react-native";
 import "core-js/actual/object/group-by";
+import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import { Stack, useNavigationContainerRef } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useSQLiteDevTools } from "expo-sqlite-devtools";
 import { useEffect } from "react";
 import { StyleSheet, Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -32,6 +32,7 @@ Sentry.init({
   integrations: [navigationIntegration],
   enableNativeFramesTracking: true,
   enabled: !__DEV__,
+  enableLogs: !__DEV__,
 });
 
 function useSentryNavigationIntegration() {
@@ -83,7 +84,7 @@ function RootStackLayout() {
 
   return (
     <>
-      {__DEV__ && <SQLiteDevTools />}
+      {__DEV__ && <DrizzleStudio />}
       <KeyboardProvider>
         <GestureHandlerRootView>
           <MeasureScreenHeight />
@@ -96,8 +97,8 @@ function RootStackLayout() {
   );
 }
 
-function SQLiteDevTools() {
-  useSQLiteDevTools(expoDb);
+function DrizzleStudio() {
+  useDrizzleStudio(expoDb);
   return null;
 }
 

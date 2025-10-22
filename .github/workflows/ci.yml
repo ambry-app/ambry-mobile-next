@@ -21,19 +21,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: ".tool-versions"
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: npm ci
       - name: Check dependencies
-        run: bun expo install --check
+        run: npx expo install --check
       - name: Run expo-doctor
-        run: bun doctor
+        run: npm run doctor
       - name: Run eslint
-        run: bun lint --max-warnings 0
+        run: npm run lint -- --max-warnings 0
       - name: Run tsc
-        run: bun tsc
+        run: npx tsc
       - name: Run prebuild
-        run: bun prebuild
+        run: npm run prebuild

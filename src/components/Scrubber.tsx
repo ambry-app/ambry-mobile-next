@@ -1,11 +1,9 @@
 import usePrevious from "@react-hook/previous";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { Dimensions, StyleSheet } from "react-native";
-import AnimateableText from "react-native-animateable-text";
+import { Dimensions, StyleSheet, TextInput } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
-  runOnJS,
   useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
@@ -13,6 +11,9 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Line, Path, Rect } from "react-native-svg";
+import { scheduleOnRN } from "react-native-worklets";
+
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
 type Theme = {
   strong: string;
@@ -184,7 +185,7 @@ export function Scrubber(props: ScrubberProps) {
 
   const panGestureHandler = Gesture.Pan()
     .onStart((_event) => {
-      runOnJS(setIsScrubbing)(true);
+      scheduleOnRN(setIsScrubbing, true);
       const currentX = translateX.value;
       startX.value = currentX;
       translateX.value = currentX;
@@ -207,8 +208,8 @@ export function Scrubber(props: ScrubberProps) {
 
         if (finished) {
           const newPosition = translateXToTime(translateX.value);
-          runOnJS(onChange)(newPosition);
-          runOnJS(setIsScrubbing)(false);
+          scheduleOnRN(onChange, newPosition);
+          scheduleOnRN(setIsScrubbing, false);
         }
       };
 
@@ -238,8 +239,8 @@ export function Scrubber(props: ScrubberProps) {
     .onFinalize(() => {
       if (!isAnimating.value) {
         const newPosition = translateXToTime(translateX.value);
-        runOnJS(onChange)(newPosition);
-        runOnJS(setIsScrubbing)(false);
+        scheduleOnRN(onChange, newPosition);
+        scheduleOnRN(setIsScrubbing, false);
       }
     });
 
@@ -295,11 +296,11 @@ export function Scrubber(props: ScrubberProps) {
     const seconds = Math.floor((total % 3600) % 60).toString();
 
     if (hours === "0") {
-      return { text: `${minutes}:${seconds.padStart(2, "0")}` };
+      const value = `${minutes}:${seconds.padStart(2, "0")}`;
+      return { text: value, defaultValue: value };
     } else {
-      return {
-        text: `${hours}:${minutes.padStart(2, "0")}:${seconds.padStart(2, "0")}`,
-      };
+      const value = `${hours}:${minutes.padStart(2, "0")}:${seconds.padStart(2, "0")}`;
+      return { text: value, defaultValue: value };
     }
   });
 
@@ -323,7 +324,7 @@ export function Scrubber(props: ScrubberProps) {
           duration: 400,
           easing: Easing.out(Easing.exp),
         },
-        (completed) => completed && runOnJS(setIsJumping)(false),
+        (completed) => completed && scheduleOnRN(setIsJumping, false),
       );
     } else {
       // playing / linear animation
@@ -344,13 +345,14 @@ export function Scrubber(props: ScrubberProps) {
   return (
     <GestureDetector gesture={panGestureHandler}>
       <Animated.View>
-        <AnimateableText
+        <AnimatedTextInput
           animatedProps={animatedTimecodeProps}
           style={[
             styles.timecode,
             { color: theme.strong },
             animatedTimecodeStyle,
           ]}
+          editable={false}
         />
         <Svg style={styles.indicator} height="8" width="8" viewBox="0 0 8 8">
           <Path
