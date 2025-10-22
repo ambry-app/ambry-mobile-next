@@ -7,7 +7,7 @@ import {
 } from "@/src/db/downloads";
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
 import { documentDirectoryFilePath } from "@/src/utils";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { create } from "zustand";
 import { loadMedia, usePlayer } from "./player";
 import { Session } from "./session";
