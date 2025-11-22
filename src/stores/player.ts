@@ -802,6 +802,8 @@ async function seekImmediateNoLog(target: number, isRelative = false) {
 }
 
 export function usePlayerSubscriptions(appState: AppStateStatus) {
+  const playerLoaded = usePlayer((state) => !!state.mediaId);
+
   useEffect(() => {
     const subscriptions: EmitterSubscription[] = [];
 
@@ -812,7 +814,7 @@ export function usePlayerSubscriptions(appState: AppStateStatus) {
       setProgress(progress.position, progress.duration);
     };
 
-    if (appState === "active") {
+    if (appState === "active" && playerLoaded) {
       init();
 
       console.debug("[Player] Subscribing to player events");
@@ -841,5 +843,5 @@ export function usePlayerSubscriptions(appState: AppStateStatus) {
       subscriptions.forEach((sub) => sub.remove());
       EventBus.off("seekApplied", onSeekApplied);
     };
-  }, [appState]);
+  }, [appState, playerLoaded]);
 }
