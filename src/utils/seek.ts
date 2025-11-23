@@ -2,6 +2,7 @@ import {
   SEEK_ACCUMULATION_WINDOW,
   SEEK_EVENT_ACCUMULATION_WINDOW,
 } from "@/src/constants";
+import { SeekSource } from "@/src/stores/player";
 import TrackPlayer from "react-native-track-player";
 import { EventBus } from "./event-bus";
 
@@ -79,6 +80,7 @@ export async function seek(interval: number) {
       position: newPosition,
       duration,
       userInitiated: true,
+      source: SeekSource.REMOTE,
     });
 
     seekAccumulator = 0;
@@ -132,6 +134,7 @@ export async function seekImmediateNoLog(interval: number) {
     position: seekPosition,
     duration,
     userInitiated: false,
+    source: SeekSource.PAUSE,
   });
   isSeeking = false;
 }

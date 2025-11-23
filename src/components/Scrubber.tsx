@@ -1,4 +1,6 @@
-import usePrevious from "@react-hook/previous";
+import { SeekSource, seekTo, usePlayer } from "@/src/stores/player";
+import { Colors } from "@/src/styles";
+import { EventBus } from "@/src/utils";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, StyleSheet, TextInput } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -6,23 +8,21 @@ import Animated, {
   Easing,
   useAnimatedProps,
   useAnimatedStyle,
+  useFrameCallback,
   useSharedValue,
   withDecay,
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Line, Path, Rect } from "react-native-svg";
-import { scheduleOnRN } from "react-native-worklets";
+import {
+  State,
+  usePlaybackState,
+  useProgress,
+} from "react-native-track-player";
+import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
+import { useShallow } from "zustand/shallow";
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
-
-type Theme = {
-  strong: string;
-  normal: string;
-  dimmed: string;
-  emphasized: string;
-  accent: string;
-  weak: string;
-};
 
 const SPACING = 10; // pixels between ticks
 const FACTOR = SPACING / 5; // 5 seconds per tick
@@ -59,6 +59,7 @@ function friction(value: number) {
 }
 
 function timeToTranslateX(time: number) {
+  "worklet";
   return time * -FACTOR;
 }
 
@@ -94,11 +95,7 @@ function useIsScrubbing() {
   ];
 }
 
-type TicksProps = {
-  theme: Theme;
-};
-
-const Ticks = memo(function Ticks({ theme }: TicksProps) {
+const Ticks = memo(function Ticks() {
   return (
     <Svg height={HEIGHT} width={WIDTH + 120}>
       {Array.from({ length: NUM_TICKS + 12 }, (_, i) => (
@@ -110,10 +107,10 @@ const Ticks = memo(function Ticks({ theme }: TicksProps) {
           y2={i % 12 === 0 ? 40 : i % 6 === 0 ? 32 : 24}
           stroke={
             i % 12 === 0
-              ? theme.emphasized
+              ? colors.emphasized
               : i % 6 === 0
-                ? theme.normal
-                : theme.dimmed
+                ? colors.normal
+                : colors.dimmed
           }
           strokeWidth="1"
         />
@@ -124,10 +121,9 @@ const Ticks = memo(function Ticks({ theme }: TicksProps) {
 
 type MarkersProps = {
   markers: number[];
-  theme: Theme;
 };
 
-const Markers = memo(function Markers({ markers, theme }: MarkersProps) {
+const Markers = memo(function Markers({ markers }: MarkersProps) {
   return markers.map((marker, i) => {
     return (
       <Svg
@@ -143,8 +139,8 @@ const Markers = memo(function Markers({ markers, theme }: MarkersProps) {
           ry="2.5"
           height="12"
           width="5"
-          fill={theme.accent}
-          stroke={theme.weak}
+          fill={colors.accent}
+          stroke={colors.weak}
           strokeWidth="2"
         />
       </Svg>
@@ -152,36 +148,26 @@ const Markers = memo(function Markers({ markers, theme }: MarkersProps) {
   });
 });
 
-type ScrubberProps = {
-  position: number;
-  duration: number;
-  playbackRate: number;
-  onChange: (newPosition: number) => void;
-  markers: number[];
-  theme: Theme;
-};
-
-export function Scrubber(props: ScrubberProps) {
-  const {
-    position: positionInput,
-    duration,
-    playbackRate,
-    onChange,
-    markers,
-    theme,
-  } = props;
-  // console.log('RENDERING: Scrubber')
-  const translateX = useSharedValue(
-    timeToTranslateX(Math.round(positionInput)),
+export function Scrubber() {
+  const { state } = usePlaybackState();
+  const { position: positionInput, duration } = useProgress(500);
+  const { playbackRate, chapters } = usePlayer(
+    useShallow(({ playbackRate, chapters }) => ({
+      playbackRate,
+      chapters,
+    })),
   );
-  const [isScrubbing, setIsScrubbing] = useIsScrubbing();
-  const [isJumping, setIsJumping] = useState(false);
-  const maxTranslateX = timeToTranslateX(duration);
-  const previousPosition = usePrevious(positionInput);
+  const playing = state === State.Playing;
+  const markers = chapters?.map((chapter) => chapter.startTime) || [];
 
+  const translateX = useSharedValue(timeToTranslateX(positionInput));
+  const [isScrubbing, setIsScrubbing] = useIsScrubbing();
+  const maxTranslateX = timeToTranslateX(duration);
   const startX = useSharedValue(0);
   const isAnimating = useSharedValue(false);
+  const isAnimatingUserSeek = useSharedValue(false);
   const timecodeOpacity = useSharedValue(0);
+  const lastTimestamp = useSharedValue(0);
 
   const panGestureHandler = Gesture.Pan()
     .onStart((_event) => {
@@ -208,7 +194,7 @@ export function Scrubber(props: ScrubberProps) {
 
         if (finished) {
           const newPosition = translateXToTime(translateX.value);
-          scheduleOnRN(onChange, newPosition);
+          scheduleOnRN(seekTo, newPosition, SeekSource.SCRUBBER);
           scheduleOnRN(setIsScrubbing, false);
         }
       };
@@ -239,7 +225,7 @@ export function Scrubber(props: ScrubberProps) {
     .onFinalize(() => {
       if (!isAnimating.value) {
         const newPosition = translateXToTime(translateX.value);
-        scheduleOnRN(onChange, newPosition);
+        scheduleOnRN(seekTo, newPosition, SeekSource.SCRUBBER);
         scheduleOnRN(setIsScrubbing, false);
       }
     });
@@ -304,78 +290,124 @@ export function Scrubber(props: ScrubberProps) {
     }
   });
 
+  // Show timecode when scrubbing
   useEffect(() => {
-    timecodeOpacity.value = isScrubbing || isJumping ? 1 : 0;
-  }, [isScrubbing, isJumping, timecodeOpacity]);
+    timecodeOpacity.value = isScrubbing ? 1 : 0;
+  }, [isScrubbing, timecodeOpacity]);
 
-  useEffect(() => {
-    if (isScrubbing) return;
+  useFrameCallback((frameInfo) => {
+    "worklet";
 
-    const isJump = Math.abs(positionInput - (previousPosition || 0)) > 3;
-
-    if (!isJump && isJumping) return;
-
-    if (isJump) {
-      // jump / exponential animation
-      setIsJumping(true);
-      translateX.value = withTiming(
-        timeToTranslateX(positionInput),
-        {
-          duration: 400,
-          easing: Easing.out(Easing.exp),
-        },
-        (completed) => completed && scheduleOnRN(setIsJumping, false),
-      );
-    } else {
-      // playing / linear animation
-      translateX.value = withTiming(timeToTranslateX(positionInput), {
-        duration: 1000 / playbackRate,
-        easing: Easing.linear,
-      });
+    // Pause frame callback during scrubbing or user seek animations
+    if (!playing || isScrubbing || isAnimatingUserSeek.value) {
+      lastTimestamp.value = 0;
+      return;
     }
-  }, [
-    translateX,
-    isScrubbing,
-    positionInput,
-    previousPosition,
-    playbackRate,
-    isJumping,
-  ]);
+
+    if (lastTimestamp.value > 0) {
+      const deltaSeconds = (frameInfo.timestamp - lastTimestamp.value) / 1000;
+
+      // Advance animation based on playback rate
+      translateX.value -= deltaSeconds * playbackRate * FACTOR;
+
+      // Clamp to valid range
+      translateX.value = clamp(translateX.value, maxTranslateX, 0);
+    }
+
+    lastTimestamp.value = frameInfo.timestamp;
+  });
+
+  // Listen to seekApplied events to animate user-initiated seeks
+  useEffect(() => {
+    const handleSeekApplied = (payload: {
+      position: number;
+      userInitiated: boolean;
+      source: string;
+    }) => {
+      // Animate for user seeks (button/chapter/remote) and pause rewind, but not scrubber
+      if (
+        (payload.userInitiated || payload.source === SeekSource.PAUSE) &&
+        payload.source !== SeekSource.SCRUBBER &&
+        !isScrubbing
+      ) {
+        scheduleOnUI(() => {
+          "worklet";
+          isAnimatingUserSeek.value = true;
+          translateX.value = withTiming(
+            timeToTranslateX(payload.position),
+            {
+              duration: 400,
+              easing: Easing.out(Easing.exp),
+            },
+            (finished) => {
+              if (finished) {
+                isAnimatingUserSeek.value = false;
+              }
+            },
+          );
+        });
+      }
+    };
+
+    EventBus.on("seekApplied", handleSeekApplied);
+    return () => {
+      EventBus.off("seekApplied", handleSeekApplied);
+    };
+  }, [isScrubbing, translateX, isAnimatingUserSeek]);
+
+  // Sync to position when it changes (drift correction on JS thread, not every frame)
+  useEffect(() => {
+    if (isScrubbing || isAnimatingUserSeek.value) return;
+
+    const animatedPos = translateXToTime(translateX.value);
+    const drift = Math.abs(animatedPos - positionInput);
+
+    // Snap if drifted more than 500ms
+    // Note: When paused, position updates from seeks will trigger this
+    if (drift > 0.5) {
+      translateX.value = timeToTranslateX(positionInput);
+    }
+  }, [positionInput, isScrubbing, translateX, isAnimatingUserSeek]);
 
   return (
     <GestureDetector gesture={panGestureHandler}>
       <Animated.View>
         <AnimatedTextInput
           animatedProps={animatedTimecodeProps}
-          style={[
-            styles.timecode,
-            { color: theme.strong },
-            animatedTimecodeStyle,
-          ]}
+          style={[styles.timecode, animatedTimecodeStyle]}
           editable={false}
         />
         <Svg style={styles.indicator} height="8" width="8" viewBox="0 0 8 8">
           <Path
             d="m 0.17 0 c -1 -0 2.83 8 3.83 8 c 1 0 4.83 -8 3.83 -8 z"
-            fill={theme.strong}
-            stroke={theme.weak}
+            fill={colors.strong}
+            stroke={colors.weak}
             strokeWidth="1"
           />
         </Svg>
 
         <Animated.View style={[styles.scrubber, animatedScrubberStyle]}>
           <Animated.View style={[styles.mask, animatedMaskStyle]}>
-            <Ticks theme={theme} />
+            <Ticks />
           </Animated.View>
         </Animated.View>
 
         <Animated.View style={[styles.markers, animatedMarkerStyle]}>
-          <Markers markers={markers} theme={theme} />
+          <Markers markers={markers} />
         </Animated.View>
       </Animated.View>
     </GestureDetector>
   );
 }
+
+const colors = {
+  accent: Colors.lime[400],
+  strong: Colors.zinc[100],
+  emphasized: Colors.zinc[200],
+  normal: Colors.zinc[400],
+  dimmed: Colors.zinc[500],
+  weak: Colors.zinc[800],
+};
 
 const styles = StyleSheet.create({
   timecode: {
@@ -385,6 +417,7 @@ const styles = StyleSheet.create({
     marginBottom: -6,
     textAlign: "center",
     fontVariant: ["tabular-nums"],
+    color: colors.strong,
   },
   indicator: {
     left: HALF_WIDTH - 3.75,

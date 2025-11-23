@@ -1,7 +1,7 @@
 import { Button } from "@/src/components";
 import * as schema from "@/src/db/schema";
 import useBackHandler from "@/src/hooks/use-back-handler";
-import { seekTo, usePlayer } from "@/src/stores/player";
+import { SeekSource, seekTo, usePlayer } from "@/src/stores/player";
 import { Colors } from "@/src/styles";
 import { secondsDisplay } from "@/src/utils";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
@@ -80,7 +80,7 @@ function Chapter({ chapter, currentChapterId }: ChapterProps) {
         style={styles.chapterButton}
         onPress={() => {
           router.back();
-          setTimeout(() => seekTo(chapter.startTime), 50);
+          setTimeout(() => seekTo(chapter.startTime, SeekSource.CHAPTER), 50);
         }}
       >
         <View style={styles.chapterRow}>
