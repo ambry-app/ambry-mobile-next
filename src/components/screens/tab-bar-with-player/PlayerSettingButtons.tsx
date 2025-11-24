@@ -1,5 +1,7 @@
 import { IconButton } from "@/src/components";
-import { setSleepTimerState, usePlayer } from "@/src/stores/player";
+import { usePlayer } from "@/src/stores/player";
+import { useSession } from "@/src/stores/session";
+import { setSleepTimerState, useSleepTimer } from "@/src/stores/sleep-timer";
 import { Colors } from "@/src/styles";
 import { formatPlaybackRate, secondsDisplayMinutesOnly } from "@/src/utils";
 import * as Haptics from "expo-haptics";
@@ -18,7 +20,8 @@ export function PlayerSettingButtons() {
 }
 
 function SleepTimerButton() {
-  const sleepTimerEnabled = usePlayer((state) => state.sleepTimerEnabled);
+  const session = useSession((state) => state.session);
+  const sleepTimerEnabled = useSleepTimer((state) => state.sleepTimerEnabled);
 
   return (
     <IconButton
@@ -30,7 +33,7 @@ function SleepTimerButton() {
         router.navigate("/sleep-timer");
       }}
       onLongPress={() => {
-        setSleepTimerState(!sleepTimerEnabled);
+        if (session) setSleepTimerState(session, !sleepTimerEnabled);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }}
     >
@@ -40,32 +43,37 @@ function SleepTimerButton() {
 }
 
 function SleepTimerLabel() {
-  const { sleepTimer, sleepTimerEnabled, sleepTimerTriggerTime, position } =
-    usePlayer(
+  const { sleepTimer, sleepTimerEnabled, sleepTimerTriggerTime } =
+    useSleepTimer(
       useShallow(
-        ({
+        ({ sleepTimer, sleepTimerEnabled, sleepTimerTriggerTime }) => ({
           sleepTimer,
           sleepTimerEnabled,
           sleepTimerTriggerTime,
-          position,
-        }) => ({
-          sleepTimer,
-          sleepTimerEnabled,
-          sleepTimerTriggerTime,
-          position,
         }),
       ),
     );
   const [countdown, setCountdown] = useState<number | null>(null);
 
   useEffect(() => {
-    if (sleepTimerEnabled && sleepTimerTriggerTime !== null) {
+    if (!sleepTimerEnabled || sleepTimerTriggerTime === null) {
+      setCountdown(null);
+      return;
+    }
+
+    // Update countdown immediately
+    const updateCountdown = () => {
       const newCountdown = (sleepTimerTriggerTime - Date.now()) / 1000;
       setCountdown(Math.max(0, newCountdown));
-    } else {
-      setCountdown(null);
-    }
-  }, [position, sleepTimerEnabled, sleepTimerTriggerTime]);
+    };
+
+    updateCountdown();
+
+    // Then update every second
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [sleepTimerEnabled, sleepTimerTriggerTime]);
 
   if (!sleepTimerEnabled) return null;
 

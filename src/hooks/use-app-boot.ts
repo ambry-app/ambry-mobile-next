@@ -8,6 +8,7 @@ import { useSession } from "@/src/stores/session";
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import { useEffect, useState } from "react";
 import { loadAllDownloads } from "../stores/downloads";
+import { loadSleepTimerSettings } from "../stores/sleep-timer";
 
 const useAppBoot = () => {
   const [isReady, setIsReady] = useState(false);
@@ -32,6 +33,7 @@ const useAppBoot = () => {
       if (newDataAsOf) setLibraryDataVersion(newDataAsOf);
 
       await loadAllDownloads(session);
+      await loadSleepTimerSettings(session);
 
       if (!lastDownSync) {
         try {

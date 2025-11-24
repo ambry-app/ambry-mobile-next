@@ -1,9 +1,10 @@
 import { Button, IconButton } from "@/src/components";
+import { useSession } from "@/src/stores/session";
 import {
   setSleepTimer,
   setSleepTimerState,
-  usePlayer,
-} from "@/src/stores/player";
+  useSleepTimer,
+} from "@/src/stores/sleep-timer";
 import { Colors } from "@/src/styles";
 import Slider from "@react-native-community/slider";
 import { useCallback, useEffect, useState } from "react";
@@ -17,8 +18,9 @@ function formatSeconds(seconds: number) {
 
 export default function SleepTimerRoute() {
   const { bottom } = useSafeAreaInsets();
+  const session = useSession((state) => state.session);
 
-  const { sleepTimer, sleepTimerEnabled } = usePlayer(
+  const { sleepTimer, sleepTimerEnabled } = useSleepTimer(
     useShallow(({ sleepTimer, sleepTimerEnabled }) => ({
       sleepTimer,
       sleepTimerEnabled,
@@ -32,10 +34,15 @@ export default function SleepTimerRoute() {
     setDisplaySleepTimerSeconds(sleepTimer);
   }, [sleepTimer]);
 
-  const setSleepTimerSecondsAndDisplay = useCallback((value: number) => {
-    setDisplaySleepTimerSeconds(value);
-    setSleepTimer(value);
-  }, []);
+  const setSleepTimerSecondsAndDisplay = useCallback(
+    (value: number) => {
+      setDisplaySleepTimerSeconds(value);
+      if (session) setSleepTimer(session, value);
+    },
+    [session],
+  );
+
+  if (!session) return null;
 
   return (
     <View style={{ paddingBottom: Platform.OS === "android" ? bottom : 0 }}>
@@ -126,7 +133,7 @@ export default function SleepTimerRoute() {
             thumbColor={Colors.zinc[100]}
             value={sleepTimerEnabled}
             onValueChange={(value) => {
-              setSleepTimerState(value);
+              setSleepTimerState(session, value);
             }}
           />
         </View>
