@@ -1,3 +1,4 @@
+import * as ProgressSave from "@/src/services/progress-save-service";
 import * as SleepTimer from "@/src/services/sleep-timer-service";
 import { EventBus } from "@/src/utils";
 import { seek, seekImmediateNoLog } from "@/src/utils/seek";
@@ -44,9 +45,10 @@ export const PlaybackService = async function () {
   //   console.debug("[TrackPlayer Service] PlaybackProgressUpdated", args);
   // });
 
-  // TrackPlayer.addEventListener(Event.PlaybackQueueEnded, (args) => {
-  //   console.debug("[TrackPlayer Service] PlaybackQueueEnded", args);
-  // });
+  TrackPlayer.addEventListener(Event.PlaybackQueueEnded, () => {
+    console.debug("[TrackPlayer Service] PlaybackQueueEnded");
+    EventBus.emit("playbackQueueEnded");
+  });
 
   // TrackPlayer.addEventListener(Event.PlaybackResume, (args) => {
   //   console.debug("[TrackPlayer Service] PlaybackResume", args);
@@ -70,7 +72,7 @@ export const PlaybackService = async function () {
 
   TrackPlayer.addEventListener(Event.RemoteDuck, (args) => {
     console.debug("[TrackPlayer Service] RemoteDuck", args);
-    SleepTimer.reset();
+    EventBus.emit("remoteDuck", args);
   });
 
   TrackPlayer.addEventListener(Event.RemoteJumpBackward, async (args) => {
@@ -99,8 +101,8 @@ export const PlaybackService = async function () {
     console.debug("[TrackPlayer Service] RemotePause");
 
     await TrackPlayer.pause();
+    await seekImmediateNoLog(-1);
     EventBus.emit("playbackPaused", { remote: true });
-    seekImmediateNoLog(-1);
   });
 
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
@@ -142,42 +144,8 @@ export const PlaybackService = async function () {
   //   console.debug("[TrackPlayer Service] RemoteStop");
   // });
 
-  // Custom Events
-
-  EventBus.on("seekApplied", (payload) => {
-    console.debug("[TrackPlayer Service] seekApplied", payload);
-    // Don't reset timer for automatic pause seeks
-    if (payload.source === "pause") {
-      return;
-    }
-    SleepTimer.reset();
-  });
-
-  EventBus.on("playbackStarted", (payload) => {
-    console.debug("[TrackPlayer Service] playbackStarted", payload);
-    SleepTimer.reset(); // We know we're playing
-  });
-
-  EventBus.on("playbackPaused", (payload) => {
-    console.debug("[TrackPlayer Service] playbackPaused", payload);
-    SleepTimer.cancel();
-  });
-
-  EventBus.on("sleepTimerEnabled", () => {
-    console.debug("[TrackPlayer Service] sleepTimerEnabled");
-    SleepTimer.maybeReset(); // Only if playing
-  });
-
-  EventBus.on("sleepTimerDisabled", () => {
-    console.debug("[TrackPlayer Service] sleepTimerDisabled");
-    SleepTimer.cancel();
-  });
-
-  EventBus.on("sleepTimerChanged", () => {
-    console.debug("[TrackPlayer Service] sleepTimerChanged");
-    SleepTimer.maybeReset(); // Only if playing
-  });
-
-  // Start sleep timer monitoring
+  // Initialize services
+  // Each service will set up its own EventBus listeners
   SleepTimer.startMonitoring();
+  ProgressSave.startMonitoring();
 };

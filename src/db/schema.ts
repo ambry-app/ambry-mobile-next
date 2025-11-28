@@ -469,6 +469,7 @@ export const localUserSettings = sqliteTable("local_user_settings", {
   sleepTimerEnabled: integer("sleep_timer_enabled", { mode: "boolean" })
     .notNull()
     .default(defaultSleepTimerEnabled),
+  sleepTimerTriggerTime: integer("sleep_timer_trigger_time"),
 });
 
 export const shelvedMedia = sqliteTable(

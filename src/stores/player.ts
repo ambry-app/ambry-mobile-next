@@ -203,8 +203,8 @@ export async function pause() {
   const { position } = await TrackPlayer.getProgress();
   console.debug("[Player] Pausing at position", position);
   await TrackPlayer.pause();
-  EventBus.emit("playbackPaused", { remote: false });
   await seekImmediateNoLog(-1, true);
+  EventBus.emit("playbackPaused", { remote: false });
 }
 
 export function seekTo(position: number, source: SeekSourceType) {
@@ -271,7 +271,6 @@ export async function forceUnloadPlayer() {
 }
 
 function onPlaybackProgressUpdated(progress: Progress) {
-  console.debug("[Player] PlaybackProgressUpdated", progress);
   setProgress(progress.position, progress.duration);
 }
 
@@ -291,23 +290,6 @@ function setProgress(position: number, duration: number) {
 
   maybeUpdateChapterState();
 }
-
-// async function savePosition(force: boolean = false) {
-//   const session = useSession.getState().session;
-//   const { mediaId, position, duration } = usePlayer.getState();
-
-//   if (!session || !mediaId) return;
-
-//   // mimic server-side logic here by computing the status
-//   const status =
-//     position < 60
-//       ? "not_started"
-//       : duration - position < 120
-//         ? "finished"
-//         : "in_progress";
-
-//   await updatePlayerState(session, mediaId, { position, status });
-// }
 
 async function setupTrackPlayer(
   session: Session,
