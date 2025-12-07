@@ -1,9 +1,9 @@
-import * as Crypto from "expo-crypto";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { getDb } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
+import { randomUUID } from "@/src/utils/crypto";
 
 // =============================================================================
 // Playthrough CRUD
@@ -97,7 +97,7 @@ export async function createPlaythrough(
   mediaId: string,
 ): Promise<string> {
   const now = new Date();
-  const id = Crypto.randomUUID();
+  const id = randomUUID();
 
   await getDb().insert(schema.playthroughs).values({
     id,

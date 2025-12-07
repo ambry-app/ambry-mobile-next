@@ -4,6 +4,15 @@
 import type { TestDatabase } from "./db-test-utils";
 
 // =============================================================================
+// Crypto Mock - use Node's crypto.randomUUID() instead of expo-crypto
+// =============================================================================
+
+jest.mock("@/src/utils/crypto", () => ({
+  // Use global crypto object (Node's built-in, available in Jest's allowed list)
+  randomUUID: () => crypto.randomUUID(),
+}));
+
+// =============================================================================
 // Database Mock
 // =============================================================================
 

@@ -12,13 +12,6 @@ import {
 } from "@test/factories";
 import * as playthroughs from "../playthroughs";
 
-// Mock expo-crypto
-jest.mock("expo-crypto", () => ({
-  randomUUID: jest.fn(
-    () => "mock-uuid-" + Math.random().toString(36).substring(7),
-  ),
-}));
-
 describe("playthroughs module", () => {
   const { getDb } = setupTestDatabase();
 
@@ -202,7 +195,10 @@ describe("playthroughs module", () => {
 
       const id = await playthroughs.createPlaythrough(testSession, media.id);
 
-      expect(id).toMatch(/^mock-uuid-/);
+      // Should be a valid UUID
+      expect(id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      );
 
       const created = await db.query.playthroughs.findFirst({
         where: eq(schema.playthroughs.id, id),

@@ -1,8 +1,9 @@
-import * as Crypto from "expo-crypto";
 import * as Device from "expo-device";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import { create } from "zustand";
+
+import { randomUUID } from "@/src/utils/crypto";
 
 const DEVICE_ID_KEY = "Ambry_deviceId";
 
@@ -43,7 +44,7 @@ export async function initializeDevice() {
   let deviceId = await SecureStore.getItemAsync(DEVICE_ID_KEY);
 
   if (!deviceId) {
-    deviceId = Crypto.randomUUID();
+    deviceId = randomUUID();
     await SecureStore.setItemAsync(DEVICE_ID_KEY, deviceId);
     console.debug("[Device] Generated new device ID:", deviceId);
   } else {

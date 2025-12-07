@@ -21,11 +21,6 @@ import {
   resetIdCounter,
 } from "@test/factories";
 
-// Mock expo-crypto
-jest.mock("expo-crypto", () => ({
-  randomUUID: () => "test-uuid-" + Math.random().toString(36).substring(7),
-}));
-
 describe("test factories", () => {
   const { getDb } = setupTestDatabase();
 

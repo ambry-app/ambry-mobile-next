@@ -1,4 +1,3 @@
-import * as Crypto from "expo-crypto";
 import TrackPlayer from "react-native-track-player";
 
 import { PROGRESS_SAVE_INTERVAL } from "@/src/constants";
@@ -15,6 +14,7 @@ import { bumpPlaythroughDataVersion } from "@/src/stores/data-version";
 import { getDeviceIdSync, initializeDevice } from "@/src/stores/device";
 import { Session, useSession } from "@/src/stores/session";
 import { EventBus } from "@/src/utils";
+import { randomUUID } from "@/src/utils/crypto";
 
 let isInitialized = false;
 let currentMediaId: string | null = null;
@@ -104,7 +104,7 @@ export async function recordStartEvent(playthroughId: string) {
   const now = new Date();
 
   await getDb().insert(schema.playbackEvents).values({
-    id: Crypto.randomUUID(),
+    id: randomUUID(),
     playthroughId,
     deviceId: getDeviceIdSync(),
     type: "start",
@@ -121,7 +121,7 @@ export async function recordFinishEvent(playthroughId: string) {
   const now = new Date();
 
   await getDb().insert(schema.playbackEvents).values({
-    id: Crypto.randomUUID(),
+    id: randomUUID(),
     playthroughId,
     deviceId: getDeviceIdSync(),
     type: "finish",
@@ -138,7 +138,7 @@ export async function recordAbandonEvent(playthroughId: string) {
   const now = new Date();
 
   await getDb().insert(schema.playbackEvents).values({
-    id: Crypto.randomUUID(),
+    id: randomUUID(),
     playthroughId,
     deviceId: getDeviceIdSync(),
     type: "abandon",
@@ -385,7 +385,7 @@ async function recordPlayEvent(position: number, playbackRate: number) {
   const now = new Date();
 
   await getDb().insert(schema.playbackEvents).values({
-    id: Crypto.randomUUID(),
+    id: randomUUID(),
     playthroughId: currentPlaythroughId,
     deviceId: getDeviceIdSync(),
     type: "play",
@@ -406,7 +406,7 @@ async function recordPauseEvent(position: number, playbackRate: number) {
   const now = new Date();
 
   await getDb().insert(schema.playbackEvents).values({
-    id: Crypto.randomUUID(),
+    id: randomUUID(),
     playthroughId: currentPlaythroughId,
     deviceId: getDeviceIdSync(),
     type: "pause",
@@ -431,7 +431,7 @@ async function recordSeekEvent(
   const now = new Date();
 
   await getDb().insert(schema.playbackEvents).values({
-    id: Crypto.randomUUID(),
+    id: randomUUID(),
     playthroughId: currentPlaythroughId,
     deviceId: getDeviceIdSync(),
     type: "seek",
@@ -463,7 +463,7 @@ async function recordRateChangeEvent(
   const now = new Date();
 
   await getDb().insert(schema.playbackEvents).values({
-    id: Crypto.randomUUID(),
+    id: randomUUID(),
     playthroughId: currentPlaythroughId,
     deviceId: getDeviceIdSync(),
     type: "rate_change",
