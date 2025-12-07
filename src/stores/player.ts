@@ -3,17 +3,18 @@ import {
   SEEK_EVENT_ACCUMULATION_WINDOW,
 } from "@/src/constants";
 import {
-  LocalPlayerState,
-  createInitialPlayerState,
-  createPlayerState,
-  getLocalPlayerState,
-  getMostRecentInProgressLocalMedia,
-  getMostRecentInProgressSyncedMedia,
-  getSyncedPlayerState,
-  updatePlayerState,
-} from "@/src/db/player-states";
+  ActivePlaythrough,
+  createPlaythrough,
+  getActivePlaythrough,
+  getFinishedOrAbandonedPlaythrough,
+  getMostRecentInProgressPlaythrough,
+  resumePlaythrough,
+} from "@/src/db/playthroughs";
 import * as schema from "@/src/db/schema";
-import { initializePlaythroughTracking } from "@/src/services/event-recording-service";
+import {
+  initializePlaythroughTracking,
+  recordStartEvent,
+} from "@/src/services/event-recording-service";
 import { EventBus, documentDirectoryFilePath } from "@/src/utils";
 import { useEffect } from "react";
 import { AppStateStatus, EmitterSubscription, Platform } from "react-native";
@@ -40,6 +41,13 @@ export const SeekSource = {
 
 export type SeekSourceType = (typeof SeekSource)[keyof typeof SeekSource];
 
+export interface PendingResumePrompt {
+  mediaId: string;
+  playthroughId: string;
+  playthroughStatus: "finished" | "abandoned";
+  position: number;
+}
+
 export interface PlayerState {
   /* initialization state */
 
@@ -48,6 +56,11 @@ export interface PlayerState {
   mediaId: string | null;
   streaming: boolean | undefined;
   loadingNewMedia: boolean;
+
+  /* resume prompt state */
+
+  /** When set, shows a dialog asking user to resume or start fresh */
+  pendingResumePrompt: PendingResumePrompt | null;
 
   /* playback state */
 
@@ -99,6 +112,7 @@ const initialState = {
   mediaId: null,
   streaming: undefined,
   loadingNewMedia: false,
+  pendingResumePrompt: null,
   position: 0,
   duration: 0,
   playbackRate: 1,
@@ -185,6 +199,11 @@ export function prepareToLoadMedia() {
 export async function loadMedia(session: Session, mediaId: string) {
   const track = await loadMediaIntoTrackPlayer(session, mediaId);
 
+  // If a prompt is pending, don't overwrite state - user needs to make a choice
+  if (usePlayer.getState().pendingResumePrompt) {
+    return;
+  }
+
   usePlayer.setState({
     loadingNewMedia: false,
     mediaId: track.mediaId,
@@ -194,6 +213,84 @@ export async function loadMedia(session: Session, mediaId: string) {
     streaming: track.streaming,
     ...initialChapterState(track.chapters, track.position, track.duration),
   });
+}
+
+/**
+ * Handle user choosing to resume a previous playthrough.
+ * Called from the ResumePlaythroughDialog.
+ */
+export async function handleResumePlaythrough(session: Session) {
+  const prompt = usePlayer.getState().pendingResumePrompt;
+  if (!prompt) return;
+
+  console.debug(
+    "[Player] User chose to resume playthrough:",
+    prompt.playthroughId,
+  );
+
+  // Clear the prompt
+  usePlayer.setState({ pendingResumePrompt: null, loadingNewMedia: true });
+
+  // Resume the playthrough
+  await resumePlaythrough(session, prompt.playthroughId);
+
+  // Load it into the player
+  const playthrough = await getActivePlaythrough(session, prompt.mediaId);
+  if (playthrough) {
+    const track = await loadPlaythroughIntoTrackPlayer(session, playthrough);
+    usePlayer.setState({
+      loadingNewMedia: false,
+      mediaId: track.mediaId,
+      duration: track.duration,
+      position: track.position,
+      playbackRate: track.playbackRate,
+      streaming: track.streaming,
+      ...initialChapterState(track.chapters, track.position, track.duration),
+    });
+  }
+}
+
+/**
+ * Handle user choosing to start fresh (new playthrough).
+ * Called from the ResumePlaythroughDialog.
+ */
+export async function handleStartFresh(session: Session) {
+  const prompt = usePlayer.getState().pendingResumePrompt;
+  if (!prompt) return;
+
+  console.debug(
+    "[Player] User chose to start fresh for media:",
+    prompt.mediaId,
+  );
+
+  // Clear the prompt
+  usePlayer.setState({ pendingResumePrompt: null, loadingNewMedia: true });
+
+  // Create a new playthrough
+  const playthroughId = await createPlaythrough(session, prompt.mediaId);
+  await recordStartEvent(playthroughId);
+
+  // Load it into the player
+  const playthrough = await getActivePlaythrough(session, prompt.mediaId);
+  if (playthrough) {
+    const track = await loadPlaythroughIntoTrackPlayer(session, playthrough);
+    usePlayer.setState({
+      loadingNewMedia: false,
+      mediaId: track.mediaId,
+      duration: track.duration,
+      position: track.position,
+      playbackRate: track.playbackRate,
+      streaming: track.streaming,
+      ...initialChapterState(track.chapters, track.position, track.duration),
+    });
+  }
+}
+
+/**
+ * Cancel the resume prompt without making a choice.
+ */
+export function cancelResumePrompt() {
+  usePlayer.setState({ pendingResumePrompt: null });
 }
 
 export function expandPlayer() {
@@ -320,14 +417,14 @@ async function setupTrackPlayer(
       const position = progress.position;
       const duration = progress.duration;
       const playbackRate = await TrackPlayer.getRate();
-      const playerState = await getLocalPlayerState(session, mediaId);
+      const playthrough = await getActivePlaythrough(session, mediaId);
       return {
         mediaId,
         position,
         duration,
         playbackRate,
         streaming,
-        chapters: playerState?.media.chapters || [],
+        chapters: playthrough?.media.chapters || [],
       };
     }
   } catch (error) {
@@ -368,35 +465,39 @@ async function setupTrackPlayer(
 }
 
 /**
- * Loads the given PlayerState into the player.
+ * Loads a playthrough into TrackPlayer.
  */
-async function loadPlayerState(
+async function loadPlaythroughIntoTrackPlayer(
   session: Session,
-  playerState: LocalPlayerState,
+  playthrough: ActivePlaythrough,
 ): Promise<TrackLoadResult> {
-  console.debug("[Player] Loading player state into player...");
+  console.debug("[Player] Loading playthrough into player...");
+
+  const position = playthrough.stateCache?.currentPosition ?? 0;
+  const playbackRate = playthrough.stateCache?.currentRate ?? 1;
+
   let streaming: boolean;
 
   await TrackPlayer.reset();
-  if (playerState.media.download?.status === "ready") {
+  if (playthrough.media.download?.status === "ready") {
     // the media is downloaded, load the local file
     streaming = false;
     await TrackPlayer.add({
-      url: documentDirectoryFilePath(playerState.media.download.filePath),
+      url: documentDirectoryFilePath(playthrough.media.download.filePath),
       pitchAlgorithm: PitchAlgorithm.Voice,
-      duration: playerState.media.duration
-        ? parseFloat(playerState.media.duration)
+      duration: playthrough.media.duration
+        ? parseFloat(playthrough.media.duration)
         : undefined,
-      title: playerState.media.book.title,
-      artist: playerState.media.book.bookAuthors
+      title: playthrough.media.book.title,
+      artist: playthrough.media.book.bookAuthors
         .map((bookAuthor) => bookAuthor.author.name)
         .join(", "),
-      artwork: playerState.media.download.thumbnails
+      artwork: playthrough.media.download.thumbnails
         ? documentDirectoryFilePath(
-            playerState.media.download.thumbnails.extraLarge,
+            playthrough.media.download.thumbnails.extraLarge,
           )
         : undefined,
-      description: playerState.media.id,
+      description: playthrough.media.id,
     });
   } else {
     // the media is not downloaded, load the stream
@@ -404,34 +505,42 @@ async function loadPlayerState(
     await TrackPlayer.add({
       url:
         Platform.OS === "ios"
-          ? `${session.url}${playerState.media.hlsPath}`
-          : `${session.url}${playerState.media.mpdPath}`,
+          ? `${session.url}${playthrough.media.hlsPath}`
+          : `${session.url}${playthrough.media.mpdPath}`,
       type: TrackType.Dash,
       pitchAlgorithm: PitchAlgorithm.Voice,
-      duration: playerState.media.duration
-        ? parseFloat(playerState.media.duration)
+      duration: playthrough.media.duration
+        ? parseFloat(playthrough.media.duration)
         : undefined,
-      title: playerState.media.book.title,
-      artist: playerState.media.book.bookAuthors
+      title: playthrough.media.book.title,
+      artist: playthrough.media.book.bookAuthors
         .map((bookAuthor) => bookAuthor.author.name)
         .join(", "),
-      artwork: playerState.media.thumbnails
-        ? `${session.url}/${playerState.media.thumbnails.extraLarge}`
+      artwork: playthrough.media.thumbnails
+        ? `${session.url}/${playthrough.media.thumbnails.extraLarge}`
         : undefined,
-      description: playerState.media.id,
+      description: playthrough.media.id,
       headers: { Authorization: `Bearer ${session.token}` },
     });
   }
 
-  await TrackPlayer.seekTo(playerState.position);
-  await TrackPlayer.setRate(playerState.playbackRate);
+  await TrackPlayer.seekTo(position);
+  await TrackPlayer.setRate(playbackRate);
+
+  // Initialize playthrough tracking for event recording
+  await initializePlaythroughTracking(
+    session,
+    playthrough.media.id,
+    position,
+    playbackRate,
+  );
 
   return {
-    mediaId: playerState.media.id,
-    duration: parseFloat(playerState.media.duration || "0"),
-    position: playerState.position,
-    playbackRate: playerState.playbackRate,
-    chapters: playerState.media.chapters,
+    mediaId: playthrough.media.id,
+    duration: parseFloat(playthrough.media.duration || "0"),
+    position,
+    playbackRate,
+    chapters: playthrough.media.chapters,
     streaming,
   };
 }
@@ -440,102 +549,76 @@ async function loadMediaIntoTrackPlayer(
   session: Session,
   mediaId: string,
 ): Promise<TrackLoadResult> {
-  const syncedPlayerState = await getSyncedPlayerState(session, mediaId);
-  const localPlayerState = await getLocalPlayerState(session, mediaId);
-
   console.debug("[Player] Loading media into player", mediaId);
 
-  // Determine which player state to use
-  let playerStateToLoad: LocalPlayerState;
+  // Check for active (in_progress) playthrough
+  let playthrough = await getActivePlaythrough(session, mediaId);
 
-  if (!syncedPlayerState && !localPlayerState) {
-    // neither a synced playerState nor a local playerState exists
-    // create a new local playerState and load it into the player
-
+  if (playthrough) {
     console.debug(
-      "[Player] No state found; creating new local state; new position =",
-      0,
+      "[Player] Found active playthrough:",
+      playthrough.id,
+      "position:",
+      playthrough.stateCache?.currentPosition ?? 0,
     );
-
-    playerStateToLoad = await createInitialPlayerState(session, mediaId);
-  } else if (syncedPlayerState && !localPlayerState) {
-    // a synced playerState exists but no local playerState exists
-    // create a new local playerState by copying the synced playerState
-
-    console.debug(
-      "[Player] Synced state found; creating new local state; synced position =",
-      syncedPlayerState.position,
-    );
-
-    playerStateToLoad = await createPlayerState(
-      session,
-      mediaId,
-      syncedPlayerState.playbackRate,
-      syncedPlayerState.position,
-      syncedPlayerState.status,
-    );
-  } else if (!syncedPlayerState && localPlayerState) {
-    // a local playerState exists but no synced playerState exists
-    // use it as is (we haven't had a chance to sync it to the server yet)
-
-    console.debug(
-      "[Player] Local state found (but no synced state); loading into player; local position =",
-      localPlayerState.position,
-    );
-
-    playerStateToLoad = localPlayerState;
-  } else if (localPlayerState && syncedPlayerState) {
-    // both a synced playerState and a local playerState exist
-    console.debug(
-      "[Player] Both synced and local states found; local position =",
-      localPlayerState.position + ";",
-      "synced position =",
-      syncedPlayerState.position,
-    );
-
-    if (localPlayerState.updatedAt >= syncedPlayerState.updatedAt) {
-      // the local playerState is newer
-      // use it as is (the server is out of date)
-
-      console.debug(
-        "[Player] Local state is newer; loading into player; local position =",
-        localPlayerState.position,
-      );
-
-      playerStateToLoad = localPlayerState;
-    } else {
-      // the synced playerState is newer
-      // update the local playerState by copying the synced playerState
-
-      console.debug(
-        "[Player] Synced state is newer; updating local state; synced position =",
-        syncedPlayerState.position,
-      );
-
-      playerStateToLoad = await updatePlayerState(session, mediaId, {
-        playbackRate: syncedPlayerState.playbackRate,
-        position: syncedPlayerState.position,
-        status: syncedPlayerState.status,
-      });
-    }
-  } else {
-    throw new Error("Impossible");
+    return loadPlaythroughIntoTrackPlayer(session, playthrough);
   }
 
-  // Initialize playthrough tracking for event recording
-  await initializePlaythroughTracking(
+  // Check for finished or abandoned playthrough
+  const previousPlaythrough = await getFinishedOrAbandonedPlaythrough(
     session,
     mediaId,
-    playerStateToLoad.position,
-    playerStateToLoad.playbackRate,
   );
 
-  console.debug(
-    "[Player] Loading player state into player; position =",
-    playerStateToLoad.position,
-  );
+  if (
+    previousPlaythrough &&
+    (previousPlaythrough.status === "finished" ||
+      previousPlaythrough.status === "abandoned")
+  ) {
+    // Show "Resume or start fresh?" prompt
+    console.debug(
+      "[Player] Found previous playthrough:",
+      previousPlaythrough.id,
+      "status:",
+      previousPlaythrough.status,
+      "- showing prompt",
+    );
 
-  return loadPlayerState(session, playerStateToLoad);
+    usePlayer.setState({
+      loadingNewMedia: false,
+      pendingResumePrompt: {
+        mediaId,
+        playthroughId: previousPlaythrough.id,
+        playthroughStatus: previousPlaythrough.status,
+        position: previousPlaythrough.stateCache?.currentPosition ?? 0,
+      },
+    });
+
+    // Return early - the user will make a choice via the dialog
+    // For now, return a placeholder result (won't be used since loadingNewMedia is false)
+    return {
+      mediaId,
+      duration: 0,
+      position: 0,
+      playbackRate: 1,
+      streaming: true,
+      chapters: [],
+    };
+  }
+
+  // No playthrough exists - create a new one
+  console.debug("[Player] No playthrough found; creating new one");
+
+  const playthroughId = await createPlaythrough(session, mediaId);
+  await recordStartEvent(playthroughId);
+
+  playthrough = await getActivePlaythrough(session, mediaId);
+
+  if (!playthrough) {
+    throw new Error("Failed to create playthrough");
+  }
+
+  return loadPlaythroughIntoTrackPlayer(session, playthrough);
 }
 
 async function loadMostRecentMediaIntoTrackPlayer(
@@ -552,7 +635,9 @@ async function loadMostRecentMediaIntoTrackPlayer(
     const position = progress.position;
     const duration = progress.duration;
     const playbackRate = await TrackPlayer.getRate();
-    const playerState = await getLocalPlayerState(session, mediaId);
+
+    // Get playthrough for chapters
+    const playthrough = await getActivePlaythrough(session, mediaId);
 
     // Initialize playthrough tracking for event recording
     await initializePlaythroughTracking(
@@ -568,34 +653,27 @@ async function loadMostRecentMediaIntoTrackPlayer(
       duration,
       playbackRate,
       streaming,
-      chapters: playerState?.media.chapters || [],
+      chapters: playthrough?.media.chapters || [],
     };
   }
 
-  const mostRecentSyncedMedia =
-    await getMostRecentInProgressSyncedMedia(session);
-  const mostRecentLocalMedia = await getMostRecentInProgressLocalMedia(session);
+  // Find most recent in-progress playthrough
+  const mostRecentPlaythrough =
+    await getMostRecentInProgressPlaythrough(session);
 
-  if (!mostRecentSyncedMedia && !mostRecentLocalMedia) {
+  if (!mostRecentPlaythrough) {
+    console.debug("[Player] No in-progress playthrough found");
     return null;
   }
 
-  if (mostRecentSyncedMedia && !mostRecentLocalMedia) {
-    return loadMediaIntoTrackPlayer(session, mostRecentSyncedMedia.mediaId);
-  }
+  console.debug(
+    "[Player] Loading most recent playthrough:",
+    mostRecentPlaythrough.id,
+    "mediaId:",
+    mostRecentPlaythrough.mediaId,
+  );
 
-  if (!mostRecentSyncedMedia && mostRecentLocalMedia) {
-    return loadMediaIntoTrackPlayer(session, mostRecentLocalMedia.mediaId);
-  }
-
-  if (!mostRecentSyncedMedia || !mostRecentLocalMedia)
-    throw new Error("Impossible");
-
-  if (mostRecentLocalMedia.updatedAt >= mostRecentSyncedMedia.updatedAt) {
-    return loadMediaIntoTrackPlayer(session, mostRecentLocalMedia.mediaId);
-  } else {
-    return loadMediaIntoTrackPlayer(session, mostRecentSyncedMedia.mediaId);
-  }
+  return loadMediaIntoTrackPlayer(session, mostRecentPlaythrough.mediaId);
 }
 
 function initialChapterState(
@@ -764,19 +842,26 @@ async function seek(
     });
   }, SEEK_ACCUMULATION_WINDOW);
 
-  // On longer delay, save the seek event to the database
+  // On longer delay, emit debounced seek event for recording
   seekEventTimer = setTimeout(() => {
     seekEventTimer = null;
     const { seekEventFrom, seekEventTo } = usePlayer.getState();
-
-    console.debug("[Player] Seek event from", seekEventFrom, "to", seekEventTo);
 
     if (seekEventFrom == null || seekEventTo == null) {
       throw new Error("Seek event state invalid");
     }
 
-    // TODO: Save the seek event to the database
-    // NOTE: ignore events if they're not "meaningful"
+    console.debug(
+      "[Player] Debounced seek from",
+      seekEventFrom,
+      "to",
+      seekEventTo,
+    );
+
+    EventBus.emit("seekCompleted", {
+      fromPosition: seekEventFrom,
+      toPosition: seekEventTo,
+    });
 
     usePlayer.setState({
       seekEventFrom: null,

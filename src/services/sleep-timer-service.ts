@@ -33,6 +33,10 @@ export function startMonitoring() {
     cancel();
   });
 
+  EventBus.on("playbackQueueEnded", () => {
+    cancel();
+  });
+
   EventBus.on("remoteDuck", () => {
     reset();
   });

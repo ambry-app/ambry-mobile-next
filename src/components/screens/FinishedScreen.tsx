@@ -3,30 +3,28 @@ import { PAGE_SIZE } from "@/src/constants";
 import { getPlaythroughsPage } from "@/src/db/library";
 import { usePaginatedLibraryData } from "@/src/hooks/use-paginated-library-data";
 import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
-import { usePlayer } from "@/src/stores/player";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { FlatList, StyleSheet, Text } from "react-native";
 
-type InProgressScreenProps = {
+type FinishedScreenProps = {
   session: Session;
 };
 
-export function InProgressScreen({ session }: InProgressScreenProps) {
-  const mediaId = usePlayer((state) => state.mediaId);
+export function FinishedScreen({ session }: FinishedScreenProps) {
   const getPage = (pageSize: number, cursor: Date | undefined) =>
-    getPlaythroughsPage(session, pageSize, "in_progress", mediaId, cursor);
+    getPlaythroughsPage(session, pageSize, "finished", null, cursor);
   const getCursor = (item: { updatedAt: Date }) => item.updatedAt;
-  const page = usePaginatedLibraryData(PAGE_SIZE, getPage, getCursor, [
-    mediaId,
-  ]);
+  const page = usePaginatedLibraryData(PAGE_SIZE, getPage, getCursor);
   const { items: playthroughs, hasMore, loadMore } = page;
   const { refreshing, onRefresh } = usePullToRefresh(session);
 
   if (!playthroughs) return null;
 
   if (playthroughs.length === 0) {
-    return <Text style={styles.text}>You have no unfinished audiobooks!</Text>;
+    return (
+      <Text style={styles.text}>You haven't finished any audiobooks yet!</Text>
+    );
   }
 
   return (

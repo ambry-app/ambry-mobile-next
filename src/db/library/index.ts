@@ -15,6 +15,7 @@ export * from "./get-other-books-by-authors";
 export * from "./get-other-media-by-narrators";
 export * from "./get-person-header-info";
 export * from "./get-player-states-page";
+export * from "./get-playthroughs-page";
 export * from "./get-series-books-page";
 export * from "./get-series-details";
 export * from "./get-series-with-books";

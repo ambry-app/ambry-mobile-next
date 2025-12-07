@@ -12,31 +12,23 @@ import {
 import { getPlaythroughsPage } from "@/src/db/library";
 import { useLibraryData } from "@/src/hooks/use-library-data";
 import { useDataVersion } from "@/src/stores/data-version";
-import { usePlayer } from "@/src/stores/player";
 import { useScreen } from "@/src/stores/screen";
 import { Session } from "@/src/stores/session";
 import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
 
-type RecentInProgressProps = {
+type RecentlyFinishedProps = {
   session: Session;
 };
 
-export function RecentInProgress({ session }: RecentInProgressProps) {
-  const mediaId = usePlayer((state) => state.mediaId);
+export function RecentlyFinished({ session }: RecentlyFinishedProps) {
   const screenWidth = useScreen((state) => state.screenWidth);
   const playthroughVersion = useDataVersion(
     (state) => state.playthroughDataVersion,
   );
   const playthroughs = useLibraryData(
-    () =>
-      getPlaythroughsPage(
-        session,
-        HORIZONTAL_LIST_LIMIT,
-        "in_progress",
-        mediaId,
-      ),
-    [mediaId, playthroughVersion],
+    () => getPlaythroughsPage(session, HORIZONTAL_LIST_LIMIT, "finished"),
+    [playthroughVersion],
   );
 
   if (!playthroughs) return null;
@@ -44,7 +36,7 @@ export function RecentInProgress({ session }: RecentInProgressProps) {
 
   const navigateToAll = () => {
     router.push({
-      pathname: "/(tabs)/(shelf)/in-progress",
+      pathname: "/(tabs)/(shelf)/finished",
     });
   };
 
@@ -55,7 +47,7 @@ export function RecentInProgress({ session }: RecentInProgressProps) {
     <View style={styles.container}>
       <View style={styles.headerContainer}>
         <HeaderButton
-          label="In Progress"
+          label="Finished"
           onPress={navigateToAll}
           showCaret={hasMore}
         />

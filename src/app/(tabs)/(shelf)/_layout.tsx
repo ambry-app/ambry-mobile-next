@@ -26,6 +26,12 @@ export default function ShelfStackLayout() {
           title: "In Progress",
         }}
       />
+      <Stack.Screen
+        name="finished"
+        options={{
+          title: "Finished",
+        }}
+      />
     </Stack>
   );
 }

@@ -5,6 +5,7 @@ import {
   Loading,
   PlayButton,
   PlayerProgressBar,
+  ResumePlaythroughDialog,
   Scrubber,
   ThumbnailImage,
 } from "@/src/components";
@@ -53,10 +54,11 @@ type TabBarWithPlayerProps = BottomTabBarProps & {
 
 export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
   const { state, descriptors, navigation, insets, session, mediaId } = props;
-  const { streaming, loadingNewMedia } = usePlayer(
-    useShallow(({ streaming, loadingNewMedia }) => ({
+  const { streaming, loadingNewMedia, pendingResumePrompt } = usePlayer(
+    useShallow(({ streaming, loadingNewMedia, pendingResumePrompt }) => ({
       streaming,
       loadingNewMedia,
+      pendingResumePrompt,
     })),
   );
   const media = useLibraryData(() => getMedia(session, mediaId), [mediaId]);
@@ -601,6 +603,12 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
           />
         </Animated.View>
       </View>
+      {pendingResumePrompt && (
+        <ResumePlaythroughDialog
+          session={session}
+          prompt={pendingResumePrompt}
+        />
+      )}
     </>
   );
 }

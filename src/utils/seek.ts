@@ -88,7 +88,7 @@ export async function seek(interval: number) {
     seekEventTo = newPosition;
   }, SEEK_ACCUMULATION_WINDOW);
 
-  // On longer delay, save the seek event to the database
+  // On longer delay, emit debounced seek event for recording
   seekEventTimer = setTimeout(() => {
     seekEventTimer = null;
 
@@ -97,13 +97,16 @@ export async function seek(interval: number) {
     }
 
     console.debug(
-      "[TrackPlayer Service] Seek event from",
+      "[TrackPlayer Service] Debounced seek from",
       seekEventFrom,
       "to",
       seekEventTo,
     );
-    // TODO: Save the seek event to the database
-    // NOTE: ignore events if they're not "meaningful"
+
+    EventBus.emit("seekCompleted", {
+      fromPosition: seekEventFrom,
+      toPosition: seekEventTo,
+    });
 
     seekEventFrom = null;
     seekEventTo = null;

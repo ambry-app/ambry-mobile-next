@@ -5,11 +5,13 @@ import { Session } from "./session";
 interface DataVersionState {
   initialized: boolean;
   libraryDataVersion: number | null;
+  playthroughDataVersion: number;
 }
 
 export const useDataVersion = create<DataVersionState>(() => ({
   initialized: false,
   libraryDataVersion: null,
+  playthroughDataVersion: 0,
 }));
 
 /**
@@ -42,4 +44,14 @@ export async function initializeDataVersion(
  */
 export function setLibraryDataVersion(date: Date) {
   useDataVersion.setState({ libraryDataVersion: date.getTime() });
+}
+
+/**
+ * Bump the playthrough data version (called when local playthrough state changes).
+ * This triggers re-fetches in components that display playthrough data.
+ */
+export function bumpPlaythroughDataVersion() {
+  useDataVersion.setState((state) => ({
+    playthroughDataVersion: state.playthroughDataVersion + 1,
+  }));
 }

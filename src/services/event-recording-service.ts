@@ -6,10 +6,12 @@ import { db } from "@/src/db/db";
 import {
   createPlaythrough,
   getActivePlaythrough,
+  updatePlaythroughStatus,
   updateStateCache,
 } from "@/src/db/playthroughs";
 import * as schema from "@/src/db/schema";
 import { syncPlaythroughs } from "@/src/db/sync";
+import { bumpPlaythroughDataVersion } from "@/src/stores/data-version";
 import { getDeviceIdSync, initializeDevice } from "@/src/stores/device";
 import { Session, useSession } from "@/src/stores/session";
 import { EventBus } from "@/src/utils";
@@ -19,8 +21,6 @@ let currentMediaId: string | null = null;
 let currentPlaythroughId: string | null = null;
 let heartbeatInterval: NodeJS.Timeout | null = null;
 
-// Track last known position for seek "from" calculation
-let lastKnownPosition: number = 0;
 let currentPlaybackRate: number = 1;
 
 // =============================================================================
@@ -43,7 +43,7 @@ export async function startMonitoring() {
   EventBus.on("playbackStarted", handlePlaybackStarted);
   EventBus.on("playbackPaused", handlePlaybackPaused);
   EventBus.on("playbackQueueEnded", handlePlaybackQueueEnded);
-  EventBus.on("seekApplied", handleSeekApplied);
+  EventBus.on("seekCompleted", handleSeekCompleted);
   EventBus.on("playbackRateChanged", handlePlaybackRateChanged);
 }
 
@@ -57,7 +57,7 @@ export function stopMonitoring() {
   EventBus.off("playbackStarted", handlePlaybackStarted);
   EventBus.off("playbackPaused", handlePlaybackPaused);
   EventBus.off("playbackQueueEnded", handlePlaybackQueueEnded);
-  EventBus.off("seekApplied", handleSeekApplied);
+  EventBus.off("seekCompleted", handleSeekCompleted);
   EventBus.off("playbackRateChanged", handlePlaybackRateChanged);
 }
 
@@ -73,7 +73,6 @@ function setCurrentPlaythrough(
 ) {
   currentMediaId = mediaId;
   currentPlaythroughId = playthroughId;
-  lastKnownPosition = initialPosition;
   currentPlaybackRate = initialRate;
   console.debug(
     "[EventRecording] Set playthrough:",
@@ -175,7 +174,6 @@ export async function initializePlaythroughTracking(
       "[EventRecording] Reusing existing playthrough:",
       currentPlaythroughId,
     );
-    lastKnownPosition = position;
     currentPlaybackRate = playbackRate;
     return;
   }
@@ -259,42 +257,59 @@ function triggerSyncOnPause() {
 async function handlePlaybackQueueEnded() {
   if (!currentPlaythroughId) return;
 
+  const session = useSession.getState().session;
+  if (!session) return;
+
   stopHeartbeat();
 
   try {
     const { duration } = await TrackPlayer.getProgress();
+
     // Record pause at end position
     await recordPauseEvent(duration, currentPlaybackRate);
+
+    // Mark playthrough as finished
+    console.debug("[EventRecording] Playback ended, marking as finished");
+    await recordFinishEvent(currentPlaythroughId);
+    await updatePlaythroughStatus(session, currentPlaythroughId, "finished", {
+      finishedAt: new Date(),
+    });
+
+    // Notify UI that playthrough data changed
+    bumpPlaythroughDataVersion();
+
+    // Trigger sync in background (non-blocking)
+    syncPlaythroughs(session).catch((error) => {
+      console.warn("[EventRecording] Background sync on finish failed:", error);
+    });
   } catch (error) {
     console.warn("[EventRecording] Error handling queue ended:", error);
   }
 }
 
-interface SeekAppliedEvent {
-  position: number;
-  duration: number;
-  userInitiated: boolean;
-  source?: string;
+interface SeekCompletedEvent {
+  fromPosition: number;
+  toPosition: number;
 }
 
-async function handleSeekApplied(event: SeekAppliedEvent) {
+/**
+ * Handle debounced seek completion.
+ * Records the seek event to the database.
+ */
+async function handleSeekCompleted(event: SeekCompletedEvent) {
   if (!currentPlaythroughId) return;
-  if (!event.userInitiated) return; // Don't record system seeks
 
   try {
-    const fromPosition = lastKnownPosition;
-    const toPosition = event.position;
+    const { fromPosition, toPosition } = event;
 
     // Don't record trivial seeks (< 2 seconds)
     if (Math.abs(toPosition - fromPosition) < 2) {
-      lastKnownPosition = toPosition;
       return;
     }
 
     await recordSeekEvent(fromPosition, toPosition, currentPlaybackRate);
-    lastKnownPosition = toPosition;
   } catch (error) {
-    console.warn("[EventRecording] Error handling seek:", error);
+    console.warn("[EventRecording] Error handling seek completed:", error);
   }
 }
 
@@ -350,8 +365,6 @@ async function heartbeatSave() {
     // Update state cache without creating events (background save)
     await updateStateCache(currentPlaythroughId, position, currentPlaybackRate);
 
-    lastKnownPosition = position;
-
     console.debug(
       "[EventRecording] Heartbeat save at position",
       position.toFixed(1),
@@ -382,7 +395,6 @@ async function recordPlayEvent(position: number, playbackRate: number) {
   });
 
   await updateStateCache(currentPlaythroughId, position, playbackRate, now);
-  lastKnownPosition = position;
 
   console.debug("[EventRecording] Recorded play event at position", position);
 }
@@ -404,7 +416,6 @@ async function recordPauseEvent(position: number, playbackRate: number) {
   });
 
   await updateStateCache(currentPlaythroughId, position, playbackRate, now);
-  lastKnownPosition = position;
 
   console.debug("[EventRecording] Recorded pause event at position", position);
 }

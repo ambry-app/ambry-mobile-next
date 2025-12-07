@@ -2,6 +2,7 @@ export * from "./AuthorScreen";
 export * from "./BookScreen";
 export * from "./DownloadActionsModal";
 export * from "./DownloadsScreen";
+export * from "./FinishedScreen";
 export * from "./InProgressScreen";
 export * from "./LibraryScreen";
 export * from "./MediaScreen";
