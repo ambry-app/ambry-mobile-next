@@ -7,6 +7,7 @@ import { drizzle, BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import * as fs from "fs";
 import * as path from "path";
 import * as schema from "@/src/db/schema";
+import { setTestDb, clearTestDb } from "./jest-setup";
 
 const MIGRATIONS_DIR = path.join(__dirname, "../drizzle");
 
@@ -57,7 +58,7 @@ export function createTestDatabase(): { db: TestDatabase; close: () => void } {
 
 /**
  * Jest helper that creates a fresh database before each test.
- * Automatically closes the database after each test.
+ * Automatically sets up the global getDb() mock and closes the database after each test.
  *
  * @example
  * describe("my tests", () => {
@@ -74,9 +75,11 @@ export function setupTestDatabase() {
 
   beforeEach(() => {
     testDb = createTestDatabase();
+    setTestDb(testDb.db);
   });
 
   afterEach(() => {
+    clearTestDb();
     testDb?.close();
     testDb = null;
   });

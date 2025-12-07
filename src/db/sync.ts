@@ -1,4 +1,4 @@
-import { db } from "@/src/db/db";
+import { getDb } from "@/src/db/db";
 import {
   getUnsyncedEvents,
   getUnsyncedPlaythroughs,
@@ -26,7 +26,7 @@ import { Session, forceSignOut } from "@/src/stores/session";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 
 export async function getServerSyncTimestamps(session: Session) {
-  const result = await db
+  const result = await getDb()
     .select({
       lastDownSync: schema.syncedServers.lastDownSync,
       newDataAsOf: schema.syncedServers.newDataAsOf,
@@ -57,7 +57,7 @@ export async function syncDown(session: Session) {
 export async function syncDownLibrary(session: Session) {
   console.debug("[SyncDown] syncing library...");
 
-  const syncedServer = await db.query.syncedServers.findFirst({
+  const syncedServer = await getDb().query.syncedServers.findFirst({
     where: eq(schema.syncedServers.url, session.url),
   });
 
@@ -224,7 +224,7 @@ export async function syncDownLibrary(session: Session) {
   );
 
   let newDataAsOf: Date | null = null;
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     if (peopleValues.length !== 0) {
       console.debug("[SyncDown] inserting", peopleValues.length, "people...");
       await tx
@@ -451,7 +451,7 @@ export async function syncDownLibrary(session: Session) {
 export async function syncDownUser(session: Session) {
   console.debug("[SyncDown] syncing user player states...");
 
-  const serverProfile = await db.query.serverProfiles.findFirst({
+  const serverProfile = await getDb().query.serverProfiles.findFirst({
     where: and(
       eq(schema.serverProfiles.url, session.url),
       eq(schema.serverProfiles.userEmail, session.email),
@@ -502,7 +502,7 @@ export async function syncDownUser(session: Session) {
     },
   );
 
-  await db.transaction(async (tx) => {
+  await getDb().transaction(async (tx) => {
     if (playerStatesValues.length !== 0) {
       console.debug(
         "[SyncDown] inserting",
@@ -556,7 +556,7 @@ export async function syncDownUser(session: Session) {
 export async function syncUp(session: Session) {
   console.debug("[SyncUp] syncing...");
 
-  const server = await db.query.serverProfiles.findFirst({
+  const server = await getDb().query.serverProfiles.findFirst({
     where: and(
       eq(schema.serverProfiles.url, session.url),
       eq(schema.serverProfiles.userEmail, session.email),
@@ -566,7 +566,7 @@ export async function syncUp(session: Session) {
   const lastSync = server?.lastUpSync;
   const now = new Date();
 
-  const changedPlayerStates = await db.query.localPlayerStates.findMany({
+  const changedPlayerStates = await getDb().query.localPlayerStates.findMany({
     columns: { mediaId: true, playbackRate: true, position: true },
     where: and(
       eq(schema.localPlayerStates.url, session.url),
@@ -610,7 +610,7 @@ export async function syncUp(session: Session) {
 
   console.debug("[SyncUp] server request(s) complete");
 
-  await db
+  await getDb()
     .insert(schema.serverProfiles)
     .values({
       url: session.url,
@@ -642,10 +642,10 @@ export async function syncPlaythroughs(session: Session) {
   }
 
   // Get unsynced playthroughs
-  const unsyncedPlaythroughs = await getUnsyncedPlaythroughs(db, session);
+  const unsyncedPlaythroughs = await getUnsyncedPlaythroughs(session);
 
   // Get all playthrough IDs (both synced and unsynced) to fetch their unsynced events
-  const allPlaythroughIds = await db
+  const allPlaythroughIds = await getDb()
     .select({ id: schema.playthroughs.id })
     .from(schema.playthroughs)
     .where(
@@ -656,7 +656,6 @@ export async function syncPlaythroughs(session: Session) {
     );
 
   const unsyncedEvents = await getUnsyncedEvents(
-    db,
     allPlaythroughIds.map((p) => p.id),
   );
 
@@ -669,7 +668,7 @@ export async function syncPlaythroughs(session: Session) {
   );
 
   // Get last sync time from server profile
-  const serverProfile = await db.query.serverProfiles.findFirst({
+  const serverProfile = await getDb().query.serverProfiles.findFirst({
     where: and(
       eq(schema.serverProfiles.url, session.url),
       eq(schema.serverProfiles.userEmail, session.email),
@@ -765,7 +764,6 @@ export async function syncPlaythroughs(session: Session) {
   // Mark our sent items as synced
   if (unsyncedPlaythroughs.length > 0) {
     await markPlaythroughsSynced(
-      db,
       unsyncedPlaythroughs.map((p) => p.id),
       serverTime,
     );
@@ -773,7 +771,6 @@ export async function syncPlaythroughs(session: Session) {
 
   if (unsyncedEvents.length > 0) {
     await markEventsSynced(
-      db,
       unsyncedEvents.map((e) => e.id),
       serverTime,
     );
@@ -781,7 +778,7 @@ export async function syncPlaythroughs(session: Session) {
 
   // Upsert received playthroughs from server
   for (const playthrough of syncResult.playthroughs) {
-    await upsertPlaythrough(db, {
+    await upsertPlaythrough({
       id: playthrough.id,
       url: session.url,
       userEmail: session.email,
@@ -806,7 +803,7 @@ export async function syncPlaythroughs(session: Session) {
 
   // Upsert received events from server
   for (const event of syncResult.events) {
-    await upsertPlaybackEvent(db, {
+    await upsertPlaybackEvent({
       id: event.id,
       playthroughId: event.playthroughId,
       deviceId: event.deviceId,
@@ -830,7 +827,6 @@ export async function syncPlaythroughs(session: Session) {
     // Update state cache for received events (if playback event with position)
     if (event.position != null && event.playbackRate != null) {
       await updateStateCache(
-        db,
         event.playthroughId,
         event.position,
         event.playbackRate,
@@ -840,7 +836,7 @@ export async function syncPlaythroughs(session: Session) {
   }
 
   // Update server profile with new sync time
-  await db
+  await getDb()
     .insert(schema.serverProfiles)
     .values({
       url: session.url,

@@ -1,10 +1,10 @@
-import { db } from "@/src/db/db";
+import { getDb } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { and, desc, eq } from "drizzle-orm";
 
 export async function getSyncedPlayerState(session: Session, mediaId: string) {
-  return db.query.playerStates.findFirst({
+  return getDb().query.playerStates.findFirst({
     where: and(
       eq(schema.playerStates.url, session.url),
       eq(schema.playerStates.mediaId, mediaId),
@@ -51,7 +51,7 @@ export type LocalPlayerState = Exclude<
 >;
 
 export async function getLocalPlayerState(session: Session, mediaId: string) {
-  return db.query.localPlayerStates.findFirst({
+  return getDb().query.localPlayerStates.findFirst({
     where: and(
       eq(schema.localPlayerStates.url, session.url),
       eq(schema.localPlayerStates.mediaId, mediaId),
@@ -108,7 +108,7 @@ export async function createPlayerState(
 ) {
   const now = new Date();
 
-  await db.insert(schema.localPlayerStates).values({
+  await getDb().insert(schema.localPlayerStates).values({
     url: session.url,
     mediaId: mediaId,
     userEmail: session.email,
@@ -133,7 +133,7 @@ export async function updatePlayerState(
 ) {
   const now = new Date();
 
-  await db
+  await getDb()
     .update(schema.localPlayerStates)
     .set({
       ...attributes,
@@ -153,7 +153,7 @@ export async function updatePlayerState(
 export async function getMostRecentInProgressSyncedMedia(
   session: Session,
 ): Promise<{ updatedAt: Date; mediaId: string } | undefined> {
-  return db.query.playerStates.findFirst({
+  return getDb().query.playerStates.findFirst({
     columns: { mediaId: true, updatedAt: true },
     where: and(
       eq(schema.playerStates.url, session.url),
@@ -167,7 +167,7 @@ export async function getMostRecentInProgressSyncedMedia(
 export async function getMostRecentInProgressLocalMedia(
   session: Session,
 ): Promise<{ updatedAt: Date; mediaId: string } | undefined> {
-  return db.query.localPlayerStates.findFirst({
+  return getDb().query.localPlayerStates.findFirst({
     columns: { mediaId: true, updatedAt: true },
     where: and(
       eq(schema.localPlayerStates.url, session.url),

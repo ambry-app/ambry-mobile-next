@@ -2,7 +2,7 @@ import * as Crypto from "expo-crypto";
 import TrackPlayer from "react-native-track-player";
 
 import { PROGRESS_SAVE_INTERVAL } from "@/src/constants";
-import { db } from "@/src/db/db";
+import { getDb } from "@/src/db/db";
 import {
   createPlaythrough,
   getActivePlaythrough,
@@ -103,7 +103,7 @@ export function getCurrentPlaythroughId(): string | null {
 export async function recordStartEvent(playthroughId: string) {
   const now = new Date();
 
-  await db.insert(schema.playbackEvents).values({
+  await getDb().insert(schema.playbackEvents).values({
     id: Crypto.randomUUID(),
     playthroughId,
     deviceId: getDeviceIdSync(),
@@ -120,7 +120,7 @@ export async function recordStartEvent(playthroughId: string) {
 export async function recordFinishEvent(playthroughId: string) {
   const now = new Date();
 
-  await db.insert(schema.playbackEvents).values({
+  await getDb().insert(schema.playbackEvents).values({
     id: Crypto.randomUUID(),
     playthroughId,
     deviceId: getDeviceIdSync(),
@@ -137,7 +137,7 @@ export async function recordFinishEvent(playthroughId: string) {
 export async function recordAbandonEvent(playthroughId: string) {
   const now = new Date();
 
-  await db.insert(schema.playbackEvents).values({
+  await getDb().insert(schema.playbackEvents).values({
     id: Crypto.randomUUID(),
     playthroughId,
     deviceId: getDeviceIdSync(),
@@ -180,15 +180,15 @@ export async function initializePlaythroughTracking(
 
   try {
     // Get or create playthrough for event recording
-    let playthrough = await getActivePlaythrough(db, session, mediaId);
+    let playthrough = await getActivePlaythrough(session, mediaId);
 
     if (!playthrough) {
       console.debug(
         "[EventRecording] No active playthrough found; creating new one",
       );
-      const playthroughId = await createPlaythrough(db, session, mediaId);
+      const playthroughId = await createPlaythrough(session, mediaId);
       await recordStartEvent(playthroughId);
-      playthrough = await getActivePlaythrough(db, session, mediaId);
+      playthrough = await getActivePlaythrough(session, mediaId);
     } else {
       console.debug(
         "[EventRecording] Found active playthrough:",
@@ -271,15 +271,9 @@ async function handlePlaybackQueueEnded() {
     // Mark playthrough as finished
     console.debug("[EventRecording] Playback ended, marking as finished");
     await recordFinishEvent(currentPlaythroughId);
-    await updatePlaythroughStatus(
-      db,
-      session,
-      currentPlaythroughId,
-      "finished",
-      {
-        finishedAt: new Date(),
-      },
-    );
+    await updatePlaythroughStatus(session, currentPlaythroughId, "finished", {
+      finishedAt: new Date(),
+    });
 
     // Notify UI that playthrough data changed
     bumpPlaythroughDataVersion();
@@ -369,12 +363,7 @@ async function heartbeatSave() {
     const { position } = await TrackPlayer.getProgress();
 
     // Update state cache without creating events (background save)
-    await updateStateCache(
-      db,
-      currentPlaythroughId,
-      position,
-      currentPlaybackRate,
-    );
+    await updateStateCache(currentPlaythroughId, position, currentPlaybackRate);
 
     console.debug(
       "[EventRecording] Heartbeat save at position",
@@ -395,7 +384,7 @@ async function recordPlayEvent(position: number, playbackRate: number) {
 
   const now = new Date();
 
-  await db.insert(schema.playbackEvents).values({
+  await getDb().insert(schema.playbackEvents).values({
     id: Crypto.randomUUID(),
     playthroughId: currentPlaythroughId,
     deviceId: getDeviceIdSync(),
@@ -405,7 +394,7 @@ async function recordPlayEvent(position: number, playbackRate: number) {
     playbackRate,
   });
 
-  await updateStateCache(db, currentPlaythroughId, position, playbackRate, now);
+  await updateStateCache(currentPlaythroughId, position, playbackRate, now);
 
   console.debug("[EventRecording] Recorded play event at position", position);
 }
@@ -416,7 +405,7 @@ async function recordPauseEvent(position: number, playbackRate: number) {
 
   const now = new Date();
 
-  await db.insert(schema.playbackEvents).values({
+  await getDb().insert(schema.playbackEvents).values({
     id: Crypto.randomUUID(),
     playthroughId: currentPlaythroughId,
     deviceId: getDeviceIdSync(),
@@ -426,7 +415,7 @@ async function recordPauseEvent(position: number, playbackRate: number) {
     playbackRate,
   });
 
-  await updateStateCache(db, currentPlaythroughId, position, playbackRate, now);
+  await updateStateCache(currentPlaythroughId, position, playbackRate, now);
 
   console.debug("[EventRecording] Recorded pause event at position", position);
 }
@@ -441,7 +430,7 @@ async function recordSeekEvent(
 
   const now = new Date();
 
-  await db.insert(schema.playbackEvents).values({
+  await getDb().insert(schema.playbackEvents).values({
     id: Crypto.randomUUID(),
     playthroughId: currentPlaythroughId,
     deviceId: getDeviceIdSync(),
@@ -453,13 +442,7 @@ async function recordSeekEvent(
     toPosition,
   });
 
-  await updateStateCache(
-    db,
-    currentPlaythroughId,
-    toPosition,
-    playbackRate,
-    now,
-  );
+  await updateStateCache(currentPlaythroughId, toPosition, playbackRate, now);
 
   console.debug(
     "[EventRecording] Recorded seek event from",
@@ -479,7 +462,7 @@ async function recordRateChangeEvent(
 
   const now = new Date();
 
-  await db.insert(schema.playbackEvents).values({
+  await getDb().insert(schema.playbackEvents).values({
     id: Crypto.randomUUID(),
     playthroughId: currentPlaythroughId,
     deviceId: getDeviceIdSync(),
@@ -490,7 +473,7 @@ async function recordRateChangeEvent(
     previousRate,
   });
 
-  await updateStateCache(db, currentPlaythroughId, position, newRate, now);
+  await updateStateCache(currentPlaythroughId, position, newRate, now);
 
   console.debug(
     "[EventRecording] Recorded rate change from",

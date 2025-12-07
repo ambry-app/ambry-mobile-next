@@ -15,8 +15,7 @@ const session = DEFAULT_TEST_SESSION;
 describe("downloads", () => {
   describe("getAllDownloads", () => {
     it("returns empty array when no downloads exist", async () => {
-      const db = getDb();
-      const downloads = await getAllDownloads(db, session);
+      const downloads = await getAllDownloads(session);
       expect(downloads).toEqual([]);
     });
 
@@ -25,10 +24,10 @@ describe("downloads", () => {
       const media1 = await createMedia(db);
       const media2 = await createMedia(db);
 
-      await createDownload(db, session, media1.id, "/path/to/file1.mp4");
-      await createDownload(db, session, media2.id, "/path/to/file2.mp4");
+      await createDownload(session, media1.id, "/path/to/file1.mp4");
+      await createDownload(session, media2.id, "/path/to/file2.mp4");
 
-      const downloads = await getAllDownloads(db, session);
+      const downloads = await getAllDownloads(session);
       expect(downloads).toHaveLength(2);
       expect(downloads.map((d) => d.mediaId).sort()).toEqual(
         [media1.id, media2.id].sort(),
@@ -40,15 +39,14 @@ describe("downloads", () => {
       const media1 = await createMedia(db);
       const media2 = await createMedia(db, { url: "http://other-server.com" });
 
-      await createDownload(db, session, media1.id, "/path/to/file1.mp4");
+      await createDownload(session, media1.id, "/path/to/file1.mp4");
       await createDownload(
-        db,
         { ...session, url: "http://other-server.com" },
         media2.id,
         "/path/to/file2.mp4",
       );
 
-      const downloads = await getAllDownloads(db, session);
+      const downloads = await getAllDownloads(session);
       expect(downloads).toHaveLength(1);
       expect(downloads[0]!.mediaId).toBe(media1.id);
     });
@@ -59,11 +57,11 @@ describe("downloads", () => {
       const media2 = await createMedia(db);
       const media3 = await createMedia(db);
 
-      await createDownload(db, session, media1.id, "/path/to/file1.mp4");
-      await createDownload(db, session, media2.id, "/path/to/file2.mp4");
-      await createDownload(db, session, media3.id, "/path/to/file3.mp4");
+      await createDownload(session, media1.id, "/path/to/file1.mp4");
+      await createDownload(session, media2.id, "/path/to/file2.mp4");
+      await createDownload(session, media3.id, "/path/to/file3.mp4");
 
-      const downloads = await getAllDownloads(db, session);
+      const downloads = await getAllDownloads(session);
       expect(downloads).toHaveLength(3);
 
       // Verify downloads are sorted by downloadedAt descending
@@ -77,17 +75,16 @@ describe("downloads", () => {
 
   describe("getDownload", () => {
     it("returns undefined when download does not exist", async () => {
-      const db = getDb();
-      const download = await getDownload(db, session, "non-existent-media-id");
+      const download = await getDownload(session, "non-existent-media-id");
       expect(download).toBeUndefined();
     });
 
     it("returns the download when it exists", async () => {
       const db = getDb();
       const media = await createMedia(db);
-      await createDownload(db, session, media.id, "/path/to/file.mp4");
+      await createDownload(session, media.id, "/path/to/file.mp4");
 
-      const download = await getDownload(db, session, media.id);
+      const download = await getDownload(session, media.id);
       expect(download).toBeDefined();
       expect(download?.mediaId).toBe(media.id);
       expect(download?.filePath).toBe("/path/to/file.mp4");
@@ -98,13 +95,12 @@ describe("downloads", () => {
       const db = getDb();
       const media = await createMedia(db, { url: "http://other-server.com" });
       await createDownload(
-        db,
         { ...session, url: "http://other-server.com" },
         media.id,
         "/path/to/file.mp4",
       );
 
-      const download = await getDownload(db, session, media.id);
+      const download = await getDownload(session, media.id);
       expect(download).toBeUndefined();
     });
   });
@@ -115,7 +111,6 @@ describe("downloads", () => {
       const media = await createMedia(db);
 
       const download = await createDownload(
-        db,
         session,
         media.id,
         "/path/to/file.mp4",
@@ -133,12 +128,11 @@ describe("downloads", () => {
       const media = await createMedia(db);
 
       const created = await createDownload(
-        db,
         session,
         media.id,
         "/path/to/file.mp4",
       );
-      const fetched = await getDownload(db, session, media.id);
+      const fetched = await getDownload(session, media.id);
 
       expect(fetched).toEqual(created);
     });
@@ -148,9 +142,9 @@ describe("downloads", () => {
     it("updates the status to ready", async () => {
       const db = getDb();
       const media = await createMedia(db);
-      await createDownload(db, session, media.id, "/path/to/file.mp4");
+      await createDownload(session, media.id, "/path/to/file.mp4");
 
-      const updated = await updateDownload(db, session, media.id, {
+      const updated = await updateDownload(session, media.id, {
         status: "ready",
       });
 
@@ -160,9 +154,9 @@ describe("downloads", () => {
     it("updates the status to error", async () => {
       const db = getDb();
       const media = await createMedia(db);
-      await createDownload(db, session, media.id, "/path/to/file.mp4");
+      await createDownload(session, media.id, "/path/to/file.mp4");
 
-      const updated = await updateDownload(db, session, media.id, {
+      const updated = await updateDownload(session, media.id, {
         status: "error",
       });
 
@@ -172,9 +166,9 @@ describe("downloads", () => {
     it("updates the file path", async () => {
       const db = getDb();
       const media = await createMedia(db);
-      await createDownload(db, session, media.id, "/path/to/file.mp4");
+      await createDownload(session, media.id, "/path/to/file.mp4");
 
-      const updated = await updateDownload(db, session, media.id, {
+      const updated = await updateDownload(session, media.id, {
         filePath: "/new/path/to/file.mp4",
       });
 
@@ -184,7 +178,7 @@ describe("downloads", () => {
     it("updates thumbnails", async () => {
       const db = getDb();
       const media = await createMedia(db);
-      await createDownload(db, session, media.id, "/path/to/file.mp4");
+      await createDownload(session, media.id, "/path/to/file.mp4");
 
       const thumbnails = {
         extraSmall: "/path/xs.webp",
@@ -195,7 +189,7 @@ describe("downloads", () => {
         thumbhash: "abc123",
       };
 
-      const updated = await updateDownload(db, session, media.id, {
+      const updated = await updateDownload(session, media.id, {
         thumbnails,
       });
 
@@ -205,10 +199,10 @@ describe("downloads", () => {
     it("can set thumbnails to null", async () => {
       const db = getDb();
       const media = await createMedia(db);
-      await createDownload(db, session, media.id, "/path/to/file.mp4");
+      await createDownload(session, media.id, "/path/to/file.mp4");
 
       // First set thumbnails
-      await updateDownload(db, session, media.id, {
+      await updateDownload(session, media.id, {
         thumbnails: {
           extraSmall: "/path/xs.webp",
           small: "/path/sm.webp",
@@ -220,7 +214,7 @@ describe("downloads", () => {
       });
 
       // Then set to null
-      const updated = await updateDownload(db, session, media.id, {
+      const updated = await updateDownload(session, media.id, {
         thumbnails: null,
       });
 
@@ -230,9 +224,9 @@ describe("downloads", () => {
     it("updates multiple attributes at once", async () => {
       const db = getDb();
       const media = await createMedia(db);
-      await createDownload(db, session, media.id, "/path/to/file.mp4");
+      await createDownload(session, media.id, "/path/to/file.mp4");
 
-      const updated = await updateDownload(db, session, media.id, {
+      const updated = await updateDownload(session, media.id, {
         status: "ready",
         filePath: "/new/path.mp4",
       });
@@ -246,18 +240,17 @@ describe("downloads", () => {
     it("deletes an existing download", async () => {
       const db = getDb();
       const media = await createMedia(db);
-      await createDownload(db, session, media.id, "/path/to/file.mp4");
+      await createDownload(session, media.id, "/path/to/file.mp4");
 
-      await deleteDownload(db, session, media.id);
+      await deleteDownload(session, media.id);
 
-      const download = await getDownload(db, session, media.id);
+      const download = await getDownload(session, media.id);
       expect(download).toBeUndefined();
     });
 
     it("does not throw when download does not exist", async () => {
-      const db = getDb();
       await expect(
-        deleteDownload(db, session, "non-existent-media-id"),
+        deleteDownload(session, "non-existent-media-id"),
       ).resolves.not.toThrow();
     });
 
@@ -267,16 +260,16 @@ describe("downloads", () => {
       const media2 = await createMedia(db, { url: "http://other-server.com" });
       const otherSession = { ...session, url: "http://other-server.com" };
 
-      await createDownload(db, session, media1.id, "/path/to/file1.mp4");
-      await createDownload(db, otherSession, media2.id, "/path/to/file2.mp4");
+      await createDownload(session, media1.id, "/path/to/file1.mp4");
+      await createDownload(otherSession, media2.id, "/path/to/file2.mp4");
 
       // Delete from main session
-      await deleteDownload(db, session, media1.id);
+      await deleteDownload(session, media1.id);
 
       // Main session download should be gone
-      expect(await getDownload(db, session, media1.id)).toBeUndefined();
+      expect(await getDownload(session, media1.id)).toBeUndefined();
       // Other session download should still exist
-      expect(await getDownload(db, otherSession, media2.id)).toBeDefined();
+      expect(await getDownload(otherSession, media2.id)).toBeDefined();
     });
   });
 });

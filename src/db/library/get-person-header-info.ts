@@ -1,4 +1,4 @@
-import { db } from "@/src/db/db";
+import { getDb } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { requireValue } from "@/src/utils";
@@ -7,7 +7,7 @@ import { and, eq } from "drizzle-orm";
 export type PersonHeaderInfo = Awaited<ReturnType<typeof getPersonHeaderInfo>>;
 
 export async function getPersonHeaderInfo(session: Session, personId: string) {
-  const person = await db.query.people.findFirst({
+  const person = await getDb().query.people.findFirst({
     columns: {
       id: true,
       name: true,

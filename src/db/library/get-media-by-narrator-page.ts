@@ -1,4 +1,4 @@
-import { db } from "@/src/db/db";
+import { getDb } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { and, desc, eq, sql } from "drizzle-orm";
@@ -38,7 +38,7 @@ async function getMedia(
 ) {
   const publishedExpr = sql<Date>`COALESCE(${schema.media.published}, ${schema.books.published})`;
 
-  return db
+  return getDb()
     .select({
       id: schema.media.id,
       published: publishedExpr,

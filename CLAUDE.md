@@ -353,36 +353,72 @@ Coverage reports are generated in `coverage/lcov-report/index.html`.
 - Name test files `*.test.ts` or `*.test.tsx`
 - Jest auto-discovers all matching files
 
-### Current Test Coverage
-Tests exist for pure utility functions:
-- `src/utils/__tests__/` - date, time, rate formatting, grouping utilities
-- `src/db/library/__tests__/` - data transformation functions
+### Database Testing Architecture
 
-### Writing Tests for Files with Native Dependencies
-Files that import native modules (expo-sqlite, expo-file-system, etc.) need mocks:
+**Philosophy**: Use a real in-memory SQLite database (better-sqlite3) instead of mocking database calls. This tests actual SQL queries and Drizzle ORM behavior.
+
+**Key Components**:
+- `test/jest-setup.ts`: Global mock for `getDb()` that returns the test database
+- `test/db-test-utils.ts`: `setupTestDatabase()` helper that creates fresh databases per test
+- `test/factories.ts`: Factory functions to create test data with sensible defaults
+
+**How It Works**:
+1. `jest-setup.ts` mocks `@/src/db/db` globally with a `getDb()` that returns the test database
+2. Each test file calls `setupTestDatabase()` which creates a fresh in-memory database before each test
+3. Production code calls `getDb()` internally - no dependency injection needed
+4. Factory functions receive the test `db` directly to set up test data
+
+**Example Test**:
+```typescript
+import { getAllDownloads, createDownload } from "@/src/db/downloads";
+import { setupTestDatabase } from "@test/db-test-utils";
+import { createMedia, DEFAULT_TEST_SESSION } from "@test/factories";
+
+const { getDb } = setupTestDatabase();
+
+describe("downloads", () => {
+  it("returns all downloads for the session", async () => {
+    const db = getDb();  // Get test db for factories
+    const media = await createMedia(db);
+
+    await createDownload(session, media.id, "/path/to/file.mp4");  // Module uses getDb() internally
+
+    const downloads = await getAllDownloads(session);  // Module uses getDb() internally
+    expect(downloads).toHaveLength(1);
+  });
+});
+```
+
+**Important**:
+- Factory functions (`createMedia`, `createPlaythrough`, etc.) take `db` as first parameter
+- Module functions (`getAllDownloads`, `createDownload`, etc.) do NOT take `db` - they call `getDb()` internally
+- The global mock in `jest-setup.ts` ensures `getDb()` returns the test database
+
+### Testing Zustand Stores
+
+Use `test/store-test-utils.ts` to reset store state between tests:
 
 ```typescript
-// At top of test file - Jest hoists this automatically
-jest.mock("@/src/db/db");
+import { useMyStore } from "@/src/stores/my-store";
+import { resetStoreBeforeEach } from "@test/store-test-utils";
 
-import { myFunction } from "../my-module";
-```
+const initialState = { /* ... */ };
 
-Create mock files in `__mocks__/` directories adjacent to the module:
-```
-src/db/
-  __mocks__/
-    db.ts          # Mock for db.ts
-  db.ts            # Real module
+describe("my store", () => {
+  resetStoreBeforeEach(useMyStore, initialState);
+
+  it("does something", () => {
+    // Store is reset to initialState before each test
+  });
+});
 ```
 
 ### What to Test
-Focus on pure functions that don't require mocking:
-- Data transformation functions
-- Formatting utilities
-- Business logic helpers
+- **Database modules**: Query logic, multi-tenant isolation, CRUD operations
+- **Pure functions**: Data transformation, formatting utilities, business logic helpers
+- **Stores**: State transitions, initialization logic
 
-Functions requiring extensive mocking (stores, components, API calls) may not be worth the overhead for unit tests.
+Functions requiring extensive mocking of external services (GraphQL API calls, file system operations) may not be worth the overhead for unit tests.
 
 ## Debugging
 

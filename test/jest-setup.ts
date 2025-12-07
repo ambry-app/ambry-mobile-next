@@ -1,9 +1,49 @@
 /**
  * Jest setup file - runs before each test file.
- * Suppress console output to keep test runs clean.
  */
+import type { TestDatabase } from "./db-test-utils";
 
-// Suppress console output during tests
+// =============================================================================
+// Database Mock
+// =============================================================================
+
+// Store for the test database instance
+// Must be prefixed with "mock" to be accessible inside jest.mock() factory
+let mockTestDb: TestDatabase | null = null;
+
+/**
+ * Set the test database instance. Call this in beforeEach after creating
+ * a test database with createTestDatabase().
+ */
+export function setTestDb(db: TestDatabase): void {
+  mockTestDb = db;
+}
+
+/**
+ * Clear the test database instance. Call this in afterEach.
+ */
+export function clearTestDb(): void {
+  mockTestDb = null;
+}
+
+// Mock the db module to use our test database
+jest.mock("@/src/db/db", () => ({
+  getDb: () => {
+    if (!mockTestDb) {
+      throw new Error(
+        "Test database not initialized. Call setTestDb() in beforeEach.",
+      );
+    }
+    return mockTestDb;
+  },
+  Database: {},
+}));
+
+// =============================================================================
+// Console Suppression
+// =============================================================================
+
+// Suppress console output during tests to keep output clean
 beforeAll(() => {
   jest.spyOn(console, "log").mockImplementation(() => {});
   jest.spyOn(console, "debug").mockImplementation(() => {});

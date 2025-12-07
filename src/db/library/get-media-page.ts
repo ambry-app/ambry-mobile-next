@@ -1,4 +1,4 @@
-import { db } from "@/src/db/db";
+import { getDb } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { and, desc, eq, like, lt, or, sql } from "drizzle-orm";
@@ -59,7 +59,7 @@ async function recentMedia(
   limit: number,
   insertedBefore?: Date,
 ) {
-  return db
+  return getDb()
     .select({
       id: schema.media.id,
       thumbnails: schema.media.thumbnails,
@@ -105,7 +105,7 @@ async function searchMedia(
   limit: number,
   searchQuery: string,
 ) {
-  return await db
+  return await getDb()
     .selectDistinct({
       id: schema.media.id,
       thumbnails: schema.media.thumbnails,

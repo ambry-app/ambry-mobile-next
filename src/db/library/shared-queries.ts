@@ -1,4 +1,4 @@
-import { db } from "@/src/db/db";
+import { getDb } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { groupMapBy } from "@/src/utils";
@@ -7,7 +7,7 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 export async function getAuthorsForBooks(session: Session, bookIds: string[]) {
   if (bookIds.length === 0) return {};
 
-  const authors = await db
+  const authors = await getDb()
     .select({
       name: schema.authors.name,
       bookId: schema.bookAuthors.bookId,
@@ -38,7 +38,7 @@ export async function getAuthorsForBooks(session: Session, bookIds: string[]) {
 export async function getMediaForBooks(session: Session, bookIds: string[]) {
   if (bookIds.length === 0) return {};
 
-  const media = await db
+  const media = await getDb()
     .select({
       id: schema.media.id,
       bookId: schema.media.bookId,
@@ -83,7 +83,7 @@ export async function getNarratorsForMedia(
 ) {
   if (mediaIds.length === 0) return {};
 
-  const narrators = await db
+  const narrators = await getDb()
     .select({
       name: schema.narrators.name,
       mediaId: schema.mediaNarrators.mediaId,

@@ -1,5 +1,5 @@
 import migrations from "@/drizzle/migrations";
-import { db } from "@/src/db/db";
+import { getExpoSqliteDb } from "@/src/db/db";
 import { syncDown } from "@/src/db/sync";
 import { registerBackgroundSyncTask } from "@/src/services/background-sync-service";
 import { initializeDataVersion } from "@/src/stores/data-version";
@@ -15,7 +15,7 @@ const useAppBoot = () => {
   const [isReady, setIsReady] = useState(false);
   const [initialSyncComplete, setInitialSyncComplete] = useState(false);
   const { success: migrationSuccess, error: migrationError } = useMigrations(
-    db,
+    getExpoSqliteDb(),
     migrations,
   );
   const session = useSession((state) => state.session);

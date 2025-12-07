@@ -1,4 +1,4 @@
-import { Database } from "@/src/db/db";
+import { getDb } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { requireValue } from "@/src/utils";
@@ -7,12 +7,11 @@ import { and, desc, eq } from "drizzle-orm";
 /**
  * Retrieves all download records associated with the given session.
  *
- * @param db - The database instance.
  * @param session - The current user session containing the URL context.
  * @returns A promise that resolves to an array of download records, ordered by download date in descending order.
  */
-export async function getAllDownloads(db: Database, session: Session) {
-  return db.query.downloads.findMany({
+export async function getAllDownloads(session: Session) {
+  return getDb().query.downloads.findMany({
     where: eq(schema.downloads.url, session.url),
     orderBy: desc(schema.downloads.downloadedAt),
   });
@@ -21,17 +20,12 @@ export async function getAllDownloads(db: Database, session: Session) {
 /**
  * Retrieves a single download record from the database that matches the given session URL and media ID.
  *
- * @param db - The database instance.
  * @param session - The current user session containing the URL context.
  * @param mediaId - The unique identifier of the media to find in the downloads.
  * @returns A promise that resolves to the download record if found, or `undefined` if no matching record exists.
  */
-export async function getDownload(
-  db: Database,
-  session: Session,
-  mediaId: string,
-) {
-  return db.query.downloads.findFirst({
+export async function getDownload(session: Session, mediaId: string) {
+  return getDb().query.downloads.findFirst({
     where: and(
       eq(schema.downloads.url, session.url),
       eq(schema.downloads.mediaId, mediaId),
@@ -42,7 +36,6 @@ export async function getDownload(
 /**
  * Creates a new download record in the database for the specified media item.
  *
- * @param db - The database instance.
  * @param session - The current user session containing the URL context.
  * @param mediaId - The unique identifier of the media to be downloaded.
  * @param filePath - The local file system path where the media will be stored.
@@ -50,14 +43,13 @@ export async function getDownload(
  * @throws If the download record cannot be retrieved after creation.
  */
 export async function createDownload(
-  db: Database,
   session: Session,
   mediaId: string,
   filePath: string,
 ) {
   const now = new Date();
 
-  await db.insert(schema.downloads).values({
+  await getDb().insert(schema.downloads).values({
     url: session.url,
     mediaId: mediaId,
     downloadedAt: now,
@@ -66,7 +58,7 @@ export async function createDownload(
   });
 
   return requireValue(
-    await getDownload(db, session, mediaId),
+    await getDownload(session, mediaId),
     "Download not found after creation",
   );
 }
@@ -74,7 +66,6 @@ export async function createDownload(
 /**
  * Updates the attributes of a download record in the database for a given session and media ID.
  *
- * @param db - The database instance.
  * @param session - The current user session containing the URL context.
  * @param mediaId - The unique identifier of the media to update.
  * @param attributes - An object containing the attributes to update:
@@ -85,7 +76,6 @@ export async function createDownload(
  * @throws If the download is not found after the update.
  */
 export async function updateDownload(
-  db: Database,
   session: Session,
   mediaId: string,
   attributes: {
@@ -94,7 +84,7 @@ export async function updateDownload(
     status?: "error" | "ready";
   },
 ) {
-  await db
+  await getDb()
     .update(schema.downloads)
     .set({
       ...attributes,
@@ -107,7 +97,7 @@ export async function updateDownload(
     );
 
   return requireValue(
-    await getDownload(db, session, mediaId),
+    await getDownload(session, mediaId),
     "Download not found after update",
   );
 }
@@ -115,18 +105,13 @@ export async function updateDownload(
 /**
  * Deletes a download entry from the database for the specified media ID and session.
  *
- * @param db - The database instance.
  * @param session - The current user session containing the URL context.
  * @param mediaId - The unique identifier of the media to be deleted from downloads.
  * @returns A promise that resolves when the deletion is complete.
  */
-export async function deleteDownload(
-  db: Database,
-  session: Session,
-  mediaId: string,
-) {
+export async function deleteDownload(session: Session, mediaId: string) {
   console.debug("[Downloads] Deleting download from database", mediaId);
-  await db
+  await getDb()
     .delete(schema.downloads)
     .where(
       and(

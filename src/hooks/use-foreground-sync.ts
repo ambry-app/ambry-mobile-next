@@ -1,4 +1,4 @@
-import { expoDb } from "@/src/db/db";
+import { getExpoDb } from "@/src/db/db";
 import { syncDown, syncPlaythroughs, syncUp } from "@/src/db/sync";
 import { useSession } from "@/src/stores/session";
 import { useEffect } from "react";
@@ -23,7 +23,7 @@ export function useForegroundSync(appState: AppStateStatus) {
         await syncPlaythroughs(session);
 
         console.debug("[ForegroundSync] performing WAL checkpoint");
-        expoDb.execSync("PRAGMA wal_checkpoint(TRUNCATE);");
+        getExpoDb().execSync("PRAGMA wal_checkpoint(TRUNCATE);");
 
         console.debug("[ForegroundSync] completed successfully");
       } catch (error) {

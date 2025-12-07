@@ -1,4 +1,4 @@
-import { db } from "@/src/db/db";
+import { getDb } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { requireValue } from "@/src/utils";
@@ -23,7 +23,7 @@ export async function getMedia(session: Session, mediaId: string) {
 }
 
 async function getMediaById(session: Session, mediaId: string) {
-  const rows = await db
+  const rows = await getDb()
     .select({
       id: schema.media.id,
       thumbnails: schema.media.thumbnails,

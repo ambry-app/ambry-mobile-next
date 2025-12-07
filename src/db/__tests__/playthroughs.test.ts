@@ -38,7 +38,6 @@ describe("playthroughs module", () => {
       const media = await createMedia(db);
 
       const result = await playthroughs.getActivePlaythrough(
-        db,
         testSession,
         media.id,
       );
@@ -61,7 +60,6 @@ describe("playthroughs module", () => {
       });
 
       const result = await playthroughs.getActivePlaythrough(
-        db,
         testSession,
         media.id,
       );
@@ -83,7 +81,6 @@ describe("playthroughs module", () => {
       });
 
       const result = await playthroughs.getActivePlaythrough(
-        db,
         testSession,
         media.id,
       );
@@ -100,7 +97,6 @@ describe("playthroughs module", () => {
       });
 
       const result = await playthroughs.getActivePlaythrough(
-        db,
         testSession,
         media.id,
       );
@@ -115,7 +111,6 @@ describe("playthroughs module", () => {
       const pt = await createPlaythrough(db, { id: "pt-123" });
 
       const result = await playthroughs.getPlaythroughById(
-        db,
         testSession,
         "pt-123",
       );
@@ -125,10 +120,7 @@ describe("playthroughs module", () => {
     });
 
     it("returns undefined when not found", async () => {
-      const db = getDb();
-
       const result = await playthroughs.getPlaythroughById(
-        db,
         testSession,
         "nonexistent",
       );
@@ -149,7 +141,6 @@ describe("playthroughs module", () => {
       });
 
       const result = await playthroughs.getFinishedOrAbandonedPlaythrough(
-        db,
         testSession,
         media.id,
       );
@@ -170,7 +161,6 @@ describe("playthroughs module", () => {
       });
 
       const result = await playthroughs.getFinishedOrAbandonedPlaythrough(
-        db,
         testSession,
         media.id,
       );
@@ -197,7 +187,6 @@ describe("playthroughs module", () => {
       });
 
       const result = await playthroughs.getFinishedOrAbandonedPlaythrough(
-        db,
         testSession,
         media.id,
       );
@@ -211,11 +200,7 @@ describe("playthroughs module", () => {
       const db = getDb();
       const media = await createMedia(db);
 
-      const id = await playthroughs.createPlaythrough(
-        db,
-        testSession,
-        media.id,
-      );
+      const id = await playthroughs.createPlaythrough(testSession, media.id);
 
       expect(id).toMatch(/^mock-uuid-/);
 
@@ -241,7 +226,6 @@ describe("playthroughs module", () => {
       });
 
       await playthroughs.updatePlaythroughStatus(
-        db,
         testSession,
         pt.id,
         "finished",
@@ -270,7 +254,7 @@ describe("playthroughs module", () => {
         syncedAt: new Date(),
       });
 
-      await playthroughs.resumePlaythrough(db, testSession, pt.id);
+      await playthroughs.resumePlaythrough(testSession, pt.id);
 
       const updated = await db.query.playthroughs.findFirst({
         where: eq(schema.playthroughs.id, pt.id),
@@ -288,7 +272,7 @@ describe("playthroughs module", () => {
       const db = getDb();
       const pt = await createPlaythrough(db, { syncedAt: new Date() });
 
-      await playthroughs.deletePlaythrough(db, testSession, pt.id);
+      await playthroughs.deletePlaythrough(testSession, pt.id);
 
       const updated = await db.query.playthroughs.findFirst({
         where: eq(schema.playthroughs.id, pt.id),
@@ -310,7 +294,7 @@ describe("playthroughs module", () => {
         lastEventAt: new Date("2024-01-01"),
       });
 
-      const result = await playthroughs.getDerivedState(db, pt.id);
+      const result = await playthroughs.getDerivedState(pt.id);
 
       expect(result).toEqual({
         currentPosition: 500,
@@ -330,7 +314,7 @@ describe("playthroughs module", () => {
         timestamp: new Date("2024-01-02"),
       });
 
-      const result = await playthroughs.getDerivedState(db, pt.id);
+      const result = await playthroughs.getDerivedState(pt.id);
 
       expect(result).toEqual({
         currentPosition: 300,
@@ -350,7 +334,7 @@ describe("playthroughs module", () => {
       const db = getDb();
       const pt = await createPlaythrough(db);
 
-      const result = await playthroughs.getDerivedState(db, pt.id);
+      const result = await playthroughs.getDerivedState(pt.id);
 
       expect(result).toBeNull();
     });
@@ -375,7 +359,7 @@ describe("playthroughs module", () => {
         timestamp: new Date("2024-01-03"),
       });
 
-      const result = await playthroughs.computeStateFromEvents(db, pt.id);
+      const result = await playthroughs.computeStateFromEvents(pt.id);
 
       expect(result).toEqual({
         currentPosition: 250,
@@ -394,7 +378,7 @@ describe("playthroughs module", () => {
         playbackRate: null,
       });
 
-      const result = await playthroughs.computeStateFromEvents(db, pt.id);
+      const result = await playthroughs.computeStateFromEvents(pt.id);
 
       expect(result).toBeNull();
     });
@@ -405,7 +389,7 @@ describe("playthroughs module", () => {
       const db = getDb();
       const pt = await createPlaythrough(db);
 
-      await playthroughs.updateStateCache(db, pt.id, 100, 1.5);
+      await playthroughs.updateStateCache(pt.id, 100, 1.5);
 
       const cache = await db.query.playthroughStateCache.findFirst({
         where: eq(schema.playthroughStateCache.playthroughId, pt.id),
@@ -425,7 +409,7 @@ describe("playthroughs module", () => {
         currentRate: 1.0,
       });
 
-      await playthroughs.updateStateCache(db, pt.id, 200, 2.0);
+      await playthroughs.updateStateCache(pt.id, 200, 2.0);
 
       const cache = await db.query.playthroughStateCache.findFirst({
         where: eq(schema.playthroughStateCache.playthroughId, pt.id),
@@ -454,21 +438,15 @@ describe("playthroughs module", () => {
         updatedAt: new Date("2024-06-01"),
       });
 
-      const result = await playthroughs.getMostRecentInProgressPlaythrough(
-        db,
-        testSession,
-      );
+      const result =
+        await playthroughs.getMostRecentInProgressPlaythrough(testSession);
 
       expect(result?.id).toBe("pt-new");
     });
 
     it("returns undefined when no in_progress playthroughs", async () => {
-      const db = getDb();
-
-      const result = await playthroughs.getMostRecentInProgressPlaythrough(
-        db,
-        testSession,
-      );
+      const result =
+        await playthroughs.getMostRecentInProgressPlaythrough(testSession);
 
       expect(result).toBeUndefined();
     });
@@ -490,10 +468,7 @@ describe("playthroughs module", () => {
           syncedAt: null,
         });
 
-        const result = await playthroughs.getUnsyncedPlaythroughs(
-          db,
-          testSession,
-        );
+        const result = await playthroughs.getUnsyncedPlaythroughs(testSession);
 
         expect(result).toHaveLength(1);
         expect(result[0]?.id).toBe("pt-unsynced");
@@ -502,9 +477,7 @@ describe("playthroughs module", () => {
 
     describe("getUnsyncedEvents", () => {
       it("returns empty array for empty input", async () => {
-        const db = getDb();
-
-        const result = await playthroughs.getUnsyncedEvents(db, []);
+        const result = await playthroughs.getUnsyncedEvents([]);
 
         expect(result).toEqual([]);
       });
@@ -523,7 +496,7 @@ describe("playthroughs module", () => {
           syncedAt: null,
         });
 
-        const result = await playthroughs.getUnsyncedEvents(db, [pt.id]);
+        const result = await playthroughs.getUnsyncedEvents([pt.id]);
 
         expect(result).toHaveLength(1);
         expect(result[0]?.id).toBe("e-unsynced");
@@ -532,10 +505,8 @@ describe("playthroughs module", () => {
 
     describe("markPlaythroughsSynced", () => {
       it("does nothing for empty array", async () => {
-        const db = getDb();
-
         // Should not throw
-        await playthroughs.markPlaythroughsSynced(db, [], new Date());
+        await playthroughs.markPlaythroughsSynced([], new Date());
       });
 
       it("updates syncedAt for given IDs", async () => {
@@ -550,11 +521,7 @@ describe("playthroughs module", () => {
         });
         const syncedAt = new Date("2024-01-01");
 
-        await playthroughs.markPlaythroughsSynced(
-          db,
-          [pt1.id, pt2.id],
-          syncedAt,
-        );
+        await playthroughs.markPlaythroughsSynced([pt1.id, pt2.id], syncedAt);
 
         const updated1 = await db.query.playthroughs.findFirst({
           where: eq(schema.playthroughs.id, pt1.id),
@@ -570,10 +537,8 @@ describe("playthroughs module", () => {
 
     describe("markEventsSynced", () => {
       it("does nothing for empty array", async () => {
-        const db = getDb();
-
         // Should not throw
-        await playthroughs.markEventsSynced(db, [], new Date());
+        await playthroughs.markEventsSynced([], new Date());
       });
 
       it("updates syncedAt for given event IDs", async () => {
@@ -591,7 +556,7 @@ describe("playthroughs module", () => {
         });
         const syncedAt = new Date("2024-01-01");
 
-        await playthroughs.markEventsSynced(db, [e1.id, e2.id], syncedAt);
+        await playthroughs.markEventsSynced([e1.id, e2.id], syncedAt);
 
         const updated1 = await db.query.playbackEvents.findFirst({
           where: eq(schema.playbackEvents.id, e1.id),
@@ -613,7 +578,7 @@ describe("playthroughs module", () => {
         const media = await createMedia(db);
         const now = new Date();
 
-        await playthroughs.upsertPlaythrough(db, {
+        await playthroughs.upsertPlaythrough({
           id: "pt-new",
           url: testSession.url,
           userEmail: testSession.email,
@@ -639,7 +604,7 @@ describe("playthroughs module", () => {
           status: "in_progress",
         });
 
-        await playthroughs.upsertPlaythrough(db, {
+        await playthroughs.upsertPlaythrough({
           id: pt.id,
           url: testSession.url,
           userEmail: testSession.email,
@@ -664,7 +629,7 @@ describe("playthroughs module", () => {
         const db = getDb();
         const pt = await createPlaythrough(db);
 
-        await playthroughs.upsertPlaybackEvent(db, {
+        await playthroughs.upsertPlaybackEvent({
           id: "e-new",
           playthroughId: pt.id,
           type: "play",
@@ -691,7 +656,7 @@ describe("playthroughs module", () => {
         });
         const syncedAt = new Date("2024-06-01");
 
-        await playthroughs.upsertPlaybackEvent(db, {
+        await playthroughs.upsertPlaybackEvent({
           id: event.id,
           playthroughId: pt.id,
           type: event.type,

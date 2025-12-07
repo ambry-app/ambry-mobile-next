@@ -23,7 +23,7 @@ describe("shelves", () => {
       const db = getDb();
       const media = await createMedia(db);
 
-      const result = await getShelvedMedia(db, session, media.id, shelfName);
+      const result = await getShelvedMedia(session, media.id, shelfName);
 
       expect(result).toBeUndefined();
     });
@@ -33,7 +33,7 @@ describe("shelves", () => {
       const media = await createMedia(db);
       await createShelvedMedia(db, { mediaId: media.id, shelfName });
 
-      const result = await getShelvedMedia(db, session, media.id, shelfName);
+      const result = await getShelvedMedia(session, media.id, shelfName);
 
       expect(result).toBeDefined();
       expect(result?.mediaId).toBe(media.id);
@@ -49,7 +49,7 @@ describe("shelves", () => {
         deletedAt: new Date(),
       });
 
-      const result = await getShelvedMedia(db, session, media.id, shelfName);
+      const result = await getShelvedMedia(session, media.id, shelfName);
 
       expect(result).toBeDefined();
       expect(result?.deletedAt).not.toBeNull();
@@ -64,17 +64,11 @@ describe("shelves", () => {
       });
 
       const wantToListen = await getShelvedMedia(
-        db,
         session,
         media.id,
         "Want to Listen",
       );
-      const favorites = await getShelvedMedia(
-        db,
-        session,
-        media.id,
-        "Favorites",
-      );
+      const favorites = await getShelvedMedia(session, media.id, "Favorites");
 
       expect(wantToListen).toBeUndefined();
       expect(favorites).toBeDefined();
@@ -86,7 +80,7 @@ describe("shelves", () => {
       const db = getDb();
       const media = await createMedia(db);
 
-      const result = await isMediaOnShelf(db, session, media.id, shelfName);
+      const result = await isMediaOnShelf(session, media.id, shelfName);
 
       expect(result).toBe(false);
     });
@@ -96,7 +90,7 @@ describe("shelves", () => {
       const media = await createMedia(db);
       await createShelvedMedia(db, { mediaId: media.id, shelfName });
 
-      const result = await isMediaOnShelf(db, session, media.id, shelfName);
+      const result = await isMediaOnShelf(session, media.id, shelfName);
 
       expect(result).toBe(true);
     });
@@ -110,7 +104,7 @@ describe("shelves", () => {
         deletedAt: new Date(),
       });
 
-      const result = await isMediaOnShelf(db, session, media.id, shelfName);
+      const result = await isMediaOnShelf(session, media.id, shelfName);
 
       expect(result).toBe(false);
     });
@@ -121,9 +115,9 @@ describe("shelves", () => {
       const db = getDb();
       const media = await createMedia(db);
 
-      await addMediaToShelf(db, session, media.id, shelfName);
+      await addMediaToShelf(session, media.id, shelfName);
 
-      const result = await getShelvedMedia(db, session, media.id, shelfName);
+      const result = await getShelvedMedia(session, media.id, shelfName);
       expect(result).toBeDefined();
       expect(result?.deletedAt).toBeNull();
       expect(result?.synced).toBe(false);
@@ -137,9 +131,9 @@ describe("shelves", () => {
         shelfName,
       });
 
-      await addMediaToShelf(db, session, media.id, shelfName);
+      await addMediaToShelf(session, media.id, shelfName);
 
-      const result = await getShelvedMedia(db, session, media.id, shelfName);
+      const result = await getShelvedMedia(session, media.id, shelfName);
       expect(result?.addedAt.getTime()).toBe(original.addedAt.getTime());
     });
 
@@ -153,9 +147,9 @@ describe("shelves", () => {
         synced: true,
       });
 
-      await addMediaToShelf(db, session, media.id, shelfName);
+      await addMediaToShelf(session, media.id, shelfName);
 
-      const result = await getShelvedMedia(db, session, media.id, shelfName);
+      const result = await getShelvedMedia(session, media.id, shelfName);
       expect(result?.deletedAt).toBeNull();
       expect(result?.synced).toBe(false);
     });
@@ -167,9 +161,9 @@ describe("shelves", () => {
       const media = await createMedia(db);
 
       // Should not throw
-      await removeMediaFromShelf(db, session, media.id, shelfName);
+      await removeMediaFromShelf(session, media.id, shelfName);
 
-      const result = await getShelvedMedia(db, session, media.id, shelfName);
+      const result = await getShelvedMedia(session, media.id, shelfName);
       expect(result).toBeUndefined();
     });
 
@@ -183,9 +177,9 @@ describe("shelves", () => {
         deletedAt,
       });
 
-      await removeMediaFromShelf(db, session, media.id, shelfName);
+      await removeMediaFromShelf(session, media.id, shelfName);
 
-      const result = await getShelvedMedia(db, session, media.id, shelfName);
+      const result = await getShelvedMedia(session, media.id, shelfName);
       // deletedAt should remain the same
       expect(result?.deletedAt?.getTime()).toBe(deletedAt.getTime());
     });
@@ -199,9 +193,9 @@ describe("shelves", () => {
         synced: true,
       });
 
-      await removeMediaFromShelf(db, session, media.id, shelfName);
+      await removeMediaFromShelf(session, media.id, shelfName);
 
-      const result = await getShelvedMedia(db, session, media.id, shelfName);
+      const result = await getShelvedMedia(session, media.id, shelfName);
       expect(result?.deletedAt).not.toBeNull();
       expect(result?.synced).toBe(false);
     });
@@ -212,9 +206,9 @@ describe("shelves", () => {
       const db = getDb();
       const media = await createMedia(db);
 
-      await toggleMediaOnShelf(db, session, media.id, shelfName);
+      await toggleMediaOnShelf(session, media.id, shelfName);
 
-      const result = await isMediaOnShelf(db, session, media.id, shelfName);
+      const result = await isMediaOnShelf(session, media.id, shelfName);
       expect(result).toBe(true);
     });
 
@@ -223,9 +217,9 @@ describe("shelves", () => {
       const media = await createMedia(db);
       await createShelvedMedia(db, { mediaId: media.id, shelfName });
 
-      await toggleMediaOnShelf(db, session, media.id, shelfName);
+      await toggleMediaOnShelf(session, media.id, shelfName);
 
-      const result = await isMediaOnShelf(db, session, media.id, shelfName);
+      const result = await isMediaOnShelf(session, media.id, shelfName);
       expect(result).toBe(false);
     });
 
@@ -238,9 +232,9 @@ describe("shelves", () => {
         deletedAt: new Date(),
       });
 
-      await toggleMediaOnShelf(db, session, media.id, shelfName);
+      await toggleMediaOnShelf(session, media.id, shelfName);
 
-      const result = await isMediaOnShelf(db, session, media.id, shelfName);
+      const result = await isMediaOnShelf(session, media.id, shelfName);
       expect(result).toBe(true);
     });
 
@@ -249,18 +243,16 @@ describe("shelves", () => {
       const media = await createMedia(db);
 
       // Add
-      await toggleMediaOnShelf(db, session, media.id, shelfName);
-      expect(await isMediaOnShelf(db, session, media.id, shelfName)).toBe(true);
+      await toggleMediaOnShelf(session, media.id, shelfName);
+      expect(await isMediaOnShelf(session, media.id, shelfName)).toBe(true);
 
       // Remove
-      await toggleMediaOnShelf(db, session, media.id, shelfName);
-      expect(await isMediaOnShelf(db, session, media.id, shelfName)).toBe(
-        false,
-      );
+      await toggleMediaOnShelf(session, media.id, shelfName);
+      expect(await isMediaOnShelf(session, media.id, shelfName)).toBe(false);
 
       // Re-add
-      await toggleMediaOnShelf(db, session, media.id, shelfName);
-      expect(await isMediaOnShelf(db, session, media.id, shelfName)).toBe(true);
+      await toggleMediaOnShelf(session, media.id, shelfName);
+      expect(await isMediaOnShelf(session, media.id, shelfName)).toBe(true);
     });
   });
 
@@ -271,19 +263,15 @@ describe("shelves", () => {
       const media2 = await createMedia(db, { url: "http://other-server.com" });
       const otherSession = { ...session, url: "http://other-server.com" };
 
-      await addMediaToShelf(db, session, media1.id, shelfName);
-      await addMediaToShelf(db, otherSession, media2.id, shelfName);
+      await addMediaToShelf(session, media1.id, shelfName);
+      await addMediaToShelf(otherSession, media2.id, shelfName);
 
-      expect(await isMediaOnShelf(db, session, media1.id, shelfName)).toBe(
-        true,
-      );
-      expect(await isMediaOnShelf(db, session, media2.id, shelfName)).toBe(
+      expect(await isMediaOnShelf(session, media1.id, shelfName)).toBe(true);
+      expect(await isMediaOnShelf(session, media2.id, shelfName)).toBe(false);
+      expect(await isMediaOnShelf(otherSession, media1.id, shelfName)).toBe(
         false,
       );
-      expect(await isMediaOnShelf(db, otherSession, media1.id, shelfName)).toBe(
-        false,
-      );
-      expect(await isMediaOnShelf(db, otherSession, media2.id, shelfName)).toBe(
+      expect(await isMediaOnShelf(otherSession, media2.id, shelfName)).toBe(
         true,
       );
     });
@@ -293,10 +281,10 @@ describe("shelves", () => {
       const media = await createMedia(db);
       const otherSession = { ...session, email: "other@example.com" };
 
-      await addMediaToShelf(db, session, media.id, shelfName);
+      await addMediaToShelf(session, media.id, shelfName);
 
-      expect(await isMediaOnShelf(db, session, media.id, shelfName)).toBe(true);
-      expect(await isMediaOnShelf(db, otherSession, media.id, shelfName)).toBe(
+      expect(await isMediaOnShelf(session, media.id, shelfName)).toBe(true);
+      expect(await isMediaOnShelf(otherSession, media.id, shelfName)).toBe(
         false,
       );
     });

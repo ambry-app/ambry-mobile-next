@@ -1,5 +1,5 @@
 import { Loading, MeasureScreenHeight, ScreenCentered } from "@/src/components";
-import { expoDb } from "@/src/db/db";
+import { getExpoDb } from "@/src/db/db";
 import { useAppBoot } from "@/src/hooks/use-app-boot";
 import { useAppState } from "@/src/hooks/use-app-state";
 import { useForegroundSync } from "@/src/hooks/use-foreground-sync";
@@ -101,7 +101,7 @@ function RootStackLayout() {
 }
 
 function DrizzleStudio() {
-  useDrizzleStudio(expoDb);
+  useDrizzleStudio(getExpoDb());
   return null;
 }
 

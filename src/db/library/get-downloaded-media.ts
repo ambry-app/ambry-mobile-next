@@ -1,4 +1,4 @@
-import { db } from "@/src/db/db";
+import { getDb } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { and, desc, eq, inArray } from "drizzle-orm";
@@ -29,7 +29,7 @@ export async function getDownloadedMedia(session: Session, mediaIds: string[]) {
 }
 
 async function getDownloadedMediaByIds(session: Session, mediaIds: string[]) {
-  return db
+  return getDb()
     .select({
       id: schema.media.id,
       thumbnails: schema.media.thumbnails,

@@ -1,4 +1,4 @@
-import { db } from "@/src/db/db";
+import { getDb } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { and, desc, eq, lt, ne, sql } from "drizzle-orm";
@@ -45,7 +45,7 @@ async function getPlayerStates(
   withoutMediaId?: string | null,
   updatedBefore?: Date,
 ) {
-  const playerStates = await db
+  const playerStates = await getDb()
     .select({
       playbackRate: sql<number>`COALESCE(local_player_states.playback_rate, player_states.playback_rate)`,
       position: sql<number>`COALESCE(local_player_states.position, player_states.position)`,

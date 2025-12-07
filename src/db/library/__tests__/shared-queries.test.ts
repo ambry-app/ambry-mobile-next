@@ -1,8 +1,5 @@
 import { combineAuthorsAndNarrators } from "../shared-queries";
 
-// Mock the database module to avoid expo-sqlite initialization
-jest.mock("@/src/db/db");
-
 // Helper to create test authors
 function makeAuthor(
   id: string,

@@ -1,7 +1,7 @@
 import * as Crypto from "expo-crypto";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
-import { Database } from "@/src/db/db";
+import { getDb } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 
@@ -9,12 +9,8 @@ import { Session } from "@/src/stores/session";
 // Playthrough CRUD
 // =============================================================================
 
-export async function getActivePlaythrough(
-  db: Database,
-  session: Session,
-  mediaId: string,
-) {
-  return db.query.playthroughs.findFirst({
+export async function getActivePlaythrough(session: Session, mediaId: string) {
+  return getDb().query.playthroughs.findFirst({
     where: and(
       eq(schema.playthroughs.url, session.url),
       eq(schema.playthroughs.userEmail, session.email),
@@ -63,11 +59,10 @@ export type ActivePlaythrough = Exclude<
 >;
 
 export async function getPlaythroughById(
-  db: Database,
   session: Session,
   playthroughId: string,
 ) {
-  return db.query.playthroughs.findFirst({
+  return getDb().query.playthroughs.findFirst({
     where: and(
       eq(schema.playthroughs.url, session.url),
       eq(schema.playthroughs.id, playthroughId),
@@ -79,11 +74,10 @@ export async function getPlaythroughById(
 }
 
 export async function getFinishedOrAbandonedPlaythrough(
-  db: Database,
   session: Session,
   mediaId: string,
 ) {
-  return db.query.playthroughs.findFirst({
+  return getDb().query.playthroughs.findFirst({
     where: and(
       eq(schema.playthroughs.url, session.url),
       eq(schema.playthroughs.userEmail, session.email),
@@ -99,14 +93,13 @@ export async function getFinishedOrAbandonedPlaythrough(
 }
 
 export async function createPlaythrough(
-  db: Database,
   session: Session,
   mediaId: string,
 ): Promise<string> {
   const now = new Date();
   const id = Crypto.randomUUID();
 
-  await db.insert(schema.playthroughs).values({
+  await getDb().insert(schema.playthroughs).values({
     id,
     url: session.url,
     userEmail: session.email,
@@ -122,7 +115,6 @@ export async function createPlaythrough(
 }
 
 export async function updatePlaythroughStatus(
-  db: Database,
   session: Session,
   playthroughId: string,
   status: schema.PlaythroughStatus,
@@ -133,7 +125,7 @@ export async function updatePlaythroughStatus(
 ) {
   const now = new Date();
 
-  await db
+  await getDb()
     .update(schema.playthroughs)
     .set({
       status,
@@ -150,13 +142,12 @@ export async function updatePlaythroughStatus(
 }
 
 export async function resumePlaythrough(
-  db: Database,
   session: Session,
   playthroughId: string,
 ) {
   const now = new Date();
 
-  await db
+  await getDb()
     .update(schema.playthroughs)
     .set({
       status: "in_progress",
@@ -174,13 +165,12 @@ export async function resumePlaythrough(
 }
 
 export async function deletePlaythrough(
-  db: Database,
   session: Session,
   playthroughId: string,
 ) {
   const now = new Date();
 
-  await db
+  await getDb()
     .update(schema.playthroughs)
     .set({
       deletedAt: now,
@@ -210,11 +200,10 @@ export interface DerivedPlaythroughState {
  * Falls back to computing from events if cache miss.
  */
 export async function getDerivedState(
-  db: Database,
   playthroughId: string,
 ): Promise<DerivedPlaythroughState | null> {
   // Try cache first
-  const cache = await db.query.playthroughStateCache.findFirst({
+  const cache = await getDb().query.playthroughStateCache.findFirst({
     where: eq(schema.playthroughStateCache.playthroughId, playthroughId),
   });
 
@@ -227,18 +216,17 @@ export async function getDerivedState(
   }
 
   // Cache miss - compute from events
-  return computeStateFromEvents(db, playthroughId);
+  return computeStateFromEvents(playthroughId);
 }
 
 /**
  * Compute state directly from events (slow path, used for cache rebuild).
  */
 export async function computeStateFromEvents(
-  db: Database,
   playthroughId: string,
 ): Promise<DerivedPlaythroughState | null> {
   // Get most recent playback event (not lifecycle events)
-  const lastEvent = await db.query.playbackEvents.findFirst({
+  const lastEvent = await getDb().query.playbackEvents.findFirst({
     where: and(
       eq(schema.playbackEvents.playthroughId, playthroughId),
       sql`${schema.playbackEvents.type} IN ('play', 'pause', 'seek', 'rate_change')`,
@@ -262,7 +250,6 @@ export async function computeStateFromEvents(
 
   // Update cache for next time
   await updateStateCache(
-    db,
     playthroughId,
     state.currentPosition,
     state.currentRate,
@@ -276,7 +263,6 @@ export async function computeStateFromEvents(
  * Update the state cache for a playthrough.
  */
 export async function updateStateCache(
-  db: Database,
   playthroughId: string,
   position: number,
   rate: number,
@@ -285,7 +271,7 @@ export async function updateStateCache(
   const now = new Date();
   const lastEventAt = eventAt ?? now;
 
-  await db
+  await getDb()
     .insert(schema.playthroughStateCache)
     .values({
       playthroughId,
@@ -309,11 +295,8 @@ export async function updateStateCache(
 // Query Functions for UI
 // =============================================================================
 
-export async function getMostRecentInProgressPlaythrough(
-  db: Database,
-  session: Session,
-) {
-  return db.query.playthroughs.findFirst({
+export async function getMostRecentInProgressPlaythrough(session: Session) {
+  return getDb().query.playthroughs.findFirst({
     where: and(
       eq(schema.playthroughs.url, session.url),
       eq(schema.playthroughs.userEmail, session.email),
@@ -331,8 +314,8 @@ export async function getMostRecentInProgressPlaythrough(
 // Sync Helpers
 // =============================================================================
 
-export async function getUnsyncedPlaythroughs(db: Database, session: Session) {
-  return db.query.playthroughs.findMany({
+export async function getUnsyncedPlaythroughs(session: Session) {
+  return getDb().query.playthroughs.findMany({
     where: and(
       eq(schema.playthroughs.url, session.url),
       eq(schema.playthroughs.userEmail, session.email),
@@ -341,13 +324,10 @@ export async function getUnsyncedPlaythroughs(db: Database, session: Session) {
   });
 }
 
-export async function getUnsyncedEvents(
-  db: Database,
-  playthroughIds: string[],
-) {
+export async function getUnsyncedEvents(playthroughIds: string[]) {
   if (playthroughIds.length === 0) return [];
 
-  return db.query.playbackEvents.findMany({
+  return getDb().query.playbackEvents.findMany({
     where: and(
       inArray(schema.playbackEvents.playthroughId, playthroughIds),
       isNull(schema.playbackEvents.syncedAt),
@@ -357,26 +337,21 @@ export async function getUnsyncedEvents(
 }
 
 export async function markPlaythroughsSynced(
-  db: Database,
   playthroughIds: string[],
   syncedAt: Date,
 ) {
   if (playthroughIds.length === 0) return;
 
-  await db
+  await getDb()
     .update(schema.playthroughs)
     .set({ syncedAt })
     .where(inArray(schema.playthroughs.id, playthroughIds));
 }
 
-export async function markEventsSynced(
-  db: Database,
-  eventIds: string[],
-  syncedAt: Date,
-) {
+export async function markEventsSynced(eventIds: string[], syncedAt: Date) {
   if (eventIds.length === 0) return;
 
-  await db
+  await getDb()
     .update(schema.playbackEvents)
     .set({ syncedAt })
     .where(inArray(schema.playbackEvents.id, eventIds));
@@ -386,11 +361,8 @@ export async function markEventsSynced(
 // Upsert functions for down-sync
 // =============================================================================
 
-export async function upsertPlaythrough(
-  db: Database,
-  playthrough: schema.PlaythroughInsert,
-) {
-  await db
+export async function upsertPlaythrough(playthrough: schema.PlaythroughInsert) {
+  await getDb()
     .insert(schema.playthroughs)
     .values(playthrough)
     .onConflictDoUpdate({
@@ -407,13 +379,10 @@ export async function upsertPlaythrough(
     });
 }
 
-export async function upsertPlaybackEvent(
-  db: Database,
-  event: schema.PlaybackEventInsert,
-) {
+export async function upsertPlaybackEvent(event: schema.PlaybackEventInsert) {
   // Events are immutable - on conflict we only update syncedAt if provided
   if (event.syncedAt !== undefined) {
-    await db
+    await getDb()
       .insert(schema.playbackEvents)
       .values(event)
       .onConflictDoUpdate({
@@ -423,6 +392,9 @@ export async function upsertPlaybackEvent(
         },
       });
   } else {
-    await db.insert(schema.playbackEvents).values(event).onConflictDoNothing();
+    await getDb()
+      .insert(schema.playbackEvents)
+      .values(event)
+      .onConflictDoNothing();
   }
 }

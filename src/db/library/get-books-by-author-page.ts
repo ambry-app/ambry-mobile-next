@@ -1,4 +1,4 @@
-import { db } from "@/src/db/db";
+import { getDb } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { flatMapGroups } from "@/src/utils";
@@ -40,7 +40,7 @@ async function getBooks(
   limit: number,
   publishedBefore?: Date,
 ) {
-  return db
+  return getDb()
     .select({
       id: schema.books.id,
       title: schema.books.title,

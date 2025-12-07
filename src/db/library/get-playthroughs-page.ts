@@ -1,4 +1,4 @@
-import { db } from "@/src/db/db";
+import { getDb } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { and, desc, eq, isNull, lt, ne, sql } from "drizzle-orm";
@@ -45,7 +45,7 @@ async function getPlaythroughs(
   withoutMediaId?: string | null,
   updatedBefore?: Date,
 ) {
-  const playthroughs = await db
+  const playthroughs = await getDb()
     .select({
       id: schema.playthroughs.id,
       status: schema.playthroughs.status,

@@ -1,4 +1,4 @@
-import { db } from "@/src/db/db";
+import { getDb } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { requireValue } from "@/src/utils";
@@ -12,7 +12,7 @@ export async function getNarratorHeaderInfo(
   session: Session,
   narratorId: string,
 ) {
-  const narrator = await db.query.narrators.findFirst({
+  const narrator = await getDb().query.narrators.findFirst({
     columns: {
       id: true,
       name: true,

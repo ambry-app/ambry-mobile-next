@@ -1,4 +1,4 @@
-import { db } from "@/src/db/db";
+import { getDb } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { Session } from "@/src/stores/session";
 import { requireValue } from "@/src/utils";
@@ -30,7 +30,7 @@ export async function getBookDetails(
 }
 
 async function getBook(session: Session, bookId: string) {
-  const book = await db.query.books.findFirst({
+  const book = await getDb().query.books.findFirst({
     columns: {
       id: true,
       title: true,
@@ -44,7 +44,7 @@ async function getBook(session: Session, bookId: string) {
 }
 
 async function getAuthorsForBook(session: Session, bookId: string) {
-  return db
+  return getDb()
     .select({
       name: schema.authors.name,
     })
@@ -70,7 +70,7 @@ async function getMediaForBook(
   bookId: string,
   limit: number,
 ) {
-  return db
+  return getDb()
     .select({
       id: schema.media.id,
       thumbnails: schema.media.thumbnails,

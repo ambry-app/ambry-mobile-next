@@ -2,7 +2,6 @@ import {
   SEEK_ACCUMULATION_WINDOW,
   SEEK_EVENT_ACCUMULATION_WINDOW,
 } from "@/src/constants";
-import { db } from "@/src/db/db";
 import {
   ActivePlaythrough,
   createPlaythrough,
@@ -233,10 +232,10 @@ export async function handleResumePlaythrough(session: Session) {
   usePlayer.setState({ pendingResumePrompt: null, loadingNewMedia: true });
 
   // Resume the playthrough
-  await resumePlaythrough(db, session, prompt.playthroughId);
+  await resumePlaythrough(session, prompt.playthroughId);
 
   // Load it into the player
-  const playthrough = await getActivePlaythrough(db, session, prompt.mediaId);
+  const playthrough = await getActivePlaythrough(session, prompt.mediaId);
   if (playthrough) {
     const track = await loadPlaythroughIntoTrackPlayer(session, playthrough);
     usePlayer.setState({
@@ -268,11 +267,11 @@ export async function handleStartFresh(session: Session) {
   usePlayer.setState({ pendingResumePrompt: null, loadingNewMedia: true });
 
   // Create a new playthrough
-  const playthroughId = await createPlaythrough(db, session, prompt.mediaId);
+  const playthroughId = await createPlaythrough(session, prompt.mediaId);
   await recordStartEvent(playthroughId);
 
   // Load it into the player
-  const playthrough = await getActivePlaythrough(db, session, prompt.mediaId);
+  const playthrough = await getActivePlaythrough(session, prompt.mediaId);
   if (playthrough) {
     const track = await loadPlaythroughIntoTrackPlayer(session, playthrough);
     usePlayer.setState({
@@ -418,7 +417,7 @@ async function setupTrackPlayer(
       const position = progress.position;
       const duration = progress.duration;
       const playbackRate = await TrackPlayer.getRate();
-      const playthrough = await getActivePlaythrough(db, session, mediaId);
+      const playthrough = await getActivePlaythrough(session, mediaId);
       return {
         mediaId,
         position,
@@ -553,7 +552,7 @@ async function loadMediaIntoTrackPlayer(
   console.debug("[Player] Loading media into player", mediaId);
 
   // Check for active (in_progress) playthrough
-  let playthrough = await getActivePlaythrough(db, session, mediaId);
+  let playthrough = await getActivePlaythrough(session, mediaId);
 
   if (playthrough) {
     console.debug(
@@ -567,7 +566,6 @@ async function loadMediaIntoTrackPlayer(
 
   // Check for finished or abandoned playthrough
   const previousPlaythrough = await getFinishedOrAbandonedPlaythrough(
-    db,
     session,
     mediaId,
   );
@@ -611,10 +609,10 @@ async function loadMediaIntoTrackPlayer(
   // No playthrough exists - create a new one
   console.debug("[Player] No playthrough found; creating new one");
 
-  const playthroughId = await createPlaythrough(db, session, mediaId);
+  const playthroughId = await createPlaythrough(session, mediaId);
   await recordStartEvent(playthroughId);
 
-  playthrough = await getActivePlaythrough(db, session, mediaId);
+  playthrough = await getActivePlaythrough(session, mediaId);
 
   if (!playthrough) {
     throw new Error("Failed to create playthrough");
@@ -639,7 +637,7 @@ async function loadMostRecentMediaIntoTrackPlayer(
     const playbackRate = await TrackPlayer.getRate();
 
     // Get playthrough for chapters
-    const playthrough = await getActivePlaythrough(db, session, mediaId);
+    const playthrough = await getActivePlaythrough(session, mediaId);
 
     // Initialize playthrough tracking for event recording
     await initializePlaythroughTracking(
@@ -660,10 +658,8 @@ async function loadMostRecentMediaIntoTrackPlayer(
   }
 
   // Find most recent in-progress playthrough
-  const mostRecentPlaythrough = await getMostRecentInProgressPlaythrough(
-    db,
-    session,
-  );
+  const mostRecentPlaythrough =
+    await getMostRecentInProgressPlaythrough(session);
 
   if (!mostRecentPlaythrough) {
     console.debug("[Player] No in-progress playthrough found");
