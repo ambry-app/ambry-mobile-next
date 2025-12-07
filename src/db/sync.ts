@@ -642,7 +642,7 @@ export async function syncPlaythroughs(session: Session) {
   }
 
   // Get unsynced playthroughs
-  const unsyncedPlaythroughs = await getUnsyncedPlaythroughs(session);
+  const unsyncedPlaythroughs = await getUnsyncedPlaythroughs(db, session);
 
   // Get all playthrough IDs (both synced and unsynced) to fetch their unsynced events
   const allPlaythroughIds = await db
@@ -656,6 +656,7 @@ export async function syncPlaythroughs(session: Session) {
     );
 
   const unsyncedEvents = await getUnsyncedEvents(
+    db,
     allPlaythroughIds.map((p) => p.id),
   );
 
@@ -764,6 +765,7 @@ export async function syncPlaythroughs(session: Session) {
   // Mark our sent items as synced
   if (unsyncedPlaythroughs.length > 0) {
     await markPlaythroughsSynced(
+      db,
       unsyncedPlaythroughs.map((p) => p.id),
       serverTime,
     );
@@ -771,6 +773,7 @@ export async function syncPlaythroughs(session: Session) {
 
   if (unsyncedEvents.length > 0) {
     await markEventsSynced(
+      db,
       unsyncedEvents.map((e) => e.id),
       serverTime,
     );
@@ -778,7 +781,7 @@ export async function syncPlaythroughs(session: Session) {
 
   // Upsert received playthroughs from server
   for (const playthrough of syncResult.playthroughs) {
-    await upsertPlaythrough({
+    await upsertPlaythrough(db, {
       id: playthrough.id,
       url: session.url,
       userEmail: session.email,
@@ -803,7 +806,7 @@ export async function syncPlaythroughs(session: Session) {
 
   // Upsert received events from server
   for (const event of syncResult.events) {
-    await upsertPlaybackEvent({
+    await upsertPlaybackEvent(db, {
       id: event.id,
       playthroughId: event.playthroughId,
       deviceId: event.deviceId,
@@ -827,6 +830,7 @@ export async function syncPlaythroughs(session: Session) {
     // Update state cache for received events (if playback event with position)
     if (event.position != null && event.playbackRate != null) {
       await updateStateCache(
+        db,
         event.playthroughId,
         event.position,
         event.playbackRate,

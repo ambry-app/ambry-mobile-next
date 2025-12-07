@@ -1,4 +1,4 @@
-import { createTestDatabase, useTestDatabase } from "../test-utils";
+import { createTestDatabase, useTestDatabase } from "@test/db-test-utils";
 import * as schema from "../schema";
 
 describe("createTestDatabase", () => {

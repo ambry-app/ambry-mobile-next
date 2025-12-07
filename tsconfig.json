@@ -4,7 +4,8 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@test/*": ["./test/*"]
     },
     "plugins": [
       {

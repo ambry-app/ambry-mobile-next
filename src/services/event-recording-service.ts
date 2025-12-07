@@ -180,15 +180,15 @@ export async function initializePlaythroughTracking(
 
   try {
     // Get or create playthrough for event recording
-    let playthrough = await getActivePlaythrough(session, mediaId);
+    let playthrough = await getActivePlaythrough(db, session, mediaId);
 
     if (!playthrough) {
       console.debug(
         "[EventRecording] No active playthrough found; creating new one",
       );
-      const playthroughId = await createPlaythrough(session, mediaId);
+      const playthroughId = await createPlaythrough(db, session, mediaId);
       await recordStartEvent(playthroughId);
-      playthrough = await getActivePlaythrough(session, mediaId);
+      playthrough = await getActivePlaythrough(db, session, mediaId);
     } else {
       console.debug(
         "[EventRecording] Found active playthrough:",
@@ -271,9 +271,15 @@ async function handlePlaybackQueueEnded() {
     // Mark playthrough as finished
     console.debug("[EventRecording] Playback ended, marking as finished");
     await recordFinishEvent(currentPlaythroughId);
-    await updatePlaythroughStatus(session, currentPlaythroughId, "finished", {
-      finishedAt: new Date(),
-    });
+    await updatePlaythroughStatus(
+      db,
+      session,
+      currentPlaythroughId,
+      "finished",
+      {
+        finishedAt: new Date(),
+      },
+    );
 
     // Notify UI that playthrough data changed
     bumpPlaythroughDataVersion();
@@ -363,7 +369,12 @@ async function heartbeatSave() {
     const { position } = await TrackPlayer.getProgress();
 
     // Update state cache without creating events (background save)
-    await updateStateCache(currentPlaythroughId, position, currentPlaybackRate);
+    await updateStateCache(
+      db,
+      currentPlaythroughId,
+      position,
+      currentPlaybackRate,
+    );
 
     console.debug(
       "[EventRecording] Heartbeat save at position",
@@ -394,7 +405,7 @@ async function recordPlayEvent(position: number, playbackRate: number) {
     playbackRate,
   });
 
-  await updateStateCache(currentPlaythroughId, position, playbackRate, now);
+  await updateStateCache(db, currentPlaythroughId, position, playbackRate, now);
 
   console.debug("[EventRecording] Recorded play event at position", position);
 }
@@ -415,7 +426,7 @@ async function recordPauseEvent(position: number, playbackRate: number) {
     playbackRate,
   });
 
-  await updateStateCache(currentPlaythroughId, position, playbackRate, now);
+  await updateStateCache(db, currentPlaythroughId, position, playbackRate, now);
 
   console.debug("[EventRecording] Recorded pause event at position", position);
 }
@@ -442,7 +453,13 @@ async function recordSeekEvent(
     toPosition,
   });
 
-  await updateStateCache(currentPlaythroughId, toPosition, playbackRate, now);
+  await updateStateCache(
+    db,
+    currentPlaythroughId,
+    toPosition,
+    playbackRate,
+    now,
+  );
 
   console.debug(
     "[EventRecording] Recorded seek event from",
@@ -473,7 +490,7 @@ async function recordRateChangeEvent(
     previousRate,
   });
 
-  await updateStateCache(currentPlaythroughId, position, newRate, now);
+  await updateStateCache(db, currentPlaythroughId, position, newRate, now);
 
   console.debug(
     "[EventRecording] Recorded rate change from",

@@ -6,9 +6,9 @@ import Database from "better-sqlite3";
 import { drizzle, BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import * as fs from "fs";
 import * as path from "path";
-import * as schema from "./schema";
+import * as schema from "@/src/db/schema";
 
-const MIGRATIONS_DIR = path.join(__dirname, "../../drizzle");
+const MIGRATIONS_DIR = path.join(__dirname, "../drizzle");
 
 /**
  * Apply all migrations to a database in order.
