@@ -19,7 +19,7 @@ let duration: number | null = null;
 let seekEventFrom: number | null = null;
 let seekEventTo: number | null = null;
 
-export async function seek(target: number) {
+export async function seek(interval: number) {
   if (isSeeking) return;
 
   if (!seekTimer || !seekEventTimer) {
@@ -45,7 +45,7 @@ export async function seek(target: number) {
     throw new Error("Seek state invalid");
   }
 
-  seekAccumulator += target;
+  seekAccumulator += interval;
 
   if (seekTimer) clearTimeout(seekTimer);
   if (seekEventTimer) clearTimeout(seekEventTimer);
@@ -75,7 +75,11 @@ export async function seek(target: number) {
     );
 
     await TrackPlayer.seekTo(newPosition);
-    EventBus.emit("remoteSeekApplied", { position: newPosition, duration });
+    EventBus.emit("seekApplied", {
+      position: newPosition,
+      duration,
+      userInitiated: true,
+    });
 
     seekAccumulator = 0;
     isSeeking = false;
@@ -104,21 +108,15 @@ export async function seek(target: number) {
   }, SEEK_EVENT_ACCUMULATION_WINDOW);
 }
 
-export async function seekImmediateNoLog(target: number, isRelative = false) {
+export async function seekImmediateNoLog(interval: number) {
   if (isSeeking) return;
 
   isSeeking = true;
 
   const { position, duration } = await TrackPlayer.getProgress();
   const playbackRate = await TrackPlayer.getRate();
-  let seekPosition;
 
-  if (isRelative) {
-    seekPosition = position + target * playbackRate;
-  } else {
-    seekPosition = target;
-  }
-
+  let seekPosition = position + interval * playbackRate;
   seekPosition = Math.max(0, Math.min(seekPosition, duration));
 
   console.debug(
@@ -130,6 +128,10 @@ export async function seekImmediateNoLog(target: number, isRelative = false) {
   );
 
   await TrackPlayer.seekTo(seekPosition);
-  EventBus.emit("remoteSeekApplied", { position: seekPosition, duration });
+  EventBus.emit("seekApplied", {
+    position: seekPosition,
+    duration,
+    userInitiated: false,
+  });
   isSeeking = false;
 }

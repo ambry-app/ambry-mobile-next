@@ -185,14 +185,16 @@ export function expandPlayer() {
 export async function play() {
   const { position } = await TrackPlayer.getProgress();
   console.debug("[Player] Playing from position", position);
-  return TrackPlayer.play();
+  await TrackPlayer.play();
+  EventBus.emit("playbackStarted", { remote: false });
 }
 
 export async function pause() {
   const { position } = await TrackPlayer.getProgress();
   console.debug("[Player] Pausing at position", position);
   await TrackPlayer.pause();
-  return seekImmediateNoLog(-1, true);
+  EventBus.emit("playbackPaused", { remote: false });
+  await seekImmediateNoLog(-1, true);
 }
 
 export function onPlaybackProgressUpdated(progress: Progress) {
@@ -206,8 +208,8 @@ export function onPlaybackQueueEnded() {
   setProgress(duration, duration);
 }
 
-function onRemoteSeekApplied(progress: Progress) {
-  console.debug("[Player] RemoteSeekApplied", progress);
+function onSeekApplied(progress: Progress) {
+  console.debug("[Player] seekApplied", progress);
   setProgress(progress.position, progress.duration);
 }
 
@@ -727,7 +729,11 @@ async function seek(target: number, isRelative = false) {
     usePlayer.setState({ seekIsApplying: true });
 
     await TrackPlayer.seekTo(seekPosition);
-    setProgress(seekPosition, duration);
+    EventBus.emit("seekApplied", {
+      position: seekPosition,
+      duration,
+      userInitiated: true,
+    });
     usePlayer.setState({
       userIsSeeking: false,
       seekIsApplying: false,
@@ -787,7 +793,11 @@ async function seekImmediateNoLog(target: number, isRelative = false) {
   );
 
   await TrackPlayer.seekTo(seekPosition);
-  setProgress(seekPosition, duration);
+  EventBus.emit("seekApplied", {
+    position: seekPosition,
+    duration,
+    userInitiated: false,
+  });
   usePlayer.setState({ seekIsApplying: false });
 }
 
@@ -822,14 +832,14 @@ export function usePlayerSubscriptions(appState: AppStateStatus) {
         ),
       );
 
-      EventBus.on("remoteSeekApplied", onRemoteSeekApplied);
+      EventBus.on("seekApplied", onSeekApplied);
     }
 
     return () => {
       if (subscriptions.length !== 0)
         console.debug("[Player] Unsubscribing from player events");
       subscriptions.forEach((sub) => sub.remove());
-      EventBus.off("remoteSeekApplied", onRemoteSeekApplied);
+      EventBus.off("seekApplied", onSeekApplied);
     };
   }, [appState]);
 }
