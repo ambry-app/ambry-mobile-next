@@ -5,6 +5,7 @@ import {
   Loading,
   PlayButton,
   PlayerProgressBar,
+  Scrubber,
   ThumbnailImage,
 } from "@/src/components";
 import { PLAYER_HEIGHT, TAB_BAR_BASE_HEIGHT } from "@/src/constants";
@@ -41,7 +42,6 @@ import { useShallow } from "zustand/shallow";
 import {
   ChapterControls,
   PlaybackControls,
-  PlayerScrubber,
   PlayerSettingButtons,
   SeekIndicator,
 } from "./tab-bar-with-player";
@@ -589,7 +589,7 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                     <ChapterControls />
                   </View>
                 </View>
-                <PlayerScrubber />
+                <Scrubber />
               </Animated.View>
             </Animated.View>
           </Animated.View>

@@ -28,6 +28,16 @@ import TrackPlayer, {
 import { create } from "zustand";
 import { Session } from "./session";
 
+export const SeekSource = {
+  BUTTON: "button",
+  CHAPTER: "chapter",
+  REMOTE: "remote",
+  SCRUBBER: "scrubber",
+  PAUSE: "pause",
+} as const;
+
+export type SeekSourceType = (typeof SeekSource)[keyof typeof SeekSource];
+
 export interface PlayerState {
   /* setup state */
 
@@ -196,41 +206,19 @@ export async function pause() {
   await seekImmediateNoLog(-1, true);
 }
 
-export function onPlaybackProgressUpdated(progress: Progress) {
-  console.debug("[Player] PlaybackProgressUpdated", progress);
-  setProgress(progress.position, progress.duration);
+export function seekTo(position: number, source: SeekSourceType) {
+  seek(position, false, source);
 }
 
-export function onPlaybackQueueEnded() {
-  const { duration } = usePlayer.getState();
-  console.debug("[Player] PlaybackQueueEnded at position", duration);
-  setProgress(duration, duration);
-}
-
-function onSeekApplied(progress: Progress) {
-  console.debug("[Player] seekApplied", progress);
-  setProgress(progress.position, progress.duration);
-}
-
-export function setProgress(position: number, duration: number) {
-  usePlayer.setState({ position, duration });
-
-  maybeUpdateChapterState();
-}
-
-export function seekTo(position: number) {
-  seek(position);
-}
-
-export function seekRelative(amount: number) {
-  seek(amount, true);
+export function seekRelative(amount: number, source: SeekSourceType) {
+  seek(amount, true, source);
 }
 
 export function skipToEndOfChapter() {
   const { currentChapter, duration } = usePlayer.getState();
   if (!currentChapter) return;
 
-  return seek(currentChapter.endTime || duration);
+  return seek(currentChapter.endTime || duration, false, SeekSource.CHAPTER);
 }
 
 export function skipToBeginningOfChapter() {
@@ -243,7 +231,7 @@ export function skipToBeginningOfChapter() {
       ? previousChapterStartTime
       : currentChapter.startTime;
 
-  return seek(newPosition);
+  return seek(newPosition, false, SeekSource.CHAPTER);
 }
 
 export async function setPlaybackRate(session: Session, playbackRate: number) {
@@ -279,6 +267,28 @@ export async function forceUnloadPlayer() {
   usePlayer.setState({ ...initialState });
 
   return Promise.resolve();
+}
+
+function onPlaybackProgressUpdated(progress: Progress) {
+  console.debug("[Player] PlaybackProgressUpdated", progress);
+  setProgress(progress.position, progress.duration);
+}
+
+function onPlaybackQueueEnded() {
+  const { duration } = usePlayer.getState();
+  console.debug("[Player] PlaybackQueueEnded at position", duration);
+  setProgress(duration, duration);
+}
+
+function onSeekApplied(progress: Progress) {
+  console.debug("[Player] seekApplied", progress);
+  setProgress(progress.position, progress.duration);
+}
+
+function setProgress(position: number, duration: number) {
+  usePlayer.setState({ position, duration });
+
+  maybeUpdateChapterState();
 }
 
 // async function savePosition(force: boolean = false) {
@@ -616,7 +626,11 @@ function maybeUpdateChapterState() {
 let seekTimer: NodeJS.Timeout | null = null;
 let seekEventTimer: NodeJS.Timeout | null = null;
 
-async function seek(target: number, isRelative = false) {
+async function seek(
+  target: number,
+  isRelative: boolean,
+  source: SeekSourceType,
+) {
   const { seekIsApplying } = usePlayer.getState();
   if (seekIsApplying) return;
 
@@ -715,6 +729,7 @@ async function seek(target: number, isRelative = false) {
       position: seekPosition,
       duration,
       userInitiated: true,
+      source,
     });
     usePlayer.setState({
       userIsSeeking: false,
@@ -779,6 +794,7 @@ async function seekImmediateNoLog(target: number, isRelative = false) {
     position: seekPosition,
     duration,
     userInitiated: false,
+    source: SeekSource.PAUSE,
   });
   usePlayer.setState({ seekIsApplying: false });
 }
