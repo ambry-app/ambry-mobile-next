@@ -1,8 +1,9 @@
-import { db } from "@/src/db/db";
+import { Database } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
 import { eq, sql } from "drizzle-orm";
 
 export async function setPreferredPlaybackRate(
+  db: Database,
   userEmail: string,
   rate: number,
 ) {
@@ -21,6 +22,7 @@ export async function setPreferredPlaybackRate(
 }
 
 export async function setSleepTimerEnabled(
+  db: Database,
   userEmail: string,
   enabled: boolean,
 ) {
@@ -38,7 +40,11 @@ export async function setSleepTimerEnabled(
     });
 }
 
-export async function setSleepTimerTime(userEmail: string, seconds: number) {
+export async function setSleepTimerTime(
+  db: Database,
+  userEmail: string,
+  seconds: number,
+) {
   await db
     .insert(schema.localUserSettings)
     .values({
@@ -53,7 +59,7 @@ export async function setSleepTimerTime(userEmail: string, seconds: number) {
     });
 }
 
-export async function getSleepTimerSettings(userEmail: string) {
+export async function getSleepTimerSettings(db: Database, userEmail: string) {
   const response = await db.query.localUserSettings.findFirst({
     columns: {
       sleepTimer: true,

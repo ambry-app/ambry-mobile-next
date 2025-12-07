@@ -1,3 +1,4 @@
+import { db } from "@/src/db/db";
 import { defaultSleepTimer, defaultSleepTimerEnabled } from "@/src/db/schema";
 import {
   getSleepTimerSettings,
@@ -38,7 +39,7 @@ export async function initializeSleepTimer(session: Session) {
 
   console.debug("[SleepTimer] Initializing");
 
-  const settings = await getSleepTimerSettings(session.email);
+  const settings = await getSleepTimerSettings(db, session.email);
 
   useSleepTimer.setState({
     initialized: true,
@@ -57,7 +58,7 @@ export async function setSleepTimerState(session: Session, enabled: boolean) {
     sleepTimerTriggerTime: null, // Reset trigger time in memory
   });
 
-  await setSleepTimerEnabled(session.email, enabled);
+  await setSleepTimerEnabled(db, session.email, enabled);
 
   if (enabled) {
     EventBus.emit("sleepTimerEnabled");
@@ -72,7 +73,7 @@ export async function setSleepTimerState(session: Session, enabled: boolean) {
 export async function setSleepTimer(session: Session, seconds: number) {
   useSleepTimer.setState({ sleepTimer: seconds });
 
-  await setSleepTimerTime(session.email, seconds);
+  await setSleepTimerTime(db, session.email, seconds);
 
   // If timer is currently active, notify service to reset with new duration
   const { sleepTimerTriggerTime } = useSleepTimer.getState();

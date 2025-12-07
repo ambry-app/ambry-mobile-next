@@ -1,0 +1,217 @@
+import {
+  getSleepTimerSettings,
+  setPreferredPlaybackRate,
+  setSleepTimerEnabled,
+  setSleepTimerTime,
+} from "@/src/db/settings";
+import * as schema from "@/src/db/schema";
+import { setupTestDatabase } from "@test/db-test-utils";
+import { createLocalUserSettings, DEFAULT_TEST_SESSION } from "@test/factories";
+
+const { getDb } = setupTestDatabase();
+
+const userEmail = DEFAULT_TEST_SESSION.email;
+
+describe("settings", () => {
+  describe("setPreferredPlaybackRate", () => {
+    it("creates settings record if none exists", async () => {
+      const db = getDb();
+
+      await setPreferredPlaybackRate(db, userEmail, 1.5);
+
+      const settings = await db.query.localUserSettings.findFirst({
+        where: (s, { eq }) => eq(s.userEmail, userEmail),
+      });
+
+      expect(settings).toBeDefined();
+      expect(settings?.preferredPlaybackRate).toBe(1.5);
+    });
+
+    it("updates existing settings record", async () => {
+      const db = getDb();
+      await createLocalUserSettings(db, {
+        userEmail,
+        preferredPlaybackRate: 1.0,
+      });
+
+      await setPreferredPlaybackRate(db, userEmail, 2.0);
+
+      const settings = await db.query.localUserSettings.findFirst({
+        where: (s, { eq }) => eq(s.userEmail, userEmail),
+      });
+
+      expect(settings?.preferredPlaybackRate).toBe(2.0);
+    });
+
+    it("does not affect other settings when updating", async () => {
+      const db = getDb();
+      await createLocalUserSettings(db, {
+        userEmail,
+        preferredPlaybackRate: 1.0,
+        sleepTimer: 900,
+        sleepTimerEnabled: true,
+      });
+
+      await setPreferredPlaybackRate(db, userEmail, 1.75);
+
+      const settings = await db.query.localUserSettings.findFirst({
+        where: (s, { eq }) => eq(s.userEmail, userEmail),
+      });
+
+      expect(settings?.preferredPlaybackRate).toBe(1.75);
+      expect(settings?.sleepTimer).toBe(900);
+      expect(settings?.sleepTimerEnabled).toBe(true);
+    });
+  });
+
+  describe("setSleepTimerEnabled", () => {
+    it("creates settings record if none exists", async () => {
+      const db = getDb();
+
+      await setSleepTimerEnabled(db, userEmail, true);
+
+      const settings = await db.query.localUserSettings.findFirst({
+        where: (s, { eq }) => eq(s.userEmail, userEmail),
+      });
+
+      expect(settings).toBeDefined();
+      expect(settings?.sleepTimerEnabled).toBe(true);
+    });
+
+    it("updates existing settings record", async () => {
+      const db = getDb();
+      await createLocalUserSettings(db, {
+        userEmail,
+        sleepTimerEnabled: false,
+      });
+
+      await setSleepTimerEnabled(db, userEmail, true);
+
+      const settings = await db.query.localUserSettings.findFirst({
+        where: (s, { eq }) => eq(s.userEmail, userEmail),
+      });
+
+      expect(settings?.sleepTimerEnabled).toBe(true);
+    });
+
+    it("can disable sleep timer", async () => {
+      const db = getDb();
+      await createLocalUserSettings(db, {
+        userEmail,
+        sleepTimerEnabled: true,
+      });
+
+      await setSleepTimerEnabled(db, userEmail, false);
+
+      const settings = await db.query.localUserSettings.findFirst({
+        where: (s, { eq }) => eq(s.userEmail, userEmail),
+      });
+
+      expect(settings?.sleepTimerEnabled).toBe(false);
+    });
+  });
+
+  describe("setSleepTimerTime", () => {
+    it("creates settings record if none exists", async () => {
+      const db = getDb();
+
+      await setSleepTimerTime(db, userEmail, 1800);
+
+      const settings = await db.query.localUserSettings.findFirst({
+        where: (s, { eq }) => eq(s.userEmail, userEmail),
+      });
+
+      expect(settings).toBeDefined();
+      expect(settings?.sleepTimer).toBe(1800);
+    });
+
+    it("updates existing settings record", async () => {
+      const db = getDb();
+      await createLocalUserSettings(db, {
+        userEmail,
+        sleepTimer: 600,
+      });
+
+      await setSleepTimerTime(db, userEmail, 1200);
+
+      const settings = await db.query.localUserSettings.findFirst({
+        where: (s, { eq }) => eq(s.userEmail, userEmail),
+      });
+
+      expect(settings?.sleepTimer).toBe(1200);
+    });
+  });
+
+  describe("getSleepTimerSettings", () => {
+    it("returns defaults when no settings exist", async () => {
+      const db = getDb();
+
+      const settings = await getSleepTimerSettings(db, userEmail);
+
+      expect(settings.sleepTimer).toBe(schema.defaultSleepTimer);
+      expect(settings.sleepTimerEnabled).toBe(schema.defaultSleepTimerEnabled);
+    });
+
+    it("returns saved settings when they exist", async () => {
+      const db = getDb();
+      await createLocalUserSettings(db, {
+        userEmail,
+        sleepTimer: 900,
+        sleepTimerEnabled: true,
+      });
+
+      const settings = await getSleepTimerSettings(db, userEmail);
+
+      expect(settings.sleepTimer).toBe(900);
+      expect(settings.sleepTimerEnabled).toBe(true);
+    });
+
+    it("returns only sleepTimer and sleepTimerEnabled fields", async () => {
+      const db = getDb();
+      await createLocalUserSettings(db, {
+        userEmail,
+        sleepTimer: 1200,
+        sleepTimerEnabled: false,
+        preferredPlaybackRate: 2.0,
+      });
+
+      const settings = await getSleepTimerSettings(db, userEmail);
+
+      // Should only have these two fields
+      expect(Object.keys(settings)).toEqual([
+        "sleepTimer",
+        "sleepTimerEnabled",
+      ]);
+      expect(settings.sleepTimer).toBe(1200);
+      expect(settings.sleepTimerEnabled).toBe(false);
+    });
+
+    it("returns settings for the correct user", async () => {
+      const db = getDb();
+      await createLocalUserSettings(db, {
+        userEmail: "user1@example.com",
+        sleepTimer: 600,
+        sleepTimerEnabled: true,
+      });
+      await createLocalUserSettings(db, {
+        userEmail: "user2@example.com",
+        sleepTimer: 1800,
+        sleepTimerEnabled: false,
+      });
+
+      const user1Settings = await getSleepTimerSettings(
+        db,
+        "user1@example.com",
+      );
+      const user2Settings = await getSleepTimerSettings(
+        db,
+        "user2@example.com",
+      );
+
+      expect(user1Settings.sleepTimer).toBe(600);
+      expect(user1Settings.sleepTimerEnabled).toBe(true);
+      expect(user2Settings.sleepTimer).toBe(1800);
+      expect(user2Settings.sleepTimerEnabled).toBe(false);
+    });
+  });
+});
