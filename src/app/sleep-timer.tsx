@@ -9,6 +9,7 @@ import Slider from "@react-native-community/slider";
 import { useCallback, useEffect, useState } from "react";
 import { Platform, StyleSheet, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useShallow } from "zustand/shallow";
 
 function formatSeconds(seconds: number) {
   return Math.round(seconds / 60);
@@ -17,7 +18,12 @@ function formatSeconds(seconds: number) {
 export default function SleepTimerRoute() {
   const { bottom } = useSafeAreaInsets();
 
-  const { sleepTimer, sleepTimerEnabled } = usePlayer((state) => state);
+  const { sleepTimer, sleepTimerEnabled } = usePlayer(
+    useShallow(({ sleepTimer, sleepTimerEnabled }) => ({
+      sleepTimer,
+      sleepTimerEnabled,
+    })),
+  );
 
   const [displaySleepTimerSeconds, setDisplaySleepTimerSeconds] =
     useState(sleepTimer);

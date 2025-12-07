@@ -6,15 +6,56 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { useShallow } from "zustand/shallow";
 
 export function PlayerSettingButtons() {
-  const playbackRate = usePlayer((state) => state.playbackRate);
-  const sleepTimer = usePlayer((state) => state.sleepTimer);
-  const sleepTimerEnabled = usePlayer((state) => state.sleepTimerEnabled);
-  const sleepTimerTriggerTime = usePlayer(
-    (state) => state.sleepTimerTriggerTime,
+  return (
+    <View style={styles.container}>
+      <SleepTimerButton />
+      <PlaybackRateButton />
+    </View>
   );
-  const position = usePlayer((state) => state.position);
+}
+
+function SleepTimerButton() {
+  const sleepTimerEnabled = usePlayer((state) => state.sleepTimerEnabled);
+
+  return (
+    <IconButton
+      icon="stopwatch"
+      size={16}
+      color={Colors.zinc[100]}
+      style={styles.button}
+      onPress={() => {
+        router.navigate("/sleep-timer");
+      }}
+      onLongPress={() => {
+        setSleepTimerState(!sleepTimerEnabled);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }}
+    >
+      <SleepTimerLabel />
+    </IconButton>
+  );
+}
+
+function SleepTimerLabel() {
+  const { sleepTimer, sleepTimerEnabled, sleepTimerTriggerTime, position } =
+    usePlayer(
+      useShallow(
+        ({
+          sleepTimer,
+          sleepTimerEnabled,
+          sleepTimerTriggerTime,
+          position,
+        }) => ({
+          sleepTimer,
+          sleepTimerEnabled,
+          sleepTimerTriggerTime,
+          position,
+        }),
+      ),
+    );
   const [countdown, setCountdown] = useState<number | null>(null);
 
   useEffect(() => {
@@ -25,53 +66,6 @@ export function PlayerSettingButtons() {
       setCountdown(null);
     }
   }, [position, sleepTimerEnabled, sleepTimerTriggerTime]);
-
-  return (
-    <View style={styles.container}>
-      <IconButton
-        icon="stopwatch"
-        size={16}
-        color={Colors.zinc[100]}
-        style={styles.button}
-        onPress={() => {
-          router.navigate("/sleep-timer");
-        }}
-        onLongPress={() => {
-          setSleepTimerState(!sleepTimerEnabled);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }}
-      >
-        <SleepTimerLabel
-          sleepTimer={sleepTimer}
-          sleepTimerEnabled={sleepTimerEnabled}
-          countdown={countdown}
-        />
-      </IconButton>
-      <IconButton
-        icon="gauge"
-        size={16}
-        color={Colors.zinc[100]}
-        style={styles.button}
-        onPress={() => {
-          router.navigate("/playback-rate");
-        }}
-      >
-        <Text style={styles.sleepTimerText}>
-          {formatPlaybackRate(playbackRate)}×
-        </Text>
-      </IconButton>
-    </View>
-  );
-}
-
-type SleepTimerLabelProps = {
-  sleepTimer: number;
-  sleepTimerEnabled: boolean;
-  countdown: number | null;
-};
-
-function SleepTimerLabel(props: SleepTimerLabelProps) {
-  const { sleepTimer, sleepTimerEnabled, countdown } = props;
 
   if (!sleepTimerEnabled) return null;
 
@@ -86,6 +80,26 @@ function SleepTimerLabel(props: SleepTimerLabelProps) {
     <Text style={styles.sleepTimerText}>
       {secondsDisplayMinutesOnly(countdown)}
     </Text>
+  );
+}
+
+function PlaybackRateButton() {
+  const playbackRate = usePlayer((s) => s.playbackRate);
+
+  return (
+    <IconButton
+      icon="gauge"
+      size={16}
+      color={Colors.zinc[100]}
+      style={styles.button}
+      onPress={() => {
+        router.navigate("/playback-rate");
+      }}
+    >
+      <Text style={styles.sleepTimerText}>
+        {formatPlaybackRate(playbackRate)}×
+      </Text>
+    </IconButton>
   );
 }
 
