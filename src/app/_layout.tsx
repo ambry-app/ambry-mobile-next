@@ -1,6 +1,10 @@
 import { Loading, MeasureScreenHeight, ScreenCentered } from "@/src/components";
 import { expoDb } from "@/src/db/db";
 import { useAppBoot } from "@/src/hooks/use-app-boot";
+import { useAppState } from "@/src/hooks/use-app-state";
+import { useForegroundSync } from "@/src/hooks/use-foreground-sync";
+// import { usePlayerSubscriptions } from "@/src/hooks/use-player-subscriptions";
+import { useRefreshLibraryDataVersion } from "@/src/hooks/use-refresh-library-data-version";
 import { usePlayer } from "@/src/stores/player";
 import { useSession } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
@@ -105,6 +109,11 @@ function DrizzleStudio() {
 function RootStack() {
   const isLoggedIn = useSession((state) => !!state.session);
   const playerLoaded = usePlayer((state) => !!state.mediaId);
+
+  const appState = useAppState();
+  useForegroundSync(appState);
+  useRefreshLibraryDataVersion(appState);
+  // usePlayerSubscriptions(appState);
 
   return (
     <Stack>
