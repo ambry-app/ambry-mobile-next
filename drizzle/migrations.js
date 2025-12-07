@@ -15,6 +15,7 @@ import m0010 from "./0010_spotty_black_bird.sql";
 import m0011 from "./0011_stiff_james_howlett.sql";
 import m0012 from "./0012_complex_bulldozer.sql";
 import m0013 from "./0013_big_kronos.sql";
+import m0014 from "./0014_overrated_carmella_unuscione.sql";
 
 export default {
   journal,
@@ -33,5 +34,6 @@ export default {
     m0011,
     m0012,
     m0013,
+    m0014,
   },
 };

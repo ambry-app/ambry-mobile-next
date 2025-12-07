@@ -2,6 +2,7 @@ import migrations from "@/drizzle/migrations";
 import { db } from "@/src/db/db";
 import { getServerSyncTimestamps, syncDown } from "@/src/db/sync";
 import { registerBackgroundSyncTask } from "@/src/services/background-sync-service";
+import { getDeviceId } from "@/src/services/device-service";
 import { setLibraryDataVersion } from "@/src/stores/data-version";
 import { loadMostRecentMedia, setupPlayer } from "@/src/stores/player";
 import { useSession } from "@/src/stores/session";
@@ -26,6 +27,9 @@ const useAppBoot = () => {
         setIsReady(true);
         return;
       }
+
+      // Initialize device ID early (needed for event recording)
+      await getDeviceId();
 
       const { lastDownSync, newDataAsOf } =
         await getServerSyncTimestamps(session);

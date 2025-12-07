@@ -236,11 +236,18 @@ export function skipToBeginningOfChapter() {
 }
 
 export async function setPlaybackRate(session: Session, playbackRate: number) {
+  const previousRate = usePlayer.getState().playbackRate;
   usePlayer.setState({ playbackRate });
-  await Promise.all([
-    TrackPlayer.setRate(playbackRate),
-    // updatePlayerState(session, usePlayer.getState().mediaId!, { playbackRate }),
-  ]);
+
+  await TrackPlayer.setRate(playbackRate);
+
+  // Emit event for event recording service
+  const { position } = await TrackPlayer.getProgress();
+  EventBus.emit("playbackRateChanged", {
+    previousRate,
+    newRate: playbackRate,
+    position,
+  });
 }
 
 export async function tryUnloadPlayer() {

@@ -1,3 +1,4 @@
+import * as EventRecording from "@/src/services/event-recording-service";
 import * as ProgressSave from "@/src/services/progress-save-service";
 import * as SleepTimer from "@/src/services/sleep-timer-service";
 import { EventBus } from "@/src/utils";
@@ -148,4 +149,5 @@ export const PlaybackService = async function () {
   // Each service will set up its own EventBus listeners
   SleepTimer.startMonitoring();
   ProgressSave.startMonitoring();
+  EventRecording.startMonitoring();
 };
