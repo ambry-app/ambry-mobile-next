@@ -2,7 +2,11 @@ import { setupTestDatabase } from "@test/db-test-utils";
 import { createLocalUserSettings, DEFAULT_TEST_SESSION } from "@test/factories";
 import { resetStoreBeforeEach } from "@test/store-test-utils";
 
-import { defaultSleepTimer, defaultSleepTimerEnabled } from "@/src/db/schema";
+import {
+  defaultSleepTimer,
+  defaultSleepTimerEnabled,
+  localUserSettings,
+} from "@/src/db/schema";
 import { EventBus } from "@/src/utils";
 import { Session } from "../session";
 import {
@@ -72,9 +76,7 @@ describe("sleep-timer store", () => {
       expect(useSleepTimer.getState().sleepTimer).toBe(1800);
 
       // Change DB value
-      await db
-        .update(require("@/src/db/schema").localUserSettings)
-        .set({ sleepTimer: 3600 });
+      await db.update(localUserSettings).set({ sleepTimer: 3600 });
 
       // Second initialization should skip
       await initializeSleepTimer(testSession);

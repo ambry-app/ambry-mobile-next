@@ -32,6 +32,54 @@ jest.mock("expo-file-system/legacy", () => ({
 export { mockDownloadResumable };
 
 // =============================================================================
+// Expo SecureStore Mock
+// =============================================================================
+
+// In-memory storage for SecureStore
+const mockSecureStoreData: Record<string, string> = {};
+
+jest.mock("expo-secure-store", () => ({
+  getItemAsync: jest.fn((key: string) =>
+    Promise.resolve(mockSecureStoreData[key] ?? null),
+  ),
+  setItemAsync: jest.fn((key: string, value: string) => {
+    mockSecureStoreData[key] = value;
+    return Promise.resolve();
+  }),
+  deleteItemAsync: jest.fn((key: string) => {
+    delete mockSecureStoreData[key];
+    return Promise.resolve();
+  }),
+}));
+
+/**
+ * Clear all SecureStore data. Call this in beforeEach to reset state.
+ */
+export function clearSecureStore(): void {
+  for (const key of Object.keys(mockSecureStoreData)) {
+    delete mockSecureStoreData[key];
+  }
+}
+
+/**
+ * Set a value in the mock SecureStore. Useful for test setup.
+ */
+export function setSecureStoreItem(key: string, value: string): void {
+  mockSecureStoreData[key] = value;
+}
+
+// =============================================================================
+// Expo Device Mock
+// =============================================================================
+
+jest.mock("expo-device", () => ({
+  brand: "TestBrand",
+  modelName: "TestModel",
+  osName: "TestOS",
+  osVersion: "1.0.0",
+}));
+
+// =============================================================================
 // Database Mock
 // =============================================================================
 
