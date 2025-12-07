@@ -31,5 +31,7 @@ jobs:
         run: npm run lint -- --max-warnings 0
       - name: Run tsc
         run: npx tsc
+      - name: Run tests
+        run: npm run test:ci
       - name: Run prebuild
         run: npm run prebuild
