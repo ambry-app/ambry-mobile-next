@@ -1,3 +1,16 @@
+/**
+ * Format a publication date based on the specified precision format.
+ *
+ * @param published - The publication date
+ * @param publishedFormat - "full" (Jun 15, 2023), "year_month" (Jun 2023), or
+ * "year" (2023)
+ * @param month - "short" or "long" month names (default: "long")
+ *
+ * @example
+ * formatPublished(date, "full")          // "June 15, 2023"
+ * formatPublished(date, "year_month")    // "June 2023"
+ * formatPublished(date, "full", "short") // "Jun 15, 2023"
+ */
 export function formatPublished(
   published: Date,
   publishedFormat: string,
@@ -17,7 +30,12 @@ export function formatPublished(
 
 /**
  * Format a date as a human-friendly relative time string.
- * e.g., "just now", "5 minutes ago", "2 hours ago", "yesterday", "3 days ago", "2 weeks ago", "last month", "3 months ago"
+ *
+ * @example
+ * timeAgo(new Date())      // "just now"
+ * timeAgo(fiveMinutesAgo)  // "5 minutes ago"
+ * timeAgo(yesterday)       // "yesterday"
+ * timeAgo(lastWeek)        // "last week"
  */
 export function timeAgo(date: Date): string {
   const now = new Date();

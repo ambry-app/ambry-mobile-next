@@ -1,3 +1,15 @@
+/**
+ * Group items by a key and optionally transform each item.
+ * Like `groupBy` but with an optional map function applied to each item.
+ *
+ * @example
+ * const users = [{ name: "Alice", dept: "Eng" }, { name: "Bob", dept: "Eng" }];
+ * groupMapBy(users, u => u.dept);
+ * // { Eng: [{ name: "Alice", dept: "Eng" }, { name: "Bob", dept: "Eng" }] }
+ *
+ * groupMapBy(users, u => u.dept, u => u.name);
+ * // { Eng: ["Alice", "Bob"] }
+ */
 export function groupMapBy<T, K extends string | number | symbol, R = T>(
   items: T[],
   groupFn: (item: T) => K,

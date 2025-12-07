@@ -9,6 +9,7 @@
     "ios": "APP_VARIANT=development expo run:ios",
     "prebuild": "APP_VARIANT=development expo prebuild",
     "test": "jest --watchAll",
+    "test:ci": "jest",
     "lint": "expo lint",
     "doctor": "npx expo-doctor",
     "expo-upgrade": "npm install expo && npx expo install --fix",

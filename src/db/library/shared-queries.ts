@@ -141,6 +141,18 @@ export type MediaAuthorOrNarrator = {
   thumbnails: schema.Thumbnails | null;
 };
 
+/**
+ * Combine authors and narrators into a single list, collapsing by person ID.
+ * People who appear as both author and narrator get type "authorAndNarrator".
+ * Multiple pen names for the same person are collected in the `names` array.
+ *
+ * @example
+ * combineAuthorsAndNarrators(
+ *   [{ type: "author", person: { id: "p1" }, name: "Pen Name" }],
+ *   [{ type: "narrator", person: { id: "p1" }, name: "Real Name" }]
+ * )
+ * // [{ id: "p1", type: "authorAndNarrator", names: ["Pen Name", "Real Name"], ... }]
+ */
 export function combineAuthorsAndNarrators(
   authors: AuthorForCombination[],
   narrators: NarratorForCombination[],

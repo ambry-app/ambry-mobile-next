@@ -27,6 +27,7 @@ npm run generate-migrations  # Generate Drizzle ORM migrations after schema chan
 ```bash
 npm run lint                 # Run ESLint
 npm test                     # Run Jest tests in watch mode
+npm run test:ci              # Run Jest tests once (for CI/scripts)
 npm run doctor               # Check Expo environment health
 ```
 
@@ -329,9 +330,51 @@ Timing constants centralized in `src/constants.ts`:
 
 Keep all timing/interval constants here for easy adjustment.
 
-## Known Issues & TODOs
+## Testing
 
-1. **Testing Infrastructure**: No tests currently exist
+**Framework**: Jest with `jest-expo` preset.
+
+### Running Tests
+```bash
+npm test          # Watch mode (interactive development)
+npm run test:ci   # Single run (CI/scripts)
+```
+
+### Test File Conventions
+- Place tests in `__tests__/` directories adjacent to source files
+- Name test files `*.test.ts` or `*.test.tsx`
+- Jest auto-discovers all matching files
+
+### Current Test Coverage
+Tests exist for pure utility functions:
+- `src/utils/__tests__/` - date, time, rate formatting, grouping utilities
+- `src/db/library/__tests__/` - data transformation functions
+
+### Writing Tests for Files with Native Dependencies
+Files that import native modules (expo-sqlite, expo-file-system, etc.) need mocks:
+
+```typescript
+// At top of test file - Jest hoists this automatically
+jest.mock("@/src/db/db");
+
+import { myFunction } from "../my-module";
+```
+
+Create mock files in `__mocks__/` directories adjacent to the module:
+```
+src/db/
+  __mocks__/
+    db.ts          # Mock for db.ts
+  db.ts            # Real module
+```
+
+### What to Test
+Focus on pure functions that don't require mocking:
+- Data transformation functions
+- Formatting utilities
+- Business logic helpers
+
+Functions requiring extensive mocking (stores, components, API calls) may not be worth the overhead for unit tests.
 
 ## Debugging
 
