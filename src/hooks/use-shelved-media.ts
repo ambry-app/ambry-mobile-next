@@ -1,3 +1,4 @@
+import { db } from "@/src/db/db";
 import { isMediaOnShelf, toggleMediaOnShelf } from "@/src/db/shelves";
 import { Session } from "@/src/stores/session";
 import { useCallback, useEffect, useState } from "react";
@@ -10,11 +11,11 @@ export function useShelvedMedia(
   const [isOnShelf, setIsOnShelf] = useState<boolean>(false);
 
   const load = useCallback(async () => {
-    setIsOnShelf(await isMediaOnShelf(session, mediaId, shelfName));
+    setIsOnShelf(await isMediaOnShelf(db, session, mediaId, shelfName));
   }, [session, mediaId, shelfName]);
 
   const toggleOnShelf = useCallback(async () => {
-    await toggleMediaOnShelf(session, mediaId, shelfName);
+    await toggleMediaOnShelf(db, session, mediaId, shelfName);
     await load();
   }, [session, mediaId, shelfName, load]);
 

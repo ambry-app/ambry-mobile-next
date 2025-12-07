@@ -1,16 +1,15 @@
-import { Session } from "@/src/stores/session";
-import { db } from "@/src/db/db";
+import { Database } from "@/src/db/db";
 import * as schema from "@/src/db/schema";
+import { Session } from "@/src/stores/session";
 import { and, eq } from "drizzle-orm";
 
 export async function addMediaToShelf(
+  db: Database,
   session: Session,
   mediaId: string,
   shelfName: string,
 ) {
-  // const now = new Date();
-
-  const existingRecord = await getShelvedMedia(session, mediaId, shelfName);
+  const existingRecord = await getShelvedMedia(db, session, mediaId, shelfName);
 
   // This media is already on this shelf.
   if (existingRecord && !existingRecord.deletedAt) {
@@ -19,21 +18,22 @@ export async function addMediaToShelf(
 
   // This media was deleted from this shelf, so we need to add it back.
   if (existingRecord && existingRecord.deletedAt) {
-    await reAddShelvedMedia(session, shelfName, mediaId);
+    await reAddShelvedMedia(db, session, shelfName, mediaId);
     return;
   }
 
   // This media is not on this shelf, so we need to add it.
-  await insertShelvedMedia(session, shelfName, mediaId);
+  await insertShelvedMedia(db, session, shelfName, mediaId);
   return;
 }
 
 export async function removeMediaFromShelf(
+  db: Database,
   session: Session,
   mediaId: string,
   shelfName: string,
 ) {
-  const existingRecord = await getShelvedMedia(session, mediaId, shelfName);
+  const existingRecord = await getShelvedMedia(db, session, mediaId, shelfName);
 
   // This media is not on this shelf.
   if (!existingRecord) {
@@ -46,37 +46,39 @@ export async function removeMediaFromShelf(
   }
 
   // This media is on this shelf, so we need to delete it.
-  await deleteShelvedMedia(session, shelfName, mediaId);
+  await deleteShelvedMedia(db, session, shelfName, mediaId);
   return;
 }
 
 export async function toggleMediaOnShelf(
+  db: Database,
   session: Session,
   mediaId: string,
   shelfName: string,
 ) {
-  const existingRecord = await getShelvedMedia(session, mediaId, shelfName);
+  const existingRecord = await getShelvedMedia(db, session, mediaId, shelfName);
 
   // This media is not on this shelf.
   if (!existingRecord) {
-    await addMediaToShelf(session, mediaId, shelfName);
+    await addMediaToShelf(db, session, mediaId, shelfName);
     return;
   }
 
   // This media is already deleted from this shelf.
   if (existingRecord.deletedAt) {
-    await reAddShelvedMedia(session, shelfName, mediaId);
+    await reAddShelvedMedia(db, session, shelfName, mediaId);
     return;
   }
 
   // This media is on this shelf, so we need to delete it.
-  await deleteShelvedMedia(session, shelfName, mediaId);
+  await deleteShelvedMedia(db, session, shelfName, mediaId);
   return;
 }
 
 export type ShelvedMedia = Awaited<ReturnType<typeof getShelvedMedia>>;
 
 export async function getShelvedMedia(
+  db: Database,
   session: Session,
   mediaId: string,
   shelfName: string,
@@ -92,6 +94,7 @@ export async function getShelvedMedia(
 }
 
 export async function isMediaOnShelf(
+  db: Database,
   session: Session,
   mediaId: string,
   shelfName: string,
@@ -112,6 +115,7 @@ export async function isMediaOnShelf(
 }
 
 async function reAddShelvedMedia(
+  db: Database,
   session: Session,
   shelfName: string,
   mediaId: string,
@@ -136,6 +140,7 @@ async function reAddShelvedMedia(
 }
 
 async function insertShelvedMedia(
+  db: Database,
   session: Session,
   shelfName: string,
   mediaId: string,
@@ -155,6 +160,7 @@ async function insertShelvedMedia(
 }
 
 async function deleteShelvedMedia(
+  db: Database,
   session: Session,
   shelfName: string,
   mediaId: string,
