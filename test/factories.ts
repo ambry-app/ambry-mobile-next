@@ -9,6 +9,7 @@ import type { TestDatabase } from "./db-test-utils";
 export const DEFAULT_TEST_SESSION = {
   url: "http://test-server.com",
   email: "test@example.com",
+  token: "test-token",
 };
 
 // Counter for generating unique IDs

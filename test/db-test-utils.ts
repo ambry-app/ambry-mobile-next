@@ -61,7 +61,7 @@ export function createTestDatabase(): { db: TestDatabase; close: () => void } {
  *
  * @example
  * describe("my tests", () => {
- *   const { getDb } = useTestDatabase();
+ *   const { getDb } = setupTestDatabase();
  *
  *   it("does something", () => {
  *     const db = getDb();
@@ -69,7 +69,7 @@ export function createTestDatabase(): { db: TestDatabase; close: () => void } {
  *   });
  * });
  */
-export function useTestDatabase() {
+export function setupTestDatabase() {
   let testDb: { db: TestDatabase; close: () => void } | null = null;
 
   beforeEach(() => {

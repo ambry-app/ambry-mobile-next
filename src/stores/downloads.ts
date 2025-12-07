@@ -1,3 +1,4 @@
+import { db } from "@/src/db/db";
 import {
   createDownload,
   deleteDownload,
@@ -45,7 +46,7 @@ export async function initializeDownloads(session: Session) {
 
   console.debug("[Downloads] Initializing");
 
-  const all = await getAllDownloads(session);
+  const all = await getAllDownloads(db, session);
   const downloads: Record<string, Download> = {};
   for (const d of all) {
     downloads[d.mediaId] = {
@@ -126,7 +127,12 @@ export async function startDownload(
   console.debug("[Downloads] Downloading to", destinationFilePath);
 
   // FIXME: stored file paths should be relative, not absolute
-  let download = await createDownload(session, mediaId, destinationFilePath);
+  let download = await createDownload(
+    db,
+    session,
+    mediaId,
+    destinationFilePath,
+  );
   addOrUpdateDownload(download);
   setDownloadProgress(mediaId, 0);
 
@@ -136,7 +142,7 @@ export async function startDownload(
       mediaId,
       thumbnails,
     );
-    download = await updateDownload(session, mediaId, {
+    download = await updateDownload(db, session, mediaId, {
       thumbnails: downloadedThumbnails,
     });
     addOrUpdateDownload(download);
@@ -165,7 +171,9 @@ export async function startDownload(
 
     if (result) {
       console.debug("[Downloads] Download succeeded");
-      download = await updateDownload(session, mediaId, { status: "ready" });
+      download = await updateDownload(db, session, mediaId, {
+        status: "ready",
+      });
       addOrUpdateDownload(download);
       // reload player if the download is for the currently loaded media
       if (usePlayer.getState().mediaId === mediaId) {
@@ -176,7 +184,7 @@ export async function startDownload(
     }
   } catch (error) {
     console.warn("[Downloads] Download failed:", error);
-    download = await updateDownload(session, mediaId, { status: "error" });
+    download = await updateDownload(db, session, mediaId, { status: "error" });
     addOrUpdateDownload(download);
   } finally {
     setDownloadResumable(mediaId, undefined);
@@ -199,7 +207,7 @@ export async function cancelDownload(session: Session, mediaId: string) {
 
 export async function removeDownload(session: Session, mediaId: string) {
   console.debug("[Downloads] Removing download for media:", mediaId);
-  const download = await getDownload(session, mediaId);
+  const download = await getDownload(db, session, mediaId);
 
   if (download) {
     const pathToDelete = documentDirectoryFilePath(download.filePath);
@@ -215,7 +223,7 @@ export async function removeDownload(session: Session, mediaId: string) {
     await tryDelete(download.thumbnails.large);
     await tryDelete(download.thumbnails.extraLarge);
   }
-  await deleteDownload(session, mediaId);
+  await deleteDownload(db, session, mediaId);
   removeDownloadFromStore(mediaId);
 
   // reload player if the download is for the currently loaded media

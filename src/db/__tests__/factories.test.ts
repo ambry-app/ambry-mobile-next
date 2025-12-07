@@ -1,4 +1,4 @@
-import { useTestDatabase } from "@test/db-test-utils";
+import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createPerson,
   createAuthor,
@@ -27,7 +27,7 @@ jest.mock("expo-crypto", () => ({
 }));
 
 describe("test factories", () => {
-  const { getDb } = useTestDatabase();
+  const { getDb } = setupTestDatabase();
 
   beforeEach(() => {
     resetIdCounter();

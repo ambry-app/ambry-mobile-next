@@ -1,4 +1,4 @@
-import { createTestDatabase, useTestDatabase } from "@test/db-test-utils";
+import { createTestDatabase, setupTestDatabase } from "@test/db-test-utils";
 import * as schema from "../schema";
 
 describe("createTestDatabase", () => {
@@ -48,8 +48,8 @@ describe("createTestDatabase", () => {
   });
 });
 
-describe("useTestDatabase", () => {
-  const { getDb } = useTestDatabase();
+describe("setupTestDatabase", () => {
+  const { getDb } = setupTestDatabase();
 
   it("provides a fresh database for each test", () => {
     const db = getDb();

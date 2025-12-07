@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { Session } from "@/src/stores/session";
-import { useTestDatabase } from "@test/db-test-utils";
+import { setupTestDatabase } from "@test/db-test-utils";
 import * as schema from "../schema";
 import {
   createMedia,
@@ -20,7 +20,7 @@ jest.mock("expo-crypto", () => ({
 }));
 
 describe("playthroughs module", () => {
-  const { getDb } = useTestDatabase();
+  const { getDb } = setupTestDatabase();
 
   const testSession: Session = {
     url: DEFAULT_TEST_SESSION.url,
