@@ -1,0 +1,321 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+Ambry is a React Native/Expo mobile app (iOS & Android) for streaming and downloading audiobooks from a self-hosted server. The app provides offline playback, library browsing, and syncs playback progress across devices.
+
+## Development Commands
+
+### Running the App
+```bash
+npm start                    # Start Expo dev server
+npm run ios                  # Run on iOS simulator
+npm run android              # Run on Android emulator/device
+npm run prebuild             # Generate native code (when needed)
+```
+
+### Code Generation & Database
+```bash
+npm run codegen              # Generate GraphQL types from server schema
+npm run codegen-watch        # Watch mode for GraphQL codegen
+npm run generate-migrations  # Generate Drizzle ORM migrations after schema changes
+```
+
+### Quality & Diagnostics
+```bash
+npm run lint                 # Run ESLint
+npm test                     # Run Jest tests in watch mode
+npm run doctor               # Check Expo environment health
+```
+
+### Building
+```bash
+npm run android-preview      # Build Android preview locally with EAS
+npm run ios-preview          # Build iOS preview locally with EAS
+```
+
+## Architecture Overview
+
+### Technology Stack
+- **React Native 0.81.5** with **Expo ~54.0.25**
+- **Expo Router 6.0.15**: File-based routing
+- **Zustand 5.0.5**: Global state management
+- **Drizzle ORM 0.44.2** with **Expo SQLite**: Local database
+- **react-native-track-player 5.0.0-alpha0**: Background audio playback
+- **GraphQL**: Custom client with code generation for type safety
+
+### Core Directories
+
+- **`/src/app/`**: Expo Router file-based routing. Each file is a route, `_layout.tsx` files define navigation structure
+- **`/src/components/`**: Reusable UI components. Complex screens in `screens/` subdirectory with modular organization
+- **`/src/stores/`**: Zustand stores for global state (session, player, downloads, data-version, screen)
+- **`/src/db/`**: Drizzle ORM schema, migrations, and data access layer
+  - `schema.ts`: Complete database schema
+  - `sync.ts`: Bi-directional server sync logic
+  - `library/`: Query functions organized by entity type
+- **`/src/graphql/`**: GraphQL API layer
+  - `api.ts`: High-level API functions
+  - `client/`: Generated types and execution logic
+- **`/src/services/`**: Background services (playback service, background sync)
+- **`/src/hooks/`**: Custom React hooks for common patterns
+- **`/src/utils/`**: Utility functions (event-bus, time formatting, paths)
+- **`/src/styles/`**: Design system colors and style utilities
+
+### State Management Pattern
+
+**Zustand Stores** (not Redux, not Context):
+- **`session.ts`**: Authentication state (email, token, server URL) - persisted to SecureStore
+- **`player.ts`**: Audio player state (position, duration, rate, seeking state, chapters)
+- **`downloads.ts`**: Download management and progress tracking
+- **`data-version.ts`**: Library data versioning for cache invalidation
+- **`screen.ts`**: UI state (dimensions, keyboard visibility)
+
+Access pattern: Import and use directly
+```typescript
+import { useSession } from "@/stores/session"
+
+const { email, token } = useSession()
+const logout = useSession((state) => state.logout)
+```
+
+### Audio Playback Architecture
+
+**Background Audio Service**:
+- Uses `react-native-track-player` (alpha version)
+- Service registered in `entry.js` before app renders
+- Runs in **headless JS context** (continues even when app is completely closed)
+- Service code: `src/services/playback-service.ts`
+- Acts as thin adapter: translates TrackPlayer events → EventBus events
+- Remote control events (lock screen, headphones) handled via EventBus
+
+**Background Services Architecture**:
+Services run in the headless context and are fully decoupled via EventBus:
+- **`playback-service.ts`**: TrackPlayer event adapter, emits EventBus events
+- **`sleep-timer-service.ts`**: Manages sleep timer, volume fade, auto-pause
+- **`progress-save-service.ts`**: Periodically saves playback position to DB (30s interval while playing)
+
+Each service:
+- Initializes via `startMonitoring()` called from playback service
+- Sets up its own EventBus listeners
+- Self-contained with no direct dependencies on other services
+
+**Critical - Dual Context Architecture**:
+- **Headless context**: Playback service runs here, survives app closure
+- **Main app context**: UI runs here, destroyed when app closes
+- Both contexts share state via **database persistence** (not Zustand stores!)
+- Zustand stores are separate instances in each context
+- Services must persist critical state (e.g., `sleepTimerTriggerTime`) to DB to survive app restarts
+
+**Player State** (`stores/player.ts`):
+- Complex seeking logic with accumulation (prevents stuttering from rapid taps)
+- Dual position tracking: server-synced vs local modifications
+- Chapter navigation with automatic current chapter detection
+- Supports both streaming (HLS/DASH) and downloaded (MP4) playback
+
+**Critical**: When modifying player logic, understand the seek accumulation pattern:
+- Multiple rapid seeks accumulate before applying (500ms window)
+- Prevents jitter and excessive native calls
+- See `utils/seek.ts` and `stores/player.ts` for implementation
+
+### Database Architecture
+
+**SQLite with Drizzle ORM**:
+- Write-Ahead Logging (WAL) mode enabled for performance
+- Multi-tenant design: Every table includes `url` (server URL) in composite keys
+- Supports multiple server connections in one database
+
+**Key Tables**:
+- **Library tables**: `people`, `authors`, `narrators`, `books`, `media`, `series` (synced from server)
+- **Player state**: `playerStates` (server source), `localPlayerStates` (local modifications)
+- **Downloads**: `downloads` (local file paths, resumable state)
+- **User data**: `localUserSettings`, `shelvedMedia`
+- **Sync metadata**: `syncedServers`, `serverProfiles` (timestamps for incremental sync)
+
+**Dual-state Pattern for Player Progress**:
+- `playerStates`: Read-only, synced from server
+- `localPlayerStates`: Local modifications pending sync
+- When loading media, compare timestamps to use newer state
+- Progress automatically saved every 30s during playback (via `progress-save-service.ts`)
+- Saved immediately on pause and playback end
+- See `db/player-states.ts` for reconciliation logic
+
+**Schema Changes**:
+1. Modify `src/db/schema.ts`
+2. Run `npm run generate-migrations`
+3. Migrations auto-apply on next app boot
+
+### GraphQL API Layer
+
+**Custom Client** (not Apollo, not URQL):
+- Raw `fetch` API with type-safe generated types
+- Result pattern for error handling (no throwing)
+- All queries/mutations in `src/graphql/api.ts`
+- Generated types in `src/graphql/client/`
+
+**Code Generation**:
+- Scans all `src/**/*.{ts,tsx}` for `graphql()` calls
+- Generates type-safe functions with `graphql-codegen`
+- Schema source: `http://localhost:4000/gql` (update in `codegen.ts` if needed)
+- Run `npm run codegen` after adding new queries
+
+**Error Handling Pattern**:
+```typescript
+const result = await executeAuthenticated(url, token, query, variables)
+if (!result.success) {
+  switch (result.error.code) {
+    case ExecuteAuthenticatedErrorCode.UNAUTHORIZED:
+      // Handle auth error
+    case ExecuteAuthenticatedErrorCode.NETWORK_ERROR:
+      // Handle network
+    // etc.
+  }
+  return
+}
+const data = result.result // Type-safe success path
+```
+
+### Data Synchronization
+
+**Bi-directional Sync** (`db/sync.ts`):
+
+**Down-sync** (pull from server):
+1. Query `getLibraryChangesSince(lastDownSync)` - single large query
+2. Transform GraphQL data to database schema
+3. Upsert all records in single transaction
+4. Handle deletions
+5. Update `lastDownSync` and `newDataAsOf` timestamps
+
+**Up-sync** (push to server):
+1. Query local player state changes since `lastUpSync`
+2. Send each changed state via `updatePlayerState` mutation
+3. Update `lastUpSync` timestamp
+
+**Sync Timing**:
+- Initial sync on first login (blocks app)
+- Foreground sync: Every 15 minutes (see `hooks/use-foreground-sync.ts`)
+- Background sync: Every 15 minutes minimum (see `services/background-sync-service.ts`)
+- Manual sync: Pull-to-refresh on library screens
+
+**Cache Invalidation**:
+- Global `libraryDataVersion` store tracks last sync
+- UI components use `useLibraryData()` hook which auto-refetches on version change
+- After sync completes: `setLibraryDataVersion(new Date())`
+
+### Navigation & Routing
+
+**File-based with Expo Router**:
+- `app/_layout.tsx`: Root layout with auth guards
+- `app/(tabs)/`: Protected tab navigation
+  - `(library)/`: Library stack (search, book/media/author/series details)
+  - `(shelf)/`: User shelf stack (now playing, in-progress)
+  - `downloads.tsx`, `settings.tsx`: Tab screens
+- Modal screens: `sleep-timer.tsx`, `playback-rate.tsx`, `chapter-select.tsx`
+
+**Authentication Guards**:
+- `Stack.Protected` wrapper checks `isLoggedIn` state
+- Auto-redirect to `sign-in.tsx` if not authenticated
+- Player modals additionally guard on `playerLoaded` state
+
+**Navigation Pattern**:
+```typescript
+import { router } from "expo-router"
+router.push("/book/123")
+router.back()
+```
+
+### App Initialization Flow
+
+**Boot Sequence** (`hooks/use-app-boot.ts`):
+1. Apply database migrations
+2. Check session (exit if none)
+3. Load library data version
+4. Load downloads state
+5. Initial sync (if first time on this server)
+6. Setup TrackPlayer
+7. Load most recent media (auto-resume)
+8. Register background sync task
+9. Hide splash screen
+
+**Critical**: Modifications to boot flow must maintain order - each step may depend on previous steps.
+
+## Important Patterns & Conventions
+
+### Result Pattern for Error Handling
+Instead of throwing exceptions, functions return `Result<T, E>` discriminated unions:
+```typescript
+type Result<T, E> =
+  | { success: true; result: T }
+  | { success: false; error: E }
+```
+This forces exhaustive error handling at call sites.
+
+### Event Bus for Cross-Component Communication
+Simple EventEmitter pattern (`utils/event-bus.ts`):
+- Decouples background services from UI components
+- Key events: `playbackStarted`, `playbackPaused`, `seekApplied`, `playbackQueueEnded`, `remoteDuck`, `expandPlayer`
+- Background services listen to events and handle their own concerns
+- Enables headless JS context and main app context to stay in sync
+
+### Type Inference from Queries
+Drizzle queries infer complex types automatically:
+```typescript
+const getMedia = async (id: string) => db.query.media.findFirst({...})
+export type Media = Awaited<ReturnType<typeof getMedia>>
+```
+Schema changes cascade automatically - be aware of breaking changes.
+
+### Multi-Server Support
+Every database query scoped by server URL:
+```typescript
+where: and(
+  eq(table.url, session.url),
+  eq(table.id, id)
+)
+```
+Never query without URL filter in multi-tenant tables.
+
+### File Paths
+All file operations use document directory:
+- Downloads: `{documentDirectory}/{mediaId}.mp4`
+- Thumbnails: `{documentDirectory}/{mediaId}-{size}.webp`
+- Use `utils/paths.ts` helpers: `documentDirectoryFilePath()`
+
+### Component Organization
+Complex screens get subdirectories:
+```
+components/screens/
+  media-screen/
+    index.ts          # Exports all parts
+    ActionBar.tsx
+    Header.tsx
+    MediaDescription.tsx
+```
+
+### Constants and Configuration
+Timing constants centralized in `src/constants.ts`:
+- `SEEK_ACCUMULATION_WINDOW`: Debounce window for rapid seeks (500ms)
+- `SEEK_EVENT_ACCUMULATION_WINDOW`: Delay before logging seek events (5s)
+- `PROGRESS_SAVE_INTERVAL`: How often to save position during playback (30s)
+- `SLEEP_TIMER_FADE_OUT_TIME`: Duration of volume fade before sleep timer triggers (30s)
+
+Keep all timing/interval constants here for easy adjustment.
+
+## Known Issues & TODOs
+
+1. **Seek Analytics**: Seek events logged but not yet saved to database
+2. **Testing Infrastructure**: No tests currently exist
+
+## Debugging
+
+- Console logs prefixed by component: `[Player]`, `[SyncDown]`, `[LoadMedia]`
+- Expo DevTools: Network inspector, logs
+- Drizzle Studio: Database inspection (dev only, enabled via `useDrizzleStudio()`)
+- React DevTools: Component inspection
+
+## Git Workflow
+
+Main branch: `main`
+
+When creating commits or PRs, follow the existing commit message style in the git log.
