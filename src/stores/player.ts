@@ -14,7 +14,7 @@ import {
   setSleepTimerEnabled,
   setSleepTimerTime,
 } from "@/src/db/settings";
-import { documentDirectoryFilePath } from "@/src/utils";
+import { EventBus, documentDirectoryFilePath } from "@/src/utils";
 import { Platform } from "react-native";
 import TrackPlayer, {
   AndroidAudioContentType,
@@ -44,9 +44,6 @@ export interface PlayerState {
   state: State | undefined;
   mediaId: string | null;
   playbackRate: number;
-  lastPlayerExpandRequest: Date | undefined;
-  isFullyExpanded: boolean;
-  isFullyCollapsed: boolean;
   streaming: boolean | undefined;
   chapterState: ChapterState | null;
   sleepTimer: number;
@@ -72,9 +69,6 @@ export const usePlayer = create<PlayerState>()(() => ({
   state: undefined,
   mediaId: null,
   playbackRate: 1,
-  lastPlayerExpandRequest: undefined,
-  isFullyExpanded: true,
-  isFullyCollapsed: false,
   streaming: undefined,
   chapterState: null,
   sleepTimer: schema.defaultSleepTimer,
@@ -168,20 +162,8 @@ export async function loadMedia(session: Session, mediaId: string) {
   });
 }
 
-export function requestExpandPlayer() {
-  usePlayer.setState({ lastPlayerExpandRequest: new Date() });
-}
-
-export function expandPlayerHandled() {
-  usePlayer.setState({ lastPlayerExpandRequest: undefined });
-}
-
-export function setIsFullyExpanded(expanded: boolean) {
-  usePlayer.setState({ isFullyExpanded: expanded });
-}
-
-export function setIsFullyCollapsed(collapsed: boolean) {
-  usePlayer.setState({ isFullyCollapsed: collapsed });
+export function expandPlayer() {
+  EventBus.emit("expandPlayer");
 }
 
 export function playOrPause() {

@@ -3,7 +3,7 @@ import {
   loadMedia,
   pause,
   prepareToLoadMedia,
-  requestExpandPlayer,
+  expandPlayer,
 } from "@/src/stores/player";
 import { Session } from "@/src/stores/session";
 import { useCallback } from "react";
@@ -14,7 +14,7 @@ export default function useLoadMediaCallback(
 ) {
   const loadMediaCallback = useCallback(async () => {
     await pause();
-    requestExpandPlayer();
+    expandPlayer();
     prepareToLoadMedia();
     setTimeout(async () => {
       await syncDownUser(session);

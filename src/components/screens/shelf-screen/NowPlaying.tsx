@@ -6,7 +6,7 @@ import {
 } from "@/src/components";
 import { getMedia } from "@/src/db/library";
 import { useLibraryData } from "@/src/hooks/use-library-data";
-import { requestExpandPlayer, usePlayer } from "@/src/stores/player";
+import { expandPlayer, usePlayer } from "@/src/stores/player";
 import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -30,7 +30,6 @@ type NowPlayingDetailsProps = {
 
 function NowPlayingDetails({ session, mediaId }: NowPlayingDetailsProps) {
   const media = useLibraryData(() => getMedia(session, mediaId), [mediaId]);
-  const expandPlayer = () => requestExpandPlayer();
 
   if (!media) return null;
 
