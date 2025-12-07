@@ -5,7 +5,6 @@ import { EventBus } from "@/src/utils";
 import { seek, seekImmediateNoLog } from "@/src/utils/seek";
 import TrackPlayer, { Event } from "react-native-track-player";
 
-
 export const PlaybackService = async function () {
   console.debug("[TrackPlayer Service] Initializing");
 

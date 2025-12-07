@@ -10,11 +10,12 @@ import {
 } from "@/src/db/playthroughs";
 import * as schema from "@/src/db/schema";
 import { syncPlaythroughs } from "@/src/db/sync";
-import { getDeviceId, getDeviceIdSync } from "@/src/services/device-service";
+import { getDeviceIdSync, initializeDevice } from "@/src/stores/device";
 import { Session, useSession } from "@/src/stores/session";
 import { EventBus } from "@/src/utils";
 
 let isInitialized = false;
+let currentMediaId: string | null = null;
 let currentPlaythroughId: string | null = null;
 let heartbeatInterval: NodeJS.Timeout | null = null;
 
@@ -36,10 +37,8 @@ export async function startMonitoring() {
   isInitialized = true;
   console.debug("[EventRecording] Initializing");
 
-  // Initialize device ID early so getDeviceIdSync() works in event handlers
-  // This is especially important in the headless context where the main app's
-  // boot sequence hasn't run
-  await getDeviceId();
+  // Initialize device store so getDeviceIdSync() works in event handlers
+  await initializeDevice();
 
   EventBus.on("playbackStarted", handlePlaybackStarted);
   EventBus.on("playbackPaused", handlePlaybackPaused);
@@ -66,17 +65,21 @@ export function stopMonitoring() {
  * Set the current playthrough for event recording.
  * Called when loading media into the player.
  */
-export function setCurrentPlaythrough(
-  playthroughId: string | null,
+function setCurrentPlaythrough(
+  mediaId: string,
+  playthroughId: string,
   initialPosition: number = 0,
   initialRate: number = 1,
 ) {
+  currentMediaId = mediaId;
   currentPlaythroughId = playthroughId;
   lastKnownPosition = initialPosition;
   currentPlaybackRate = initialRate;
   console.debug(
     "[EventRecording] Set playthrough:",
     playthroughId,
+    "for media:",
+    mediaId,
     "position:",
     initialPosition,
     "rate:",
@@ -154,6 +157,10 @@ export async function recordAbandonEvent(playthroughId: string) {
  * Initialize playthrough tracking for a media item.
  * Called directly from player.ts when media is loaded.
  * Gets or creates an active playthrough and sets up event recording.
+ *
+ * NOTE: If we already have a playthrough for this exact media (e.g., JS context
+ * persisted across app "kill"), we skip the DB query and just update position/rate.
+ * This is the same pattern used for sleep timer - trust in-memory state when valid.
  */
 export async function initializePlaythroughTracking(
   session: Session,
@@ -161,6 +168,18 @@ export async function initializePlaythroughTracking(
   position: number,
   playbackRate: number,
 ) {
+  // If we already have a playthrough for this exact media, just update position/rate
+  // This handles the case where JS context persisted across app "kill"
+  if (currentMediaId === mediaId && currentPlaythroughId !== null) {
+    console.debug(
+      "[EventRecording] Reusing existing playthrough:",
+      currentPlaythroughId,
+    );
+    lastKnownPosition = position;
+    currentPlaybackRate = playbackRate;
+    return;
+  }
+
   try {
     // Get or create playthrough for event recording
     let playthrough = await getActivePlaythrough(session, mediaId);
@@ -181,7 +200,7 @@ export async function initializePlaythroughTracking(
 
     // Set up event recording for this playthrough
     if (playthrough) {
-      setCurrentPlaythrough(playthrough.id, position, playbackRate);
+      setCurrentPlaythrough(mediaId, playthrough.id, position, playbackRate);
     }
   } catch (error) {
     console.warn("[EventRecording] Error initializing playthrough:", error);

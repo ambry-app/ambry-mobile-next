@@ -20,7 +20,7 @@ import {
 } from "@/src/graphql/api";
 import type { SyncProgressInput } from "@/src/graphql/api";
 import { ExecuteAuthenticatedErrorCode } from "@/src/graphql/client/execute";
-import { getDeviceInfo } from "@/src/services/device-service";
+import { useDevice } from "@/src/stores/device";
 import { setLibraryDataVersion } from "@/src/stores/data-version";
 import { Session, forceSignOut } from "@/src/stores/session";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
@@ -634,8 +634,12 @@ export async function syncUp(session: Session) {
 export async function syncPlaythroughs(session: Session) {
   console.debug("[SyncPlaythroughs] starting...");
 
-  // Get device info
-  const deviceInfo = await getDeviceInfo();
+  // Get device info from store (should be initialized at boot)
+  const deviceInfo = useDevice.getState().deviceInfo;
+  if (!deviceInfo) {
+    console.warn("[SyncPlaythroughs] Device not initialized, skipping");
+    return;
+  }
 
   // Get unsynced playthroughs
   const unsyncedPlaythroughs = await getUnsyncedPlaythroughs(session);

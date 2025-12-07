@@ -41,10 +41,10 @@ export const SeekSource = {
 export type SeekSourceType = (typeof SeekSource)[keyof typeof SeekSource];
 
 export interface PlayerState {
-  /* setup state */
+  /* initialization state */
 
-  setup: boolean;
-  setupError: unknown | null;
+  initialized: boolean;
+  initializationError: unknown | null;
   mediaId: string | null;
   streaming: boolean | undefined;
   loadingNewMedia: boolean;
@@ -117,25 +117,50 @@ const initialState = {
 };
 
 export const usePlayer = create<PlayerState>()(() => ({
-  setup: false,
-  setupError: null,
+  initialized: false,
+  initializationError: null,
   ...initialState,
 }));
 
-export async function setupPlayer(session: Session) {
-  if (usePlayer.getState().setup) {
-    console.debug("[Player] already set up");
+/**
+ * Initialize the player store.
+ * Sets up TrackPlayer and loads the most recent media if not already initialized.
+ */
+export async function initializePlayer(session: Session) {
+  if (usePlayer.getState().initialized) {
+    console.debug("[Player] Already initialized, skipping");
     return;
   }
+
+  console.debug("[Player] Initializing");
 
   try {
     const response = await setupTrackPlayer(session);
 
     if (response === true) {
-      usePlayer.setState({ setup: true });
+      // TrackPlayer set up but no track loaded yet
+      usePlayer.setState({ initialized: true });
+
+      // Try to load most recent media
+      const track = await loadMostRecentMediaIntoTrackPlayer(session);
+      if (track) {
+        usePlayer.setState({
+          mediaId: track.mediaId,
+          duration: track.duration,
+          position: track.position,
+          playbackRate: track.playbackRate,
+          streaming: track.streaming,
+          ...initialChapterState(
+            track.chapters,
+            track.position,
+            track.duration,
+          ),
+        });
+      }
     } else {
+      // TrackPlayer already had a track (shouldn't happen on fresh init, but handle it)
       usePlayer.setState({
-        setup: true,
+        initialized: true,
         mediaId: response.mediaId,
         duration: response.duration,
         position: response.position,
@@ -149,30 +174,12 @@ export async function setupPlayer(session: Session) {
       });
     }
   } catch (error) {
-    usePlayer.setState({ setupError: error });
+    usePlayer.setState({ initializationError: error });
   }
 }
 
 export function prepareToLoadMedia() {
   usePlayer.setState({ loadingNewMedia: true });
-}
-
-export async function loadMostRecentMedia(session: Session) {
-  if (!usePlayer.getState().setup) return;
-
-  const track = await loadMostRecentMediaIntoTrackPlayer(session);
-
-  if (track) {
-    usePlayer.setState({
-      loadingNewMedia: false,
-      mediaId: track.mediaId,
-      duration: track.duration,
-      position: track.position,
-      playbackRate: track.playbackRate,
-      streaming: track.streaming,
-      ...initialChapterState(track.chapters, track.position, track.duration),
-    });
-  }
 }
 
 export async function loadMedia(session: Session, mediaId: string) {
@@ -356,7 +363,7 @@ async function setupTrackPlayer(
     progressUpdateEventInterval: 1,
   });
 
-  console.debug("[Player] setup succeeded");
+  console.debug("[Player] TrackPlayer setup succeeded");
   return true;
 }
 

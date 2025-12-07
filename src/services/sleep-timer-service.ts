@@ -1,5 +1,4 @@
 import { SLEEP_TIMER_FADE_OUT_TIME } from "@/src/constants";
-import { useSession } from "@/src/stores/session";
 import { setTriggerTime, useSleepTimer } from "@/src/stores/sleep-timer";
 import { EventBus } from "@/src/utils";
 import TrackPlayer, { isPlaying } from "react-native-track-player";
@@ -70,8 +69,7 @@ async function checkTimer() {
     console.debug("[Sleep Timer] Triggering - pausing playback");
     await TrackPlayer.pause();
     await TrackPlayer.setVolume(1.0);
-    const session = useSession.getState().session;
-    await setTriggerTime(session, null);
+    setTriggerTime(null);
     EventBus.emit("playbackPaused", { remote: false });
   } else if (timeRemaining <= SLEEP_TIMER_FADE_OUT_TIME) {
     // Fade volume in last 30 seconds
@@ -112,8 +110,7 @@ export async function reset() {
     "[Sleep Timer] Setting timer to trigger at",
     new Date(triggerTime),
   );
-  const session = useSession.getState().session;
-  await setTriggerTime(session, triggerTime);
+  setTriggerTime(triggerTime);
   await TrackPlayer.setVolume(1.0);
 }
 
@@ -122,7 +119,6 @@ export async function reset() {
  */
 export async function cancel() {
   console.debug("[Sleep Timer] Canceling timer");
-  const session = useSession.getState().session;
-  await setTriggerTime(session, null);
+  setTriggerTime(null);
   await TrackPlayer.setVolume(1.0);
 }

@@ -66,13 +66,34 @@ npm run ios-preview          # Build iOS preview locally with EAS
 ### State Management Pattern
 
 **Zustand Stores** (not Redux, not Context):
+- **`device.ts`**: Device info (id, type, brand, model, OS) - ID persisted to SecureStore
 - **`session.ts`**: Authentication state (email, token, server URL) - persisted to SecureStore
-- **`player.ts`**: Audio player state (position, duration, rate, seeking state, chapters)
+- **`data-version.ts`**: Library data versioning and sync timestamps
 - **`downloads.ts`**: Download management and progress tracking
-- **`data-version.ts`**: Library data versioning for cache invalidation
+- **`sleep-timer.ts`**: Sleep timer state (duration, enabled, trigger time)
+- **`player.ts`**: Audio player state (position, duration, rate, seeking state, chapters)
 - **`screen.ts`**: UI state (dimensions, keyboard visibility)
 
-Access pattern: Import and use directly
+**Store Initialization Pattern:**
+All stores (except session and screen) follow a consistent initialization pattern:
+- Each has an `initialized: boolean` flag
+- Each exports an `initialize*()` async function
+- Initialize functions check the flag and skip if already initialized
+- This enables efficient app resume when JS context persists (see JS Context Architecture)
+
+```typescript
+// Example: initializeDownloads in downloads.ts
+export async function initializeDownloads(session: Session) {
+  if (useDownloads.getState().initialized) {
+    console.debug("[Downloads] Already initialized, skipping");
+    return;
+  }
+  // ... load from DB
+  useDownloads.setState({ initialized: true, downloads });
+}
+```
+
+**Access pattern:** Import and use directly
 ```typescript
 import { useSession } from "@/stores/session"
 
@@ -109,7 +130,7 @@ Each service:
 - Force-stopping via Android Settings kills the foreground service entirely (no remote playback possible)
 - There is effectively **no dual-context scenario** in practice - the only way to trigger playback is to launch the app, which shares the existing context
 
-**Important**: Because the JS context persists, Zustand stores and module-level variables survive app "kills". If state appears to be lost, the likely cause is the **app boot sequence resetting it**, not context separation. For example, sleep timer state could live in Zustand instead of the database - it was moved to the DB based on a misunderstanding about dual contexts. The real fix would be to not reset that state on boot.
+**Important**: Because the JS context persists, Zustand stores and module-level variables survive app "kills". If state appears to be lost, the likely cause is the **app boot sequence resetting it**, not context separation. The sleep timer is a good example: `sleepTimerTriggerTime` lives only in Zustand (not DB) and survives app kills because we don't reset it on boot. User preferences (duration, enabled) are persisted to DB, but transient runtime state (trigger time) stays in memory.
 
 **Player State** (`stores/player.ts`):
 - Complex seeking logic with accumulation (prevents stuttering from rapid taps)
@@ -231,17 +252,20 @@ router.back()
 ### App Initialization Flow
 
 **Boot Sequence** (`hooks/use-app-boot.ts`):
-1. Apply database migrations
-2. Check session (exit if none)
-3. Load library data version
-4. Load downloads state
-5. Initial sync (if first time on this server)
-6. Setup TrackPlayer
-7. Load most recent media (auto-resume)
-8. Register background sync task
-9. Hide splash screen
+1. Apply database migrations (Drizzle `useMigrations` hook)
+2. Check session (exit early if none)
+3. `initializeDevice()` - Load/create device ID from SecureStore
+4. `initializeDataVersion(session)` - Load sync timestamps, returns `{ needsInitialSync }`
+5. `initializeDownloads(session)` - Load download states from DB
+6. `initializeSleepTimer(session)` - Load sleep timer preferences from DB
+7. Initial sync if needed (`syncDown` on first connection to server)
+8. `initializePlayer(session)` - Setup TrackPlayer + load most recent media
+9. Register background sync task
+10. Set ready (hide splash screen)
 
-**Critical**: Modifications to boot flow must maintain order - each step may depend on previous steps.
+**Key behavior**: Each `initialize*()` function checks its store's `initialized` flag and skips if already initialized. This enables efficient app resume when JS context persists - stores already have correct state from before app was "killed", so no redundant DB queries occur.
+
+**Critical**: Modifications to boot flow must maintain order - some steps depend on previous steps (e.g., sync needs data version, player may need device info).
 
 ## Important Patterns & Conventions
 
@@ -307,8 +331,7 @@ Keep all timing/interval constants here for easy adjustment.
 
 ## Known Issues & TODOs
 
-1. **Seek Analytics**: Seek events logged but not yet saved to database
-2. **Testing Infrastructure**: No tests currently exist
+1. **Testing Infrastructure**: No tests currently exist
 
 ## Debugging
 

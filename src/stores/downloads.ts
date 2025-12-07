@@ -24,14 +24,27 @@ export interface Download {
 }
 
 export interface DownloadsState {
+  initialized: boolean;
   downloads: Record<string, Download>;
 }
 
 export const useDownloads = create<DownloadsState>(() => ({
+  initialized: false,
   downloads: {},
 }));
 
-export async function loadAllDownloads(session: Session) {
+/**
+ * Initialize the downloads store.
+ * Loads downloads from DB if not already initialized (context may have persisted).
+ */
+export async function initializeDownloads(session: Session) {
+  if (useDownloads.getState().initialized) {
+    console.debug("[Downloads] Already initialized, skipping");
+    return;
+  }
+
+  console.debug("[Downloads] Initializing");
+
   const all = await getAllDownloads(session);
   const downloads: Record<string, Download> = {};
   for (const d of all) {
@@ -42,7 +55,7 @@ export async function loadAllDownloads(session: Session) {
       thumbnails: d.thumbnails,
     };
   }
-  useDownloads.setState({ downloads });
+  useDownloads.setState({ initialized: true, downloads });
 }
 
 function addOrUpdateDownload(download: Download) {
