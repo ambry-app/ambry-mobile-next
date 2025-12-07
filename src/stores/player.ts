@@ -12,7 +12,12 @@ import {
   getSyncedPlayerState,
   updatePlayerState,
 } from "@/src/db/player-states";
+import { createPlaythrough, getActivePlaythrough } from "@/src/db/playthroughs";
 import * as schema from "@/src/db/schema";
+import {
+  recordStartEvent,
+  setCurrentPlaythrough,
+} from "@/src/services/event-recording-service";
 import { EventBus, documentDirectoryFilePath } from "@/src/utils";
 import { useEffect } from "react";
 import { AppStateStatus, EmitterSubscription, Platform } from "react-native";
@@ -437,6 +442,9 @@ async function loadMediaIntoTrackPlayer(
 
   console.debug("[Player] Loading media into player", mediaId);
 
+  // Determine which player state to use
+  let playerStateToLoad: LocalPlayerState;
+
   if (!syncedPlayerState && !localPlayerState) {
     // neither a synced playerState nor a local playerState exists
     // create a new local playerState and load it into the player
@@ -446,15 +454,8 @@ async function loadMediaIntoTrackPlayer(
       0,
     );
 
-    const newLocalPlayerState = await createInitialPlayerState(
-      session,
-      mediaId,
-    );
-
-    return loadPlayerState(session, newLocalPlayerState);
-  }
-
-  if (syncedPlayerState && !localPlayerState) {
+    playerStateToLoad = await createInitialPlayerState(session, mediaId);
+  } else if (syncedPlayerState && !localPlayerState) {
     // a synced playerState exists but no local playerState exists
     // create a new local playerState by copying the synced playerState
 
@@ -463,23 +464,14 @@ async function loadMediaIntoTrackPlayer(
       syncedPlayerState.position,
     );
 
-    const newLocalPlayerState = await createPlayerState(
+    playerStateToLoad = await createPlayerState(
       session,
       mediaId,
       syncedPlayerState.playbackRate,
       syncedPlayerState.position,
       syncedPlayerState.status,
     );
-
-    console.debug(
-      "[Player] Loading new local state into player; local position =",
-      newLocalPlayerState.position,
-    );
-
-    return loadPlayerState(session, newLocalPlayerState);
-  }
-
-  if (!syncedPlayerState && localPlayerState) {
+  } else if (!syncedPlayerState && localPlayerState) {
     // a local playerState exists but no synced playerState exists
     // use it as is (we haven't had a chance to sync it to the server yet)
 
@@ -488,51 +480,72 @@ async function loadMediaIntoTrackPlayer(
       localPlayerState.position,
     );
 
-    return loadPlayerState(session, localPlayerState);
-  }
-
-  if (!localPlayerState || !syncedPlayerState) throw new Error("Impossible");
-
-  // both a synced playerState and a local playerState exist
-  console.debug(
-    "[Player] Both synced and local states found; local position =",
-    localPlayerState.position + ";",
-    "synced position =",
-    syncedPlayerState.position,
-  );
-
-  if (localPlayerState.updatedAt >= syncedPlayerState.updatedAt) {
-    // the local playerState is newer
-    // use it as is (the server is out of date)
-
+    playerStateToLoad = localPlayerState;
+  } else if (localPlayerState && syncedPlayerState) {
+    // both a synced playerState and a local playerState exist
     console.debug(
-      "[Player] Local state is newer; loading into player; local position =",
-      localPlayerState.position,
+      "[Player] Both synced and local states found; local position =",
+      localPlayerState.position + ";",
+      "synced position =",
+      syncedPlayerState.position,
     );
 
-    return loadPlayerState(session, localPlayerState);
+    if (localPlayerState.updatedAt >= syncedPlayerState.updatedAt) {
+      // the local playerState is newer
+      // use it as is (the server is out of date)
+
+      console.debug(
+        "[Player] Local state is newer; loading into player; local position =",
+        localPlayerState.position,
+      );
+
+      playerStateToLoad = localPlayerState;
+    } else {
+      // the synced playerState is newer
+      // update the local playerState by copying the synced playerState
+
+      console.debug(
+        "[Player] Synced state is newer; updating local state; synced position =",
+        syncedPlayerState.position,
+      );
+
+      playerStateToLoad = await updatePlayerState(session, mediaId, {
+        playbackRate: syncedPlayerState.playbackRate,
+        position: syncedPlayerState.position,
+        status: syncedPlayerState.status,
+      });
+    }
+  } else {
+    throw new Error("Impossible");
   }
 
-  // the synced playerState is newer
-  // update the local playerState by copying the synced playerState
+  // Get or create playthrough for event recording
+  let playthrough = await getActivePlaythrough(session, mediaId);
+
+  if (!playthrough) {
+    console.debug("[Player] No active playthrough found; creating new one");
+    const playthroughId = await createPlaythrough(session, mediaId);
+    await recordStartEvent(playthroughId);
+    playthrough = await getActivePlaythrough(session, mediaId);
+  } else {
+    console.debug("[Player] Found active playthrough:", playthrough.id);
+  }
+
+  // Set up event recording for this playthrough
+  if (playthrough) {
+    setCurrentPlaythrough(
+      playthrough.id,
+      playerStateToLoad.position,
+      playerStateToLoad.playbackRate,
+    );
+  }
 
   console.debug(
-    "[Player] Synced state is newer; updating local state; synced position =",
-    syncedPlayerState.position,
+    "[Player] Loading player state into player; position =",
+    playerStateToLoad.position,
   );
 
-  const updatedLocalPlayerState = await updatePlayerState(session, mediaId, {
-    playbackRate: syncedPlayerState.playbackRate,
-    position: syncedPlayerState.position,
-    status: syncedPlayerState.status,
-  });
-
-  console.debug(
-    "[Player] Loading updated local state into player; local position =",
-    updatedLocalPlayerState.position,
-  );
-
-  return loadPlayerState(session, updatedLocalPlayerState);
+  return loadPlayerState(session, playerStateToLoad);
 }
 
 async function loadMostRecentMediaIntoTrackPlayer(
