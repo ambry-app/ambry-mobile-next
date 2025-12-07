@@ -8,6 +8,7 @@ import {
   createPlayerState,
   getLocalPlayerState,
   getMostRecentInProgressLocalMedia,
+  getMostRecentInProgressSyncedMedia,
   getSyncedPlayerState,
   updatePlayerState,
 } from "@/src/db/player-states";
@@ -568,12 +569,29 @@ async function loadMostRecentMediaIntoTrackPlayer(
     };
   }
 
+  const mostRecentSyncedMedia =
+    await getMostRecentInProgressSyncedMedia(session);
   const mostRecentLocalMedia = await getMostRecentInProgressLocalMedia(session);
 
-  if (mostRecentLocalMedia) {
+  if (!mostRecentSyncedMedia && !mostRecentLocalMedia) {
+    return null;
+  }
+
+  if (mostRecentSyncedMedia && !mostRecentLocalMedia) {
+    return loadMediaIntoTrackPlayer(session, mostRecentSyncedMedia.mediaId);
+  }
+
+  if (!mostRecentSyncedMedia && mostRecentLocalMedia) {
+    return loadMediaIntoTrackPlayer(session, mostRecentLocalMedia.mediaId);
+  }
+
+  if (!mostRecentSyncedMedia || !mostRecentLocalMedia)
+    throw new Error("Impossible");
+
+  if (mostRecentLocalMedia.updatedAt >= mostRecentSyncedMedia.updatedAt) {
     return loadMediaIntoTrackPlayer(session, mostRecentLocalMedia.mediaId);
   } else {
-    return null;
+    return loadMediaIntoTrackPlayer(session, mostRecentSyncedMedia.mediaId);
   }
 }
 

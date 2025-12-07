@@ -150,6 +150,20 @@ export async function updatePlayerState(
   return (await getLocalPlayerState(session, mediaId))!;
 }
 
+export async function getMostRecentInProgressSyncedMedia(
+  session: Session,
+): Promise<{ updatedAt: Date; mediaId: string } | undefined> {
+  return db.query.playerStates.findFirst({
+    columns: { mediaId: true, updatedAt: true },
+    where: and(
+      eq(schema.playerStates.url, session.url),
+      eq(schema.playerStates.userEmail, session.email),
+      eq(schema.playerStates.status, "in_progress"),
+    ),
+    orderBy: desc(schema.playerStates.updatedAt),
+  });
+}
+
 export async function getMostRecentInProgressLocalMedia(
   session: Session,
 ): Promise<{ updatedAt: Date; mediaId: string } | undefined> {
