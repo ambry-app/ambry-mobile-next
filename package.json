@@ -50,7 +50,10 @@
       "src/**/*.{ts,tsx}",
       "!src/**/*.d.ts",
       "!src/graphql/client/**",
-      "!src/app/**"
+      "!src/app/**",
+      "!src/utils/crypto.ts",
+      "!src/db/db.ts",
+      "!src/db/player-states.ts"
     ]
   },
   "dependencies": {
