@@ -1,13 +1,27 @@
 import { db } from "@/src/db/db";
+import {
+  getUnsyncedEvents,
+  getUnsyncedPlaythroughs,
+  markEventsSynced,
+  markPlaythroughsSynced,
+  updateStateCache,
+  upsertPlaybackEvent,
+  upsertPlaythrough,
+} from "@/src/db/playthroughs";
 import * as schema from "@/src/db/schema";
 import {
+  DeviceType,
   getLibraryChangesSince,
   getUserChangesSince,
+  PlaybackEventType,
+  PlaythroughStatus,
+  syncProgress,
   updatePlayerState,
 } from "@/src/graphql/api";
+import type { SyncProgressInput } from "@/src/graphql/api";
 import { ExecuteAuthenticatedErrorCode } from "@/src/graphql/client/execute";
+import { getDeviceInfo } from "@/src/services/device-service";
 import { setLibraryDataVersion } from "@/src/stores/data-version";
-import { forceUnloadPlayer } from "@/src/stores/player";
 import { Session, forceSignOut } from "@/src/stores/session";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 
@@ -613,8 +627,236 @@ export async function syncUp(session: Session) {
   console.debug("[SyncUp] sync complete");
 }
 
-async function resetAndSignOut() {
-  await forceUnloadPlayer();
+// =============================================================================
+// Playthrough Sync (new event-sourced model)
+// =============================================================================
+
+export async function syncPlaythroughs(session: Session) {
+  console.debug("[SyncPlaythroughs] starting...");
+
+  // Get device info
+  const deviceInfo = await getDeviceInfo();
+
+  // Get unsynced playthroughs
+  const unsyncedPlaythroughs = await getUnsyncedPlaythroughs(session);
+
+  // Get all playthrough IDs (both synced and unsynced) to fetch their unsynced events
+  const allPlaythroughIds = await db
+    .select({ id: schema.playthroughs.id })
+    .from(schema.playthroughs)
+    .where(
+      and(
+        eq(schema.playthroughs.url, session.url),
+        eq(schema.playthroughs.userEmail, session.email),
+      ),
+    );
+
+  const unsyncedEvents = await getUnsyncedEvents(
+    allPlaythroughIds.map((p) => p.id),
+  );
+
+  console.debug(
+    "[SyncPlaythroughs] found",
+    unsyncedPlaythroughs.length,
+    "unsynced playthroughs,",
+    unsyncedEvents.length,
+    "unsynced events",
+  );
+
+  // Get last sync time from server profile
+  const serverProfile = await db.query.serverProfiles.findFirst({
+    where: and(
+      eq(schema.serverProfiles.url, session.url),
+      eq(schema.serverProfiles.userEmail, session.email),
+    ),
+  });
+
+  // Map local device type to GraphQL enum
+  const deviceTypeMap: Record<string, DeviceType> = {
+    ios: DeviceType.Ios,
+    android: DeviceType.Android,
+    web: DeviceType.Web,
+  };
+
+  // Map local playthrough status to GraphQL enum
+  const playthroughStatusMap: Record<string, PlaythroughStatus> = {
+    in_progress: PlaythroughStatus.InProgress,
+    finished: PlaythroughStatus.Finished,
+    abandoned: PlaythroughStatus.Abandoned,
+  };
+
+  // Map local event type to GraphQL enum
+  const eventTypeMap: Record<string, PlaybackEventType> = {
+    start: PlaybackEventType.Start,
+    play: PlaybackEventType.Play,
+    pause: PlaybackEventType.Pause,
+    seek: PlaybackEventType.Seek,
+    rate_change: PlaybackEventType.RateChange,
+    finish: PlaybackEventType.Finish,
+    abandon: PlaybackEventType.Abandon,
+  };
+
+  // Prepare input for syncProgress mutation
+  const input: SyncProgressInput = {
+    lastSyncTime: serverProfile?.lastDownSync ?? null,
+    device: {
+      id: deviceInfo.id,
+      type: deviceTypeMap[deviceInfo.type] ?? DeviceType.Web,
+      brand: deviceInfo.brand,
+      modelName: deviceInfo.modelName,
+      osName: deviceInfo.osName,
+      osVersion: deviceInfo.osVersion,
+    },
+    playthroughs: unsyncedPlaythroughs.map((p) => ({
+      id: p.id,
+      mediaId: p.mediaId,
+      status: playthroughStatusMap[p.status] ?? PlaythroughStatus.InProgress,
+      startedAt: p.startedAt,
+      finishedAt: p.finishedAt,
+      abandonedAt: p.abandonedAt,
+      deletedAt: p.deletedAt,
+    })),
+    events: unsyncedEvents.map((e) => ({
+      id: e.id,
+      playthroughId: e.playthroughId,
+      type: eventTypeMap[e.type] ?? PlaybackEventType.Play,
+      timestamp: e.timestamp,
+      position: e.position,
+      playbackRate: e.playbackRate,
+      fromPosition: e.fromPosition,
+      toPosition: e.toPosition,
+      previousRate: e.previousRate,
+    })),
+  };
+
+  // Call the sync mutation
+  const result = await syncProgress(session, input);
+
+  if (!result.success) {
+    switch (result.error.code) {
+      case ExecuteAuthenticatedErrorCode.UNAUTHORIZED:
+        console.warn("[SyncPlaythroughs] unauthorized, signing out...");
+        await resetAndSignOut();
+        return;
+      case ExecuteAuthenticatedErrorCode.NETWORK_ERROR:
+        console.error(
+          "[SyncPlaythroughs] network error, we'll try again later",
+        );
+        return;
+      case ExecuteAuthenticatedErrorCode.SERVER_ERROR:
+      case ExecuteAuthenticatedErrorCode.GQL_ERROR:
+        console.error("[SyncPlaythroughs] server error, we'll try again later");
+        return;
+      default:
+        return result.error satisfies never;
+    }
+  }
+
+  const syncResult = result.result.syncProgress;
+  if (!syncResult) return;
+
+  const serverTime = new Date(syncResult.serverTime);
+
+  // Mark our sent items as synced
+  if (unsyncedPlaythroughs.length > 0) {
+    await markPlaythroughsSynced(
+      unsyncedPlaythroughs.map((p) => p.id),
+      serverTime,
+    );
+  }
+
+  if (unsyncedEvents.length > 0) {
+    await markEventsSynced(
+      unsyncedEvents.map((e) => e.id),
+      serverTime,
+    );
+  }
+
+  // Upsert received playthroughs from server
+  for (const playthrough of syncResult.playthroughs) {
+    await upsertPlaythrough({
+      id: playthrough.id,
+      url: session.url,
+      userEmail: session.email,
+      mediaId: playthrough.media.id,
+      status: playthrough.status.toLowerCase() as
+        | "in_progress"
+        | "finished"
+        | "abandoned",
+      startedAt: new Date(playthrough.startedAt),
+      finishedAt: playthrough.finishedAt
+        ? new Date(playthrough.finishedAt)
+        : null,
+      abandonedAt: playthrough.abandonedAt
+        ? new Date(playthrough.abandonedAt)
+        : null,
+      deletedAt: playthrough.deletedAt ? new Date(playthrough.deletedAt) : null,
+      createdAt: new Date(playthrough.insertedAt),
+      updatedAt: new Date(playthrough.updatedAt),
+      syncedAt: serverTime,
+    });
+  }
+
+  // Upsert received events from server
+  for (const event of syncResult.events) {
+    await upsertPlaybackEvent({
+      id: event.id,
+      playthroughId: event.playthroughId,
+      deviceId: event.deviceId,
+      type: event.type.toLowerCase() as
+        | "start"
+        | "play"
+        | "pause"
+        | "seek"
+        | "rate_change"
+        | "finish"
+        | "abandon",
+      timestamp: new Date(event.timestamp),
+      position: event.position,
+      playbackRate: event.playbackRate,
+      fromPosition: event.fromPosition,
+      toPosition: event.toPosition,
+      previousRate: event.previousRate,
+      syncedAt: serverTime,
+    });
+
+    // Update state cache for received events (if playback event with position)
+    if (event.position != null && event.playbackRate != null) {
+      await updateStateCache(
+        event.playthroughId,
+        event.position,
+        event.playbackRate,
+        new Date(event.timestamp),
+      );
+    }
+  }
+
+  // Update server profile with new sync time
+  await db
+    .insert(schema.serverProfiles)
+    .values({
+      url: session.url,
+      userEmail: session.email,
+      lastDownSync: serverTime,
+    })
+    .onConflictDoUpdate({
+      target: [schema.serverProfiles.url, schema.serverProfiles.userEmail],
+      set: {
+        lastDownSync: sql`excluded.last_down_sync`,
+      },
+    });
+
+  console.debug(
+    "[SyncPlaythroughs] complete - received",
+    syncResult.playthroughs.length,
+    "playthroughs,",
+    syncResult.events.length,
+    "events",
+  );
+}
+
+function resetAndSignOut() {
+  // Just sign out - the player will clean up reactively via session subscription
   forceSignOut();
 }
 

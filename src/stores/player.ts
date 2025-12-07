@@ -12,12 +12,8 @@ import {
   getSyncedPlayerState,
   updatePlayerState,
 } from "@/src/db/player-states";
-import { createPlaythrough, getActivePlaythrough } from "@/src/db/playthroughs";
 import * as schema from "@/src/db/schema";
-import {
-  recordStartEvent,
-  setCurrentPlaythrough,
-} from "@/src/services/event-recording-service";
+import { initializePlaythroughTracking } from "@/src/services/event-recording-service";
 import { EventBus, documentDirectoryFilePath } from "@/src/utils";
 import { useEffect } from "react";
 import { AppStateStatus, EmitterSubscription, Platform } from "react-native";
@@ -32,7 +28,7 @@ import TrackPlayer, {
   TrackType,
 } from "react-native-track-player";
 import { create } from "zustand";
-import { Session } from "./session";
+import { Session, useSession } from "./session";
 
 export const SeekSource = {
   BUTTON: "button",
@@ -519,26 +515,13 @@ async function loadMediaIntoTrackPlayer(
     throw new Error("Impossible");
   }
 
-  // Get or create playthrough for event recording
-  let playthrough = await getActivePlaythrough(session, mediaId);
-
-  if (!playthrough) {
-    console.debug("[Player] No active playthrough found; creating new one");
-    const playthroughId = await createPlaythrough(session, mediaId);
-    await recordStartEvent(playthroughId);
-    playthrough = await getActivePlaythrough(session, mediaId);
-  } else {
-    console.debug("[Player] Found active playthrough:", playthrough.id);
-  }
-
-  // Set up event recording for this playthrough
-  if (playthrough) {
-    setCurrentPlaythrough(
-      playthrough.id,
-      playerStateToLoad.position,
-      playerStateToLoad.playbackRate,
-    );
-  }
+  // Initialize playthrough tracking for event recording
+  await initializePlaythroughTracking(
+    session,
+    mediaId,
+    playerStateToLoad.position,
+    playerStateToLoad.playbackRate,
+  );
 
   console.debug(
     "[Player] Loading player state into player; position =",
@@ -554,6 +537,8 @@ async function loadMostRecentMediaIntoTrackPlayer(
   const track = await TrackPlayer.getTrack(0);
 
   if (track) {
+    // Track already loaded (e.g., from headless context or previous session)
+    // Still need to initialize playthrough tracking
     const streaming = track.url.startsWith("http");
     const mediaId = track.description!;
     const progress = await TrackPlayer.getProgress();
@@ -561,6 +546,15 @@ async function loadMostRecentMediaIntoTrackPlayer(
     const duration = progress.duration;
     const playbackRate = await TrackPlayer.getRate();
     const playerState = await getLocalPlayerState(session, mediaId);
+
+    // Initialize playthrough tracking for event recording
+    await initializePlaythroughTracking(
+      session,
+      mediaId,
+      position,
+      playbackRate,
+    );
+
     return {
       mediaId,
       position,
@@ -863,3 +857,17 @@ export function usePlayerSubscriptions(appState: AppStateStatus) {
     };
   }, [appState, playerLoaded]);
 }
+
+// =============================================================================
+// Reactive Session Cleanup
+// =============================================================================
+
+// Subscribe to session changes - when signed out, clean up the player
+useSession.subscribe((state, prevState) => {
+  if (prevState.session && !state.session) {
+    console.debug("[Player] Session signed out, cleaning up player");
+    forceUnloadPlayer().catch((error) => {
+      console.warn("[Player] Error during session cleanup:", error);
+    });
+  }
+});

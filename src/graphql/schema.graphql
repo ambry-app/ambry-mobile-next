@@ -113,6 +113,23 @@ enum DeletionType {
   SERIES_BOOK
 }
 
+input DeviceInput {
+  brand: String
+  browser: String
+  browserVersion: String
+  id: ID!
+  modelName: String
+  osName: String
+  osVersion: String
+  type: DeviceType!
+}
+
+enum DeviceType {
+  ANDROID
+  IOS
+  WEB
+}
+
 input LoadPlayerStateInput {
   mediaId: ID!
 }
@@ -212,6 +229,41 @@ type Person implements Node & SearchResult {
   updatedAt: DateTime!
 }
 
+type PlaybackEvent {
+  deviceId: ID
+  fromPosition: Float
+  id: ID!
+  playbackRate: Float
+  playthroughId: ID!
+  position: Float
+  previousRate: Float
+  timestamp: DateTime!
+  toPosition: Float
+  type: PlaybackEventType!
+}
+
+input PlaybackEventInput {
+  fromPosition: Float
+  id: ID!
+  playbackRate: Float
+  playthroughId: ID!
+  position: Float
+  previousRate: Float
+  timestamp: DateTime!
+  toPosition: Float
+  type: PlaybackEventType!
+}
+
+enum PlaybackEventType {
+  ABANDON
+  FINISH
+  PAUSE
+  PLAY
+  RATE_CHANGE
+  SEEK
+  START
+}
+
 type PlayerState implements Node {
   """The ID of an object"""
   id: ID!
@@ -239,6 +291,34 @@ enum PlayerStateStatus {
   NOT_STARTED
 }
 
+type Playthrough {
+  abandonedAt: DateTime
+  deletedAt: DateTime
+  finishedAt: DateTime
+  id: ID!
+  insertedAt: DateTime!
+  media: Media!
+  startedAt: DateTime!
+  status: PlaythroughStatus!
+  updatedAt: DateTime!
+}
+
+input PlaythroughInput {
+  abandonedAt: DateTime
+  deletedAt: DateTime
+  finishedAt: DateTime
+  id: ID!
+  mediaId: ID!
+  startedAt: DateTime!
+  status: PlaythroughStatus!
+}
+
+enum PlaythroughStatus {
+  ABANDONED
+  FINISHED
+  IN_PROGRESS
+}
+
 type RootMutationType {
   createSession(input: CreateSessionInput!): CreateSessionPayload
   deleteSession: DeleteSessionPayload
@@ -246,6 +326,7 @@ type RootMutationType {
   Initializes a new player state or returns an existing player state for a given Media.
   """
   loadPlayerState(input: LoadPlayerStateInput!): LoadPlayerStatePayload
+  syncProgress(input: SyncProgressInput!): SyncProgressPayload
   updatePlayerState(input: UpdatePlayerStateInput!): UpdatePlayerStatePayload
 }
 
@@ -327,6 +408,19 @@ type SupplementalFile {
   label: String
   mime: String!
   path: String!
+}
+
+input SyncProgressInput {
+  device: DeviceInput!
+  events: [PlaybackEventInput!]!
+  lastSyncTime: DateTime
+  playthroughs: [PlaythroughInput!]!
+}
+
+type SyncProgressPayload {
+  events: [PlaybackEvent!]!
+  playthroughs: [Playthrough!]!
+  serverTime: DateTime!
 }
 
 type Thumbnails {

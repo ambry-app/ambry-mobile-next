@@ -3,10 +3,15 @@ import TrackPlayer from "react-native-track-player";
 
 import { PROGRESS_SAVE_INTERVAL } from "@/src/constants";
 import { db } from "@/src/db/db";
-import { updateStateCache } from "@/src/db/playthroughs";
+import {
+  createPlaythrough,
+  getActivePlaythrough,
+  updateStateCache,
+} from "@/src/db/playthroughs";
 import * as schema from "@/src/db/schema";
-import { getDeviceIdSync } from "@/src/services/device-service";
-import { useSession } from "@/src/stores/session";
+import { syncPlaythroughs } from "@/src/db/sync";
+import { getDeviceId, getDeviceIdSync } from "@/src/services/device-service";
+import { Session, useSession } from "@/src/stores/session";
 import { EventBus } from "@/src/utils";
 
 let isInitialized = false;
@@ -25,10 +30,16 @@ let currentPlaybackRate: number = 1;
  * Initialize the event recording service.
  * Called from playback-service.ts during service setup.
  */
-export function startMonitoring() {
+
+export async function startMonitoring() {
   if (isInitialized) return;
   isInitialized = true;
   console.debug("[EventRecording] Initializing");
+
+  // Initialize device ID early so getDeviceIdSync() works in event handlers
+  // This is especially important in the headless context where the main app's
+  // boot sequence hasn't run
+  await getDeviceId();
 
   EventBus.on("playbackStarted", handlePlaybackStarted);
   EventBus.on("playbackPaused", handlePlaybackPaused);
@@ -136,6 +147,48 @@ export async function recordAbandonEvent(playthroughId: string) {
 }
 
 // =============================================================================
+// Playthrough Initialization (called directly from player.ts)
+// =============================================================================
+
+/**
+ * Initialize playthrough tracking for a media item.
+ * Called directly from player.ts when media is loaded.
+ * Gets or creates an active playthrough and sets up event recording.
+ */
+export async function initializePlaythroughTracking(
+  session: Session,
+  mediaId: string,
+  position: number,
+  playbackRate: number,
+) {
+  try {
+    // Get or create playthrough for event recording
+    let playthrough = await getActivePlaythrough(session, mediaId);
+
+    if (!playthrough) {
+      console.debug(
+        "[EventRecording] No active playthrough found; creating new one",
+      );
+      const playthroughId = await createPlaythrough(session, mediaId);
+      await recordStartEvent(playthroughId);
+      playthrough = await getActivePlaythrough(session, mediaId);
+    } else {
+      console.debug(
+        "[EventRecording] Found active playthrough:",
+        playthrough.id,
+      );
+    }
+
+    // Set up event recording for this playthrough
+    if (playthrough) {
+      setCurrentPlaythrough(playthrough.id, position, playbackRate);
+    }
+  } catch (error) {
+    console.warn("[EventRecording] Error initializing playthrough:", error);
+  }
+}
+
+// =============================================================================
 // Event Handlers
 // =============================================================================
 
@@ -162,9 +215,26 @@ async function handlePlaybackPaused() {
   try {
     const { position } = await TrackPlayer.getProgress();
     await recordPauseEvent(position, currentPlaybackRate);
+
+    // Trigger sync in background after pause (non-blocking)
+    triggerSyncOnPause();
   } catch (error) {
     console.warn("[EventRecording] Error handling playback paused:", error);
   }
+}
+
+/**
+ * Trigger a sync after pause without blocking the UI.
+ * Runs asynchronously in the background.
+ */
+function triggerSyncOnPause() {
+  const session = useSession.getState().session;
+  if (!session) return;
+
+  // Fire and forget - don't await
+  syncPlaythroughs(session).catch((error) => {
+    console.warn("[EventRecording] Background sync on pause failed:", error);
+  });
 }
 
 async function handlePlaybackQueueEnded() {

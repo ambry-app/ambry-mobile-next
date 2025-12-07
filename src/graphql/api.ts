@@ -6,6 +6,7 @@ import {
   ExecuteError,
   ExecuteErrorCode,
 } from "@/src/graphql/client/execute";
+import type { SyncProgressInput } from "@/src/graphql/client/graphql";
 import { Session } from "@/src/stores/session";
 import { Result } from "@/src/types/result";
 
@@ -275,6 +276,62 @@ const deleteSessionMutation = graphql(`
     }
   }
 `);
+
+// =============================================================================
+// Playthrough Sync (new event-sourced model)
+// =============================================================================
+
+const syncProgressMutation = graphql(`
+  mutation SyncProgress($input: SyncProgressInput!) {
+    syncProgress(input: $input) {
+      playthroughs {
+        id
+        status
+        startedAt
+        finishedAt
+        abandonedAt
+        deletedAt
+        insertedAt
+        updatedAt
+        media {
+          id
+        }
+      }
+      events {
+        id
+        playthroughId
+        deviceId
+        type
+        timestamp
+        position
+        playbackRate
+        fromPosition
+        toPosition
+        previousRate
+      }
+      serverTime
+    }
+  }
+`);
+
+// Re-export generated types for use in sync.ts
+export {
+  DeviceType,
+  PlaybackEventType,
+  PlaythroughStatus,
+} from "@/src/graphql/client/graphql";
+export type { SyncProgressInput } from "@/src/graphql/client/graphql";
+
+export function syncProgress(session: Session, input: SyncProgressInput) {
+  return executeAuthenticated(
+    session.url,
+    session.token,
+    syncProgressMutation,
+    {
+      input,
+    },
+  );
+}
 
 export async function deleteSession(
   url: string,

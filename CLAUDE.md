@@ -85,14 +85,15 @@ const logout = useSession((state) => state.logout)
 **Background Audio Service**:
 - Uses `react-native-track-player` (alpha version)
 - Service registered in `entry.js` before app renders
-- Runs in **headless JS context** (continues even when app is completely closed)
+- Runs as Android foreground service with persistent notification
 - Service code: `src/services/playback-service.ts`
 - Acts as thin adapter: translates TrackPlayer events → EventBus events
 - Remote control events (lock screen, headphones) handled via EventBus
 
 **Background Services Architecture**:
-Services run in the headless context and are fully decoupled via EventBus:
+Services are decoupled via EventBus:
 - **`playback-service.ts`**: TrackPlayer event adapter, emits EventBus events
+- **`event-recording-service.ts`**: Records playback events (play, pause, seek, rate change) for sync
 - **`sleep-timer-service.ts`**: Manages sleep timer, volume fade, auto-pause
 - **`progress-save-service.ts`**: Periodically saves playback position to DB (30s interval while playing)
 
@@ -101,12 +102,14 @@ Each service:
 - Sets up its own EventBus listeners
 - Self-contained with no direct dependencies on other services
 
-**Critical - Dual Context Architecture**:
-- **Headless context**: Playback service runs here, survives app closure
-- **Main app context**: UI runs here, destroyed when app closes
-- Both contexts share state via **database persistence** (not Zustand stores!)
-- Zustand stores are separate instances in each context
-- Services must persist critical state (e.g., `sleepTimerTriggerTime`) to DB to survive app restarts
+**JS Context Architecture** (tested and confirmed):
+- TrackPlayer's foreground service keeps the **same JS context alive** even when app is swiped away
+- All modules (player store, services, EventBus) share the same runtime instance
+- Module-level variables, timers, and EventBus listeners persist across app "kills"
+- Force-stopping via Android Settings kills the foreground service entirely (no remote playback possible)
+- There is effectively **no dual-context scenario** in practice - the only way to trigger playback is to launch the app, which shares the existing context
+
+**Important**: Because the JS context persists, Zustand stores and module-level variables survive app "kills". If state appears to be lost, the likely cause is the **app boot sequence resetting it**, not context separation. For example, sleep timer state could live in Zustand instead of the database - it was moved to the DB based on a misunderstanding about dual contexts. The real fix would be to not reset that state on boot.
 
 **Player State** (`stores/player.ts`):
 - Complex seeking logic with accumulation (prevents stuttering from rapid taps)
@@ -254,9 +257,9 @@ This forces exhaustive error handling at call sites.
 ### Event Bus for Cross-Component Communication
 Simple EventEmitter pattern (`utils/event-bus.ts`):
 - Decouples background services from UI components
-- Key events: `playbackStarted`, `playbackPaused`, `seekApplied`, `playbackQueueEnded`, `remoteDuck`, `expandPlayer`
+- Key events: `playbackStarted`, `playbackPaused`, `seekApplied`, `playbackQueueEnded`, `remoteDuck`, `expandPlayer`, `playbackRateChanged`
 - Background services listen to events and handle their own concerns
-- Enables headless JS context and main app context to stay in sync
+- Works reliably since all code runs in the same JS context (see JS Context Architecture above)
 
 ### Type Inference from Queries
 Drizzle queries infer complex types automatically:

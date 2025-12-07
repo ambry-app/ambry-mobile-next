@@ -140,6 +140,23 @@ export enum DeletionType {
   SeriesBook = 'SERIES_BOOK'
 }
 
+export type DeviceInput = {
+  brand?: InputMaybe<Scalars['String']['input']>;
+  browser?: InputMaybe<Scalars['String']['input']>;
+  browserVersion?: InputMaybe<Scalars['String']['input']>;
+  id: Scalars['ID']['input'];
+  modelName?: InputMaybe<Scalars['String']['input']>;
+  osName?: InputMaybe<Scalars['String']['input']>;
+  osVersion?: InputMaybe<Scalars['String']['input']>;
+  type: DeviceType;
+};
+
+export enum DeviceType {
+  Android = 'ANDROID',
+  Ios = 'IOS',
+  Web = 'WEB'
+}
+
 export type LoadPlayerStateInput = {
   mediaId: Scalars['ID']['input'];
 };
@@ -257,6 +274,42 @@ export type Person = Node & SearchResult & {
   updatedAt: Scalars['DateTime']['output'];
 };
 
+export type PlaybackEvent = {
+  __typename?: 'PlaybackEvent';
+  deviceId?: Maybe<Scalars['ID']['output']>;
+  fromPosition?: Maybe<Scalars['Float']['output']>;
+  id: Scalars['ID']['output'];
+  playbackRate?: Maybe<Scalars['Float']['output']>;
+  playthroughId: Scalars['ID']['output'];
+  position?: Maybe<Scalars['Float']['output']>;
+  previousRate?: Maybe<Scalars['Float']['output']>;
+  timestamp: Scalars['DateTime']['output'];
+  toPosition?: Maybe<Scalars['Float']['output']>;
+  type: PlaybackEventType;
+};
+
+export type PlaybackEventInput = {
+  fromPosition?: InputMaybe<Scalars['Float']['input']>;
+  id: Scalars['ID']['input'];
+  playbackRate?: InputMaybe<Scalars['Float']['input']>;
+  playthroughId: Scalars['ID']['input'];
+  position?: InputMaybe<Scalars['Float']['input']>;
+  previousRate?: InputMaybe<Scalars['Float']['input']>;
+  timestamp: Scalars['DateTime']['input'];
+  toPosition?: InputMaybe<Scalars['Float']['input']>;
+  type: PlaybackEventType;
+};
+
+export enum PlaybackEventType {
+  Abandon = 'ABANDON',
+  Finish = 'FINISH',
+  Pause = 'PAUSE',
+  Play = 'PLAY',
+  RateChange = 'RATE_CHANGE',
+  Seek = 'SEEK',
+  Start = 'START'
+}
+
 export type PlayerState = Node & {
   __typename?: 'PlayerState';
   /** The ID of an object */
@@ -287,12 +340,42 @@ export enum PlayerStateStatus {
   NotStarted = 'NOT_STARTED'
 }
 
+export type Playthrough = {
+  __typename?: 'Playthrough';
+  abandonedAt?: Maybe<Scalars['DateTime']['output']>;
+  deletedAt?: Maybe<Scalars['DateTime']['output']>;
+  finishedAt?: Maybe<Scalars['DateTime']['output']>;
+  id: Scalars['ID']['output'];
+  insertedAt: Scalars['DateTime']['output'];
+  media: Media;
+  startedAt: Scalars['DateTime']['output'];
+  status: PlaythroughStatus;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type PlaythroughInput = {
+  abandonedAt?: InputMaybe<Scalars['DateTime']['input']>;
+  deletedAt?: InputMaybe<Scalars['DateTime']['input']>;
+  finishedAt?: InputMaybe<Scalars['DateTime']['input']>;
+  id: Scalars['ID']['input'];
+  mediaId: Scalars['ID']['input'];
+  startedAt: Scalars['DateTime']['input'];
+  status: PlaythroughStatus;
+};
+
+export enum PlaythroughStatus {
+  Abandoned = 'ABANDONED',
+  Finished = 'FINISHED',
+  InProgress = 'IN_PROGRESS'
+}
+
 export type RootMutationType = {
   __typename?: 'RootMutationType';
   createSession?: Maybe<CreateSessionPayload>;
   deleteSession?: Maybe<DeleteSessionPayload>;
   /** Initializes a new player state or returns an existing player state for a given Media. */
   loadPlayerState?: Maybe<LoadPlayerStatePayload>;
+  syncProgress?: Maybe<SyncProgressPayload>;
   updatePlayerState?: Maybe<UpdatePlayerStatePayload>;
 };
 
@@ -304,6 +387,11 @@ export type RootMutationTypeCreateSessionArgs = {
 
 export type RootMutationTypeLoadPlayerStateArgs = {
   input: LoadPlayerStateInput;
+};
+
+
+export type RootMutationTypeSyncProgressArgs = {
+  input: SyncProgressInput;
 };
 
 
@@ -482,6 +570,20 @@ export type SupplementalFile = {
   path: Scalars['String']['output'];
 };
 
+export type SyncProgressInput = {
+  device: DeviceInput;
+  events: Array<PlaybackEventInput>;
+  lastSyncTime?: InputMaybe<Scalars['DateTime']['input']>;
+  playthroughs: Array<PlaythroughInput>;
+};
+
+export type SyncProgressPayload = {
+  __typename?: 'SyncProgressPayload';
+  events: Array<PlaybackEvent>;
+  playthroughs: Array<Playthrough>;
+  serverTime: Scalars['DateTime']['output'];
+};
+
 export type Thumbnails = {
   __typename?: 'Thumbnails';
   blurhash?: Maybe<Scalars['String']['output']>;
@@ -547,11 +649,18 @@ export type DeleteSessionMutationVariables = Exact<{ [key: string]: never; }>;
 
 export type DeleteSessionMutation = { __typename?: 'RootMutationType', deleteSession?: { __typename?: 'DeleteSessionPayload', deleted: boolean } | null };
 
+export type SyncProgressMutationVariables = Exact<{
+  input: SyncProgressInput;
+}>;
+
+
+export type SyncProgressMutation = { __typename?: 'RootMutationType', syncProgress?: { __typename?: 'SyncProgressPayload', serverTime: any, playthroughs: Array<{ __typename?: 'Playthrough', id: string, status: PlaythroughStatus, startedAt: any, finishedAt?: any | null, abandonedAt?: any | null, deletedAt?: any | null, insertedAt: any, updatedAt: any, media: { __typename?: 'Media', id: string } }>, events: Array<{ __typename?: 'PlaybackEvent', id: string, playthroughId: string, deviceId?: string | null, type: PlaybackEventType, timestamp: any, position?: number | null, playbackRate?: number | null, fromPosition?: number | null, toPosition?: number | null, previousRate?: number | null }> } | null };
+
 export class TypedDocumentString<TResult, TVariables>
   extends String
   implements DocumentTypeDecoration<TResult, TVariables>
 {
-  __apiType?: DocumentTypeDecoration<TResult, TVariables>['__apiType'];
+  __apiType?: NonNullable<DocumentTypeDecoration<TResult, TVariables>['__apiType']>;
   private value: string;
   public __meta__?: Record<string, any> | undefined;
 
@@ -561,7 +670,7 @@ export class TypedDocumentString<TResult, TVariables>
     this.__meta__ = __meta__;
   }
 
-  toString(): string & DocumentTypeDecoration<TResult, TVariables> {
+  override toString(): string & DocumentTypeDecoration<TResult, TVariables> {
     return this.value;
   }
 }
@@ -735,3 +844,35 @@ export const DeleteSessionDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<DeleteSessionMutation, DeleteSessionMutationVariables>;
+export const SyncProgressDocument = new TypedDocumentString(`
+    mutation SyncProgress($input: SyncProgressInput!) {
+  syncProgress(input: $input) {
+    playthroughs {
+      id
+      status
+      startedAt
+      finishedAt
+      abandonedAt
+      deletedAt
+      insertedAt
+      updatedAt
+      media {
+        id
+      }
+    }
+    events {
+      id
+      playthroughId
+      deviceId
+      type
+      timestamp
+      position
+      playbackRate
+      fromPosition
+      toPosition
+      previousRate
+    }
+    serverTime
+  }
+}
+    `) as unknown as TypedDocumentString<SyncProgressMutation, SyncProgressMutationVariables>;

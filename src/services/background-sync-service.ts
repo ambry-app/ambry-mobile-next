@@ -1,5 +1,5 @@
 import { expoDb } from "@/src/db/db";
-import { syncDown, syncUp } from "@/src/db/sync";
+import { syncDown, syncPlaythroughs, syncUp } from "@/src/db/sync";
 import { useSession } from "@/src/stores/session";
 import * as BackgroundTask from "expo-background-task";
 import * as TaskManager from "expo-task-manager";
@@ -18,6 +18,7 @@ TaskManager.defineTask(BACKGROUND_SYNC_TASK_NAME, async () => {
   try {
     await syncDown(session);
     await syncUp(session);
+    await syncPlaythroughs(session);
 
     console.debug("[BackgroundSync] performing WAL checkpoint");
     expoDb.execSync("PRAGMA wal_checkpoint(TRUNCATE);");
