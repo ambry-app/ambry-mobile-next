@@ -13,6 +13,25 @@ jest.mock("@/src/utils/crypto", () => ({
 }));
 
 // =============================================================================
+// Expo FileSystem Mock
+// =============================================================================
+
+const mockDownloadResumable = {
+  downloadAsync: jest.fn(),
+  cancelAsync: jest.fn(),
+};
+
+jest.mock("expo-file-system/legacy", () => ({
+  documentDirectory: "file:///test-document-directory/",
+  downloadAsync: jest.fn(),
+  deleteAsync: jest.fn(),
+  createDownloadResumable: jest.fn(() => mockDownloadResumable),
+}));
+
+// Export for test access
+export { mockDownloadResumable };
+
+// =============================================================================
 // Database Mock
 // =============================================================================
 

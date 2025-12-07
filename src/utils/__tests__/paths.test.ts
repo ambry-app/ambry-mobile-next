@@ -1,11 +1,9 @@
 import { documentDirectoryFilePath } from "../paths";
 
-jest.mock("expo-file-system/legacy", () => ({
-  documentDirectory: "file:///data/user/0/com.ambry/files/",
-}));
+// Uses global expo-file-system mock from jest-setup.ts
 
 describe("documentDirectoryFilePath", () => {
-  const docDir = "file:///data/user/0/com.ambry/files/";
+  const docDir = "file:///test-document-directory/";
 
   describe("relative paths", () => {
     it("prepends document directory to simple filename", () => {
