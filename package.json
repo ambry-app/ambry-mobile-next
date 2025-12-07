@@ -10,6 +10,7 @@
     "prebuild": "APP_VARIANT=development expo prebuild",
     "test": "jest --watchAll",
     "test:ci": "jest",
+    "test:coverage": "jest --coverage",
     "lint": "expo lint",
     "doctor": "npx expo-doctor",
     "expo-upgrade": "npm install expo && npx expo install --fix",
@@ -40,7 +41,13 @@
     }
   },
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "collectCoverageFrom": [
+      "src/**/*.{ts,tsx}",
+      "!src/**/*.d.ts",
+      "!src/graphql/client/**",
+      "!src/app/**"
+    ]
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

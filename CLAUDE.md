@@ -336,9 +336,12 @@ Keep all timing/interval constants here for easy adjustment.
 
 ### Running Tests
 ```bash
-npm test          # Watch mode (interactive development)
-npm run test:ci   # Single run (CI/scripts)
+npm test            # Watch mode (interactive development)
+npm run test:ci     # Single run (CI/scripts)
+npm run test:coverage  # Single run with coverage report
 ```
+
+Coverage reports are generated in `coverage/lcov-report/index.html`.
 
 ### Test File Conventions
 - Place tests in `__tests__/` directories adjacent to source files
