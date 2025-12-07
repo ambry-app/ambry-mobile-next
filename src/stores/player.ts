@@ -1,4 +1,8 @@
 import {
+  SEEK_ACCUMULATION_WINDOW,
+  SEEK_EVENT_ACCUMULATION_WINDOW,
+} from "@/src/constants";
+import {
   LocalPlayerState,
   createInitialPlayerState,
   createPlayerState,
@@ -9,47 +13,66 @@ import {
   updatePlayerState,
 } from "@/src/db/player-states";
 import * as schema from "@/src/db/schema";
-import {
-  getSleepTimerSettings,
-  setSleepTimerEnabled,
-  setSleepTimerTime,
-} from "@/src/db/settings";
 import { EventBus, documentDirectoryFilePath } from "@/src/utils";
-import { Platform } from "react-native";
+import { useEffect } from "react";
+import { AppStateStatus, EmitterSubscription, Platform } from "react-native";
 import TrackPlayer, {
   AndroidAudioContentType,
   Capability,
+  Event,
   IOSCategory,
   IOSCategoryMode,
   PitchAlgorithm,
-  State,
+  Progress,
   TrackType,
 } from "react-native-track-player";
 import { create } from "zustand";
-import { Session, useSession } from "./session";
-
-const FADE_OUT_TIME = 30000; // 30 seconds in milliseconds
-
-export type ChapterState = {
-  chapters: schema.Chapter[];
-  currentChapter: schema.Chapter;
-  previousChapterStartTime: number;
-};
+import { Session } from "./session";
 
 export interface PlayerState {
+  /* setup state */
+
   setup: boolean;
   setupError: unknown | null;
-  position: number;
-  duration: number;
-  state: State | undefined;
   mediaId: string | null;
-  playbackRate: number;
   streaming: boolean | undefined;
-  chapterState: ChapterState | null;
-  sleepTimer: number;
-  sleepTimerEnabled: boolean;
-  sleepTimerTriggerTime: number | null;
   loadingNewMedia: boolean;
+
+  /* playback state */
+
+  /** Current TrackPlayer position */
+  position: number;
+  /** Current TrackPlayer duration */
+  duration: number;
+  /** Current TrackPlayer playback rate */
+  playbackRate: number;
+
+  /* seek state */
+
+  /** Whether the user is currently seeking, multiple taps will accumulate before applying */
+  userIsSeeking: boolean;
+  /** Whether the seek is currently being applied to the player, taps will be ignored while this is true */
+  seekIsApplying: boolean;
+  /** The effective difference between the seek base position and the current seek position */
+  seekOriginalPosition: number | null;
+  /** The base position from which relative seek is calculated */
+  seekBasePosition: number | null;
+  /** The accumulated relative seek amount */
+  seekAccumulator: number | null;
+  /** The current absolute seek position that will apply after the timeout */
+  seekPosition: number | null;
+  /** The position from which the analytics seek event started */
+  seekEffectiveDiff: number | null;
+  /** The original position from which the seek started */
+  seekEventFrom: number | null;
+  /** The position to which the analytics seek event will apply */
+  seekEventTo: number | null;
+
+  /* chapter state */
+
+  chapters: schema.Chapter[];
+  currentChapter: schema.Chapter | undefined;
+  previousChapterStartTime: number;
 }
 
 interface TrackLoadResult {
@@ -61,20 +84,31 @@ interface TrackLoadResult {
   chapters: schema.Chapter[];
 }
 
+const initialState = {
+  mediaId: null,
+  streaming: undefined,
+  loadingNewMedia: false,
+  position: 0,
+  duration: 0,
+  playbackRate: 1,
+  userIsSeeking: false,
+  seekIsApplying: false,
+  seekOriginalPosition: null,
+  seekBasePosition: null,
+  seekAccumulator: null,
+  seekPosition: null,
+  seekEffectiveDiff: null,
+  seekEventFrom: null,
+  seekEventTo: null,
+  chapters: [],
+  currentChapter: undefined,
+  previousChapterStartTime: 0,
+};
+
 export const usePlayer = create<PlayerState>()(() => ({
   setup: false,
   setupError: null,
-  position: 0,
-  duration: 0,
-  state: undefined,
-  mediaId: null,
-  playbackRate: 1,
-  streaming: undefined,
-  chapterState: null,
-  sleepTimer: schema.defaultSleepTimer,
-  sleepTimerEnabled: schema.defaultSleepTimerEnabled,
-  sleepTimerTriggerTime: null,
-  loadingNewMedia: false,
+  ...initialState,
 }));
 
 export async function setupPlayer(session: Session) {
@@ -87,16 +121,8 @@ export async function setupPlayer(session: Session) {
     const response = await setupTrackPlayer(session);
 
     if (response === true) {
-      const { sleepTimer, sleepTimerEnabled } = await getSleepTimerSettings(
-        session.email,
-      );
-
-      usePlayer.setState({ setup: true, sleepTimer, sleepTimerEnabled });
+      usePlayer.setState({ setup: true });
     } else {
-      const { sleepTimer, sleepTimerEnabled } = await getSleepTimerSettings(
-        session.email,
-      );
-
       usePlayer.setState({
         setup: true,
         mediaId: response.mediaId,
@@ -104,13 +130,11 @@ export async function setupPlayer(session: Session) {
         position: response.position,
         playbackRate: response.playbackRate,
         streaming: response.streaming,
-        chapterState: initializeChapterState(
+        ...initialChapterState(
           response.chapters,
           response.position,
           response.duration,
         ),
-        sleepTimer,
-        sleepTimerEnabled,
       });
     }
   } catch (error) {
@@ -135,11 +159,7 @@ export async function loadMostRecentMedia(session: Session) {
       position: track.position,
       playbackRate: track.playbackRate,
       streaming: track.streaming,
-      chapterState: initializeChapterState(
-        track.chapters,
-        track.position,
-        track.duration,
-      ),
+      ...initialChapterState(track.chapters, track.position, track.duration),
     });
   }
 }
@@ -154,11 +174,7 @@ export async function loadMedia(session: Session, mediaId: string) {
     position: track.position,
     playbackRate: track.playbackRate,
     streaming: track.streaming,
-    chapterState: initializeChapterState(
-      track.chapters,
-      track.position,
-      track.duration,
-    ),
+    ...initialChapterState(track.chapters, track.position, track.duration),
   });
 }
 
@@ -166,161 +182,86 @@ export function expandPlayer() {
   EventBus.emit("expandPlayer");
 }
 
-export function playOrPause() {
-  const { state } = usePlayer.getState();
-
-  switch (state) {
-    case State.Paused:
-    case State.Stopped:
-    case State.Ready:
-    case State.Error:
-      return play();
-    case State.Playing:
-      return pause();
-    case State.Buffering:
-    case State.Loading:
-    case State.None:
-    case State.Ended:
-  }
-  return Promise.resolve();
-}
-
-export function play() {
-  maybeStartSleepTimer();
+export async function play() {
+  const { position } = await TrackPlayer.getProgress();
+  console.debug("[Player] Playing from position", position);
   return TrackPlayer.play();
 }
 
 export async function pause() {
-  stopSleepTimer();
+  const { position } = await TrackPlayer.getProgress();
+  console.debug("[Player] Pausing at position", position);
   await TrackPlayer.pause();
-  await seekRelative(-1);
-  return savePosition();
+  return seekImmediateNoLog(-1, true);
 }
 
-export function onPlaybackProgressUpdated(position: number, duration: number) {
-  updateProgress(position, duration);
-  if (maybeHandleSleepTimer()) return Promise.resolve();
-  if (duration !== 0) return savePosition();
-}
-
-export function onPlaybackState(state: State) {
-  usePlayer.setState({ state });
+export function onPlaybackProgressUpdated(progress: Progress) {
+  console.debug("[Player] PlaybackProgressUpdated", progress);
+  setProgress(progress.position, progress.duration);
 }
 
 export function onPlaybackQueueEnded() {
-  stopSleepTimer();
   const { duration } = usePlayer.getState();
-  updateProgress(duration, duration);
-  return savePosition();
+  console.debug("[Player] PlaybackQueueEnded at position", duration);
+  setProgress(duration, duration);
 }
 
-export function updateProgress(position: number, duration: number) {
+function onRemoteSeekApplied(progress: Progress) {
+  console.debug("[Player] RemoteSeekApplied", progress);
+  setProgress(progress.position, progress.duration);
+}
+
+export function setProgress(position: number, duration: number) {
   usePlayer.setState({ position, duration });
 
-  const chapterState = usePlayer.getState().chapterState;
-
-  if (chapterState) {
-    usePlayer.setState({
-      chapterState: updateChapterState(chapterState, position, duration),
-    });
-  }
+  maybeUpdateChapterState();
 }
 
-export async function seekTo(position: number) {
-  maybeResetSleepTimer();
-  const { duration, state } = usePlayer.getState();
-  if (!shouldSeek(state)) return;
-  const newPosition = Math.max(0, Math.min(position, duration));
-  updateProgress(newPosition, duration);
-
-  return TrackPlayer.seekTo(newPosition);
+export function seekTo(position: number) {
+  seek(position);
 }
 
-export async function seekRelative(amount: number) {
-  const { position, playbackRate } = usePlayer.getState();
-
-  return seekTo(position + amount * playbackRate);
+export function seekRelative(amount: number) {
+  seek(amount, true);
 }
 
-export async function skipToEndOfChapter() {
-  const { chapterState, duration } = usePlayer.getState();
-  if (!chapterState) return;
-  const { currentChapter } = chapterState;
+export function skipToEndOfChapter() {
+  const { currentChapter, duration } = usePlayer.getState();
+  if (!currentChapter) return;
 
-  return seekTo(currentChapter.endTime || duration);
+  return seek(currentChapter.endTime || duration);
 }
 
-export async function skipToBeginningOfChapter() {
-  const { chapterState, position } = usePlayer.getState();
-  if (!chapterState) return;
+export function skipToBeginningOfChapter() {
+  const { position, currentChapter, previousChapterStartTime } =
+    usePlayer.getState();
+  if (!currentChapter) return;
 
-  const { currentChapter, previousChapterStartTime } = chapterState;
   const newPosition =
     position === currentChapter.startTime
       ? previousChapterStartTime
       : currentChapter.startTime;
 
-  return seekTo(newPosition);
+  return seek(newPosition);
 }
 
 export async function setPlaybackRate(session: Session, playbackRate: number) {
   usePlayer.setState({ playbackRate });
   await Promise.all([
     TrackPlayer.setRate(playbackRate),
-    updatePlayerState(session, usePlayer.getState().mediaId!, { playbackRate }),
+    // updatePlayerState(session, usePlayer.getState().mediaId!, { playbackRate }),
   ]);
-}
-
-export async function setSleepTimerState(enabled: boolean) {
-  resetVolume();
-
-  usePlayer.setState({
-    sleepTimerEnabled: enabled,
-    sleepTimerTriggerTime: null,
-  });
-
-  const session = useSession.getState().session;
-
-  if (!session) return;
-
-  await setSleepTimerEnabled(session.email, enabled);
-
-  const { state } = usePlayer.getState();
-
-  if (state === State.Playing) {
-    maybeStartSleepTimer();
-  }
-}
-
-export async function setSleepTimer(sleepTimer: number) {
-  usePlayer.setState({ sleepTimer });
-
-  const session = useSession.getState().session;
-
-  if (!session) return;
-
-  await setSleepTimerTime(session.email, sleepTimer);
-
-  const { state } = usePlayer.getState();
-
-  if (state === State.Playing) {
-    maybeResetSleepTimer();
-  }
 }
 
 export async function tryUnloadPlayer() {
   try {
+    if (seekTimer) clearTimeout(seekTimer);
+    // TODO: will we miss important seek events?
+    if (seekEventTimer) clearTimeout(seekEventTimer);
+
     await pause();
     await TrackPlayer.reset();
-    usePlayer.setState({
-      position: 0,
-      duration: 0,
-      state: undefined,
-      mediaId: null,
-      playbackRate: 1,
-      streaming: undefined,
-      chapterState: null,
-    });
+    usePlayer.setState({ ...initialState });
   } catch (error) {
     console.warn("[Player] tryUnloadPlayer error", error);
   }
@@ -329,54 +270,32 @@ export async function tryUnloadPlayer() {
 }
 
 export async function forceUnloadPlayer() {
-  await TrackPlayer.reset();
+  if (seekTimer) clearTimeout(seekTimer);
+  // TODO: will we miss important seek events?
+  if (seekEventTimer) clearTimeout(seekEventTimer);
 
-  usePlayer.setState({
-    position: 0,
-    duration: 0,
-    state: undefined,
-    mediaId: null,
-    playbackRate: 1,
-    streaming: undefined,
-    chapterState: null,
-  });
+  await TrackPlayer.reset();
+  usePlayer.setState({ ...initialState });
 
   return Promise.resolve();
 }
 
-async function savePosition(force: boolean = false) {
-  const session = useSession.getState().session;
-  const { mediaId, position, duration } = usePlayer.getState();
+// async function savePosition(force: boolean = false) {
+//   const session = useSession.getState().session;
+//   const { mediaId, position, duration } = usePlayer.getState();
 
-  if (!session || !mediaId) return;
+//   if (!session || !mediaId) return;
 
-  // mimic server-side logic here by computing the status
-  const status =
-    position < 60
-      ? "not_started"
-      : duration - position < 120
-        ? "finished"
-        : "in_progress";
+//   // mimic server-side logic here by computing the status
+//   const status =
+//     position < 60
+//       ? "not_started"
+//       : duration - position < 120
+//         ? "finished"
+//         : "in_progress";
 
-  await updatePlayerState(session, mediaId, { position, status });
-}
-
-function shouldSeek(state: State | undefined): boolean {
-  switch (state) {
-    case State.Paused:
-    case State.Stopped:
-    case State.Ready:
-    case State.Playing:
-    case State.Ended:
-    case State.Buffering:
-    case State.Loading:
-      return true;
-    case State.None:
-    case State.Error:
-    case undefined:
-      return false;
-  }
-}
+//   await updatePlayerState(session, mediaId, { position, status });
+// }
 
 async function setupTrackPlayer(
   session: Session,
@@ -664,16 +583,21 @@ async function loadMostRecentMediaIntoTrackPlayer(
   }
 }
 
-function initializeChapterState(
+function initialChapterState(
   chapters: schema.Chapter[],
   position: number,
   duration: number,
-): ChapterState | null {
+) {
   const currentChapter = chapters.find(
     (chapter) => position < (chapter.endTime || duration),
   );
 
-  if (!currentChapter) return null;
+  if (!currentChapter)
+    return {
+      chapters,
+      currentChapter,
+      previousChapterStartTime: 0,
+    };
 
   const previousChapterStartTime =
     chapters[chapters.indexOf(currentChapter) - 1]?.startTime || 0;
@@ -681,96 +605,231 @@ function initializeChapterState(
   return { chapters, currentChapter, previousChapterStartTime };
 }
 
-function updateChapterState(
-  chapterState: ChapterState,
-  position: number,
-  duration: number,
-) {
-  const { chapters, currentChapter } = chapterState;
+function maybeUpdateChapterState() {
+  const { position, currentChapter } = usePlayer.getState();
+
+  if (!currentChapter) return;
 
   if (
     position < currentChapter.startTime ||
     (currentChapter.endTime && position >= currentChapter.endTime)
   ) {
+    const { duration, chapters } = usePlayer.getState();
     const nextChapter = chapters.find(
       (chapter) => position < (chapter.endTime || duration),
     );
 
     if (nextChapter) {
-      const previousChapterStartTime =
-        chapters[chapters.indexOf(nextChapter) - 1]?.startTime || 0;
-      return {
-        chapters,
+      usePlayer.setState({
         currentChapter: nextChapter,
-        previousChapterStartTime,
-      };
+        previousChapterStartTime:
+          chapters[chapters.indexOf(nextChapter) - 1]?.startTime || 0,
+      });
+    }
+  }
+}
+
+let seekTimer: NodeJS.Timeout | null = null;
+let seekEventTimer: NodeJS.Timeout | null = null;
+
+async function seek(target: number, isRelative = false) {
+  const { seekIsApplying } = usePlayer.getState();
+  if (seekIsApplying) return;
+
+  if (!seekTimer || !seekEventTimer) {
+    const { position } = await TrackPlayer.getProgress();
+
+    // First tap for short timer
+    if (!seekTimer) {
+      usePlayer.setState({
+        userIsSeeking: true,
+        seekOriginalPosition: position,
+        seekBasePosition: position,
+        seekAccumulator: 0,
+        seekPosition: position,
+        seekEffectiveDiff: 0,
+      });
     }
 
-    return chapterState;
+    // First tap for long timer
+    if (!seekEventTimer) {
+      usePlayer.setState({
+        seekEventFrom: position,
+      });
+    }
   }
 
-  return chapterState;
-}
+  // Each tap
+  if (isRelative) {
+    usePlayer.setState((state) => {
+      if (
+        state.seekAccumulator == null ||
+        state.seekBasePosition == null ||
+        state.seekOriginalPosition == null
+      ) {
+        throw new Error("Seek state invalid");
+      }
 
-function maybeStartSleepTimer() {
-  resetVolume();
-  const { sleepTimerEnabled, sleepTimerTriggerTime } = usePlayer.getState();
+      const seekAccumulator = state.seekAccumulator + target;
+      let seekPosition =
+        state.seekBasePosition + seekAccumulator * state.playbackRate;
+      const seekEffectiveDiff = seekPosition - state.seekOriginalPosition;
 
-  if (!sleepTimerEnabled || sleepTimerTriggerTime !== null) return;
+      seekPosition = Math.max(0, Math.min(seekPosition, state.duration));
 
-  _startSleepTimer();
-}
-
-function maybeResetSleepTimer() {
-  resetVolume();
-  const { sleepTimerEnabled, sleepTimerTriggerTime } = usePlayer.getState();
-
-  if (!sleepTimerEnabled || sleepTimerTriggerTime === null) return;
-
-  _startSleepTimer();
-}
-
-function stopSleepTimer() {
-  usePlayer.setState({ sleepTimerTriggerTime: null });
-}
-
-function _startSleepTimer() {
-  const { sleepTimer } = usePlayer.getState();
-  const triggerTime = Date.now() + sleepTimer * 1000;
-
-  usePlayer.setState({ sleepTimerTriggerTime: triggerTime });
-}
-
-function maybeHandleSleepTimer() {
-  const { sleepTimerTriggerTime } = usePlayer.getState();
-
-  if (sleepTimerTriggerTime === null) {
-    resetVolume();
-    return false;
-  }
-
-  const now = Date.now();
-  const timeRemaining = sleepTimerTriggerTime - now;
-
-  if (timeRemaining <= 0) {
-    pause().finally(() => {
-      resetVolume();
+      return {
+        seekAccumulator,
+        seekPosition,
+        seekEffectiveDiff,
+      };
     });
-    return true;
-  }
-
-  if (timeRemaining <= FADE_OUT_TIME) {
-    const volume = timeRemaining / FADE_OUT_TIME;
-    console.debug("[Player] Sleep timer setting volume to", volume);
-    TrackPlayer.setVolume(volume);
   } else {
-    resetVolume();
+    usePlayer.setState((state) => {
+      if (state.seekOriginalPosition == null) {
+        throw new Error("Seek state invalid");
+      }
+
+      const seekBasePosition = target;
+      let seekPosition = target;
+      const seekEffectiveDiff = seekPosition - state.seekOriginalPosition;
+
+      seekPosition = Math.max(0, Math.min(seekPosition, state.duration));
+
+      return {
+        seekBasePosition,
+        seekAccumulator: 0,
+        seekPosition,
+        seekEffectiveDiff,
+      };
+    });
   }
 
-  return false;
+  if (seekTimer) clearTimeout(seekTimer);
+  if (seekEventTimer) clearTimeout(seekEventTimer);
+
+  // On short delay, apply the seek
+  seekTimer = setTimeout(async () => {
+    seekTimer = null;
+    const { seekPosition, seekOriginalPosition, duration } =
+      usePlayer.getState();
+
+    console.debug(
+      "[Player] Seeking from",
+      seekOriginalPosition,
+      "to",
+      seekPosition,
+    );
+
+    if (seekPosition == null) {
+      throw new Error("Seek state invalid");
+    }
+
+    usePlayer.setState({ seekIsApplying: true });
+
+    await TrackPlayer.seekTo(seekPosition);
+    setProgress(seekPosition, duration);
+    usePlayer.setState({
+      userIsSeeking: false,
+      seekIsApplying: false,
+      seekOriginalPosition: null,
+      seekBasePosition: null,
+      seekAccumulator: null,
+      seekPosition: null,
+      seekEffectiveDiff: null,
+      seekEventTo: seekPosition,
+    });
+  }, SEEK_ACCUMULATION_WINDOW);
+
+  // On longer delay, save the seek event to the database
+  seekEventTimer = setTimeout(() => {
+    seekEventTimer = null;
+    const { seekEventFrom, seekEventTo } = usePlayer.getState();
+
+    console.debug("[Player] Seek event from", seekEventFrom, "to", seekEventTo);
+
+    if (seekEventFrom == null || seekEventTo == null) {
+      throw new Error("Seek event state invalid");
+    }
+
+    // TODO: Save the seek event to the database
+    // NOTE: ignore events if they're not "meaningful"
+
+    usePlayer.setState({
+      seekEventFrom: null,
+      seekEventTo: null,
+    });
+  }, SEEK_EVENT_ACCUMULATION_WINDOW);
 }
 
-function resetVolume() {
-  console.debug("[Player] Sleep timer setting volume to 1");
-  TrackPlayer.setVolume(1);
+async function seekImmediateNoLog(target: number, isRelative = false) {
+  const { seekIsApplying, playbackRate } = usePlayer.getState();
+  if (seekIsApplying) return;
+
+  usePlayer.setState({ seekIsApplying: true });
+
+  const { position, duration } = await TrackPlayer.getProgress();
+  let seekPosition;
+
+  if (isRelative) {
+    seekPosition = position + target * playbackRate;
+  } else {
+    seekPosition = target;
+  }
+
+  seekPosition = Math.max(0, Math.min(seekPosition, duration));
+
+  console.debug(
+    "[Player] Seeking from",
+    position,
+    "to",
+    seekPosition,
+    "without logging",
+  );
+
+  await TrackPlayer.seekTo(seekPosition);
+  setProgress(seekPosition, duration);
+  usePlayer.setState({ seekIsApplying: false });
+}
+
+export function usePlayerSubscriptions(appState: AppStateStatus) {
+  useEffect(() => {
+    const subscriptions: EmitterSubscription[] = [];
+
+    const init = async () => {
+      console.debug("[Player] Getting initial progress");
+      const progress = await TrackPlayer.getProgress();
+
+      setProgress(progress.position, progress.duration);
+    };
+
+    if (appState === "active") {
+      init();
+
+      console.debug("[Player] Subscribing to player events");
+
+      // TODO: maybe use `useProgress` so the interval is controllable by us. Or maybe write our own...
+      subscriptions.push(
+        TrackPlayer.addEventListener(
+          Event.PlaybackProgressUpdated,
+          onPlaybackProgressUpdated,
+        ),
+      );
+
+      subscriptions.push(
+        TrackPlayer.addEventListener(
+          Event.PlaybackQueueEnded,
+          onPlaybackQueueEnded,
+        ),
+      );
+
+      EventBus.on("remoteSeekApplied", onRemoteSeekApplied);
+    }
+
+    return () => {
+      if (subscriptions.length !== 0)
+        console.debug("[Player] Unsubscribing from player events");
+      subscriptions.forEach((sub) => sub.remove());
+      EventBus.off("remoteSeekApplied", onRemoteSeekApplied);
+    };
+  }, [appState]);
 }

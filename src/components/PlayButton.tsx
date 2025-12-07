@@ -1,9 +1,13 @@
-import { useDebounce } from "@/src/hooks/use-debounce";
-import { playOrPause, usePlayer } from "@/src/stores/player";
+import { pause, play } from "@/src/stores/player";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
-import { State } from "react-native-track-player";
+import {
+  State,
+  useIsPlaying,
+  usePlaybackState,
+} from "react-native-track-player";
 import { IconButton } from "./IconButton";
 import { Loading } from "./Loading";
+import { useDebounce } from "../hooks/use-debounce";
 
 type PlayButtonProps = {
   size: number;
@@ -13,11 +17,10 @@ type PlayButtonProps = {
 
 export function PlayButton(props: PlayButtonProps) {
   const { size, color, style } = props;
-  const state = usePlayer((state) => state.state);
-  const debouncedState = useDebounce(state, 100);
-  const icon = stateIcon(debouncedState);
+  const { playing, bufferingDuringPlay } = useIsPlaying();
+  const icon = useStateIcon(playing, bufferingDuringPlay);
 
-  if (!debouncedState || !icon || icon === "spinner") {
+  if (!icon || icon === "spinner") {
     return (
       <View style={[styles.container, { padding: size / 2 }, style]}>
         {/* NOTE: this sizing has to match the sizing of the IconButton component */}
@@ -30,7 +33,7 @@ export function PlayButton(props: PlayButtonProps) {
 
   return (
     <IconButton
-      onPress={playOrPause}
+      onPress={playing ? pause : play}
       size={size}
       icon={icon}
       color={color}
@@ -47,8 +50,18 @@ const styles = StyleSheet.create({
   },
 });
 
-function stateIcon(state: State | undefined): string | undefined {
-  switch (state) {
+function useStateIcon(
+  playing: boolean | undefined,
+  bufferingDuringPlay: boolean | undefined,
+) {
+  const { state } = usePlaybackState();
+  const debouncedState = useDebounce(state, 100);
+
+  if (playing) return "pause";
+
+  if (bufferingDuringPlay) return "spinner";
+
+  switch (debouncedState) {
     case State.Paused:
     case State.Stopped:
     case State.Ready:
