@@ -1,8 +1,9 @@
 import {
   FadeInOnMount,
   HeaderButton,
-  PlaythroughTile,
+  MediaTile,
   SeeAllTile,
+  TimeAgo,
 } from "@/src/components";
 import {
   HORIZONTAL_LIST_LIMIT,
@@ -70,7 +71,8 @@ export function RecentlyFinished({ session }: RecentlyFinishedProps) {
         }
         renderItem={({ item }) => (
           <FadeInOnMount style={[styles.tile, { width: tileSize }]}>
-            <PlaythroughTile playthrough={item} session={session} />
+            {item.finishedAt && <TimeAgo date={item.finishedAt} />}
+            <MediaTile media={item.media} />
           </FadeInOnMount>
         )}
       />

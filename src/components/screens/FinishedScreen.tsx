@@ -1,4 +1,4 @@
-import { FadeInOnMount, Loading, PlaythroughTile } from "@/src/components";
+import { FadeInOnMount, Loading, MediaTile, TimeAgo } from "@/src/components";
 import { PAGE_SIZE } from "@/src/constants";
 import { getPlaythroughsPage } from "@/src/db/library";
 import { usePaginatedLibraryData } from "@/src/hooks/use-paginated-library-data";
@@ -36,7 +36,8 @@ export function FinishedScreen({ session }: FinishedScreenProps) {
       numColumns={2}
       renderItem={({ item }) => (
         <FadeInOnMount style={styles.tile}>
-          <PlaythroughTile playthrough={item} session={session} />
+          {item.finishedAt && <TimeAgo date={item.finishedAt} />}
+          <MediaTile media={item.media} />
         </FadeInOnMount>
       )}
       onEndReached={loadMore}

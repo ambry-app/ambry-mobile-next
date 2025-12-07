@@ -1,7 +1,5 @@
 import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
-import useLoadMediaCallback from "@/src/hooks/use-load-media-callback";
 import useNavigateToBookCallback from "@/src/hooks/use-navigate-to-book-callback";
-import { Session } from "@/src/stores/session";
 import { Colors } from "@/src/styles";
 import { router } from "expo-router";
 import React from "react";
@@ -14,9 +12,7 @@ import {
   ViewStyle,
 } from "react-native";
 import { BookDetailsText } from "./BookDetailsText";
-import { IconButton } from "./IconButton";
 import { MultiThumbnailImage } from "./MultiThumbnailImage";
-import { ProgressBar } from "./ProgressBar";
 import { ThumbnailImage } from "./ThumbnailImage";
 
 type Media = {
@@ -43,29 +39,14 @@ type SeriesBook = {
   bookNumber: string;
 };
 
-type PlayerState = {
-  position: number;
-  playbackRate: number;
-};
-
 type MediaProp = Media & { book: Book };
 type BookProp = Book & { media: Media[] };
 type SeriesBookProp = SeriesBook & { book: BookProp };
-type PlayerStateWithMediaProp = PlayerState & {
-  media: MediaProp & {
-    duration: string | null;
-  };
-};
 
 type MediaTileProps = { media: MediaProp; style?: StyleProp<ViewStyle> };
 type BookTileProps = { book: BookProp; style?: StyleProp<ViewStyle> };
 type SeriesBookTileProps = {
   seriesBook: SeriesBookProp;
-  style?: StyleProp<ViewStyle>;
-};
-type PlayerStateTileProps = {
-  session: Session;
-  playerState: PlayerStateWithMediaProp;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -214,59 +195,10 @@ export const PersonTile = React.memo(function PersonTile(
   );
 });
 
-export const PlayerStateTile = React.memo(function PlayerStateTile(
-  props: PlayerStateTileProps,
-) {
-  const { playerState, style, session } = props;
-  const loadMedia = useLoadMediaCallback(session, playerState.media.id);
-  const duration = playerState.media.duration
-    ? Number(playerState.media.duration)
-    : false;
-  const percent = duration ? (playerState.position / duration) * 100 : false;
-
-  return (
-    <Pressable onPress={loadMedia}>
-      <View style={[styles.playerStateTileContainer, style]}>
-        <View>
-          <View style={styles.playerStateThumbnailContainer}>
-            <ThumbnailImage
-              thumbnails={playerState.media.thumbnails}
-              downloadedThumbnails={playerState.media.download?.thumbnails}
-              size="large"
-              style={styles.playerStateThumbnail}
-            />
-            <IconButton
-              icon="play"
-              size={32}
-              style={styles.playButton}
-              iconStyle={styles.playButtonIcon}
-              color={Colors.zinc[100]}
-              onPress={loadMedia}
-            />
-          </View>
-          {duration !== false && (
-            <ProgressBar position={playerState.position} duration={duration} />
-          )}
-          {percent !== false && (
-            <Text style={styles.progressText} numberOfLines={1}>
-              {percent.toFixed(1)}%
-            </Text>
-          )}
-        </View>
-        <TileText book={playerState.media.book} media={[playerState.media]} />
-      </View>
-    </Pressable>
-  );
-});
-
 const styles = StyleSheet.create({
   container: {
     display: "flex",
     gap: 12,
-  },
-  playerStateTileContainer: {
-    display: "flex",
-    gap: 4,
   },
   tileImageContainer: {
     display: "flex",
@@ -275,35 +207,6 @@ const styles = StyleSheet.create({
   bookThumbnail: {
     aspectRatio: 1,
     borderRadius: 8,
-  },
-  playerStateThumbnailContainer: {
-    position: "relative",
-    width: "100%",
-    aspectRatio: 1,
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  playerStateThumbnail: {
-    position: "absolute",
-    width: "100%",
-    aspectRatio: 1,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-  },
-  playButton: {
-    elevation: 4,
-    backgroundColor: Colors.zinc[900],
-    borderRadius: 999,
-  },
-  playButtonIcon: {
-    // play button looks off center, so we need to adjust it a bit
-    transform: [{ translateX: 2 }],
-  },
-  progressText: {
-    fontSize: 14,
-    color: Colors.zinc[400],
-    textAlign: "center",
   },
   personThumbnail: {
     aspectRatio: 1,

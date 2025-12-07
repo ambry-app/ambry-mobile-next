@@ -1,4 +1,9 @@
-import { FadeInOnMount, Loading, PlaythroughTile } from "@/src/components";
+import {
+  FadeInOnMount,
+  Loading,
+  PlaythroughTile,
+  TimeAgo,
+} from "@/src/components";
 import { PAGE_SIZE } from "@/src/constants";
 import { getPlaythroughsPage } from "@/src/db/library";
 import { usePaginatedLibraryData } from "@/src/hooks/use-paginated-library-data";
@@ -38,6 +43,7 @@ export function InProgressScreen({ session }: InProgressScreenProps) {
       numColumns={2}
       renderItem={({ item }) => (
         <FadeInOnMount style={styles.tile}>
+          {item.lastListenedAt && <TimeAgo date={item.lastListenedAt} />}
           <PlaythroughTile playthrough={item} session={session} />
         </FadeInOnMount>
       )}

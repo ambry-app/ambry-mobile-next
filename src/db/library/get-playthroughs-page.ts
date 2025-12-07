@@ -50,10 +50,12 @@ async function getPlaythroughs(
       id: schema.playthroughs.id,
       status: schema.playthroughs.status,
       startedAt: schema.playthroughs.startedAt,
+      finishedAt: schema.playthroughs.finishedAt,
       updatedAt: schema.playthroughs.updatedAt,
-      // State from cache (position, rate)
+      // State from cache (position, rate, last event time)
       position: sql<number>`COALESCE(${schema.playthroughStateCache.currentPosition}, 0)`,
       playbackRate: sql<number>`COALESCE(${schema.playthroughStateCache.currentRate}, 1)`,
+      lastListenedAt: schema.playthroughStateCache.lastEventAt,
       media: {
         id: schema.media.id,
         thumbnails: schema.media.thumbnails,

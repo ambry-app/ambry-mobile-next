@@ -24,3 +24,4 @@ export * from "./SeekButton";
 export * from "./TabBar";
 export * from "./ThumbnailImage";
 export * from "./Tiles";
+export * from "./TimeAgo";
