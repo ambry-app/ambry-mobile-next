@@ -53,11 +53,30 @@ export async function setSleepTimerTime(userEmail: string, seconds: number) {
     });
 }
 
+export async function setSleepTimerTriggerTime(
+  userEmail: string,
+  triggerTime: number | null,
+) {
+  await db
+    .insert(schema.localUserSettings)
+    .values({
+      userEmail,
+      sleepTimerTriggerTime: triggerTime,
+    })
+    .onConflictDoUpdate({
+      target: [schema.localUserSettings.userEmail],
+      set: {
+        sleepTimerTriggerTime: sql`excluded.sleep_timer_trigger_time`,
+      },
+    });
+}
+
 export async function getSleepTimerSettings(userEmail: string) {
   const response = await db.query.localUserSettings.findFirst({
     columns: {
       sleepTimer: true,
       sleepTimerEnabled: true,
+      sleepTimerTriggerTime: true,
     },
     where: eq(schema.localUserSettings.userEmail, userEmail),
   });
@@ -68,6 +87,7 @@ export async function getSleepTimerSettings(userEmail: string) {
     return {
       sleepTimer: schema.defaultSleepTimer,
       sleepTimerEnabled: schema.defaultSleepTimerEnabled,
+      sleepTimerTriggerTime: null,
     };
   }
 }

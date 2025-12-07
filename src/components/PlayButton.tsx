@@ -1,3 +1,4 @@
+import { useDebounce } from "@/src/hooks/use-debounce";
 import { pause, play } from "@/src/stores/player";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import {
@@ -7,7 +8,6 @@ import {
 } from "react-native-track-player";
 import { IconButton } from "./IconButton";
 import { Loading } from "./Loading";
-import { useDebounce } from "../hooks/use-debounce";
 
 type PlayButtonProps = {
   size: number;

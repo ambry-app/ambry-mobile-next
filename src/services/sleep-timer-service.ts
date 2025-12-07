@@ -1,8 +1,10 @@
+import { SLEEP_TIMER_FADE_OUT_TIME } from "@/src/constants";
+import { useSession } from "@/src/stores/session";
 import { setTriggerTime, useSleepTimer } from "@/src/stores/sleep-timer";
 import { EventBus } from "@/src/utils";
-import TrackPlayer from "react-native-track-player";
+import TrackPlayer, { isPlaying } from "react-native-track-player";
 
-const FADE_OUT_TIME = 30000; // 30 seconds in milliseconds
+const SLEEP_TIMER_CHECK_INTERVAL = 1000;
 let sleepTimerCheckInterval: NodeJS.Timeout | null = null;
 
 /**
@@ -11,10 +13,42 @@ let sleepTimerCheckInterval: NodeJS.Timeout | null = null;
 export function startMonitoring() {
   if (sleepTimerCheckInterval) return;
 
-  console.debug("[Sleep Timer] Starting monitoring");
+  console.debug("[Sleep Timer] Initializing");
+
   sleepTimerCheckInterval = setInterval(() => {
     checkTimer();
-  }, 1000);
+  }, SLEEP_TIMER_CHECK_INTERVAL);
+
+  EventBus.on("seekApplied", (payload) => {
+    if (payload.source === "pause") {
+      return;
+    }
+    maybeReset();
+  });
+
+  EventBus.on("playbackStarted", () => {
+    reset();
+  });
+
+  EventBus.on("playbackPaused", () => {
+    cancel();
+  });
+
+  EventBus.on("remoteDuck", () => {
+    reset();
+  });
+
+  EventBus.on("sleepTimerEnabled", () => {
+    maybeReset();
+  });
+
+  EventBus.on("sleepTimerDisabled", () => {
+    cancel();
+  });
+
+  EventBus.on("sleepTimerChanged", () => {
+    maybeReset();
+  });
 }
 
 /**
@@ -36,11 +70,12 @@ async function checkTimer() {
     console.debug("[Sleep Timer] Triggering - pausing playback");
     await TrackPlayer.pause();
     await TrackPlayer.setVolume(1.0);
-    setTriggerTime(null);
+    const session = useSession.getState().session;
+    await setTriggerTime(session, null);
     EventBus.emit("playbackPaused", { remote: false });
-  } else if (timeRemaining <= FADE_OUT_TIME) {
+  } else if (timeRemaining <= SLEEP_TIMER_FADE_OUT_TIME) {
     // Fade volume in last 30 seconds
-    const volume = timeRemaining / FADE_OUT_TIME;
+    const volume = timeRemaining / SLEEP_TIMER_FADE_OUT_TIME;
     console.debug("[Sleep Timer] Fading volume:", volume.toFixed(2));
     await TrackPlayer.setVolume(volume);
   } else {
@@ -53,21 +88,15 @@ async function checkTimer() {
  * Start/reset the timer (only if currently playing)
  */
 export async function maybeReset() {
-  const { sleepTimerEnabled, sleepTimer } = useSleepTimer.getState();
+  const { sleepTimerEnabled } = useSleepTimer.getState();
 
   if (!sleepTimerEnabled) return;
 
-  // Only set trigger time if playing
-  const state = await TrackPlayer.getPlaybackState();
-  if (state.state !== "playing") return;
+  const { playing } = await isPlaying();
 
-  const triggerTime = Date.now() + sleepTimer * 1000;
-  console.debug(
-    "[Sleep Timer] Resetting timer to trigger at",
-    new Date(triggerTime),
-  );
-  setTriggerTime(triggerTime);
-  await TrackPlayer.setVolume(1.0);
+  if (!playing) return;
+
+  return reset();
 }
 
 /**
@@ -80,10 +109,11 @@ export async function reset() {
 
   const triggerTime = Date.now() + sleepTimer * 1000;
   console.debug(
-    "[Sleep Timer] Resetting timer to trigger at",
+    "[Sleep Timer] Setting timer to trigger at",
     new Date(triggerTime),
   );
-  setTriggerTime(triggerTime);
+  const session = useSession.getState().session;
+  await setTriggerTime(session, triggerTime);
   await TrackPlayer.setVolume(1.0);
 }
 
@@ -92,6 +122,7 @@ export async function reset() {
  */
 export async function cancel() {
   console.debug("[Sleep Timer] Canceling timer");
-  setTriggerTime(null);
+  const session = useSession.getState().session;
+  await setTriggerTime(session, null);
   await TrackPlayer.setVolume(1.0);
 }

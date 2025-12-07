@@ -3,6 +3,7 @@ import {
   getSleepTimerSettings,
   setSleepTimerEnabled,
   setSleepTimerTime,
+  setSleepTimerTriggerTime,
 } from "@/src/db/settings";
 import { EventBus } from "@/src/utils";
 import { create } from "zustand";
@@ -11,7 +12,7 @@ import { Session } from "./session";
 export interface SleepTimerState {
   sleepTimer: number; // Duration in seconds
   sleepTimerEnabled: boolean; // Whether enabled
-  sleepTimerTriggerTime: number | null; // Unix timestamp (runtime only, not persisted)
+  sleepTimerTriggerTime: number | null; // Unix timestamp in milliseconds (persisted)
 }
 
 export const useSleepTimer = create<SleepTimerState>()(() => ({
@@ -25,10 +26,19 @@ export const useSleepTimer = create<SleepTimerState>()(() => ({
  */
 export async function loadSleepTimerSettings(session: Session) {
   const settings = await getSleepTimerSettings(session.email);
+
+  // Check if trigger time is still valid (hasn't passed yet)
+  let triggerTime = settings.sleepTimerTriggerTime;
+  if (triggerTime !== null && triggerTime <= Date.now()) {
+    // Trigger time has passed, clear it
+    triggerTime = null;
+    await setSleepTimerTriggerTime(session.email, null);
+  }
+
   useSleepTimer.setState({
     sleepTimer: settings.sleepTimer,
     sleepTimerEnabled: settings.sleepTimerEnabled,
-    sleepTimerTriggerTime: null, // Never persisted
+    sleepTimerTriggerTime: triggerTime,
   });
 }
 
@@ -42,6 +52,7 @@ export async function setSleepTimerState(session: Session, enabled: boolean) {
   });
 
   await setSleepTimerEnabled(session.email, enabled);
+  await setSleepTimerTriggerTime(session.email, null); // Reset persisted trigger time
 
   if (enabled) {
     EventBus.emit("sleepTimerEnabled");
@@ -68,6 +79,14 @@ export async function setSleepTimer(session: Session, seconds: number) {
 /**
  * Internal: Set trigger time (called from playback service)
  */
-export function setTriggerTime(triggerTime: number | null) {
+export async function setTriggerTime(
+  session: Session | null,
+  triggerTime: number | null,
+) {
   useSleepTimer.setState({ sleepTimerTriggerTime: triggerTime });
+
+  // Persist to database so it survives app restarts
+  if (session) {
+    await setSleepTimerTriggerTime(session.email, triggerTime);
+  }
 }
