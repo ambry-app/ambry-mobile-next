@@ -1,4 +1,20 @@
-import { combineAuthorsAndNarrators } from "@/db/library/shared-queries";
+import {
+  combineAuthorsAndNarrators,
+  getAuthorsForBooks,
+  getMediaForBooks,
+  getNarratorsForMedia,
+} from "@/db/library/shared-queries";
+import { setupTestDatabase } from "@test/db-test-utils";
+import {
+  createBook,
+  createBookAuthor,
+  createDownload,
+  createMedia,
+  createMediaNarrator,
+  DEFAULT_TEST_SESSION,
+} from "@test/factories";
+
+const { getDb } = setupTestDatabase();
 
 // Helper to create test authors
 function makeAuthor(
@@ -200,5 +216,209 @@ describe("combineAuthorsAndNarrators", () => {
     const ids = result.map((r) => r.id);
 
     expect(ids).toEqual(["p1", "p2", "p3", "p4"]);
+  });
+});
+
+// =============================================================================
+// getAuthorsForBooks
+// =============================================================================
+
+describe("getAuthorsForBooks", () => {
+  it("returns empty object for empty input", async () => {
+    const result = await getAuthorsForBooks(DEFAULT_TEST_SESSION, []);
+    expect(result).toEqual({});
+  });
+
+  it("returns authors mapped by book ID", async () => {
+    const db = getDb();
+
+    const book = await createBook(db);
+    await createBookAuthor(db, { bookId: book.id, author: { name: "Author One" } });
+    await createBookAuthor(db, { bookId: book.id, author: { name: "Author Two" } });
+
+    const result = await getAuthorsForBooks(DEFAULT_TEST_SESSION, [book.id]);
+
+    expect(result[book.id]).toHaveLength(2);
+    expect(result[book.id]?.map((a) => a.name)).toContain("Author One");
+    expect(result[book.id]?.map((a) => a.name)).toContain("Author Two");
+  });
+
+  it("returns authors for multiple books", async () => {
+    const db = getDb();
+
+    const book1 = await createBook(db, { title: "Book 1" });
+    const book2 = await createBook(db, { title: "Book 2" });
+    await createBookAuthor(db, { bookId: book1.id, author: { name: "Author A" } });
+    await createBookAuthor(db, { bookId: book2.id, author: { name: "Author B" } });
+
+    const result = await getAuthorsForBooks(DEFAULT_TEST_SESSION, [book1.id, book2.id]);
+
+    expect(result[book1.id]).toHaveLength(1);
+    expect(result[book1.id]?.[0]?.name).toBe("Author A");
+    expect(result[book2.id]).toHaveLength(1);
+    expect(result[book2.id]?.[0]?.name).toBe("Author B");
+  });
+
+  it("returns empty array for book with no authors", async () => {
+    const db = getDb();
+
+    const book = await createBook(db);
+
+    const result = await getAuthorsForBooks(DEFAULT_TEST_SESSION, [book.id]);
+
+    expect(result[book.id]).toBeUndefined();
+  });
+
+  it("only returns authors for the current session URL", async () => {
+    const db = getDb();
+
+    const book = await createBook(db, { url: "https://other-server.com" });
+    await createBookAuthor(db, {
+      url: "https://other-server.com",
+      bookId: book.id,
+      author: { url: "https://other-server.com", name: "Other Author" },
+    });
+
+    const result = await getAuthorsForBooks(DEFAULT_TEST_SESSION, [book.id]);
+
+    expect(result[book.id]).toBeUndefined();
+  });
+});
+
+// =============================================================================
+// getMediaForBooks
+// =============================================================================
+
+describe("getMediaForBooks", () => {
+  it("returns empty object for empty input", async () => {
+    const result = await getMediaForBooks(DEFAULT_TEST_SESSION, []);
+    expect(result).toEqual({});
+  });
+
+  it("returns media mapped by book ID", async () => {
+    const db = getDb();
+
+    const book = await createBook(db);
+    const media1 = await createMedia(db, { bookId: book.id });
+    const media2 = await createMedia(db, { bookId: book.id });
+
+    const result = await getMediaForBooks(DEFAULT_TEST_SESSION, [book.id]);
+
+    expect(result[book.id]).toHaveLength(2);
+    expect(result[book.id]?.map((m) => m.id)).toContain(media1.id);
+    expect(result[book.id]?.map((m) => m.id)).toContain(media2.id);
+  });
+
+  it("includes download thumbnails when media is downloaded", async () => {
+    const db = getDb();
+
+    const book = await createBook(db);
+    const media = await createMedia(db, { bookId: book.id });
+    await createDownload(db, {
+      mediaId: media.id,
+      status: "ready",
+      thumbnails: {
+        thumbhash: "downloadhash",
+        extraSmall: "/xs.jpg",
+        small: "/small.jpg",
+        medium: "/medium.jpg",
+        large: "/large.jpg",
+        extraLarge: "/xl.jpg",
+      },
+    });
+
+    const result = await getMediaForBooks(DEFAULT_TEST_SESSION, [book.id]);
+
+    expect(result[book.id]?.[0]?.download?.thumbnails?.thumbhash).toBe("downloadhash");
+  });
+
+  it("returns media for multiple books", async () => {
+    const db = getDb();
+
+    const book1 = await createBook(db);
+    const book2 = await createBook(db);
+    const media1 = await createMedia(db, { bookId: book1.id });
+    const media2 = await createMedia(db, { bookId: book2.id });
+
+    const result = await getMediaForBooks(DEFAULT_TEST_SESSION, [book1.id, book2.id]);
+
+    expect(result[book1.id]?.[0]?.id).toBe(media1.id);
+    expect(result[book2.id]?.[0]?.id).toBe(media2.id);
+  });
+
+  it("only returns media for the current session URL", async () => {
+    const db = getDb();
+
+    const book = await createBook(db, { url: "https://other-server.com" });
+    await createMedia(db, { url: "https://other-server.com", bookId: book.id });
+
+    const result = await getMediaForBooks(DEFAULT_TEST_SESSION, [book.id]);
+
+    expect(result[book.id]).toBeUndefined();
+  });
+});
+
+// =============================================================================
+// getNarratorsForMedia
+// =============================================================================
+
+describe("getNarratorsForMedia", () => {
+  it("returns empty object for empty input", async () => {
+    const result = await getNarratorsForMedia(DEFAULT_TEST_SESSION, []);
+    expect(result).toEqual({});
+  });
+
+  it("returns narrators mapped by media ID", async () => {
+    const db = getDb();
+
+    const media = await createMedia(db);
+    await createMediaNarrator(db, { mediaId: media.id, narrator: { name: "Narrator One" } });
+    await createMediaNarrator(db, { mediaId: media.id, narrator: { name: "Narrator Two" } });
+
+    const result = await getNarratorsForMedia(DEFAULT_TEST_SESSION, [media.id]);
+
+    expect(result[media.id]).toHaveLength(2);
+    expect(result[media.id]?.map((n) => n.name)).toContain("Narrator One");
+    expect(result[media.id]?.map((n) => n.name)).toContain("Narrator Two");
+  });
+
+  it("returns narrators for multiple media", async () => {
+    const db = getDb();
+
+    const media1 = await createMedia(db);
+    const media2 = await createMedia(db);
+    await createMediaNarrator(db, { mediaId: media1.id, narrator: { name: "Narrator A" } });
+    await createMediaNarrator(db, { mediaId: media2.id, narrator: { name: "Narrator B" } });
+
+    const result = await getNarratorsForMedia(DEFAULT_TEST_SESSION, [media1.id, media2.id]);
+
+    expect(result[media1.id]?.[0]?.name).toBe("Narrator A");
+    expect(result[media2.id]?.[0]?.name).toBe("Narrator B");
+  });
+
+  it("returns undefined for media with no narrators", async () => {
+    const db = getDb();
+
+    const media = await createMedia(db);
+
+    const result = await getNarratorsForMedia(DEFAULT_TEST_SESSION, [media.id]);
+
+    expect(result[media.id]).toBeUndefined();
+  });
+
+  it("only returns narrators for the current session URL", async () => {
+    const db = getDb();
+
+    const book = await createBook(db, { url: "https://other-server.com" });
+    const media = await createMedia(db, { url: "https://other-server.com", bookId: book.id });
+    await createMediaNarrator(db, {
+      url: "https://other-server.com",
+      mediaId: media.id,
+      narrator: { url: "https://other-server.com", name: "Other Narrator" },
+    });
+
+    const result = await getNarratorsForMedia(DEFAULT_TEST_SESSION, [media.id]);
+
+    expect(result[media.id]).toBeUndefined();
   });
 });
