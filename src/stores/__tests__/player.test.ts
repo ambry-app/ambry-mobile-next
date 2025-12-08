@@ -5,21 +5,22 @@
  * Only mock external native modules (TrackPlayer).
  */
 
+import * as schema from "@/db/schema";
 import { stopMonitoring } from "@/services/event-recording-service";
 import { initialDeviceState, useDevice } from "@/stores/device";
-import * as schema from "@/db/schema";
 import {
   cancelResumePrompt,
   expandPlayer,
   forceUnloadPlayer,
   handleResumePlaythrough,
   handleStartFresh,
+  initializePlayer,
   loadMedia,
   pause,
   play,
   prepareToLoadMedia,
-  SeekSource,
   seekRelative,
+  SeekSource,
   seekTo,
   setPlaybackRate,
   skipToBeginningOfChapter,
@@ -47,6 +48,8 @@ import {
   mockTrackPlayerReset,
   mockTrackPlayerSeekTo,
   mockTrackPlayerSetRate,
+  mockTrackPlayerSetupPlayer,
+  mockTrackPlayerUpdateOptions,
 } from "@test/jest-setup";
 
 // Set up test database
@@ -104,11 +107,15 @@ describe("player store", () => {
     mockTrackPlayerReset.mockReset();
     mockTrackPlayerAdd.mockReset();
     mockTrackPlayerGetTrack.mockReset();
+    mockTrackPlayerSetupPlayer.mockReset();
+    mockTrackPlayerUpdateOptions.mockReset();
     eventBusSpy.mockClear();
 
     // Default mock values
     mockTrackPlayerGetTrack.mockResolvedValue(null); // No track loaded by default
     mockTrackPlayerAdd.mockResolvedValue(undefined);
+    mockTrackPlayerSetupPlayer.mockResolvedValue(undefined);
+    mockTrackPlayerUpdateOptions.mockResolvedValue(undefined);
     mockTrackPlayerGetProgress.mockResolvedValue({
       position: 100,
       duration: 3600,
@@ -564,6 +571,163 @@ describe("player store", () => {
           userInitiated: true,
           source: SeekSource.CHAPTER,
         });
+      });
+    });
+  });
+
+  // ===========================================================================
+  // Initialization
+  // ===========================================================================
+
+  describe("initialization", () => {
+    describe("initializePlayer()", () => {
+      it("skips if already initialized", async () => {
+        usePlayer.setState({ initialized: true });
+
+        await initializePlayer(DEFAULT_TEST_SESSION);
+
+        // Should not call setupPlayer since already initialized
+        expect(mockTrackPlayerSetupPlayer).not.toHaveBeenCalled();
+      });
+
+      it("sets up TrackPlayer on fresh initialization", async () => {
+        // No track loaded (fresh init)
+        // First call: reject (triggers setupPlayer), subsequent calls: return null
+        mockTrackPlayerGetTrack
+          .mockRejectedValueOnce(new Error("no track"))
+          .mockResolvedValue(null);
+
+        await initializePlayer(DEFAULT_TEST_SESSION);
+
+        expect(mockTrackPlayerSetupPlayer).toHaveBeenCalled();
+        expect(mockTrackPlayerUpdateOptions).toHaveBeenCalled();
+        expect(usePlayer.getState().initialized).toBe(true);
+      });
+
+      it("loads most recent in-progress playthrough on fresh init", async () => {
+        const db = getDb();
+
+        // Set up media with required book author
+        const media = await createMedia(db, {
+          id: "media-init-1",
+          duration: "3600",
+          hlsPath: "/hls/media-init-1",
+          mpdPath: "/mpd/media-init-1",
+        });
+        await createBookAuthor(db, { bookId: media.bookId });
+
+        // Create an in-progress playthrough
+        const playthrough = await createPlaythrough(db, {
+          mediaId: "media-init-1",
+          status: "in_progress",
+        });
+        await createPlaythroughStateCache(db, {
+          playthroughId: playthrough.id,
+          currentPosition: 500,
+          currentRate: 1.25,
+        });
+
+        // First call: reject (triggers setupPlayer), subsequent calls: return null
+        mockTrackPlayerGetTrack
+          .mockRejectedValueOnce(new Error("no track"))
+          .mockResolvedValue(null);
+
+        // Initialize device for event recording
+        useDevice.setState({
+          initialized: true,
+          deviceInfo: {
+            id: "device-1",
+            type: "ios",
+            brand: "Apple",
+            modelName: "iPhone",
+            osName: "iOS",
+            osVersion: "17.0",
+          },
+        });
+
+        await initializePlayer(DEFAULT_TEST_SESSION);
+
+        const state = usePlayer.getState();
+        expect(state.initialized).toBe(true);
+        expect(state.mediaId).toBe("media-init-1");
+        expect(state.position).toBe(500);
+        expect(state.playbackRate).toBe(1.25);
+      });
+
+      it("sets initialized true even when no playthrough exists", async () => {
+        // No track loaded and no playthrough in DB
+        // First call: reject (triggers setupPlayer), subsequent calls: return null
+        mockTrackPlayerGetTrack
+          .mockRejectedValueOnce(new Error("no track"))
+          .mockResolvedValue(null);
+
+        await initializePlayer(DEFAULT_TEST_SESSION);
+
+        const state = usePlayer.getState();
+        expect(state.initialized).toBe(true);
+        expect(state.mediaId).toBeNull();
+      });
+
+      it("recovers existing track if TrackPlayer already has media loaded", async () => {
+        const db = getDb();
+
+        // Set up media
+        const media = await createMedia(db, {
+          id: "media-init-2",
+          duration: "3600",
+          hlsPath: "/hls/media-init-2",
+          mpdPath: "/mpd/media-init-2",
+          chapters: [
+            { id: "ch1", title: "Chapter 1", startTime: 0, endTime: 1800 },
+            { id: "ch2", title: "Chapter 2", startTime: 1800, endTime: 3600 },
+          ],
+        });
+        await createBookAuthor(db, { bookId: media.bookId });
+
+        // Create playthrough for chapters
+        await createPlaythrough(db, {
+          mediaId: "media-init-2",
+          status: "in_progress",
+        });
+
+        // TrackPlayer already has a track loaded
+        mockTrackPlayerGetTrack.mockResolvedValue({
+          url: "https://example.com/stream.m3u8",
+          description: "media-init-2", // mediaId stored in description
+        });
+        mockTrackPlayerGetProgress.mockResolvedValue({
+          position: 200,
+          duration: 3600,
+        });
+        mockTrackPlayerGetRate.mockResolvedValue(1.5);
+
+        await initializePlayer(DEFAULT_TEST_SESSION);
+
+        const state = usePlayer.getState();
+        expect(state.initialized).toBe(true);
+        expect(state.mediaId).toBe("media-init-2");
+        expect(state.position).toBe(200);
+        expect(state.duration).toBe(3600);
+        expect(state.playbackRate).toBe(1.5);
+        expect(state.streaming).toBe(true); // URL starts with http
+        // Should not call setupPlayer since track already exists
+        expect(mockTrackPlayerSetupPlayer).not.toHaveBeenCalled();
+      });
+
+      it("sets initializationError on failure", async () => {
+        // Make getTrack throw to trigger setupPlayer
+        mockTrackPlayerGetTrack.mockRejectedValueOnce(new Error("no track"));
+        // Make setupPlayer fail
+        mockTrackPlayerSetupPlayer.mockRejectedValue(new Error("Setup failed"));
+
+        await initializePlayer(DEFAULT_TEST_SESSION);
+
+        const state = usePlayer.getState();
+        expect(state.initializationError).toBeInstanceOf(Error);
+        expect((state.initializationError as Error).message).toBe(
+          "Setup failed",
+        );
+        expect(state.initialized).toBe(false);
       });
     });
   });
