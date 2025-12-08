@@ -61,16 +61,86 @@ jest.mock("@/graphql/api", () => ({
 // React Native Track Player Mock
 // =============================================================================
 
+// Mock functions for methods that need test control
 export const mockTrackPlayerGetProgress = jest.fn();
 export const mockTrackPlayerGetRate = jest.fn();
 export const mockTrackPlayerSeekTo = jest.fn();
+export const mockTrackPlayerPlay = jest.fn();
+export const mockTrackPlayerPause = jest.fn();
+export const mockTrackPlayerSetRate = jest.fn();
+export const mockTrackPlayerReset = jest.fn();
+export const mockTrackPlayerAdd = jest.fn();
+export const mockTrackPlayerGetTrack = jest.fn();
+export const mockTrackPlayerSetupPlayer = jest.fn();
+export const mockTrackPlayerUpdateOptions = jest.fn();
+export const mockTrackPlayerAddEventListener = jest.fn();
 
 jest.mock("react-native-track-player", () => ({
   __esModule: true,
   default: {
+    // Progress/state queries
     getProgress: () => mockTrackPlayerGetProgress(),
     getRate: () => mockTrackPlayerGetRate(),
+    getTrack: (index: number) => mockTrackPlayerGetTrack(index),
+    // Playback control
+    play: () => mockTrackPlayerPlay(),
+    pause: () => mockTrackPlayerPause(),
     seekTo: (pos: number) => mockTrackPlayerSeekTo(pos),
+    setRate: (rate: number) => mockTrackPlayerSetRate(rate),
+    // Track management
+    reset: () => mockTrackPlayerReset(),
+    add: (track: unknown) => mockTrackPlayerAdd(track),
+    // Setup
+    setupPlayer: (options: unknown) => mockTrackPlayerSetupPlayer(options),
+    updateOptions: (options: unknown) => mockTrackPlayerUpdateOptions(options),
+    // Events
+    addEventListener: (event: string, handler: unknown) =>
+      mockTrackPlayerAddEventListener(event, handler),
+  },
+  // Enums and constants
+  Event: {
+    PlaybackProgressUpdated: "playback-progress-updated",
+    PlaybackQueueEnded: "playback-queue-ended",
+    RemoteDuck: "remote-duck",
+    RemoteJumpBackward: "remote-jump-backward",
+    RemoteJumpForward: "remote-jump-forward",
+    RemotePause: "remote-pause",
+    RemotePlay: "remote-play",
+  },
+  State: {
+    None: "none",
+    Ready: "ready",
+    Playing: "playing",
+    Paused: "paused",
+    Stopped: "stopped",
+    Buffering: "buffering",
+    Loading: "loading",
+  },
+  Capability: {
+    Play: "play",
+    Pause: "pause",
+    JumpForward: "jump-forward",
+    JumpBackward: "jump-backward",
+  },
+  AndroidAudioContentType: {
+    Speech: "speech",
+    Music: "music",
+  },
+  IOSCategory: {
+    Playback: "playback",
+  },
+  IOSCategoryMode: {
+    SpokenAudio: "spokenAudio",
+    Default: "default",
+  },
+  PitchAlgorithm: {
+    Voice: "voice",
+    Music: "music",
+  },
+  TrackType: {
+    Dash: "dash",
+    HLS: "hls",
+    Default: "default",
   },
 }));
 
