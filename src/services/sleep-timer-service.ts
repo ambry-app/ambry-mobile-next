@@ -127,3 +127,22 @@ export async function cancel() {
   setTriggerTime(null);
   await TrackPlayer.setVolume(1.0);
 }
+
+/**
+ * Reset service state for testing.
+ * Clears intervals and removes event listeners.
+ */
+export function __resetForTesting() {
+  if (sleepTimerCheckInterval) {
+    clearInterval(sleepTimerCheckInterval);
+    sleepTimerCheckInterval = null;
+  }
+  EventBus.removeAllListeners("seekApplied");
+  EventBus.removeAllListeners("playbackStarted");
+  EventBus.removeAllListeners("playbackPaused");
+  EventBus.removeAllListeners("playbackQueueEnded");
+  EventBus.removeAllListeners("remoteDuck");
+  EventBus.removeAllListeners("sleepTimerEnabled");
+  EventBus.removeAllListeners("sleepTimerDisabled");
+  EventBus.removeAllListeners("sleepTimerChanged");
+}

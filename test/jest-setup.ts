@@ -68,12 +68,14 @@ export const mockTrackPlayerSeekTo = jest.fn();
 export const mockTrackPlayerPlay = jest.fn();
 export const mockTrackPlayerPause = jest.fn();
 export const mockTrackPlayerSetRate = jest.fn();
+export const mockTrackPlayerSetVolume = jest.fn();
 export const mockTrackPlayerReset = jest.fn();
 export const mockTrackPlayerAdd = jest.fn();
 export const mockTrackPlayerGetTrack = jest.fn();
 export const mockTrackPlayerSetupPlayer = jest.fn();
 export const mockTrackPlayerUpdateOptions = jest.fn();
 export const mockTrackPlayerAddEventListener = jest.fn();
+export const mockIsPlaying = jest.fn();
 
 jest.mock("react-native-track-player", () => ({
   __esModule: true,
@@ -87,6 +89,7 @@ jest.mock("react-native-track-player", () => ({
     pause: () => mockTrackPlayerPause(),
     seekTo: (pos: number) => mockTrackPlayerSeekTo(pos),
     setRate: (rate: number) => mockTrackPlayerSetRate(rate),
+    setVolume: (volume: number) => mockTrackPlayerSetVolume(volume),
     // Track management
     reset: () => mockTrackPlayerReset(),
     add: (track: unknown) => mockTrackPlayerAdd(track),
@@ -97,6 +100,8 @@ jest.mock("react-native-track-player", () => ({
     addEventListener: (event: string, handler: unknown) =>
       mockTrackPlayerAddEventListener(event, handler),
   },
+  // Helper functions (named exports)
+  isPlaying: () => mockIsPlaying(),
   // Enums and constants
   Event: {
     PlaybackProgressUpdated: "playback-progress-updated",
