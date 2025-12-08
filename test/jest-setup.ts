@@ -16,12 +16,38 @@ jest.mock("@/utils/crypto", () => ({
 // GraphQL API Mock
 // =============================================================================
 
-// Mock function exposed for test control
+// Mock functions exposed for test control
 export const mockGetLibraryChangesSince = jest.fn();
+export const mockGetUserChangesSince = jest.fn();
+export const mockUpdatePlayerState = jest.fn();
+export const mockSyncProgress = jest.fn();
 
 jest.mock("@/graphql/api", () => ({
   getLibraryChangesSince: (...args: unknown[]) =>
     mockGetLibraryChangesSince(...args),
+  getUserChangesSince: (...args: unknown[]) => mockGetUserChangesSince(...args),
+  updatePlayerState: (...args: unknown[]) => mockUpdatePlayerState(...args),
+  syncProgress: (...args: unknown[]) => mockSyncProgress(...args),
+  // Re-export enums that are imported from api.ts
+  DeviceType: {
+    Android: "ANDROID",
+    Ios: "IOS",
+    Web: "WEB",
+  },
+  PlaybackEventType: {
+    Abandon: "ABANDON",
+    Finish: "FINISH",
+    Pause: "PAUSE",
+    Play: "PLAY",
+    RateChange: "RATE_CHANGE",
+    Seek: "SEEK",
+    Start: "START",
+  },
+  PlaythroughStatus: {
+    Abandoned: "ABANDONED",
+    Finished: "FINISHED",
+    InProgress: "IN_PROGRESS",
+  },
 }));
 
 // =============================================================================

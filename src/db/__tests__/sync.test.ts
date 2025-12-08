@@ -1,9 +1,24 @@
-import { syncDownLibrary } from "@/db/sync";
+import * as schema from "@/db/schema";
+import {
+  getServerSyncTimestamps,
+  syncDown,
+  syncDownLibrary,
+  syncDownUser,
+  syncPlaythroughs,
+  syncUp,
+} from "@/db/sync";
 import { ExecuteAuthenticatedErrorCode } from "@/graphql/client/execute";
 import { initialDataVersionState, useDataVersion } from "@/stores/data-version";
+import { initialDeviceState, useDevice } from "@/stores/device";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { DEFAULT_TEST_SESSION } from "@test/factories";
-import { mockForceSignOut, mockGetLibraryChangesSince } from "@test/jest-setup";
+import {
+  mockForceSignOut,
+  mockGetLibraryChangesSince,
+  mockGetUserChangesSince,
+  mockSyncProgress,
+  mockUpdatePlayerState,
+} from "@test/jest-setup";
 import { resetStoreBeforeEach } from "@test/store-test-utils";
 import {
   createLibraryAuthor,
@@ -16,8 +31,16 @@ import {
   createLibraryPerson,
   createLibrarySeries,
   createLibrarySeriesBook,
+  createSyncPlaybackEvent,
+  createSyncPlaythrough,
+  createUserPlayerState,
   DeletionType,
   emptyLibraryChanges,
+  emptySyncProgressResult,
+  emptyUserChanges,
+  PlaybackEventType,
+  PlayerStateStatus,
+  PlaythroughStatus,
   resetSyncFixtureIdCounter,
 } from "@test/sync-fixtures";
 
@@ -25,16 +48,105 @@ const { getDb } = setupTestDatabase();
 
 const session = DEFAULT_TEST_SESSION;
 
-// Reset data-version store between tests
+// Reset stores between tests
 resetStoreBeforeEach(useDataVersion, initialDataVersionState);
+resetStoreBeforeEach(useDevice, initialDeviceState);
 
-describe("syncDownLibrary", () => {
-  beforeEach(() => {
-    mockGetLibraryChangesSince.mockReset();
-    mockForceSignOut.mockReset();
-    resetSyncFixtureIdCounter();
+// Reset all mocks before each test
+beforeEach(() => {
+  mockGetLibraryChangesSince.mockReset();
+  mockGetUserChangesSince.mockReset();
+  mockUpdatePlayerState.mockReset();
+  mockSyncProgress.mockReset();
+  mockForceSignOut.mockReset();
+  resetSyncFixtureIdCounter();
+});
+
+// =============================================================================
+// getServerSyncTimestamps
+// =============================================================================
+
+describe("getServerSyncTimestamps", () => {
+  it("returns null timestamps when no record exists", async () => {
+    const result = await getServerSyncTimestamps(session);
+
+    expect(result).toEqual({
+      lastDownSync: null,
+      newDataAsOf: null,
+    });
   });
 
+  it("returns existing timestamps when record exists", async () => {
+    const db = getDb();
+    const lastDownSync = new Date("2024-01-15T10:00:00.000Z");
+    const newDataAsOf = new Date("2024-01-14T10:00:00.000Z");
+
+    // Insert a synced server record
+    await db.insert(schema.syncedServers).values({
+      url: session.url,
+      lastDownSync,
+      newDataAsOf,
+    });
+
+    const result = await getServerSyncTimestamps(session);
+
+    expect(result.lastDownSync).toEqual(lastDownSync);
+    expect(result.newDataAsOf).toEqual(newDataAsOf);
+  });
+});
+
+// =============================================================================
+// syncDown
+// =============================================================================
+
+describe("syncDown", () => {
+  it("calls both syncDownLibrary and syncDownUser", async () => {
+    const serverTime = "2024-01-15T10:00:00.000Z";
+
+    mockGetLibraryChangesSince.mockResolvedValue({
+      success: true,
+      result: emptyLibraryChanges(serverTime),
+    });
+    mockGetUserChangesSince.mockResolvedValue({
+      success: true,
+      result: emptyUserChanges(serverTime),
+    });
+
+    await syncDown(session);
+
+    expect(mockGetLibraryChangesSince).toHaveBeenCalledTimes(1);
+    expect(mockGetUserChangesSince).toHaveBeenCalledTimes(1);
+  });
+
+  it("completes successfully when both syncs succeed", async () => {
+    const db = getDb();
+    const serverTime = "2024-01-15T10:00:00.000Z";
+
+    mockGetLibraryChangesSince.mockResolvedValue({
+      success: true,
+      result: emptyLibraryChanges(serverTime),
+    });
+    mockGetUserChangesSince.mockResolvedValue({
+      success: true,
+      result: emptyUserChanges(serverTime),
+    });
+
+    await syncDown(session);
+
+    // Both syncedServers and serverProfiles should be updated
+    const syncedServers = await db.query.syncedServers.findMany();
+    const serverProfiles = await db.query.serverProfiles.findMany();
+
+    expect(syncedServers).toHaveLength(1);
+    expect(serverProfiles).toHaveLength(1);
+  });
+});
+
+// =============================================================================
+// syncDownLibrary
+// =============================================================================
+
+describe("syncDownLibrary", () => {
   // ===========================================================================
   // Happy Path: Basic sync operations
   // ===========================================================================
@@ -709,6 +821,1174 @@ describe("syncDownLibrary", () => {
       expect(syncedServers[0]!.lastDownSync).toEqual(new Date(serverTime2));
       // But newDataAsOf should remain at serverTime1 (when we last had actual changes)
       expect(syncedServers[0]!.newDataAsOf).toEqual(new Date(serverTime1));
+    });
+  });
+});
+
+// =============================================================================
+// syncDownUser
+// =============================================================================
+
+describe("syncDownUser", () => {
+  // ===========================================================================
+  // Happy Path: Basic sync operations
+  // ===========================================================================
+
+  describe("basic sync operations", () => {
+    it("syncs empty changes and updates server profile timestamps", async () => {
+      const db = getDb();
+      const serverTime = "2024-01-15T10:00:00.000Z";
+
+      mockGetUserChangesSince.mockResolvedValue({
+        success: true,
+        result: emptyUserChanges(serverTime),
+      });
+
+      await syncDownUser(session);
+
+      // Verify serverProfiles record was created
+      const serverProfiles = await db.query.serverProfiles.findMany();
+      expect(serverProfiles).toHaveLength(1);
+      expect(serverProfiles[0]!.url).toBe(session.url);
+      expect(serverProfiles[0]!.userEmail).toBe(session.email);
+      expect(serverProfiles[0]!.lastDownSync).toEqual(new Date(serverTime));
+      expect(serverProfiles[0]!.newDataAsOf).toEqual(new Date(serverTime));
+    });
+
+    it("passes lastDownSync to API on subsequent syncs", async () => {
+      const firstServerTime = "2024-01-15T10:00:00.000Z";
+      const secondServerTime = "2024-01-15T11:00:00.000Z";
+
+      // First sync (no lastDownSync)
+      mockGetUserChangesSince.mockResolvedValueOnce({
+        success: true,
+        result: emptyUserChanges(firstServerTime),
+      });
+      await syncDownUser(session);
+
+      // Second sync (should pass lastDownSync)
+      mockGetUserChangesSince.mockResolvedValueOnce({
+        success: true,
+        result: emptyUserChanges(secondServerTime),
+      });
+      await syncDownUser(session);
+
+      // Verify the API was called with the correct lastDownSync
+      expect(mockGetUserChangesSince).toHaveBeenCalledTimes(2);
+      expect(mockGetUserChangesSince).toHaveBeenNthCalledWith(
+        1,
+        session,
+        undefined,
+      );
+      expect(mockGetUserChangesSince).toHaveBeenNthCalledWith(
+        2,
+        session,
+        new Date(firstServerTime),
+      );
+    });
+  });
+
+  // ===========================================================================
+  // Inserting player states
+  // ===========================================================================
+
+  describe("inserting player states", () => {
+    it("inserts new player states from server response", async () => {
+      const db = getDb();
+
+      // First sync library to create media (player states have FK to media)
+      mockGetLibraryChangesSince.mockResolvedValueOnce({
+        success: true,
+        result: {
+          ...emptyLibraryChanges(),
+          booksChangedSince: [createLibraryBook({ id: "book-1" })],
+          mediaChangedSince: [
+            createLibraryMedia({ id: "media-1", bookId: "book-1" }),
+          ],
+        },
+      });
+      await syncDownLibrary(session);
+
+      const playerState = createUserPlayerState({
+        id: "ps-1",
+        mediaId: "media-1",
+        position: 1500,
+        playbackRate: 1.5,
+      });
+
+      mockGetUserChangesSince.mockResolvedValue({
+        success: true,
+        result: {
+          ...emptyUserChanges(),
+          playerStatesChangedSince: [playerState],
+        },
+      });
+
+      await syncDownUser(session);
+
+      const playerStates = await db.query.playerStates.findMany();
+      expect(playerStates).toHaveLength(1);
+      expect(playerStates[0]!.id).toBe("ps-1");
+      expect(playerStates[0]!.mediaId).toBe("media-1");
+      expect(playerStates[0]!.position).toBe(1500);
+      expect(playerStates[0]!.playbackRate).toBe(1.5);
+      expect(playerStates[0]!.url).toBe(session.url);
+      expect(playerStates[0]!.userEmail).toBe(session.email);
+    });
+
+    it("handles different player state statuses", async () => {
+      const db = getDb();
+
+      // First sync library to create media (player states have FK to media)
+      mockGetLibraryChangesSince.mockResolvedValueOnce({
+        success: true,
+        result: {
+          ...emptyLibraryChanges(),
+          booksChangedSince: [createLibraryBook({ id: "book-1" })],
+          mediaChangedSince: [
+            createLibraryMedia({ id: "media-1", bookId: "book-1" }),
+            createLibraryMedia({ id: "media-2", bookId: "book-1" }),
+            createLibraryMedia({ id: "media-3", bookId: "book-1" }),
+          ],
+        },
+      });
+      await syncDownLibrary(session);
+
+      mockGetUserChangesSince.mockResolvedValue({
+        success: true,
+        result: {
+          ...emptyUserChanges(),
+          playerStatesChangedSince: [
+            createUserPlayerState({
+              id: "ps-1",
+              mediaId: "media-1",
+              status: PlayerStateStatus.NotStarted,
+            }),
+            createUserPlayerState({
+              id: "ps-2",
+              mediaId: "media-2",
+              status: PlayerStateStatus.InProgress,
+            }),
+            createUserPlayerState({
+              id: "ps-3",
+              mediaId: "media-3",
+              status: PlayerStateStatus.Finished,
+            }),
+          ],
+        },
+      });
+
+      await syncDownUser(session);
+
+      const playerStates = await db.query.playerStates.findMany();
+      expect(playerStates).toHaveLength(3);
+
+      const statuses = playerStates.map((ps) => ps.status).sort();
+      expect(statuses).toEqual(["finished", "in_progress", "not_started"]);
+    });
+  });
+
+  // ===========================================================================
+  // Updating player states (upsert behavior)
+  // ===========================================================================
+
+  describe("updating player states", () => {
+    it("updates existing player state when syncing", async () => {
+      const db = getDb();
+      const serverTime1 = "2024-01-15T10:00:00.000Z";
+      const serverTime2 = "2024-01-15T11:00:00.000Z";
+
+      // First sync library to create media (player states have FK to media)
+      mockGetLibraryChangesSince.mockResolvedValueOnce({
+        success: true,
+        result: {
+          ...emptyLibraryChanges(),
+          booksChangedSince: [createLibraryBook({ id: "book-1" })],
+          mediaChangedSince: [
+            createLibraryMedia({ id: "media-1", bookId: "book-1" }),
+          ],
+        },
+      });
+      await syncDownLibrary(session);
+
+      // First user sync: insert player state
+      mockGetUserChangesSince.mockResolvedValueOnce({
+        success: true,
+        result: {
+          ...emptyUserChanges(serverTime1),
+          playerStatesChangedSince: [
+            createUserPlayerState({
+              id: "ps-1",
+              mediaId: "media-1",
+              position: 100,
+              playbackRate: 1.0,
+            }),
+          ],
+        },
+      });
+      await syncDownUser(session);
+
+      // Second user sync: update player state
+      mockGetUserChangesSince.mockResolvedValueOnce({
+        success: true,
+        result: {
+          ...emptyUserChanges(serverTime2),
+          playerStatesChangedSince: [
+            createUserPlayerState({
+              id: "ps-1",
+              mediaId: "media-1",
+              position: 500,
+              playbackRate: 1.5,
+              status: PlayerStateStatus.InProgress,
+            }),
+          ],
+        },
+      });
+      await syncDownUser(session);
+
+      const playerStates = await db.query.playerStates.findMany();
+      expect(playerStates).toHaveLength(1);
+      expect(playerStates[0]!.position).toBe(500);
+      expect(playerStates[0]!.playbackRate).toBe(1.5);
+    });
+  });
+
+  // ===========================================================================
+  // Error handling
+  // ===========================================================================
+
+  describe("error handling", () => {
+    it("returns early on network error without DB changes", async () => {
+      const db = getDb();
+
+      mockGetUserChangesSince.mockResolvedValue({
+        success: false,
+        error: { code: ExecuteAuthenticatedErrorCode.NETWORK_ERROR },
+      });
+
+      await syncDownUser(session);
+
+      const profiles = await db.query.serverProfiles.findMany();
+      expect(profiles).toHaveLength(0);
+    });
+
+    it("returns early on server error without DB changes", async () => {
+      const db = getDb();
+
+      mockGetUserChangesSince.mockResolvedValue({
+        success: false,
+        error: {
+          code: ExecuteAuthenticatedErrorCode.SERVER_ERROR,
+          status: 500,
+        },
+      });
+
+      await syncDownUser(session);
+
+      const profiles = await db.query.serverProfiles.findMany();
+      expect(profiles).toHaveLength(0);
+    });
+
+    it("returns early on GQL error without DB changes", async () => {
+      const db = getDb();
+
+      mockGetUserChangesSince.mockResolvedValue({
+        success: false,
+        error: {
+          code: ExecuteAuthenticatedErrorCode.GQL_ERROR,
+          message: "Some GraphQL error",
+        },
+      });
+
+      await syncDownUser(session);
+
+      const profiles = await db.query.serverProfiles.findMany();
+      expect(profiles).toHaveLength(0);
+    });
+
+    it("calls forceSignOut on unauthorized error", async () => {
+      mockGetUserChangesSince.mockResolvedValue({
+        success: false,
+        error: { code: ExecuteAuthenticatedErrorCode.UNAUTHORIZED },
+      });
+
+      await syncDownUser(session);
+
+      expect(mockForceSignOut).toHaveBeenCalled();
+    });
+
+    it("does not update DB on unauthorized error", async () => {
+      const db = getDb();
+
+      mockGetUserChangesSince.mockResolvedValue({
+        success: false,
+        error: { code: ExecuteAuthenticatedErrorCode.UNAUTHORIZED },
+      });
+
+      await syncDownUser(session);
+
+      const profiles = await db.query.serverProfiles.findMany();
+      expect(profiles).toHaveLength(0);
+    });
+  });
+
+  // ===========================================================================
+  // Timestamp tracking (newDataAsOf)
+  // ===========================================================================
+
+  describe("timestamp tracking", () => {
+    it("sets newDataAsOf to serverTime on first sync", async () => {
+      const db = getDb();
+      const serverTime = "2024-01-15T10:00:00.000Z";
+
+      mockGetUserChangesSince.mockResolvedValue({
+        success: true,
+        result: emptyUserChanges(serverTime),
+      });
+
+      await syncDownUser(session);
+
+      const profiles = await db.query.serverProfiles.findMany();
+      expect(profiles[0]!.newDataAsOf).toEqual(new Date(serverTime));
+    });
+
+    it("updates newDataAsOf when changes received", async () => {
+      const db = getDb();
+      const serverTime1 = "2024-01-15T10:00:00.000Z";
+      const serverTime2 = "2024-01-15T11:00:00.000Z";
+
+      // First sync library to create media (player states have FK to media)
+      mockGetLibraryChangesSince.mockResolvedValueOnce({
+        success: true,
+        result: {
+          ...emptyLibraryChanges(),
+          booksChangedSince: [createLibraryBook({ id: "book-1" })],
+          mediaChangedSince: [
+            createLibraryMedia({ id: "media-1", bookId: "book-1" }),
+          ],
+        },
+      });
+      await syncDownLibrary(session);
+
+      // First user sync
+      mockGetUserChangesSince.mockResolvedValueOnce({
+        success: true,
+        result: emptyUserChanges(serverTime1),
+      });
+      await syncDownUser(session);
+
+      // Second sync with new data
+      mockGetUserChangesSince.mockResolvedValueOnce({
+        success: true,
+        result: {
+          ...emptyUserChanges(serverTime2),
+          playerStatesChangedSince: [
+            createUserPlayerState({ id: "ps-1", mediaId: "media-1" }),
+          ],
+        },
+      });
+      await syncDownUser(session);
+
+      const profiles = await db.query.serverProfiles.findMany();
+      expect(profiles[0]!.newDataAsOf).toEqual(new Date(serverTime2));
+    });
+
+    it("keeps previous newDataAsOf when no changes received", async () => {
+      const db = getDb();
+      const serverTime1 = "2024-01-15T10:00:00.000Z";
+      const serverTime2 = "2024-01-15T11:00:00.000Z";
+
+      // First sync library to create media (player states have FK to media)
+      mockGetLibraryChangesSince.mockResolvedValueOnce({
+        success: true,
+        result: {
+          ...emptyLibraryChanges(),
+          booksChangedSince: [createLibraryBook({ id: "book-1" })],
+          mediaChangedSince: [
+            createLibraryMedia({ id: "media-1", bookId: "book-1" }),
+          ],
+        },
+      });
+      await syncDownLibrary(session);
+
+      // First user sync with data
+      mockGetUserChangesSince.mockResolvedValueOnce({
+        success: true,
+        result: {
+          ...emptyUserChanges(serverTime1),
+          playerStatesChangedSince: [
+            createUserPlayerState({ id: "ps-1", mediaId: "media-1" }),
+          ],
+        },
+      });
+      await syncDownUser(session);
+
+      // Second sync without new data
+      mockGetUserChangesSince.mockResolvedValueOnce({
+        success: true,
+        result: emptyUserChanges(serverTime2),
+      });
+      await syncDownUser(session);
+
+      const profiles = await db.query.serverProfiles.findMany();
+      // lastDownSync should update to serverTime2
+      expect(profiles[0]!.lastDownSync).toEqual(new Date(serverTime2));
+      // But newDataAsOf should remain at serverTime1
+      expect(profiles[0]!.newDataAsOf).toEqual(new Date(serverTime1));
+    });
+  });
+});
+
+// =============================================================================
+// syncUp
+// =============================================================================
+
+describe("syncUp", () => {
+  // Helper to create media in DB first (needed for FK constraints)
+  async function setupMediaInDb(db: ReturnType<typeof getDb>) {
+    mockGetLibraryChangesSince.mockResolvedValueOnce({
+      success: true,
+      result: {
+        ...emptyLibraryChanges(),
+        booksChangedSince: [createLibraryBook({ id: "book-1" })],
+        mediaChangedSince: [
+          createLibraryMedia({ id: "media-1", bookId: "book-1" }),
+          createLibraryMedia({ id: "media-2", bookId: "book-1" }),
+        ],
+      },
+    });
+    await syncDownLibrary(session);
+  }
+
+  // ===========================================================================
+  // Happy Path: Basic sync operations
+  // ===========================================================================
+
+  describe("basic sync operations", () => {
+    it("does nothing when no local player states changed", async () => {
+      await syncUp(session);
+
+      // No mutations should have been called
+      expect(mockUpdatePlayerState).not.toHaveBeenCalled();
+    });
+
+    it("syncs a single changed local player state", async () => {
+      const db = getDb();
+      await setupMediaInDb(db);
+
+      // Insert a local player state
+      const now = new Date();
+      await db.insert(schema.localPlayerStates).values({
+        url: session.url,
+        userEmail: session.email,
+        mediaId: "media-1",
+        position: 1500,
+        playbackRate: 1.25,
+        status: "in_progress",
+        insertedAt: now,
+        updatedAt: now,
+      });
+
+      mockUpdatePlayerState.mockResolvedValue({
+        success: true,
+        result: { updatePlayerState: { playerState: { updatedAt: now } } },
+      });
+
+      await syncUp(session);
+
+      expect(mockUpdatePlayerState).toHaveBeenCalledTimes(1);
+      expect(mockUpdatePlayerState).toHaveBeenCalledWith(
+        session,
+        "media-1",
+        1500,
+        1.25,
+      );
+    });
+
+    it("syncs multiple changed local player states", async () => {
+      const db = getDb();
+      await setupMediaInDb(db);
+
+      const now = new Date();
+      await db.insert(schema.localPlayerStates).values([
+        {
+          url: session.url,
+          userEmail: session.email,
+          mediaId: "media-1",
+          position: 1000,
+          playbackRate: 1.0,
+          status: "in_progress",
+          insertedAt: now,
+          updatedAt: now,
+        },
+        {
+          url: session.url,
+          userEmail: session.email,
+          mediaId: "media-2",
+          position: 2000,
+          playbackRate: 1.5,
+          status: "in_progress",
+          insertedAt: now,
+          updatedAt: now,
+        },
+      ]);
+
+      mockUpdatePlayerState.mockResolvedValue({
+        success: true,
+        result: { updatePlayerState: { playerState: { updatedAt: now } } },
+      });
+
+      await syncUp(session);
+
+      expect(mockUpdatePlayerState).toHaveBeenCalledTimes(2);
+    });
+
+    it("only syncs changes since last sync", async () => {
+      const db = getDb();
+      await setupMediaInDb(db);
+
+      const oldTime = new Date("2024-01-15T09:00:00.000Z");
+      const syncTime = new Date("2024-01-15T10:00:00.000Z");
+      const newTime = new Date("2024-01-15T11:00:00.000Z");
+
+      // Create initial server profile with lastUpSync
+      await db.insert(schema.serverProfiles).values({
+        url: session.url,
+        userEmail: session.email,
+        lastUpSync: syncTime,
+      });
+
+      // Insert one old player state (before lastUpSync) and one new
+      await db.insert(schema.localPlayerStates).values([
+        {
+          url: session.url,
+          userEmail: session.email,
+          mediaId: "media-1",
+          position: 1000,
+          playbackRate: 1.0,
+          status: "in_progress",
+          insertedAt: oldTime,
+          updatedAt: oldTime, // Before lastUpSync
+        },
+        {
+          url: session.url,
+          userEmail: session.email,
+          mediaId: "media-2",
+          position: 2000,
+          playbackRate: 1.5,
+          status: "in_progress",
+          insertedAt: newTime,
+          updatedAt: newTime, // After lastUpSync
+        },
+      ]);
+
+      mockUpdatePlayerState.mockResolvedValue({
+        success: true,
+        result: {
+          updatePlayerState: { playerState: { updatedAt: newTime } },
+        },
+      });
+
+      await syncUp(session);
+
+      // Only the new one should be synced
+      expect(mockUpdatePlayerState).toHaveBeenCalledTimes(1);
+      expect(mockUpdatePlayerState).toHaveBeenCalledWith(
+        session,
+        "media-2",
+        2000,
+        1.5,
+      );
+    });
+  });
+
+  // ===========================================================================
+  // Timestamp tracking
+  // ===========================================================================
+
+  describe("timestamp tracking", () => {
+    it("updates lastUpSync after successful sync", async () => {
+      const db = getDb();
+      await setupMediaInDb(db);
+
+      const now = new Date();
+      await db.insert(schema.localPlayerStates).values({
+        url: session.url,
+        userEmail: session.email,
+        mediaId: "media-1",
+        position: 1500,
+        playbackRate: 1.0,
+        status: "in_progress",
+        insertedAt: now,
+        updatedAt: now,
+      });
+
+      mockUpdatePlayerState.mockResolvedValue({
+        success: true,
+        result: { updatePlayerState: { playerState: { updatedAt: now } } },
+      });
+
+      await syncUp(session);
+
+      const profiles = await db.query.serverProfiles.findMany();
+      expect(profiles).toHaveLength(1);
+      expect(profiles[0]!.lastUpSync).not.toBeNull();
+    });
+  });
+
+  // ===========================================================================
+  // Error handling
+  // ===========================================================================
+
+  describe("error handling", () => {
+    it("stops syncing on network error", async () => {
+      const db = getDb();
+      await setupMediaInDb(db);
+
+      const now = new Date();
+      await db.insert(schema.localPlayerStates).values([
+        {
+          url: session.url,
+          userEmail: session.email,
+          mediaId: "media-1",
+          position: 1000,
+          playbackRate: 1.0,
+          status: "in_progress",
+          insertedAt: now,
+          updatedAt: now,
+        },
+        {
+          url: session.url,
+          userEmail: session.email,
+          mediaId: "media-2",
+          position: 2000,
+          playbackRate: 1.5,
+          status: "in_progress",
+          insertedAt: now,
+          updatedAt: now,
+        },
+      ]);
+
+      // First call succeeds, second fails
+      mockUpdatePlayerState
+        .mockResolvedValueOnce({
+          success: true,
+          result: { updatePlayerState: { playerState: { updatedAt: now } } },
+        })
+        .mockResolvedValueOnce({
+          success: false,
+          error: { code: ExecuteAuthenticatedErrorCode.NETWORK_ERROR },
+        });
+
+      await syncUp(session);
+
+      // Should have tried both but stopped after error
+      expect(mockUpdatePlayerState).toHaveBeenCalledTimes(2);
+    });
+
+    it("calls forceSignOut on unauthorized error", async () => {
+      const db = getDb();
+      await setupMediaInDb(db);
+
+      const now = new Date();
+      await db.insert(schema.localPlayerStates).values({
+        url: session.url,
+        userEmail: session.email,
+        mediaId: "media-1",
+        position: 1500,
+        playbackRate: 1.0,
+        status: "in_progress",
+        insertedAt: now,
+        updatedAt: now,
+      });
+
+      mockUpdatePlayerState.mockResolvedValue({
+        success: false,
+        error: { code: ExecuteAuthenticatedErrorCode.UNAUTHORIZED },
+      });
+
+      await syncUp(session);
+
+      expect(mockForceSignOut).toHaveBeenCalled();
+    });
+
+    it("does not update lastUpSync on error", async () => {
+      const db = getDb();
+      await setupMediaInDb(db);
+
+      const now = new Date();
+      await db.insert(schema.localPlayerStates).values({
+        url: session.url,
+        userEmail: session.email,
+        mediaId: "media-1",
+        position: 1500,
+        playbackRate: 1.0,
+        status: "in_progress",
+        insertedAt: now,
+        updatedAt: now,
+      });
+
+      mockUpdatePlayerState.mockResolvedValue({
+        success: false,
+        error: { code: ExecuteAuthenticatedErrorCode.NETWORK_ERROR },
+      });
+
+      await syncUp(session);
+
+      const profiles = await db.query.serverProfiles.findMany();
+      expect(profiles).toHaveLength(0);
+    });
+  });
+});
+
+// =============================================================================
+// syncPlaythroughs
+// =============================================================================
+
+describe("syncPlaythroughs", () => {
+  // Helper to initialize device store
+  function initializeDeviceStore() {
+    useDevice.setState({
+      initialized: true,
+      deviceInfo: {
+        id: "test-device-id",
+        type: "android",
+        brand: "TestBrand",
+        modelName: "TestModel",
+        osName: "TestOS",
+        osVersion: "1.0.0",
+      },
+    });
+  }
+
+  // Helper to create media in DB first (needed for FK constraints)
+  async function setupMediaInDb(db: ReturnType<typeof getDb>) {
+    mockGetLibraryChangesSince.mockResolvedValueOnce({
+      success: true,
+      result: {
+        ...emptyLibraryChanges(),
+        booksChangedSince: [createLibraryBook({ id: "book-1" })],
+        mediaChangedSince: [
+          createLibraryMedia({ id: "media-1", bookId: "book-1" }),
+          createLibraryMedia({ id: "media-2", bookId: "book-1" }),
+        ],
+      },
+    });
+    await syncDownLibrary(session);
+  }
+
+  // ===========================================================================
+  // Device check
+  // ===========================================================================
+
+  describe("device check", () => {
+    it("returns early if device not initialized", async () => {
+      // Device store is already reset to uninitialized state
+
+      await syncPlaythroughs(session);
+
+      // No API call should be made
+      expect(mockSyncProgress).not.toHaveBeenCalled();
+    });
+  });
+
+  // ===========================================================================
+  // Empty sync
+  // ===========================================================================
+
+  describe("empty sync", () => {
+    it("calls API with empty playthroughs and events when nothing to sync", async () => {
+      initializeDeviceStore();
+
+      mockSyncProgress.mockResolvedValue({
+        success: true,
+        result: { syncProgress: emptySyncProgressResult() },
+      });
+
+      await syncPlaythroughs(session);
+
+      expect(mockSyncProgress).toHaveBeenCalledTimes(1);
+      const input = mockSyncProgress.mock.calls[0][1];
+      expect(input.playthroughs).toHaveLength(0);
+      expect(input.events).toHaveLength(0);
+    });
+
+    it("updates server profile lastDownSync on empty sync", async () => {
+      const db = getDb();
+      initializeDeviceStore();
+
+      const serverTime = "2024-01-15T10:00:00.000Z";
+      mockSyncProgress.mockResolvedValue({
+        success: true,
+        result: { syncProgress: emptySyncProgressResult(serverTime) },
+      });
+
+      await syncPlaythroughs(session);
+
+      const profiles = await db.query.serverProfiles.findMany();
+      expect(profiles).toHaveLength(1);
+      expect(profiles[0]!.lastDownSync).toEqual(new Date(serverTime));
+    });
+  });
+
+  // ===========================================================================
+  // Up-sync: Sending playthroughs and events to server
+  // ===========================================================================
+
+  describe("up-sync", () => {
+    it("sends unsynced playthroughs to server", async () => {
+      const db = getDb();
+      initializeDeviceStore();
+      await setupMediaInDb(db);
+
+      // Create an unsynced playthrough
+      const now = new Date();
+      await db.insert(schema.playthroughs).values({
+        id: "playthrough-1",
+        url: session.url,
+        userEmail: session.email,
+        mediaId: "media-1",
+        status: "in_progress",
+        startedAt: now,
+        createdAt: now,
+        updatedAt: now,
+        syncedAt: null, // Unsynced
+      });
+
+      mockSyncProgress.mockResolvedValue({
+        success: true,
+        result: { syncProgress: emptySyncProgressResult() },
+      });
+
+      await syncPlaythroughs(session);
+
+      expect(mockSyncProgress).toHaveBeenCalledTimes(1);
+      const input = mockSyncProgress.mock.calls[0][1];
+      expect(input.playthroughs).toHaveLength(1);
+      expect(input.playthroughs[0].id).toBe("playthrough-1");
+      expect(input.playthroughs[0].mediaId).toBe("media-1");
+      expect(input.playthroughs[0].status).toBe("IN_PROGRESS");
+    });
+
+    it("sends unsynced events to server", async () => {
+      const db = getDb();
+      initializeDeviceStore();
+      await setupMediaInDb(db);
+
+      // Create a synced playthrough first
+      const now = new Date();
+      await db.insert(schema.playthroughs).values({
+        id: "playthrough-1",
+        url: session.url,
+        userEmail: session.email,
+        mediaId: "media-1",
+        status: "in_progress",
+        startedAt: now,
+        createdAt: now,
+        updatedAt: now,
+        syncedAt: now, // Already synced
+      });
+
+      // Create an unsynced event
+      await db.insert(schema.playbackEvents).values({
+        id: "event-1",
+        playthroughId: "playthrough-1",
+        deviceId: "test-device-id",
+        type: "play",
+        timestamp: now,
+        position: 100,
+        playbackRate: 1.0,
+        syncedAt: null, // Unsynced
+      });
+
+      mockSyncProgress.mockResolvedValue({
+        success: true,
+        result: { syncProgress: emptySyncProgressResult() },
+      });
+
+      await syncPlaythroughs(session);
+
+      expect(mockSyncProgress).toHaveBeenCalledTimes(1);
+      const input = mockSyncProgress.mock.calls[0][1];
+      expect(input.events).toHaveLength(1);
+      expect(input.events[0].id).toBe("event-1");
+      expect(input.events[0].type).toBe("PLAY");
+    });
+
+    it("marks playthroughs as synced after successful sync", async () => {
+      const db = getDb();
+      initializeDeviceStore();
+      await setupMediaInDb(db);
+
+      // Create an unsynced playthrough
+      const now = new Date();
+      await db.insert(schema.playthroughs).values({
+        id: "playthrough-1",
+        url: session.url,
+        userEmail: session.email,
+        mediaId: "media-1",
+        status: "in_progress",
+        startedAt: now,
+        createdAt: now,
+        updatedAt: now,
+        syncedAt: null,
+      });
+
+      const serverTime = "2024-01-15T10:00:00.000Z";
+      mockSyncProgress.mockResolvedValue({
+        success: true,
+        result: { syncProgress: emptySyncProgressResult(serverTime) },
+      });
+
+      await syncPlaythroughs(session);
+
+      const playthroughs = await db.query.playthroughs.findMany();
+      expect(playthroughs[0]!.syncedAt).toEqual(new Date(serverTime));
+    });
+
+    it("marks events as synced after successful sync", async () => {
+      const db = getDb();
+      initializeDeviceStore();
+      await setupMediaInDb(db);
+
+      // Create a synced playthrough
+      const now = new Date();
+      await db.insert(schema.playthroughs).values({
+        id: "playthrough-1",
+        url: session.url,
+        userEmail: session.email,
+        mediaId: "media-1",
+        status: "in_progress",
+        startedAt: now,
+        createdAt: now,
+        updatedAt: now,
+        syncedAt: now,
+      });
+
+      // Create an unsynced event
+      await db.insert(schema.playbackEvents).values({
+        id: "event-1",
+        playthroughId: "playthrough-1",
+        deviceId: "test-device-id",
+        type: "play",
+        timestamp: now,
+        position: 100,
+        playbackRate: 1.0,
+        syncedAt: null,
+      });
+
+      const serverTime = "2024-01-15T10:00:00.000Z";
+      mockSyncProgress.mockResolvedValue({
+        success: true,
+        result: { syncProgress: emptySyncProgressResult(serverTime) },
+      });
+
+      await syncPlaythroughs(session);
+
+      const events = await db.query.playbackEvents.findMany();
+      expect(events[0]!.syncedAt).toEqual(new Date(serverTime));
+    });
+  });
+
+  // ===========================================================================
+  // Down-sync: Receiving playthroughs and events from server
+  // ===========================================================================
+
+  describe("down-sync", () => {
+    it("upserts received playthroughs from server", async () => {
+      const db = getDb();
+      initializeDeviceStore();
+      await setupMediaInDb(db);
+
+      const serverTime = "2024-01-15T10:00:00.000Z";
+      mockSyncProgress.mockResolvedValue({
+        success: true,
+        result: {
+          syncProgress: {
+            ...emptySyncProgressResult(serverTime),
+            playthroughs: [
+              createSyncPlaythrough({
+                id: "server-playthrough-1",
+                mediaId: "media-1",
+                status: PlaythroughStatus.InProgress,
+              }),
+            ],
+          },
+        },
+      });
+
+      await syncPlaythroughs(session);
+
+      const playthroughs = await db.query.playthroughs.findMany();
+      expect(playthroughs).toHaveLength(1);
+      expect(playthroughs[0]!.id).toBe("server-playthrough-1");
+      expect(playthroughs[0]!.mediaId).toBe("media-1");
+      expect(playthroughs[0]!.status).toBe("in_progress");
+    });
+
+    it("upserts received events from server", async () => {
+      const db = getDb();
+      initializeDeviceStore();
+      await setupMediaInDb(db);
+
+      // Create local playthrough first (events need it)
+      const now = new Date();
+      await db.insert(schema.playthroughs).values({
+        id: "playthrough-1",
+        url: session.url,
+        userEmail: session.email,
+        mediaId: "media-1",
+        status: "in_progress",
+        startedAt: now,
+        createdAt: now,
+        updatedAt: now,
+        syncedAt: now,
+      });
+
+      const serverTime = "2024-01-15T10:00:00.000Z";
+      mockSyncProgress.mockResolvedValue({
+        success: true,
+        result: {
+          syncProgress: {
+            ...emptySyncProgressResult(serverTime),
+            events: [
+              createSyncPlaybackEvent({
+                id: "server-event-1",
+                playthroughId: "playthrough-1",
+                type: PlaybackEventType.Pause,
+                position: 500,
+                playbackRate: 1.25,
+              }),
+            ],
+          },
+        },
+      });
+
+      await syncPlaythroughs(session);
+
+      const events = await db.query.playbackEvents.findMany();
+      expect(events).toHaveLength(1);
+      expect(events[0]!.id).toBe("server-event-1");
+      expect(events[0]!.type).toBe("pause");
+      expect(events[0]!.position).toBe(500);
+    });
+
+    it("updates state cache for received events with position", async () => {
+      const db = getDb();
+      initializeDeviceStore();
+      await setupMediaInDb(db);
+
+      // Create local playthrough first
+      const now = new Date();
+      await db.insert(schema.playthroughs).values({
+        id: "playthrough-1",
+        url: session.url,
+        userEmail: session.email,
+        mediaId: "media-1",
+        status: "in_progress",
+        startedAt: now,
+        createdAt: now,
+        updatedAt: now,
+        syncedAt: now,
+      });
+
+      const serverTime = "2024-01-15T10:00:00.000Z";
+      mockSyncProgress.mockResolvedValue({
+        success: true,
+        result: {
+          syncProgress: {
+            ...emptySyncProgressResult(serverTime),
+            events: [
+              createSyncPlaybackEvent({
+                id: "server-event-1",
+                playthroughId: "playthrough-1",
+                type: PlaybackEventType.Play,
+                position: 750,
+                playbackRate: 1.5,
+              }),
+            ],
+          },
+        },
+      });
+
+      await syncPlaythroughs(session);
+
+      const cache = await db.query.playthroughStateCache.findFirst({
+        where: (t, { eq }) => eq(t.playthroughId, "playthrough-1"),
+      });
+      expect(cache).not.toBeNull();
+      expect(cache!.currentPosition).toBe(750);
+      expect(cache!.currentRate).toBe(1.5);
+    });
+  });
+
+  // ===========================================================================
+  // Error handling
+  // ===========================================================================
+
+  describe("error handling", () => {
+    it("returns early on network error", async () => {
+      const db = getDb();
+      initializeDeviceStore();
+
+      mockSyncProgress.mockResolvedValue({
+        success: false,
+        error: { code: ExecuteAuthenticatedErrorCode.NETWORK_ERROR },
+      });
+
+      await syncPlaythroughs(session);
+
+      const profiles = await db.query.serverProfiles.findMany();
+      expect(profiles).toHaveLength(0);
+    });
+
+    it("returns early on server error", async () => {
+      const db = getDb();
+      initializeDeviceStore();
+
+      mockSyncProgress.mockResolvedValue({
+        success: false,
+        error: {
+          code: ExecuteAuthenticatedErrorCode.SERVER_ERROR,
+          status: 500,
+        },
+      });
+
+      await syncPlaythroughs(session);
+
+      const profiles = await db.query.serverProfiles.findMany();
+      expect(profiles).toHaveLength(0);
+    });
+
+    it("returns early on GQL error", async () => {
+      const db = getDb();
+      initializeDeviceStore();
+
+      mockSyncProgress.mockResolvedValue({
+        success: false,
+        error: {
+          code: ExecuteAuthenticatedErrorCode.GQL_ERROR,
+          message: "Some error",
+        },
+      });
+
+      await syncPlaythroughs(session);
+
+      const profiles = await db.query.serverProfiles.findMany();
+      expect(profiles).toHaveLength(0);
+    });
+
+    it("calls forceSignOut on unauthorized error", async () => {
+      initializeDeviceStore();
+
+      mockSyncProgress.mockResolvedValue({
+        success: false,
+        error: { code: ExecuteAuthenticatedErrorCode.UNAUTHORIZED },
+      });
+
+      await syncPlaythroughs(session);
+
+      expect(mockForceSignOut).toHaveBeenCalled();
     });
   });
 });

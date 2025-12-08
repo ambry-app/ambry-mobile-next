@@ -1,16 +1,30 @@
 /**
  * Test fixtures for sync tests.
- * Factory functions to create GraphQL response data matching LibraryChangesSinceQuery.
+ * Factory functions to create GraphQL response data matching sync queries/mutations.
  */
-import type { LibraryChangesSinceQuery } from "@/graphql/client/graphql";
+import type {
+  LibraryChangesSinceQuery,
+  SyncProgressMutation,
+  UserChangesSinceQuery,
+} from "@/graphql/client/graphql";
 import {
   DateFormat,
   DeletionType,
   MediaProcessingStatus,
+  PlaybackEventType,
+  PlayerStateStatus,
+  PlaythroughStatus,
 } from "@/graphql/client/graphql";
 
 // Re-export for convenience in tests
-export { DateFormat, DeletionType, MediaProcessingStatus };
+export {
+  DateFormat,
+  DeletionType,
+  MediaProcessingStatus,
+  PlaybackEventType,
+  PlayerStateStatus,
+  PlaythroughStatus,
+};
 
 // Type aliases for individual array element types
 type PersonChange = LibraryChangesSinceQuery["peopleChangedSince"][number];
@@ -294,5 +308,105 @@ export function createLibraryDeletion(
     __typename: "Deletion",
     type,
     recordId,
+  };
+}
+
+// =============================================================================
+// User Changes (syncDownUser)
+// =============================================================================
+
+type PlayerStateChange =
+  UserChangesSinceQuery["playerStatesChangedSince"][number];
+
+export function emptyUserChanges(
+  serverTime = new Date().toISOString(),
+): UserChangesSinceQuery {
+  return {
+    serverTime,
+    playerStatesChangedSince: [],
+  };
+}
+
+export function createUserPlayerState(
+  overrides: Partial<PlayerStateChange> & { mediaId?: string } = {},
+): PlayerStateChange {
+  const id = overrides.id ?? nextId("player-state");
+  const mediaId = overrides.mediaId ?? nextId("media");
+  const now = new Date().toISOString();
+
+  return {
+    __typename: "PlayerState",
+    id,
+    media: { __typename: "Media", id: mediaId },
+    status: PlayerStateStatus.InProgress,
+    playbackRate: 1.0,
+    position: 0,
+    insertedAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
+// =============================================================================
+// Sync Progress (syncPlaythroughs)
+// =============================================================================
+
+type SyncProgressPayload = NonNullable<SyncProgressMutation["syncProgress"]>;
+type PlaythroughChange = SyncProgressPayload["playthroughs"][number];
+type PlaybackEventChange = SyncProgressPayload["events"][number];
+
+export function emptySyncProgressResult(
+  serverTime = new Date().toISOString(),
+): SyncProgressPayload {
+  return {
+    __typename: "SyncProgressPayload",
+    serverTime,
+    playthroughs: [],
+    events: [],
+  };
+}
+
+export function createSyncPlaythrough(
+  overrides: Partial<PlaythroughChange> & { mediaId?: string } = {},
+): PlaythroughChange {
+  const id = overrides.id ?? nextId("playthrough");
+  const mediaId = overrides.mediaId ?? nextId("media");
+  const now = new Date().toISOString();
+
+  return {
+    __typename: "Playthrough",
+    id,
+    media: { __typename: "Media", id: mediaId },
+    status: PlaythroughStatus.InProgress,
+    startedAt: now,
+    finishedAt: null,
+    abandonedAt: null,
+    deletedAt: null,
+    insertedAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
+export function createSyncPlaybackEvent(
+  overrides: Partial<PlaybackEventChange> & { playthroughId?: string } = {},
+): PlaybackEventChange {
+  const id = overrides.id ?? nextId("event");
+  const playthroughId = overrides.playthroughId ?? nextId("playthrough");
+  const now = new Date().toISOString();
+
+  return {
+    __typename: "PlaybackEvent",
+    id,
+    playthroughId,
+    deviceId: null,
+    type: PlaybackEventType.Play,
+    timestamp: now,
+    position: 0,
+    playbackRate: 1.0,
+    fromPosition: null,
+    toPosition: null,
+    previousRate: null,
+    ...overrides,
   };
 }

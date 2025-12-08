@@ -23,10 +23,12 @@ interface DeviceState {
   deviceInfo: DeviceInfo | null;
 }
 
-export const useDevice = create<DeviceState>(() => ({
+export const initialDeviceState: DeviceState = {
   initialized: false,
   deviceInfo: null,
-}));
+};
+
+export const useDevice = create<DeviceState>(() => initialDeviceState);
 
 /**
  * Initialize the device store.
