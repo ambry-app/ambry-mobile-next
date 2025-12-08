@@ -1,4 +1,4 @@
-import { timeAgo, formatPublished } from "../date";
+import { formatPublished, timeAgo } from "@/utils/date";
 
 describe("timeAgo", () => {
   // Helper to create a date relative to "now"

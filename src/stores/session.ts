@@ -1,12 +1,13 @@
+import * as SecureStore from "expo-secure-store";
+import { create } from "zustand";
+import { createJSONStorage, persist, StateStorage } from "zustand/middleware";
+
 import {
   createSession,
   CreateSessionError,
   deleteSession,
-} from "@/src/graphql/api";
-import { Result } from "@/src/types/result";
-import * as SecureStore from "expo-secure-store";
-import { create } from "zustand";
-import { createJSONStorage, persist, StateStorage } from "zustand/middleware";
+} from "@/graphql/api";
+import { Result } from "@/types/result";
 
 const AUTH_STORAGE_KEY = "Ambry_userSessionV2";
 

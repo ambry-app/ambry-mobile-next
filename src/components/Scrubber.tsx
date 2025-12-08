@@ -1,6 +1,3 @@
-import { SeekSource, seekTo, usePlayer } from "@/src/stores/player";
-import { Colors } from "@/src/styles";
-import { EventBus } from "@/src/utils";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, StyleSheet, TextInput } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -21,6 +18,10 @@ import {
 } from "react-native-track-player";
 import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 import { useShallow } from "zustand/shallow";
+
+import { SeekSource, seekTo, usePlayer } from "@/stores/player";
+import { Colors } from "@/styles";
+import { EventBus } from "@/utils";
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 

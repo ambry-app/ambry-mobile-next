@@ -1,5 +1,7 @@
-import { Colors } from "@/src/styles";
 import { StyleProp, StyleSheet, Text, TextStyle } from "react-native";
+
+import { Colors } from "@/styles";
+
 import { NamesList } from "./NamesList";
 
 type BookDetailsTextProps = {

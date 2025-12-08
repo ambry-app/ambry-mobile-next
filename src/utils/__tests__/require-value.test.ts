@@ -1,4 +1,4 @@
-import { requireValue } from "../require-value";
+import { requireValue } from "@/utils/require-value";
 
 describe("requireValue", () => {
   it("returns the value when defined", () => {

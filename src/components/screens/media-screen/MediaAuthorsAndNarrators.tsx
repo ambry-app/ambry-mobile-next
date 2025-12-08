@@ -1,7 +1,7 @@
-import { AuthorsAndNarrators } from "@/src/components";
-import { getMediaAuthorsAndNarrators, MediaHeaderInfo } from "@/src/db/library";
-import { useLibraryData } from "@/src/hooks/use-library-data";
-import { Session } from "@/src/stores/session";
+import { AuthorsAndNarrators } from "@/components";
+import { getMediaAuthorsAndNarrators, MediaHeaderInfo } from "@/db/library";
+import { useLibraryData } from "@/hooks/use-library-data";
+import { Session } from "@/stores/session";
 
 type MediaAuthorsAndNarratorsProps = {
   media: MediaHeaderInfo;

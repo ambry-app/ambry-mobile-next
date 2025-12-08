@@ -1,9 +1,11 @@
-import { getDb } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
 import { and, asc, eq } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/stores/session";
+import { requireValue } from "@/utils";
+
 import { combineAuthorsAndNarrators } from "./shared-queries";
-import { requireValue } from "@/src/utils";
 
 export async function getSeriesDetails(session: Session, seriesId: string) {
   const series = await getSeries(session, seriesId);

@@ -1,8 +1,9 @@
-import { getExpoDb } from "@/src/db/db";
-import { syncDown, syncPlaythroughs, syncUp } from "@/src/db/sync";
-import { useSession } from "@/src/stores/session";
 import * as BackgroundTask from "expo-background-task";
 import * as TaskManager from "expo-task-manager";
+
+import { getExpoDb } from "@/db/db";
+import { syncDown, syncPlaythroughs, syncUp } from "@/db/sync";
+import { useSession } from "@/stores/session";
 
 const BACKGROUND_SYNC_TASK_NAME = "ambry-background-sync";
 

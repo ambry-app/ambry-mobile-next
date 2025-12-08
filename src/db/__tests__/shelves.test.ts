@@ -4,7 +4,7 @@ import {
   isMediaOnShelf,
   removeMediaFromShelf,
   toggleMediaOnShelf,
-} from "@/src/db/shelves";
+} from "@/db/shelves";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createMedia,

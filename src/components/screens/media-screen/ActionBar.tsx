@@ -1,13 +1,14 @@
-import { IconButton } from "@/src/components";
-import { MediaHeaderInfo } from "@/src/db/library";
-import useLoadMediaCallback from "@/src/hooks/use-load-media-callback";
-import { useShelvedMedia } from "@/src/hooks/use-shelved-media";
-import { startDownload, useDownloads } from "@/src/stores/downloads";
-import { Session } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
-import { router } from "expo-router";
 import { Alert, Share, StyleSheet, View } from "react-native";
+import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
+
+import { IconButton } from "@/components";
+import { MediaHeaderInfo } from "@/db/library";
+import useLoadMediaCallback from "@/hooks/use-load-media-callback";
+import { useShelvedMedia } from "@/hooks/use-shelved-media";
+import { startDownload, useDownloads } from "@/stores/downloads";
+import { Session } from "@/stores/session";
+import { Colors } from "@/styles";
 
 type ActionBarProps = {
   media: MediaHeaderInfo;

@@ -1,8 +1,9 @@
-import { Delay } from "@/src/components";
-import { BookScreen } from "@/src/components/screens";
-import { useSession } from "@/src/stores/session";
-import { RouterParams } from "@/src/types/router";
 import { Stack, useLocalSearchParams } from "expo-router";
+
+import { Delay } from "@/components";
+import { BookScreen } from "@/components/screens";
+import { useSession } from "@/stores/session";
+import { RouterParams } from "@/types/router";
 
 export default function BookRoute() {
   const session = useSession((state) => state.session);

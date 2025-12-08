@@ -1,20 +1,21 @@
+import { FlatList, StyleSheet, View } from "react-native";
+import { router } from "expo-router";
+
 import {
   FadeInOnMount,
   HeaderButton,
   MediaTile,
   SeeAllTile,
-} from "@/src/components";
+} from "@/components";
 import {
   HORIZONTAL_LIST_LIMIT,
   HORIZONTAL_TILE_SPACING,
   HORIZONTAL_TILE_WIDTH_RATIO,
-} from "@/src/constants";
-import { getBookOtherEditions, MediaHeaderInfo } from "@/src/db/library";
-import { useLibraryData } from "@/src/hooks/use-library-data";
-import { useScreen } from "@/src/stores/screen";
-import { Session } from "@/src/stores/session";
-import { router } from "expo-router";
-import { FlatList, StyleSheet, View } from "react-native";
+} from "@/constants";
+import { getBookOtherEditions, MediaHeaderInfo } from "@/db/library";
+import { useLibraryData } from "@/hooks/use-library-data";
+import { useScreen } from "@/stores/screen";
+import { Session } from "@/stores/session";
 
 type OtherEditionsProps = {
   media: MediaHeaderInfo;

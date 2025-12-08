@@ -1,8 +1,9 @@
-import { getExpoDb } from "@/src/db/db";
-import { syncDown, syncPlaythroughs, syncUp } from "@/src/db/sync";
-import { useSession } from "@/src/stores/session";
 import { useEffect } from "react";
 import { AppStateStatus } from "react-native";
+
+import { getExpoDb } from "@/db/db";
+import { syncDown, syncPlaythroughs, syncUp } from "@/db/sync";
+import { useSession } from "@/stores/session";
 
 // Periodic sync every 15 minutes while the app is in the foreground.
 export function useForegroundSync(appState: AppStateStatus) {

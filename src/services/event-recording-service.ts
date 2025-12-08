@@ -1,20 +1,20 @@
 import TrackPlayer from "react-native-track-player";
 
-import { PROGRESS_SAVE_INTERVAL } from "@/src/constants";
-import { getDb } from "@/src/db/db";
+import { PROGRESS_SAVE_INTERVAL } from "@/constants";
+import { getDb } from "@/db/db";
 import {
   createPlaythrough,
   getActivePlaythrough,
   updatePlaythroughStatus,
   updateStateCache,
-} from "@/src/db/playthroughs";
-import * as schema from "@/src/db/schema";
-import { syncPlaythroughs } from "@/src/db/sync";
-import { bumpPlaythroughDataVersion } from "@/src/stores/data-version";
-import { getDeviceIdSync, initializeDevice } from "@/src/stores/device";
-import { Session, useSession } from "@/src/stores/session";
-import { EventBus } from "@/src/utils";
-import { randomUUID } from "@/src/utils/crypto";
+} from "@/db/playthroughs";
+import * as schema from "@/db/schema";
+import { syncPlaythroughs } from "@/db/sync";
+import { bumpPlaythroughDataVersion } from "@/stores/data-version";
+import { getDeviceIdSync, initializeDevice } from "@/stores/device";
+import { Session, useSession } from "@/stores/session";
+import { EventBus } from "@/utils";
+import { randomUUID } from "@/utils/crypto";
 
 let isInitialized = false;
 let currentMediaId: string | null = null;

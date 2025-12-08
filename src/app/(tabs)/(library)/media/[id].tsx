@@ -1,8 +1,9 @@
-import { Delay } from "@/src/components";
-import { MediaScreen } from "@/src/components/screens";
-import { useSession } from "@/src/stores/session";
-import { RouterParams } from "@/src/types/router";
 import { Stack, useLocalSearchParams } from "expo-router";
+
+import { Delay } from "@/components";
+import { MediaScreen } from "@/components/screens";
+import { useSession } from "@/stores/session";
+import { RouterParams } from "@/types/router";
 
 export default function MediaRoute() {
   const session = useSession((state) => state.session);

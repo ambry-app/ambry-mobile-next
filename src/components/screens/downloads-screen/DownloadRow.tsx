@@ -1,17 +1,19 @@
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+import { router } from "expo-router";
+import { useShallow } from "zustand/shallow";
+
 import {
   BookDetailsText,
   IconButton,
   Loading,
   ThumbnailImage,
-} from "@/src/components";
-import { DownloadedMedia } from "@/src/db/library";
-import { useThrottle } from "@/src/hooks/use-throttle";
-import { useDownloads } from "@/src/stores/downloads";
-import { Colors } from "@/src/styles";
-import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import { router } from "expo-router";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
-import { useShallow } from "zustand/shallow";
+} from "@/components";
+import { DownloadedMedia } from "@/db/library";
+import { useThrottle } from "@/hooks/use-throttle";
+import { useDownloads } from "@/stores/downloads";
+import { Colors } from "@/styles";
+
 import { FileSize } from "./FileSize";
 
 type DownloadRowProps = {

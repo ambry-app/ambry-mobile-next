@@ -1,5 +1,7 @@
-import { SeekSource, seekRelative } from "@/src/stores/player";
 import { StyleProp, ViewStyle } from "react-native";
+
+import { seekRelative, SeekSource } from "@/stores/player";
+
 import { IconButton } from "./IconButton";
 
 type SeekButtonProps = {

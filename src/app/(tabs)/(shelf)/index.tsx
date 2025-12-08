@@ -1,6 +1,6 @@
-import { Delay } from "@/src/components";
-import { ShelfScreen } from "@/src/components/screens";
-import { useSession } from "@/src/stores/session";
+import { Delay } from "@/components";
+import { ShelfScreen } from "@/components/screens";
+import { useSession } from "@/stores/session";
 
 export default function ShelfRoute() {
   const session = useSession((state) => state.session);

@@ -1,15 +1,16 @@
-import { Button } from "@/src/components";
-import * as schema from "@/src/db/schema";
-import useBackHandler from "@/src/hooks/use-back-handler";
-import { SeekSource, seekTo, usePlayer } from "@/src/stores/player";
-import { Colors } from "@/src/styles";
-import { secondsDisplay } from "@/src/utils";
-import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import { router } from "expo-router";
 import { useCallback, useRef } from "react";
 import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
+
+import { Button } from "@/components";
+import * as schema from "@/db/schema";
+import useBackHandler from "@/hooks/use-back-handler";
+import { SeekSource, seekTo, usePlayer } from "@/stores/player";
+import { Colors } from "@/styles";
+import { secondsDisplay } from "@/utils";
 
 const chapterRowHeight = 54;
 

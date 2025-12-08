@@ -1,6 +1,7 @@
-import { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { drizzle } from "drizzle-orm/expo-sqlite";
+import { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { openDatabaseSync, SQLiteDatabase } from "expo-sqlite";
+
 import * as schema from "./schema";
 
 let _expoDb: SQLiteDatabase | null = null;

@@ -1,5 +1,5 @@
+import * as schema from "@/db/schema";
 import { createTestDatabase, setupTestDatabase } from "@test/db-test-utils";
-import * as schema from "../schema";
 
 describe("createTestDatabase", () => {
   it("creates an in-memory database with migrations applied", () => {

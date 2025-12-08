@@ -1,5 +1,6 @@
-import { useDataVersion } from "@/src/stores/data-version";
 import { useEffect, useState } from "react";
+
+import { useDataVersion } from "@/stores/data-version";
 
 export function useLibraryData<T>(getData: () => Promise<T>, deps: any[] = []) {
   const [data, setData] = useState<T | undefined>(undefined);

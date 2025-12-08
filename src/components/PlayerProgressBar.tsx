@@ -1,8 +1,10 @@
-import { usePlayer } from "@/src/stores/player";
-import { Colors } from "@/src/styles";
-import { secondsDisplay } from "@/src/utils";
 import { StyleSheet, Text, View } from "react-native";
 import { useShallow } from "zustand/shallow";
+
+import { usePlayer } from "@/stores/player";
+import { Colors } from "@/styles";
+import { secondsDisplay } from "@/utils";
+
 import { ProgressBar } from "./ProgressBar";
 
 export function PlayerProgressBar() {

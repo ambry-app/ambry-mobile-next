@@ -1,5 +1,7 @@
-import { getServerSyncTimestamps } from "@/src/db/sync";
 import { create } from "zustand";
+
+import { getServerSyncTimestamps } from "@/db/sync";
+
 import { Session } from "./session";
 
 interface DataVersionState {

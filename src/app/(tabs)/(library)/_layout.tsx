@@ -1,6 +1,6 @@
+import { Platform } from "react-native";
 import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { Stack } from "expo-router";
-import { Platform } from "react-native";
 
 const screenOptions: NativeStackNavigationOptions =
   Platform.OS === "ios"

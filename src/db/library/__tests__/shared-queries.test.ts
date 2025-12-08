@@ -1,4 +1,4 @@
-import { combineAuthorsAndNarrators } from "../shared-queries";
+import { combineAuthorsAndNarrators } from "@/db/library/shared-queries";
 
 // Helper to create test authors
 function makeAuthor(

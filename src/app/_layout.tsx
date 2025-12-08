@@ -1,24 +1,26 @@
-import { Loading, MeasureScreenHeight, ScreenCentered } from "@/src/components";
-import { getExpoDb } from "@/src/db/db";
-import { useAppBoot } from "@/src/hooks/use-app-boot";
-import { useAppState } from "@/src/hooks/use-app-state";
-import { useForegroundSync } from "@/src/hooks/use-foreground-sync";
-import { useRefreshLibraryDataVersion } from "@/src/hooks/use-refresh-library-data-version";
-import { usePlayer, usePlayerSubscriptions } from "@/src/stores/player";
-import { useSession } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
-import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
-import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
-import * as Sentry from "@sentry/react-native";
-import "core-js/actual/object/group-by";
-import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
-import { Stack, useNavigationContainerRef } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { StyleSheet, Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
+import * as Sentry from "@sentry/react-native";
+import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
+import { Stack, useNavigationContainerRef } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+
+import { Loading, MeasureScreenHeight, ScreenCentered } from "@/components";
+import { getExpoDb } from "@/db/db";
+import { useAppBoot } from "@/hooks/use-app-boot";
+import { useAppState } from "@/hooks/use-app-state";
+import { useForegroundSync } from "@/hooks/use-foreground-sync";
+import { useRefreshLibraryDataVersion } from "@/hooks/use-refresh-library-data-version";
+import { usePlayer, usePlayerSubscriptions } from "@/stores/player";
+import { useSession } from "@/stores/session";
+import { Colors } from "@/styles";
+
+import "core-js/actual/object/group-by";
 
 SplashScreen.preventAutoHideAsync();
 SplashScreen.setOptions({

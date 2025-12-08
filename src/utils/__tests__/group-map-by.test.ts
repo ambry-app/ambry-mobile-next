@@ -1,4 +1,4 @@
-import { groupMapBy } from "../group-map-by";
+import { groupMapBy } from "@/utils/group-map-by";
 
 describe("groupMapBy", () => {
   it("groups items by key", () => {

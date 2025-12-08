@@ -1,7 +1,9 @@
-import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
-import { Colors } from "@/src/styles";
-import { ImageStyle } from "expo-image";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import { ImageStyle } from "expo-image";
+
+import { DownloadedThumbnails, Thumbnails } from "@/db/schema";
+import { Colors } from "@/styles";
+
 import { ThumbnailImage } from "./ThumbnailImage";
 
 type MultiThumbnailImageProps = {

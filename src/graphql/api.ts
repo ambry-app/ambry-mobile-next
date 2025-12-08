@@ -1,14 +1,14 @@
-import { graphql } from "@/src/graphql/client";
+import { graphql } from "@/graphql/client";
 import {
   execute,
   executeAuthenticated,
   ExecuteAuthenticatedError,
   ExecuteError,
   ExecuteErrorCode,
-} from "@/src/graphql/client/execute";
-import type { SyncProgressInput } from "@/src/graphql/client/graphql";
-import { Session } from "@/src/stores/session";
-import { Result } from "@/src/types/result";
+} from "@/graphql/client/execute";
+import type { SyncProgressInput } from "@/graphql/client/graphql";
+import { Session } from "@/stores/session";
+import { Result } from "@/types/result";
 
 const libraryChangesSinceQuery = graphql(`
   query LibraryChangesSince($since: DateTime) {
@@ -315,12 +315,12 @@ const syncProgressMutation = graphql(`
 `);
 
 // Re-export generated types for use in sync.ts
+export type { SyncProgressInput } from "@/graphql/client/graphql";
 export {
   DeviceType,
   PlaybackEventType,
   PlaythroughStatus,
-} from "@/src/graphql/client/graphql";
-export type { SyncProgressInput } from "@/src/graphql/client/graphql";
+} from "@/graphql/client/graphql";
 
 export function syncProgress(session: Session, input: SyncProgressInput) {
   return executeAuthenticated(

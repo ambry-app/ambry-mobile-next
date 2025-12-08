@@ -4,7 +4,9 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "paths": {
-      "@/*": ["./*"],
+      "@/*": ["./src/*"],
+      "@assets/*": ["./assets/*"],
+      "@drizzle/*": ["./drizzle/*"],
       "@test/*": ["./test/*"]
     },
     "plugins": [

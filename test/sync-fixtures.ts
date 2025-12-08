@@ -2,12 +2,12 @@
  * Test fixtures for sync tests.
  * Factory functions to create GraphQL response data matching LibraryChangesSinceQuery.
  */
-import type { LibraryChangesSinceQuery } from "@/src/graphql/client/graphql";
+import type { LibraryChangesSinceQuery } from "@/graphql/client/graphql";
 import {
   DateFormat,
   DeletionType,
   MediaProcessingStatus,
-} from "@/src/graphql/client/graphql";
+} from "@/graphql/client/graphql";
 
 // Re-export for convenience in tests
 export { DateFormat, DeletionType, MediaProcessingStatus };

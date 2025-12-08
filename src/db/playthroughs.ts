@@ -1,9 +1,9 @@
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
-import { getDb } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
-import { randomUUID } from "@/src/utils/crypto";
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/stores/session";
+import { randomUUID } from "@/utils/crypto";
 
 // =============================================================================
 // Playthrough CRUD

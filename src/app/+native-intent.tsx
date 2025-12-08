@@ -1,4 +1,4 @@
-import { expandPlayer } from "@/src/stores/player";
+import { expandPlayer } from "@/stores/player";
 
 type PathArgs = {
   path: string;

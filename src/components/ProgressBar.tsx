@@ -1,5 +1,6 @@
-import { Colors } from "@/src/styles";
 import { StyleSheet, View } from "react-native";
+
+import { Colors } from "@/styles";
 
 type ProgressBarProps = {
   position: number;

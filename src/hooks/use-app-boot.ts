@@ -1,15 +1,16 @@
-import migrations from "@/drizzle/migrations";
-import { getExpoSqliteDb } from "@/src/db/db";
-import { syncDown } from "@/src/db/sync";
-import { registerBackgroundSyncTask } from "@/src/services/background-sync-service";
-import { initializeDataVersion } from "@/src/stores/data-version";
-import { initializeDevice } from "@/src/stores/device";
-import { initializeDownloads } from "@/src/stores/downloads";
-import { initializePlayer } from "@/src/stores/player";
-import { useSession } from "@/src/stores/session";
-import { initializeSleepTimer } from "@/src/stores/sleep-timer";
-import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import { useEffect, useState } from "react";
+import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
+
+import { getExpoSqliteDb } from "@/db/db";
+import { syncDown } from "@/db/sync";
+import { registerBackgroundSyncTask } from "@/services/background-sync-service";
+import { initializeDataVersion } from "@/stores/data-version";
+import { initializeDevice } from "@/stores/device";
+import { initializeDownloads } from "@/stores/downloads";
+import { initializePlayer } from "@/stores/player";
+import { useSession } from "@/stores/session";
+import { initializeSleepTimer } from "@/stores/sleep-timer";
+import migrations from "@drizzle/migrations";
 
 const useAppBoot = () => {
   const [isReady, setIsReady] = useState(false);

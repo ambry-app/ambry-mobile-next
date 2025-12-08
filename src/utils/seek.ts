@@ -1,9 +1,11 @@
+import TrackPlayer from "react-native-track-player";
+
 import {
   SEEK_ACCUMULATION_WINDOW,
   SEEK_EVENT_ACCUMULATION_WINDOW,
-} from "@/src/constants";
-import { SeekSource } from "@/src/stores/player";
-import TrackPlayer from "react-native-track-player";
+} from "@/constants";
+import { SeekSource } from "@/stores/player";
+
 import { EventBus } from "./event-bus";
 
 // Seeking functions for use by the TrackPlayer service. These do not interact

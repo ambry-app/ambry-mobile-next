@@ -1,8 +1,9 @@
-import { PROGRESS_SAVE_INTERVAL } from "@/src/constants";
-import { updatePlayerState } from "@/src/db/player-states";
-import { useSession } from "@/src/stores/session";
-import { EventBus } from "@/src/utils";
 import TrackPlayer from "react-native-track-player";
+
+import { PROGRESS_SAVE_INTERVAL } from "@/constants";
+import { updatePlayerState } from "@/db/player-states";
+import { useSession } from "@/stores/session";
+import { EventBus } from "@/utils";
 
 let progressSaveInterval: NodeJS.Timeout | null = null;
 let isInitialized = false;

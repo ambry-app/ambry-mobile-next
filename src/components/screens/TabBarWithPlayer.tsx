@@ -1,26 +1,3 @@
-import {
-  BlurredImage,
-  BookDetailsText,
-  IconButton,
-  Loading,
-  PlayButton,
-  PlayerProgressBar,
-  ResumePlaythroughDialog,
-  Scrubber,
-  ThumbnailImage,
-} from "@/src/components";
-import { PLAYER_HEIGHT, TAB_BAR_BASE_HEIGHT } from "@/src/constants";
-import { getMedia } from "@/src/db/library";
-import useBackHandler from "@/src/hooks/use-back-handler";
-import { useLibraryData } from "@/src/hooks/use-library-data";
-import { usePlayer } from "@/src/stores/player";
-import { useScreen } from "@/src/stores/screen";
-import { Session } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
-import { EventBus } from "@/src/utils";
-import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import { BottomTabBar, BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   Pressable,
@@ -39,7 +16,32 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+import { BottomTabBar, BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
+
+import {
+  BlurredImage,
+  BookDetailsText,
+  IconButton,
+  Loading,
+  PlayButton,
+  PlayerProgressBar,
+  ResumePlaythroughDialog,
+  Scrubber,
+  ThumbnailImage,
+} from "@/components";
+import { PLAYER_HEIGHT, TAB_BAR_BASE_HEIGHT } from "@/constants";
+import { getMedia } from "@/db/library";
+import useBackHandler from "@/hooks/use-back-handler";
+import { useLibraryData } from "@/hooks/use-library-data";
+import { usePlayer } from "@/stores/player";
+import { useScreen } from "@/stores/screen";
+import { Session } from "@/stores/session";
+import { Colors } from "@/styles";
+import { EventBus } from "@/utils";
+
 import {
   ChapterControls,
   PlaybackControls,

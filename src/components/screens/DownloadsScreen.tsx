@@ -1,9 +1,11 @@
-import { FadeInOnMount } from "@/src/components";
-import { useDownloadedMedia } from "@/src/hooks/use-downloaded-media";
-import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
-import { Session } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
 import { FlatList, StyleSheet, Text } from "react-native";
+
+import { FadeInOnMount } from "@/components";
+import { useDownloadedMedia } from "@/hooks/use-downloaded-media";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { Session } from "@/stores/session";
+import { Colors } from "@/styles";
+
 import { DownloadRow } from "./downloads-screen";
 
 export function DownloadsScreen({ session }: { session: Session }) {

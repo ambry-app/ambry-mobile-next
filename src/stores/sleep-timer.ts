@@ -1,11 +1,13 @@
-import { defaultSleepTimer, defaultSleepTimerEnabled } from "@/src/db/schema";
+import { create } from "zustand";
+
+import { defaultSleepTimer, defaultSleepTimerEnabled } from "@/db/schema";
 import {
   getSleepTimerSettings,
   setSleepTimerEnabled,
   setSleepTimerTime,
-} from "@/src/db/settings";
-import { EventBus } from "@/src/utils";
-import { create } from "zustand";
+} from "@/db/settings";
+import { EventBus } from "@/utils";
+
 import { Session } from "./session";
 
 export interface SleepTimerState {

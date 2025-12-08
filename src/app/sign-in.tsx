@@ -1,13 +1,14 @@
-import Logo from "@/assets/images/logo.svg";
-import { FocusableTextInput, IconButton, Loading } from "@/src/components";
-import { CreateSessionErrorCode } from "@/src/graphql/api";
-import { ExecuteErrorCode } from "@/src/graphql/client/execute";
-import { useScreen } from "@/src/stores/screen";
-import { signIn, useSession } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
 import { useCallback, useRef, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+
+import { FocusableTextInput, IconButton, Loading } from "@/components";
+import { CreateSessionErrorCode } from "@/graphql/api";
+import { ExecuteErrorCode } from "@/graphql/client/execute";
+import { useScreen } from "@/stores/screen";
+import { signIn, useSession } from "@/stores/session";
+import { Colors } from "@/styles";
+import Logo from "@assets/images/logo.svg";
 
 export default function SignInRoute() {
   const { session } = useSession((state) => state);

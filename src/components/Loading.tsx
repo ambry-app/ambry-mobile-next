@@ -1,5 +1,6 @@
-import { Colors } from "@/src/styles";
 import { ActivityIndicator, StyleProp, ViewStyle } from "react-native";
+
+import { Colors } from "@/styles";
 
 type LoadingProps = {
   style?: StyleProp<ViewStyle>;

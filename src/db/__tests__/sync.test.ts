@@ -1,8 +1,6 @@
-import { ExecuteAuthenticatedErrorCode } from "@/src/graphql/client/execute";
-import {
-  initialDataVersionState,
-  useDataVersion,
-} from "@/src/stores/data-version";
+import { syncDownLibrary } from "@/db/sync";
+import { ExecuteAuthenticatedErrorCode } from "@/graphql/client/execute";
+import { initialDataVersionState, useDataVersion } from "@/stores/data-version";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { DEFAULT_TEST_SESSION } from "@test/factories";
 import { mockForceSignOut, mockGetLibraryChangesSince } from "@test/jest-setup";
@@ -22,7 +20,6 @@ import {
   emptyLibraryChanges,
   resetSyncFixtureIdCounter,
 } from "@test/sync-fixtures";
-import { syncDownLibrary } from "../sync";
 
 const { getDb } = setupTestDatabase();
 

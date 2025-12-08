@@ -1,14 +1,16 @@
+import * as FileSystem from "expo-file-system/legacy";
+import { create } from "zustand";
+
 import {
   createDownload,
   deleteDownload,
   getAllDownloads,
   getDownload,
   updateDownload,
-} from "@/src/db/downloads";
-import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
-import { documentDirectoryFilePath } from "@/src/utils";
-import * as FileSystem from "expo-file-system/legacy";
-import { create } from "zustand";
+} from "@/db/downloads";
+import { DownloadedThumbnails, Thumbnails } from "@/db/schema";
+import { documentDirectoryFilePath } from "@/utils";
+
 import { loadMedia, usePlayer } from "./player";
 import { Session } from "./session";
 

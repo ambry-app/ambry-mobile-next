@@ -1,4 +1,4 @@
-import { formatPlaybackRate } from "../rate";
+import { formatPlaybackRate } from "@/utils/rate";
 
 describe("formatPlaybackRate", () => {
   it("formats whole numbers with two decimal places", () => {

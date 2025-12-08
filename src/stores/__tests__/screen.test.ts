@@ -1,6 +1,5 @@
+import { setDimensions, useScreen } from "@/stores/screen";
 import { resetStoreBeforeEach } from "@test/store-test-utils";
-
-import { setDimensions, useScreen } from "../screen";
 
 describe("screen store", () => {
   resetStoreBeforeEach(useScreen, {

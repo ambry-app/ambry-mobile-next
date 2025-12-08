@@ -1,4 +1,3 @@
-import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import {
   StyleProp,
   StyleSheet,
@@ -6,6 +5,8 @@ import {
   View,
   ViewStyle,
 } from "react-native";
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+
 import { Loading } from "./Loading";
 
 type IconButtonProps = {

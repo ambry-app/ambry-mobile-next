@@ -1,8 +1,9 @@
-import { getDb } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
-import { groupMapBy } from "@/src/utils";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/stores/session";
+import { groupMapBy } from "@/utils";
 
 export async function getAuthorsForBooks(session: Session, bookIds: string[]) {
   if (bookIds.length === 0) return {};

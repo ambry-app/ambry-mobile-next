@@ -1,22 +1,23 @@
+import { FlatList, StyleSheet, View } from "react-native";
+import { router } from "expo-router";
+
 import {
   FadeInOnMount,
   HeaderButton,
   MediaTile,
   SeeAllTile,
   TimeAgo,
-} from "@/src/components";
+} from "@/components";
 import {
   HORIZONTAL_LIST_LIMIT,
   HORIZONTAL_TILE_SPACING,
   HORIZONTAL_TILE_WIDTH_RATIO,
-} from "@/src/constants";
-import { getPlaythroughsPage } from "@/src/db/library";
-import { useLibraryData } from "@/src/hooks/use-library-data";
-import { useDataVersion } from "@/src/stores/data-version";
-import { useScreen } from "@/src/stores/screen";
-import { Session } from "@/src/stores/session";
-import { router } from "expo-router";
-import { FlatList, StyleSheet, View } from "react-native";
+} from "@/constants";
+import { getPlaythroughsPage } from "@/db/library";
+import { useLibraryData } from "@/hooks/use-library-data";
+import { useDataVersion } from "@/stores/data-version";
+import { useScreen } from "@/stores/screen";
+import { Session } from "@/stores/session";
 
 type RecentlyFinishedProps = {
   session: Session;

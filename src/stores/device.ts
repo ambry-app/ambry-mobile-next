@@ -1,9 +1,9 @@
+import { Platform } from "react-native";
 import * as Device from "expo-device";
 import * as SecureStore from "expo-secure-store";
-import { Platform } from "react-native";
 import { create } from "zustand";
 
-import { randomUUID } from "@/src/utils/crypto";
+import { randomUUID } from "@/utils/crypto";
 
 const DEVICE_ID_KEY = "Ambry_deviceId";
 

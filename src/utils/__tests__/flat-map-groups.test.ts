@@ -1,4 +1,4 @@
-import { flatMapGroups } from "../flat-map-groups";
+import { flatMapGroups } from "@/utils/flat-map-groups";
 
 describe("flatMapGroups", () => {
   it("flattens grouped items with callback", () => {

@@ -1,6 +1,6 @@
-import { Delay } from "@/src/components";
-import { FinishedScreen } from "@/src/components/screens";
-import { useSession } from "@/src/stores/session";
+import { Delay } from "@/components";
+import { FinishedScreen } from "@/components/screens";
+import { useSession } from "@/stores/session";
 
 export default function FinishedRoute() {
   const session = useSession((state) => state.session);

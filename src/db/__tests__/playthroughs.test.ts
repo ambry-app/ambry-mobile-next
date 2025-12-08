@@ -1,16 +1,17 @@
 import { eq } from "drizzle-orm";
-import { Session } from "@/src/stores/session";
+
+import * as playthroughs from "@/db/playthroughs";
+import * as schema from "@/db/schema";
+import { Session } from "@/stores/session";
 import { setupTestDatabase } from "@test/db-test-utils";
-import * as schema from "../schema";
 import {
   createMedia,
-  createPlaythrough,
   createPlaybackEvent,
+  createPlaythrough,
   createPlaythroughStateCache,
   DEFAULT_TEST_SESSION,
   resetIdCounter,
 } from "@test/factories";
-import * as playthroughs from "../playthroughs";
 
 describe("playthroughs module", () => {
   const { getDb } = setupTestDatabase();

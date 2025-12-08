@@ -1,7 +1,3 @@
-import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
-import useNavigateToBookCallback from "@/src/hooks/use-navigate-to-book-callback";
-import { Colors } from "@/src/styles";
-import { router } from "expo-router";
 import React from "react";
 import {
   Pressable,
@@ -11,6 +7,12 @@ import {
   View,
   ViewStyle,
 } from "react-native";
+import { router } from "expo-router";
+
+import { DownloadedThumbnails, Thumbnails } from "@/db/schema";
+import useNavigateToBookCallback from "@/hooks/use-navigate-to-book-callback";
+import { Colors } from "@/styles";
+
 import { BookDetailsText } from "./BookDetailsText";
 import { MultiThumbnailImage } from "./MultiThumbnailImage";
 import { ThumbnailImage } from "./ThumbnailImage";

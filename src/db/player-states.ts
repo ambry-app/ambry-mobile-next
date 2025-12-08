@@ -1,7 +1,8 @@
-import { getDb } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
 import { and, desc, eq } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/stores/session";
 
 export async function getSyncedPlayerState(session: Session, mediaId: string) {
   return getDb().query.playerStates.findFirst({

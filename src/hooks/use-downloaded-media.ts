@@ -1,7 +1,9 @@
-import { getDownloadedMedia } from "@/src/db/library";
-import { useDownloads } from "@/src/stores/downloads";
-import { Session } from "@/src/stores/session";
 import { useShallow } from "zustand/shallow";
+
+import { getDownloadedMedia } from "@/db/library";
+import { useDownloads } from "@/stores/downloads";
+import { Session } from "@/stores/session";
+
 import { useLibraryData } from "./use-library-data";
 
 export function useDownloadedMedia(session: Session) {

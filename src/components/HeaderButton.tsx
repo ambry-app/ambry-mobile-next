@@ -1,5 +1,7 @@
-import { Colors } from "@/src/styles";
 import { StyleSheet, Text } from "react-native";
+
+import { Colors } from "@/styles";
+
 import { IconButton } from "./IconButton";
 
 type HeaderButtonProps = {

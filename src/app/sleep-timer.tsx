@@ -1,16 +1,17 @@
-import { Button, IconButton } from "@/src/components";
-import { useSession } from "@/src/stores/session";
+import { useCallback, useEffect, useState } from "react";
+import { Platform, StyleSheet, Switch, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Slider from "@react-native-community/slider";
+import { useShallow } from "zustand/shallow";
+
+import { Button, IconButton } from "@/components";
+import { useSession } from "@/stores/session";
 import {
   setSleepTimer,
   setSleepTimerState,
   useSleepTimer,
-} from "@/src/stores/sleep-timer";
-import { Colors } from "@/src/styles";
-import Slider from "@react-native-community/slider";
-import { useCallback, useEffect, useState } from "react";
-import { Platform, StyleSheet, Switch, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useShallow } from "zustand/shallow";
+} from "@/stores/sleep-timer";
+import { Colors } from "@/styles";
 
 function formatSeconds(seconds: number) {
   return Math.round(seconds / 60);

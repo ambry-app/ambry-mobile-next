@@ -1,9 +1,10 @@
-import { usePlayer } from "@/src/stores/player";
-import { Colors } from "@/src/styles";
-import { secondsDisplayMinutesOnly } from "@/src/utils";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text } from "react-native";
 import Animated, { useSharedValue, withTiming } from "react-native-reanimated";
+
+import { usePlayer } from "@/stores/player";
+import { Colors } from "@/styles";
+import { secondsDisplayMinutesOnly } from "@/utils";
 
 export function SeekIndicator() {
   const seekEffectiveDiff = usePlayer((state) => state.seekEffectiveDiff);

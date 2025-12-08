@@ -1,7 +1,9 @@
-import { getDb } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/stores/session";
+
 import { MediaHeaderInfo } from "./get-media-header-info";
 import { getNarratorsForMedia } from "./shared-queries";
 

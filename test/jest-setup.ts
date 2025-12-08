@@ -7,7 +7,7 @@ import type { TestDatabase } from "./db-test-utils";
 // Crypto Mock - use Node's crypto.randomUUID() instead of expo-crypto
 // =============================================================================
 
-jest.mock("@/src/utils/crypto", () => ({
+jest.mock("@/utils/crypto", () => ({
   // Use global crypto object (Node's built-in, available in Jest's allowed list)
   randomUUID: () => crypto.randomUUID(),
 }));
@@ -19,7 +19,7 @@ jest.mock("@/src/utils/crypto", () => ({
 // Mock function exposed for test control
 export const mockGetLibraryChangesSince = jest.fn();
 
-jest.mock("@/src/graphql/api", () => ({
+jest.mock("@/graphql/api", () => ({
   getLibraryChangesSince: (...args: unknown[]) =>
     mockGetLibraryChangesSince(...args),
 }));
@@ -30,7 +30,7 @@ jest.mock("@/src/graphql/api", () => ({
 
 export const mockForceSignOut = jest.fn();
 
-jest.mock("@/src/stores/session", () => ({
+jest.mock("@/stores/session", () => ({
   forceSignOut: () => mockForceSignOut(),
 }));
 
@@ -125,7 +125,7 @@ export function clearTestDb(): void {
 }
 
 // Mock the db module to use our test database
-jest.mock("@/src/db/db", () => ({
+jest.mock("@/db/db", () => ({
   getDb: () => {
     if (!mockTestDb) {
       throw new Error(
@@ -147,7 +147,7 @@ beforeAll(() => {
   jest.spyOn(console, "debug").mockImplementation(() => {});
   jest.spyOn(console, "info").mockImplementation(() => {});
   jest.spyOn(console, "warn").mockImplementation(() => {});
-  // Keep console.error visible - we usually want to see actual errors
+  jest.spyOn(console, "error").mockImplementation(() => {});
 });
 
 afterAll(() => {

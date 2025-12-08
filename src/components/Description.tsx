@@ -1,7 +1,9 @@
-import { Colors } from "@/src/styles";
 import { useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import Markdown from "react-native-markdown-display";
+
+import { Colors } from "@/styles";
+
 import { Button } from "./Button";
 
 export function Description({ description }: { description: string }) {

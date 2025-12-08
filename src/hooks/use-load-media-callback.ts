@@ -1,12 +1,13 @@
-import { syncDownUser } from "@/src/db/sync";
+import { useCallback } from "react";
+
+import { syncDownUser } from "@/db/sync";
 import {
+  expandPlayer,
   loadMedia,
   pause,
   prepareToLoadMedia,
-  expandPlayer,
-} from "@/src/stores/player";
-import { Session } from "@/src/stores/session";
-import { useCallback } from "react";
+} from "@/stores/player";
+import { Session } from "@/stores/session";
 
 export default function useLoadMediaCallback(
   session: Session,

@@ -4,7 +4,7 @@ import {
   getAllDownloads,
   getDownload,
   updateDownload,
-} from "@/src/db/downloads";
+} from "@/db/downloads";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { createMedia, DEFAULT_TEST_SESSION } from "@test/factories";
 

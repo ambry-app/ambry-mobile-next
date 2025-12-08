@@ -1,10 +1,10 @@
+import * as schema from "@/db/schema";
 import {
   getSleepTimerSettings,
   setPreferredPlaybackRate,
   setSleepTimerEnabled,
   setSleepTimerTime,
-} from "@/src/db/settings";
-import * as schema from "@/src/db/schema";
+} from "@/db/settings";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { createLocalUserSettings, DEFAULT_TEST_SESSION } from "@test/factories";
 

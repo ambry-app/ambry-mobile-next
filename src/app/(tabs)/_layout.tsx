@@ -1,10 +1,11 @@
-import { TabBar } from "@/src/components";
-import { TabBarWithPlayer } from "@/src/components/screens";
-import { usePlayer } from "@/src/stores/player";
-import { Session, useSession } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { Tabs } from "expo-router";
+
+import { TabBar } from "@/components";
+import { TabBarWithPlayer } from "@/components/screens";
+import { usePlayer } from "@/stores/player";
+import { Session, useSession } from "@/stores/session";
+import { Colors } from "@/styles";
 
 export default function TabsLayout() {
   const session = useSession((state) => state.session);

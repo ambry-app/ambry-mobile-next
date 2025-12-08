@@ -1,9 +1,8 @@
 import { Platform } from "react-native";
 
+import { getDeviceIdSync, initializeDevice, useDevice } from "@/stores/device";
 import { clearSecureStore, setSecureStoreItem } from "@test/jest-setup";
 import { resetStoreBeforeEach } from "@test/store-test-utils";
-
-import { getDeviceIdSync, initializeDevice, useDevice } from "../device";
 
 // Mock react-native Platform
 jest.mock("react-native", () => ({

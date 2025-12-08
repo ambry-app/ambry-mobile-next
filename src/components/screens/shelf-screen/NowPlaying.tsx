@@ -1,15 +1,16 @@
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
 import {
   FadeInOnMount,
   PlayerProgressBar,
   TileImage,
   TileText,
-} from "@/src/components";
-import { getMedia } from "@/src/db/library";
-import { useLibraryData } from "@/src/hooks/use-library-data";
-import { expandPlayer, usePlayer } from "@/src/stores/player";
-import { Session } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+} from "@/components";
+import { getMedia } from "@/db/library";
+import { useLibraryData } from "@/hooks/use-library-data";
+import { expandPlayer, usePlayer } from "@/stores/player";
+import { Session } from "@/stores/session";
+import { Colors } from "@/styles";
 
 type NowPlayingProps = {
   session: Session;

@@ -1,8 +1,10 @@
-import { getDb } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
-import { flatMapGroups } from "@/src/utils";
 import { and, desc, eq, ne, or, sql } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/stores/session";
+import { flatMapGroups } from "@/utils";
+
 import { MediaHeaderInfo } from "./get-media-header-info";
 import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
 

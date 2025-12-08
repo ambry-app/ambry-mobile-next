@@ -1,8 +1,8 @@
 import {
+  durationDisplay,
   secondsDisplay,
   secondsDisplayMinutesOnly,
-  durationDisplay,
-} from "../time";
+} from "@/utils/time";
 
 describe("secondsDisplay", () => {
   it("formats seconds only as M:SS", () => {

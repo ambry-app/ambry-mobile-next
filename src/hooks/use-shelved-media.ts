@@ -1,6 +1,7 @@
-import { isMediaOnShelf, toggleMediaOnShelf } from "@/src/db/shelves";
-import { Session } from "@/src/stores/session";
 import { useCallback, useEffect, useState } from "react";
+
+import { isMediaOnShelf, toggleMediaOnShelf } from "@/db/shelves";
+import { Session } from "@/stores/session";
 
 export function useShelvedMedia(
   session: Session,

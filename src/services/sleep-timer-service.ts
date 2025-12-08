@@ -1,7 +1,8 @@
-import { SLEEP_TIMER_FADE_OUT_TIME } from "@/src/constants";
-import { setTriggerTime, useSleepTimer } from "@/src/stores/sleep-timer";
-import { EventBus } from "@/src/utils";
 import TrackPlayer, { isPlaying } from "react-native-track-player";
+
+import { SLEEP_TIMER_FADE_OUT_TIME } from "@/constants";
+import { setTriggerTime, useSleepTimer } from "@/stores/sleep-timer";
+import { EventBus } from "@/utils";
 
 const SLEEP_TIMER_CHECK_INTERVAL = 1000;
 let sleepTimerCheckInterval: NodeJS.Timeout | null = null;

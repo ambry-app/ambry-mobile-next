@@ -1,7 +1,8 @@
-import { tryUnloadPlayer } from "@/src/stores/player";
-import { signOut, useSession } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
 import { Button, StyleSheet, Text, View } from "react-native";
+
+import { tryUnloadPlayer } from "@/stores/player";
+import { signOut, useSession } from "@/stores/session";
+import { Colors } from "@/styles";
 
 export default function SettingsRoute() {
   const session = useSession((state) => state.session);

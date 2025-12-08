@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useDataVersion } from "@/src/stores/data-version";
+
+import { useDataVersion } from "@/stores/data-version";
 
 export function usePaginatedLibraryData<T, Cursor>(
   pageSize: number,

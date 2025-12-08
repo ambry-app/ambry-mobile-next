@@ -1,8 +1,9 @@
-import { DownloadActionsModal } from "@/src/components/screens";
-import { useSession } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
 import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { DownloadActionsModal } from "@/components/screens";
+import { useSession } from "@/stores/session";
+import { Colors } from "@/styles";
 
 export default function DownloadActionsRoute() {
   const { bottom } = useSafeAreaInsets();

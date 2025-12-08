@@ -1,7 +1,3 @@
-import { PlaythroughWithMedia } from "@/src/db/library";
-import useLoadMediaCallback from "@/src/hooks/use-load-media-callback";
-import { Session } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
 import React from "react";
 import {
   Pressable,
@@ -11,6 +7,12 @@ import {
   View,
   ViewStyle,
 } from "react-native";
+
+import { PlaythroughWithMedia } from "@/db/library";
+import useLoadMediaCallback from "@/hooks/use-load-media-callback";
+import { Session } from "@/stores/session";
+import { Colors } from "@/styles";
+
 import { IconButton } from "./IconButton";
 import { ProgressBar } from "./ProgressBar";
 import { ThumbnailImage } from "./ThumbnailImage";

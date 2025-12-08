@@ -1,6 +1,7 @@
-import { syncDown, syncPlaythroughs } from "@/src/db/sync";
-import { Session } from "@/src/stores/session";
 import { useCallback, useState } from "react";
+
+import { syncDown, syncPlaythroughs } from "@/db/sync";
+import { Session } from "@/stores/session";
 
 export function usePullToRefresh(session: Session) {
   const [refreshing, setRefreshing] = useState(false);

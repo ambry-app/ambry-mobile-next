@@ -1,6 +1,8 @@
-import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
-import { Session } from "@/src/stores/session";
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
+
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { Session } from "@/stores/session";
+
 import { NowPlaying, RecentInProgress, RecentlyFinished } from "./shelf-screen";
 
 // sections:

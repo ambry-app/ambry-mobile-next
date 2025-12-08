@@ -1,14 +1,15 @@
-import { FadeInOnMount, IconButton } from "@/src/components";
+import { StyleSheet, Text } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { useShallow } from "zustand/shallow";
+
+import { FadeInOnMount, IconButton } from "@/components";
 import {
   cancelDownload,
   removeDownload,
   useDownloads,
-} from "@/src/stores/downloads";
-import { Session } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
-import { router, useLocalSearchParams } from "expo-router";
-import { StyleSheet, Text } from "react-native";
-import { useShallow } from "zustand/shallow";
+} from "@/stores/downloads";
+import { Session } from "@/stores/session";
+import { Colors } from "@/styles";
 
 export function DownloadActionsModal({ session }: { session: Session }) {
   const { id: mediaId } = useLocalSearchParams<{ id: string }>();

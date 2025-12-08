@@ -1,6 +1,6 @@
-import { Delay } from "@/src/components";
-import { DownloadsScreen } from "@/src/components/screens";
-import { useSession } from "@/src/stores/session";
+import { Delay } from "@/components";
+import { DownloadsScreen } from "@/components/screens";
+import { useSession } from "@/stores/session";
 
 export default function DownloadsRoute() {
   const session = useSession((state) => state.session);

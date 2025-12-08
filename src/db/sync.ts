@@ -1,4 +1,6 @@
-import { getDb } from "@/src/db/db";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
 import {
   getUnsyncedEvents,
   getUnsyncedPlaythroughs,
@@ -7,8 +9,9 @@ import {
   updateStateCache,
   upsertPlaybackEvent,
   upsertPlaythrough,
-} from "@/src/db/playthroughs";
-import * as schema from "@/src/db/schema";
+} from "@/db/playthroughs";
+import * as schema from "@/db/schema";
+import type { SyncProgressInput } from "@/graphql/api";
 import {
   DeviceType,
   getLibraryChangesSince,
@@ -17,13 +20,11 @@ import {
   PlaythroughStatus,
   syncProgress,
   updatePlayerState,
-} from "@/src/graphql/api";
-import type { SyncProgressInput } from "@/src/graphql/api";
-import { ExecuteAuthenticatedErrorCode } from "@/src/graphql/client/execute";
-import { useDevice } from "@/src/stores/device";
-import { setLibraryDataVersion } from "@/src/stores/data-version";
-import { Session, forceSignOut } from "@/src/stores/session";
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+} from "@/graphql/api";
+import { ExecuteAuthenticatedErrorCode } from "@/graphql/client/execute";
+import { setLibraryDataVersion } from "@/stores/data-version";
+import { useDevice } from "@/stores/device";
+import { forceSignOut, Session } from "@/stores/session";
 
 export async function getServerSyncTimestamps(session: Session) {
   const result = await getDb()

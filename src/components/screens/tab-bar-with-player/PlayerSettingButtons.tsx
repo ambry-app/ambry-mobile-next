@@ -1,14 +1,15 @@
-import { IconButton } from "@/src/components";
-import { usePlayer } from "@/src/stores/player";
-import { useSession } from "@/src/stores/session";
-import { setSleepTimerState, useSleepTimer } from "@/src/stores/sleep-timer";
-import { Colors } from "@/src/styles";
-import { formatPlaybackRate, secondsDisplayMinutesOnly } from "@/src/utils";
-import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
+
+import { IconButton } from "@/components";
+import { usePlayer } from "@/stores/player";
+import { useSession } from "@/stores/session";
+import { setSleepTimerState, useSleepTimer } from "@/stores/sleep-timer";
+import { Colors } from "@/styles";
+import { formatPlaybackRate, secondsDisplayMinutesOnly } from "@/utils";
 
 export function PlayerSettingButtons() {
   return (

@@ -1,5 +1,14 @@
 import * as FileSystem from "expo-file-system/legacy";
 
+import {
+  cancelDownload,
+  initializeDownloads,
+  removeDownload,
+  startDownload,
+  useDownloads,
+} from "@/stores/downloads";
+import { loadMedia, usePlayer } from "@/stores/player";
+import { Session } from "@/stores/session";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createDownload as createDownloadFactory,
@@ -8,16 +17,6 @@ import {
 } from "@test/factories";
 import { mockDownloadResumable } from "@test/jest-setup";
 import { resetStoreBeforeEach } from "@test/store-test-utils";
-
-import { loadMedia, usePlayer } from "../player";
-import { Session } from "../session";
-import {
-  cancelDownload,
-  initializeDownloads,
-  removeDownload,
-  startDownload,
-  useDownloads,
-} from "../downloads";
 
 // Mock the player module to avoid pulling in react-native-track-player
 jest.mock("../player", () => ({

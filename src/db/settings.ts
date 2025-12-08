@@ -1,6 +1,7 @@
-import { getDb } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
 import { eq, sql } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
 
 export async function setPreferredPlaybackRate(
   userEmail: string,

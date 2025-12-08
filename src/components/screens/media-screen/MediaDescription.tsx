@@ -1,8 +1,9 @@
-import { Description } from "@/src/components";
-import { MediaHeaderInfo } from "@/src/db/library";
-import { Colors } from "@/src/styles";
-import { formatPublished } from "@/src/utils";
 import { StyleSheet, Text, View } from "react-native";
+
+import { Description } from "@/components";
+import { MediaHeaderInfo } from "@/db/library";
+import { Colors } from "@/styles";
+import { formatPublished } from "@/utils";
 
 type MediaDescriptionProps = {
   media: MediaHeaderInfo;

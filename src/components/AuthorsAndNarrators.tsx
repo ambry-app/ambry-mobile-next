@@ -1,12 +1,14 @@
+import { FlatList, StyleSheet, View } from "react-native";
+
 import {
   HORIZONTAL_TILE_SPACING,
   HORIZONTAL_TILE_WIDTH_RATIO,
-} from "@/src/constants";
-import { MediaAuthorOrNarrator } from "@/src/db/library/shared-queries";
-import { useScreen } from "@/src/stores/screen";
-import { Colors } from "@/src/styles";
-import { requireValue } from "@/src/utils";
-import { FlatList, StyleSheet, View } from "react-native";
+} from "@/constants";
+import { MediaAuthorOrNarrator } from "@/db/library/shared-queries";
+import { useScreen } from "@/stores/screen";
+import { Colors } from "@/styles";
+import { requireValue } from "@/utils";
+
 import { FadeInOnMount } from "./FadeInOnMount";
 import { PersonTile } from "./Tiles";
 

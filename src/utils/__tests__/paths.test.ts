@@ -1,4 +1,4 @@
-import { documentDirectoryFilePath } from "../paths";
+import { documentDirectoryFilePath } from "@/utils/paths";
 
 // Uses global expo-file-system mock from jest-setup.ts
 

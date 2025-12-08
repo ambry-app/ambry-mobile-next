@@ -1,29 +1,59 @@
-const {
-    defineConfig,
-    globalIgnores,
-} = require("eslint/config");
+const { defineConfig, globalIgnores } = require("eslint/config");
 
 const prettier = require("eslint-plugin-prettier");
+const simpleImportSort = require("eslint-plugin-simple-import-sort");
 const js = require("@eslint/js");
 
-const {
-    FlatCompat,
-} = require("@eslint/eslintrc");
+const { FlatCompat } = require("@eslint/eslintrc");
 
 const compat = new FlatCompat({
-    baseDirectory: __dirname,
-    recommendedConfig: js.configs.recommended,
-    allConfig: js.configs.all
+  baseDirectory: __dirname,
+  recommendedConfig: js.configs.recommended,
+  allConfig: js.configs.all,
 });
 
-module.exports = defineConfig([{
+module.exports = defineConfig([
+  {
     extends: compat.extends("expo", "prettier"),
 
     plugins: {
-        prettier,
+      prettier,
+      "simple-import-sort": simpleImportSort,
     },
 
     rules: {
-        "prettier/prettier": "error",
+      "prettier/prettier": "error",
+
+      // Import sorting: auto-fixable, separates external from internal
+      "simple-import-sort/imports": [
+        "error",
+        {
+          groups: [
+            // External packages (react, expo, etc.)
+            ["^react", "^@?\\w"],
+            // Internal aliases (@/, @assets/, @drizzle/, @test/)
+            ["^@/", "^@assets/", "^@drizzle/", "^@test/"],
+            // Relative imports
+            ["^\\."],
+          ],
+        },
+      ],
+      "simple-import-sort/exports": "error",
+
+      // Enforce absolute imports over relative parent imports
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["../*"],
+              message:
+                "Use absolute imports (@/... or @test/...) instead of relative parent imports",
+            },
+          ],
+        },
+      ],
     },
-}, globalIgnores(["**/expo-env.d.ts", "src/graphql/client/*"])]);
+  },
+  globalIgnores(["**/expo-env.d.ts", "src/graphql/client/*"]),
+]);

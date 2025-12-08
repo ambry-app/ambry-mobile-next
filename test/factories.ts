@@ -2,7 +2,8 @@
  * Test factories for creating database entities with sensible defaults.
  * Each factory handles FK dependencies automatically.
  */
-import * as schema from "@/src/db/schema";
+import * as schema from "@/db/schema";
+
 import type { TestDatabase } from "./db-test-utils";
 
 // Default test session for multi-tenant scoping

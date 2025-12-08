@@ -1,24 +1,25 @@
+import { FlatList, StyleSheet, View } from "react-native";
+import { router } from "expo-router";
+
 import {
   FadeInOnMount,
   HeaderButton,
   SeeAllTile,
   SeriesBookTile,
-} from "@/src/components";
+} from "@/components";
 import {
   HORIZONTAL_LIST_LIMIT,
   HORIZONTAL_TILE_SPACING,
   HORIZONTAL_TILE_WIDTH_RATIO,
-} from "@/src/constants";
+} from "@/constants";
 import {
   getSeriesWithBooks,
   MediaHeaderInfo,
   SeriesWithBooks,
-} from "@/src/db/library";
-import { useLibraryData } from "@/src/hooks/use-library-data";
-import { useScreen } from "@/src/stores/screen";
-import { Session } from "@/src/stores/session";
-import { router } from "expo-router";
-import { FlatList, StyleSheet, View } from "react-native";
+} from "@/db/library";
+import { useLibraryData } from "@/hooks/use-library-data";
+import { useScreen } from "@/stores/screen";
+import { Session } from "@/stores/session";
 
 type BooksInSeriesProps = {
   media: MediaHeaderInfo;

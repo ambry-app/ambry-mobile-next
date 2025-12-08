@@ -1,9 +1,10 @@
-import { Colors } from "@/src/styles";
-import { documentDirectoryFilePath } from "@/src/utils";
-import * as FileSystem from "expo-file-system";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text } from "react-native";
-import { FadeInOnMount } from "../../FadeInOnMount";
+import * as FileSystem from "expo-file-system";
+
+import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { Colors } from "@/styles";
+import { documentDirectoryFilePath } from "@/utils";
 
 type FileSizeProps = {
   filePath: string;

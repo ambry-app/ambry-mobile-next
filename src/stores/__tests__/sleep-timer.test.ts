@@ -1,21 +1,20 @@
-import { setupTestDatabase } from "@test/db-test-utils";
-import { createLocalUserSettings, DEFAULT_TEST_SESSION } from "@test/factories";
-import { resetStoreBeforeEach } from "@test/store-test-utils";
-
 import {
   defaultSleepTimer,
   defaultSleepTimerEnabled,
   localUserSettings,
-} from "@/src/db/schema";
-import { EventBus } from "@/src/utils";
-import { Session } from "../session";
+} from "@/db/schema";
+import { Session } from "@/stores/session";
 import {
   initializeSleepTimer,
   setSleepTimer,
   setSleepTimerState,
   setTriggerTime,
   useSleepTimer,
-} from "../sleep-timer";
+} from "@/stores/sleep-timer";
+import { EventBus } from "@/utils";
+import { setupTestDatabase } from "@test/db-test-utils";
+import { createLocalUserSettings, DEFAULT_TEST_SESSION } from "@test/factories";
+import { resetStoreBeforeEach } from "@test/store-test-utils";
 
 describe("sleep-timer store", () => {
   const { getDb } = setupTestDatabase();

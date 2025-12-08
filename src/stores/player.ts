@@ -1,21 +1,3 @@
-import {
-  SEEK_ACCUMULATION_WINDOW,
-  SEEK_EVENT_ACCUMULATION_WINDOW,
-} from "@/src/constants";
-import {
-  ActivePlaythrough,
-  createPlaythrough,
-  getActivePlaythrough,
-  getFinishedOrAbandonedPlaythrough,
-  getMostRecentInProgressPlaythrough,
-  resumePlaythrough,
-} from "@/src/db/playthroughs";
-import * as schema from "@/src/db/schema";
-import {
-  initializePlaythroughTracking,
-  recordStartEvent,
-} from "@/src/services/event-recording-service";
-import { EventBus, documentDirectoryFilePath } from "@/src/utils";
 import { useEffect } from "react";
 import { AppStateStatus, EmitterSubscription, Platform } from "react-native";
 import TrackPlayer, {
@@ -29,6 +11,26 @@ import TrackPlayer, {
   TrackType,
 } from "react-native-track-player";
 import { create } from "zustand";
+
+import {
+  SEEK_ACCUMULATION_WINDOW,
+  SEEK_EVENT_ACCUMULATION_WINDOW,
+} from "@/constants";
+import {
+  ActivePlaythrough,
+  createPlaythrough,
+  getActivePlaythrough,
+  getFinishedOrAbandonedPlaythrough,
+  getMostRecentInProgressPlaythrough,
+  resumePlaythrough,
+} from "@/db/playthroughs";
+import * as schema from "@/db/schema";
+import {
+  initializePlaythroughTracking,
+  recordStartEvent,
+} from "@/services/event-recording-service";
+import { documentDirectoryFilePath, EventBus } from "@/utils";
+
 import { Session, useSession } from "./session";
 
 export const SeekSource = {

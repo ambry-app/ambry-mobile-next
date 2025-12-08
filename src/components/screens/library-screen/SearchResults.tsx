@@ -1,10 +1,11 @@
-import { FadeInOnMount, MediaTile } from "@/src/components";
-import { PAGE_SIZE } from "@/src/constants";
-import { getSearchedMedia } from "@/src/db/library";
-import { useLibraryData } from "@/src/hooks/use-library-data";
-import { Session } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
 import { FlatList, StyleSheet, Text } from "react-native";
+
+import { FadeInOnMount, MediaTile } from "@/components";
+import { PAGE_SIZE } from "@/constants";
+import { getSearchedMedia } from "@/db/library";
+import { useLibraryData } from "@/hooks/use-library-data";
+import { Session } from "@/stores/session";
+import { Colors } from "@/styles";
 
 type SearchResultsProps = {
   session: Session;

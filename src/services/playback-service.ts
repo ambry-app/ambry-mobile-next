@@ -1,9 +1,10 @@
-import * as EventRecording from "@/src/services/event-recording-service";
-import * as ProgressSave from "@/src/services/progress-save-service";
-import * as SleepTimer from "@/src/services/sleep-timer-service";
-import { EventBus } from "@/src/utils";
-import { seek, seekImmediateNoLog } from "@/src/utils/seek";
 import TrackPlayer, { Event } from "react-native-track-player";
+
+import * as EventRecording from "@/services/event-recording-service";
+import * as ProgressSave from "@/services/progress-save-service";
+import * as SleepTimer from "@/services/sleep-timer-service";
+import { EventBus } from "@/utils";
+import { seek, seekImmediateNoLog } from "@/utils/seek";
 
 export const PlaybackService = async function () {
   console.debug("[TrackPlayer Service] Initializing");

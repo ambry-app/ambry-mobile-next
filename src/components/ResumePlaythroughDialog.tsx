@@ -1,15 +1,16 @@
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import {
   cancelResumePrompt,
   handleResumePlaythrough,
   handleStartFresh,
   PendingResumePrompt,
   usePlayer,
-} from "@/src/stores/player";
-import { Session } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
-import { secondsDisplay } from "@/src/utils";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+} from "@/stores/player";
+import { Session } from "@/stores/session";
+import { Colors } from "@/styles";
+import { secondsDisplay } from "@/utils";
 
 type ResumePlaythroughDialogProps = {
   session: Session;

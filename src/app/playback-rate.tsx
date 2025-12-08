@@ -1,13 +1,14 @@
-import { Button, IconButton } from "@/src/components";
-import { setPlaybackRate, usePlayer } from "@/src/stores/player";
-import { useSession } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
-import { formatPlaybackRate, secondsDisplay } from "@/src/utils";
-import Slider from "@react-native-community/slider";
 import { useCallback, useEffect, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Slider from "@react-native-community/slider";
 import { useShallow } from "zustand/shallow";
+
+import { Button, IconButton } from "@/components";
+import { setPlaybackRate, usePlayer } from "@/stores/player";
+import { useSession } from "@/stores/session";
+import { Colors } from "@/styles";
+import { formatPlaybackRate, secondsDisplay } from "@/utils";
 
 export default function PlaybackRateRoute() {
   const { bottom } = useSafeAreaInsets();

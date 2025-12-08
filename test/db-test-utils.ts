@@ -3,11 +3,13 @@
  * Uses better-sqlite3 (Node.js) instead of expo-sqlite (React Native).
  */
 import Database from "better-sqlite3";
-import { drizzle, BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import { BetterSQLite3Database, drizzle } from "drizzle-orm/better-sqlite3";
 import * as fs from "fs";
 import * as path from "path";
-import * as schema from "@/src/db/schema";
-import { setTestDb, clearTestDb } from "./jest-setup";
+
+import * as schema from "@/db/schema";
+
+import { clearTestDb, setTestDb } from "./jest-setup";
 
 const MIGRATIONS_DIR = path.join(__dirname, "../drizzle");
 
