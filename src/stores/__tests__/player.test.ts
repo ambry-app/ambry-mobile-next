@@ -7,6 +7,7 @@
 
 import { stopMonitoring } from "@/services/event-recording-service";
 import { initialDeviceState, useDevice } from "@/stores/device";
+import * as schema from "@/db/schema";
 import {
   cancelResumePrompt,
   expandPlayer,
@@ -18,7 +19,11 @@ import {
   play,
   prepareToLoadMedia,
   SeekSource,
+  seekRelative,
+  seekTo,
   setPlaybackRate,
+  skipToBeginningOfChapter,
+  skipToEndOfChapter,
   tryUnloadPlayer,
   usePlayer,
 } from "@/stores/player";
@@ -234,6 +239,330 @@ describe("player store", () => {
           previousRate: 1.0,
           newRate: 1.5,
           position: 100, // from mockTrackPlayerGetProgress
+        });
+      });
+    });
+  });
+
+  // ===========================================================================
+  // Seeking
+  // ===========================================================================
+
+  describe("seeking", () => {
+    beforeEach(() => {
+      // Set up player state for seeking tests
+      // Note: The seek function gets position from TrackPlayer.getProgress(),
+      // but duration from store state
+      usePlayer.setState({
+        duration: 3600,
+        playbackRate: 1.0,
+      });
+      // TrackPlayer mock already returns position: 100, duration: 3600
+    });
+
+    describe("seekTo()", () => {
+      it("seeks to absolute position after debounce delay", async () => {
+        seekTo(500, SeekSource.SCRUBBER);
+        await Promise.resolve(); // Let async seek() initialize
+
+        // Should not seek immediately
+        expect(mockTrackPlayerSeekTo).not.toHaveBeenCalled();
+
+        // Advance past the debounce window (500ms)
+        await jest.advanceTimersByTimeAsync(500);
+
+        expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(500);
+      });
+
+      it("updates store state during seeking", async () => {
+        seekTo(500, SeekSource.SCRUBBER);
+        await Promise.resolve(); // Let async seek() initialize
+
+        const state = usePlayer.getState();
+        expect(state.userIsSeeking).toBe(true);
+        expect(state.seekPosition).toBe(500);
+
+        // Complete the seek to avoid state errors in afterEach
+        await jest.advanceTimersByTimeAsync(5000);
+      });
+
+      it("emits seekApplied event with correct source", async () => {
+        seekTo(500, SeekSource.SCRUBBER);
+        await Promise.resolve();
+
+        await jest.advanceTimersByTimeAsync(500);
+
+        expect(eventBusSpy).toHaveBeenCalledWith("seekApplied", {
+          position: 500,
+          duration: 3600,
+          userInitiated: true,
+          source: SeekSource.SCRUBBER,
+        });
+      });
+
+      it("emits seekCompleted event after long delay", async () => {
+        seekTo(500, SeekSource.SCRUBBER);
+        await Promise.resolve();
+
+        // Short timer fires first
+        await jest.advanceTimersByTimeAsync(500);
+
+        // Long timer fires (5000ms total)
+        await jest.advanceTimersByTimeAsync(4500);
+
+        expect(eventBusSpy).toHaveBeenCalledWith("seekCompleted", {
+          fromPosition: 100,
+          toPosition: 500,
+        });
+      });
+
+      it("clamps position to duration bounds", async () => {
+        seekTo(5000, SeekSource.SCRUBBER); // Beyond duration
+        await Promise.resolve();
+
+        await jest.advanceTimersByTimeAsync(500);
+
+        expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(3600); // Clamped to duration
+      });
+
+      it("clamps position to zero", async () => {
+        seekTo(-100, SeekSource.SCRUBBER); // Negative
+        await Promise.resolve();
+
+        await jest.advanceTimersByTimeAsync(500);
+
+        expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(0);
+      });
+    });
+
+    describe("seekRelative()", () => {
+      it("seeks relative to current position", async () => {
+        seekRelative(30, SeekSource.BUTTON); // +30 seconds
+        await Promise.resolve();
+
+        await jest.advanceTimersByTimeAsync(500);
+
+        expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(130); // 100 + 30
+      });
+
+      it("seeks backward with negative amount", async () => {
+        seekRelative(-30, SeekSource.BUTTON); // -30 seconds
+        await Promise.resolve();
+
+        await jest.advanceTimersByTimeAsync(500);
+
+        expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(70); // 100 - 30
+      });
+
+      it("accumulates multiple rapid seeks", async () => {
+        seekRelative(10, SeekSource.BUTTON);
+        await Promise.resolve();
+        seekRelative(10, SeekSource.BUTTON);
+        await Promise.resolve();
+        seekRelative(10, SeekSource.BUTTON);
+        await Promise.resolve();
+
+        await jest.advanceTimersByTimeAsync(500);
+
+        // Should only call seekTo once with accumulated value
+        expect(mockTrackPlayerSeekTo).toHaveBeenCalledTimes(1);
+        expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(130); // 100 + 30
+      });
+
+      it("respects playback rate when calculating position", async () => {
+        usePlayer.setState({ playbackRate: 1.5 });
+
+        seekRelative(10, SeekSource.BUTTON);
+        await Promise.resolve();
+
+        await jest.advanceTimersByTimeAsync(500);
+
+        // Position change = interval * rate = 10 * 1.5 = 15
+        expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(115); // 100 + 15
+      });
+
+      it("emits seekApplied event with button source", async () => {
+        seekRelative(30, SeekSource.BUTTON);
+        await Promise.resolve();
+
+        await jest.advanceTimersByTimeAsync(500);
+
+        expect(eventBusSpy).toHaveBeenCalledWith("seekApplied", {
+          position: 130,
+          duration: 3600,
+          userInitiated: true,
+          source: SeekSource.BUTTON,
+        });
+      });
+    });
+
+    describe("skipToEndOfChapter()", () => {
+      const chapters: schema.Chapter[] = [
+        { id: "ch1", title: "Chapter 1", startTime: 0, endTime: 600 },
+        { id: "ch2", title: "Chapter 2", startTime: 600, endTime: 1200 },
+        { id: "ch3", title: "Chapter 3", startTime: 1200, endTime: 1800 },
+      ];
+
+      it("seeks to end of current chapter", async () => {
+        usePlayer.setState({
+          duration: 3600,
+          chapters,
+          currentChapter: chapters[0],
+        });
+
+        skipToEndOfChapter();
+        await Promise.resolve();
+
+        await jest.advanceTimersByTimeAsync(500);
+
+        expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(600); // End of chapter 1
+      });
+
+      it("does nothing if no current chapter", async () => {
+        usePlayer.setState({
+          chapters: [],
+          currentChapter: undefined,
+        });
+
+        skipToEndOfChapter();
+        await Promise.resolve();
+
+        await jest.advanceTimersByTimeAsync(500);
+
+        expect(mockTrackPlayerSeekTo).not.toHaveBeenCalled();
+      });
+
+      it("uses duration if chapter has no endTime", async () => {
+        const chaptersNoEnd: schema.Chapter[] = [
+          { id: "ch1", title: "Chapter 1", startTime: 0 }, // No endTime
+        ];
+
+        usePlayer.setState({
+          duration: 3600,
+          chapters: chaptersNoEnd,
+          currentChapter: chaptersNoEnd[0],
+        });
+
+        skipToEndOfChapter();
+        await Promise.resolve();
+
+        await jest.advanceTimersByTimeAsync(500);
+
+        expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(3600); // Uses duration
+      });
+
+      it("emits seekApplied with CHAPTER source", async () => {
+        usePlayer.setState({
+          duration: 3600,
+          chapters,
+          currentChapter: chapters[0],
+        });
+
+        skipToEndOfChapter();
+        await Promise.resolve();
+
+        await jest.advanceTimersByTimeAsync(500);
+
+        expect(eventBusSpy).toHaveBeenCalledWith("seekApplied", {
+          position: 600,
+          duration: 3600,
+          userInitiated: true,
+          source: SeekSource.CHAPTER,
+        });
+      });
+    });
+
+    describe("skipToBeginningOfChapter()", () => {
+      const chapters: schema.Chapter[] = [
+        { id: "ch1", title: "Chapter 1", startTime: 0, endTime: 600 },
+        { id: "ch2", title: "Chapter 2", startTime: 600, endTime: 1200 },
+        { id: "ch3", title: "Chapter 3", startTime: 1200, endTime: 1800 },
+      ];
+
+      it("seeks to beginning of current chapter", async () => {
+        // Mock position at 700 (in chapter 2)
+        mockTrackPlayerGetProgress.mockResolvedValue({
+          position: 700,
+          duration: 3600,
+        });
+
+        usePlayer.setState({
+          position: 700,
+          duration: 3600,
+          chapters,
+          currentChapter: chapters[1],
+          previousChapterStartTime: 0,
+        });
+
+        skipToBeginningOfChapter();
+        await Promise.resolve();
+
+        await jest.advanceTimersByTimeAsync(500);
+
+        expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(600); // Start of chapter 2
+      });
+
+      it("seeks to previous chapter if already at start", async () => {
+        // Mock position exactly at chapter 2 start
+        mockTrackPlayerGetProgress.mockResolvedValue({
+          position: 600,
+          duration: 3600,
+        });
+
+        usePlayer.setState({
+          position: 600, // Exactly at start of chapter 2
+          duration: 3600,
+          chapters,
+          currentChapter: chapters[1],
+          previousChapterStartTime: 0, // Chapter 1 starts at 0
+        });
+
+        skipToBeginningOfChapter();
+        await Promise.resolve();
+
+        await jest.advanceTimersByTimeAsync(500);
+
+        expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(0); // Start of chapter 1
+      });
+
+      it("does nothing if no current chapter", async () => {
+        usePlayer.setState({
+          chapters: [],
+          currentChapter: undefined,
+        });
+
+        skipToBeginningOfChapter();
+        await Promise.resolve();
+
+        await jest.advanceTimersByTimeAsync(500);
+
+        expect(mockTrackPlayerSeekTo).not.toHaveBeenCalled();
+      });
+
+      it("emits seekApplied with CHAPTER source", async () => {
+        mockTrackPlayerGetProgress.mockResolvedValue({
+          position: 700,
+          duration: 3600,
+        });
+
+        usePlayer.setState({
+          position: 700,
+          duration: 3600,
+          chapters,
+          currentChapter: chapters[1],
+          previousChapterStartTime: 0,
+        });
+
+        skipToBeginningOfChapter();
+        await Promise.resolve();
+
+        await jest.advanceTimersByTimeAsync(500);
+
+        expect(eventBusSpy).toHaveBeenCalledWith("seekApplied", {
+          position: 600,
+          duration: 3600,
+          userInitiated: true,
+          source: SeekSource.CHAPTER,
         });
       });
     });
