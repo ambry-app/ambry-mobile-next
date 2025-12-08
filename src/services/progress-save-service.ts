@@ -117,3 +117,18 @@ async function checkAndSave() {
 export async function saveNow() {
   await checkAndSave();
 }
+
+/**
+ * Reset service state for testing.
+ * Clears intervals, removes event listeners, and resets initialization flag.
+ */
+export function __resetForTesting() {
+  if (progressSaveInterval) {
+    clearInterval(progressSaveInterval);
+    progressSaveInterval = null;
+  }
+  isInitialized = false;
+  EventBus.removeAllListeners("playbackStarted");
+  EventBus.removeAllListeners("playbackPaused");
+  EventBus.removeAllListeners("playbackQueueEnded");
+}

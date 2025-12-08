@@ -338,13 +338,27 @@ Keep all timing/interval constants here for easy adjustment.
 
 **Framework**: Jest with `jest-expo` preset.
 
-### Testing Philosophy
+### Testing Philosophy: Detroit-Style (Classical) Testing
 
-**Minimize mocking** - only mock external dependencies that are outside our control:
-- **DO mock**: Native modules (expo-secure-store, expo-file-system, expo-device), external APIs (GraphQL fetch calls)
-- **DO NOT mock**: Our own code (stores, database modules, utilities) - test the real implementations
+We follow **Detroit-style testing** (also called "Classical" or "Sociable" testing), as opposed to London-style (Mockist/Solitary) testing:
 
-This approach catches real integration issues and gives confidence that components work together correctly. When testing a module that depends on another module we control (e.g., sync.ts depends on session.ts), use the real implementation rather than mocking it.
+| Approach | Philosophy | Mocking Strategy |
+|----------|------------|------------------|
+| **Detroit (Classical)** ✓ | Test behavior through real collaborators | Only mock at system boundaries |
+| **London (Mockist)** | Isolate units completely | Mock all dependencies |
+
+**Our approach**: Use real implementations of our own code. Only mock external dependencies that are truly outside our control:
+
+- **DO mock**: Native modules (expo-secure-store, expo-file-system, expo-device), GraphQL network layer (`fetch`)
+- **DO NOT mock**: Our own code (stores, database modules, utilities, GraphQL API functions)
+
+**Why Detroit-style?**
+- Catches real integration issues between modules
+- Tests actual behavior, not implementation details
+- Refactoring internals doesn't break tests
+- Higher confidence that the system works as a whole
+
+**Example**: When testing `sync.ts`, we use the real session store, real database modules, and real GraphQL API functions. We only mock the `fetch` call that actually hits the network. This tests the entire sync flow, not just that `sync.ts` calls the right functions with the right arguments.
 
 ### Running Tests
 ```bash
@@ -422,10 +436,9 @@ describe("my store", () => {
 
 ### What to Test
 - **Database modules**: Query logic, multi-tenant isolation, CRUD operations
+- **GraphQL interactions**: API functions, sync logic, error handling (mock only `fetch`)
 - **Pure functions**: Data transformation, formatting utilities, business logic helpers
 - **Stores**: State transitions, initialization logic
-
-Functions requiring extensive mocking of external services (GraphQL API calls, file system operations) may not be worth the overhead for unit tests.
 
 ## Debugging
 
