@@ -169,6 +169,49 @@ jest.mock("expo-file-system/legacy", () => ({
 export { mockDownloadResumable };
 
 // =============================================================================
+// Expo Background Task / Task Manager Mocks
+// =============================================================================
+
+// Store the defined task callback so tests can invoke it
+let definedTaskCallback: (() => Promise<unknown>) | null = null;
+
+export const mockIsTaskRegisteredAsync = jest.fn();
+export const mockRegisterTaskAsync = jest.fn();
+export const mockUnregisterTaskAsync = jest.fn();
+
+jest.mock("expo-task-manager", () => ({
+  defineTask: (_name: string, callback: () => Promise<unknown>) => {
+    definedTaskCallback = callback;
+  },
+  isTaskRegisteredAsync: (name: string) => mockIsTaskRegisteredAsync(name),
+}));
+
+jest.mock("expo-background-task", () => ({
+  registerTaskAsync: (name: string, options: unknown) =>
+    mockRegisterTaskAsync(name, options),
+  unregisterTaskAsync: (name: string) => mockUnregisterTaskAsync(name),
+  BackgroundTaskResult: {
+    Success: "success",
+    Failed: "failed",
+  },
+}));
+
+/**
+ * Get the task callback defined via TaskManager.defineTask.
+ * Use this to manually invoke the background task in tests.
+ */
+export function getDefinedTaskCallback() {
+  return definedTaskCallback;
+}
+
+/**
+ * Reset the defined task callback. Call in afterEach.
+ */
+export function clearDefinedTaskCallback() {
+  definedTaskCallback = null;
+}
+
+// =============================================================================
 // Expo SecureStore Mock
 // =============================================================================
 
@@ -245,6 +288,9 @@ export function clearTestDb(): void {
   mockTestDb = null;
 }
 
+// Mock for getExpoDb().execSync() used in background sync
+export const mockExpoDbExecSync = jest.fn();
+
 // Mock the db module to use our test database
 jest.mock("@/db/db", () => ({
   getDb: () => {
@@ -255,6 +301,9 @@ jest.mock("@/db/db", () => ({
     }
     return mockTestDb;
   },
+  getExpoDb: () => ({
+    execSync: mockExpoDbExecSync,
+  }),
   Database: {},
 }));
 

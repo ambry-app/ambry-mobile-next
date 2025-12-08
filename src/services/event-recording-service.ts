@@ -482,3 +482,15 @@ async function recordRateChangeEvent(
     newRate,
   );
 }
+
+/**
+ * Reset service state for testing.
+ * Clears all module state and removes event listeners.
+ */
+export function __resetForTesting() {
+  stopMonitoring();
+  currentMediaId = null;
+  currentPlaythroughId = null;
+  currentPlaybackRate = 1;
+  isInitialized = false;
+}
