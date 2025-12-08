@@ -33,6 +33,7 @@ import { EventBus } from "@/utils/event-bus";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createBookAuthor,
+  createDownload,
   createMedia,
   createPlaythrough,
   createPlaythroughStateCache,
@@ -848,6 +849,61 @@ describe("player store", () => {
         expect(state.mediaId).toBe("media-1");
         expect(state.streaming).toBe(true); // No download, so streaming
         expect(state.loadingNewMedia).toBe(false);
+      });
+
+      it("loads downloaded media from local file", async () => {
+        const db = getDb();
+
+        // Set up media with a download
+        const media = await createMedia(db, {
+          id: "media-downloaded",
+          duration: "3600",
+          hlsPath: "/hls/media-downloaded",
+          mpdPath: "/mpd/media-downloaded",
+        });
+        await createBookAuthor(db, { bookId: media.bookId });
+
+        // Create a completed download
+        await createDownload(db, {
+          mediaId: "media-downloaded",
+          status: "ready",
+          filePath: "/downloads/media-downloaded.mp4",
+          thumbnails: {
+            thumbhash: "abc",
+            extraSmall: "/thumbs/extraSmall.webp",
+            small: "/thumbs/small.webp",
+            medium: "/thumbs/medium.webp",
+            large: "/thumbs/large.webp",
+            extraLarge: "/thumbs/extraLarge.webp",
+          },
+        });
+
+        // Initialize device
+        useDevice.setState({
+          initialized: true,
+          deviceInfo: {
+            id: "device-1",
+            type: "ios",
+            brand: "Apple",
+            modelName: "iPhone",
+            osName: "iOS",
+            osVersion: "17.0",
+          },
+        });
+
+        await loadMedia(DEFAULT_TEST_SESSION, "media-downloaded");
+
+        const state = usePlayer.getState();
+        expect(state.mediaId).toBe("media-downloaded");
+        expect(state.streaming).toBe(false); // Downloaded, not streaming
+
+        // Verify TrackPlayer.add was called with local file path
+        expect(mockTrackPlayerAdd).toHaveBeenCalledWith(
+          expect.objectContaining({
+            url: expect.stringContaining("/downloads/media-downloaded.mp4"),
+            description: "media-downloaded",
+          }),
+        );
       });
 
       it("resumes active in_progress playthrough", async () => {
