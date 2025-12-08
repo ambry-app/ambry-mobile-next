@@ -21,6 +21,8 @@ export const mockGetLibraryChangesSince = jest.fn();
 export const mockGetUserChangesSince = jest.fn();
 export const mockUpdatePlayerState = jest.fn();
 export const mockSyncProgress = jest.fn();
+export const mockCreateSession = jest.fn();
+export const mockDeleteSession = jest.fn();
 
 jest.mock("@/graphql/api", () => ({
   getLibraryChangesSince: (...args: unknown[]) =>
@@ -28,7 +30,12 @@ jest.mock("@/graphql/api", () => ({
   getUserChangesSince: (...args: unknown[]) => mockGetUserChangesSince(...args),
   updatePlayerState: (...args: unknown[]) => mockUpdatePlayerState(...args),
   syncProgress: (...args: unknown[]) => mockSyncProgress(...args),
+  createSession: (...args: unknown[]) => mockCreateSession(...args),
+  deleteSession: (...args: unknown[]) => mockDeleteSession(...args),
   // Re-export enums that are imported from api.ts
+  CreateSessionErrorCode: {
+    INVALID_CREDENTIALS: "CreateSessionErrorCodeInvalidCredentials",
+  },
   DeviceType: {
     Android: "ANDROID",
     Ios: "IOS",
@@ -48,16 +55,6 @@ jest.mock("@/graphql/api", () => ({
     Finished: "FINISHED",
     InProgress: "IN_PROGRESS",
   },
-}));
-
-// =============================================================================
-// Session Store Mock (for forceSignOut)
-// =============================================================================
-
-export const mockForceSignOut = jest.fn();
-
-jest.mock("@/stores/session", () => ({
-  forceSignOut: () => mockForceSignOut(),
 }));
 
 // =============================================================================
@@ -87,6 +84,12 @@ export { mockDownloadResumable };
 const mockSecureStoreData: Record<string, string> = {};
 
 jest.mock("expo-secure-store", () => ({
+  // Sync versions (used by zustand persist)
+  getItem: jest.fn((key: string) => mockSecureStoreData[key] ?? null),
+  setItem: jest.fn((key: string, value: string) => {
+    mockSecureStoreData[key] = value;
+  }),
+  // Async versions
   getItemAsync: jest.fn((key: string) =>
     Promise.resolve(mockSecureStoreData[key] ?? null),
   ),

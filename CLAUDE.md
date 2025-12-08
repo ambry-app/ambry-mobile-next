@@ -339,6 +339,14 @@ Keep all timing/interval constants here for easy adjustment.
 
 **Framework**: Jest with `jest-expo` preset.
 
+### Testing Philosophy
+
+**Minimize mocking** - only mock external dependencies that are outside our control:
+- **DO mock**: Native modules (expo-secure-store, expo-file-system, expo-device), external APIs (GraphQL fetch calls)
+- **DO NOT mock**: Our own code (stores, database modules, utilities) - test the real implementations
+
+This approach catches real integration issues and gives confidence that components work together correctly. When testing a module that depends on another module we control (e.g., sync.ts depends on session.ts), use the real implementation rather than mocking it.
+
 ### Running Tests
 ```bash
 npm test            # Watch mode (interactive development)

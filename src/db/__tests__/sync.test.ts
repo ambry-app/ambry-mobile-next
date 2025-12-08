@@ -10,10 +10,10 @@ import {
 import { ExecuteAuthenticatedErrorCode } from "@/graphql/client/execute";
 import { initialDataVersionState, useDataVersion } from "@/stores/data-version";
 import { initialDeviceState, useDevice } from "@/stores/device";
+import { useSession } from "@/stores/session";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { DEFAULT_TEST_SESSION } from "@test/factories";
 import {
-  mockForceSignOut,
   mockGetLibraryChangesSince,
   mockGetUserChangesSince,
   mockSyncProgress,
@@ -48,9 +48,13 @@ const { getDb } = setupTestDatabase();
 
 const session = DEFAULT_TEST_SESSION;
 
+// Initial state for session store - set to our test session so sync functions work
+const initialSessionState = { session };
+
 // Reset stores between tests
 resetStoreBeforeEach(useDataVersion, initialDataVersionState);
 resetStoreBeforeEach(useDevice, initialDeviceState);
+resetStoreBeforeEach(useSession, initialSessionState);
 
 // Reset all mocks before each test
 beforeEach(() => {
@@ -58,7 +62,6 @@ beforeEach(() => {
   mockGetUserChangesSince.mockReset();
   mockUpdatePlayerState.mockReset();
   mockSyncProgress.mockReset();
-  mockForceSignOut.mockReset();
   resetSyncFixtureIdCounter();
 });
 
@@ -730,7 +733,8 @@ describe("syncDownLibrary", () => {
 
       await syncDownLibrary(session);
 
-      expect(mockForceSignOut).toHaveBeenCalled();
+      // Session should be cleared (signed out)
+      expect(useSession.getState().session).toBeNull();
     });
 
     it("does not update DB on unauthorized error", async () => {
@@ -1114,7 +1118,8 @@ describe("syncDownUser", () => {
 
       await syncDownUser(session);
 
-      expect(mockForceSignOut).toHaveBeenCalled();
+      // Session should be cleared (signed out)
+      expect(useSession.getState().session).toBeNull();
     });
 
     it("does not update DB on unauthorized error", async () => {
@@ -1509,7 +1514,8 @@ describe("syncUp", () => {
 
       await syncUp(session);
 
-      expect(mockForceSignOut).toHaveBeenCalled();
+      // Session should be cleared (signed out)
+      expect(useSession.getState().session).toBeNull();
     });
 
     it("does not update lastUpSync on error", async () => {
@@ -2019,7 +2025,8 @@ describe("syncPlaythroughs", () => {
 
       await syncPlaythroughs(session);
 
-      expect(mockForceSignOut).toHaveBeenCalled();
+      // Session should be cleared (signed out)
+      expect(useSession.getState().session).toBeNull();
     });
   });
 });
