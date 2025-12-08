@@ -2,10 +2,13 @@
  * Tests for getAuthorHeaderInfo query function.
  */
 
+import { getAuthorHeaderInfo } from "@/db/library/get-author-header-info";
 import { setupTestDatabase } from "@test/db-test-utils";
-import { createAuthor, createPerson, DEFAULT_TEST_SESSION } from "@test/factories";
-
-import { getAuthorHeaderInfo } from "../get-author-header-info";
+import {
+  createAuthor,
+  createPerson,
+  DEFAULT_TEST_SESSION,
+} from "@test/factories";
 
 const { getDb } = setupTestDatabase();
 

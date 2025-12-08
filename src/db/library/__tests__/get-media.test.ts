@@ -2,6 +2,7 @@
  * Tests for getMedia query function.
  */
 
+import { getMedia } from "@/db/library/get-media";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createBook,
@@ -11,8 +12,6 @@ import {
   createMediaNarrator,
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
-
-import { getMedia } from "../get-media";
 
 const { getDb } = setupTestDatabase();
 
@@ -40,8 +39,14 @@ describe("getMedia", () => {
     const db = getDb();
 
     const media = await createMedia(db);
-    await createBookAuthor(db, { bookId: media.bookId, author: { name: "Jane Austen" } });
-    await createBookAuthor(db, { bookId: media.bookId, author: { name: "Editor Smith" } });
+    await createBookAuthor(db, {
+      bookId: media.bookId,
+      author: { name: "Jane Austen" },
+    });
+    await createBookAuthor(db, {
+      bookId: media.bookId,
+      author: { name: "Editor Smith" },
+    });
 
     const result = await getMedia(DEFAULT_TEST_SESSION, media.id);
 
@@ -54,8 +59,14 @@ describe("getMedia", () => {
     const db = getDb();
 
     const media = await createMedia(db);
-    await createMediaNarrator(db, { mediaId: media.id, narrator: { name: "Stephen Fry" } });
-    await createMediaNarrator(db, { mediaId: media.id, narrator: { name: "Emily Watson" } });
+    await createMediaNarrator(db, {
+      mediaId: media.id,
+      narrator: { name: "Stephen Fry" },
+    });
+    await createMediaNarrator(db, {
+      mediaId: media.id,
+      narrator: { name: "Emily Watson" },
+    });
 
     const result = await getMedia(DEFAULT_TEST_SESSION, media.id);
 

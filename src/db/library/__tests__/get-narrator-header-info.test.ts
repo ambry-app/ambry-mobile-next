@@ -2,14 +2,13 @@
  * Tests for getNarratorHeaderInfo query function.
  */
 
+import { getNarratorHeaderInfo } from "@/db/library/get-narrator-header-info";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createNarrator,
   createPerson,
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
-
-import { getNarratorHeaderInfo } from "../get-narrator-header-info";
 
 const { getDb } = setupTestDatabase();
 

@@ -2,6 +2,7 @@
  * Tests for getPersonHeaderInfo query function.
  */
 
+import { getPersonHeaderInfo } from "@/db/library/get-person-header-info";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createAuthor,
@@ -9,8 +10,6 @@ import {
   createPerson,
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
-
-import { getPersonHeaderInfo } from "../get-person-header-info";
 
 const { getDb } = setupTestDatabase();
 

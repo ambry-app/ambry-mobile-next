@@ -233,8 +233,14 @@ describe("getAuthorsForBooks", () => {
     const db = getDb();
 
     const book = await createBook(db);
-    await createBookAuthor(db, { bookId: book.id, author: { name: "Author One" } });
-    await createBookAuthor(db, { bookId: book.id, author: { name: "Author Two" } });
+    await createBookAuthor(db, {
+      bookId: book.id,
+      author: { name: "Author One" },
+    });
+    await createBookAuthor(db, {
+      bookId: book.id,
+      author: { name: "Author Two" },
+    });
 
     const result = await getAuthorsForBooks(DEFAULT_TEST_SESSION, [book.id]);
 
@@ -248,10 +254,19 @@ describe("getAuthorsForBooks", () => {
 
     const book1 = await createBook(db, { title: "Book 1" });
     const book2 = await createBook(db, { title: "Book 2" });
-    await createBookAuthor(db, { bookId: book1.id, author: { name: "Author A" } });
-    await createBookAuthor(db, { bookId: book2.id, author: { name: "Author B" } });
+    await createBookAuthor(db, {
+      bookId: book1.id,
+      author: { name: "Author A" },
+    });
+    await createBookAuthor(db, {
+      bookId: book2.id,
+      author: { name: "Author B" },
+    });
 
-    const result = await getAuthorsForBooks(DEFAULT_TEST_SESSION, [book1.id, book2.id]);
+    const result = await getAuthorsForBooks(DEFAULT_TEST_SESSION, [
+      book1.id,
+      book2.id,
+    ]);
 
     expect(result[book1.id]).toHaveLength(1);
     expect(result[book1.id]?.[0]?.name).toBe("Author A");
@@ -329,7 +344,9 @@ describe("getMediaForBooks", () => {
 
     const result = await getMediaForBooks(DEFAULT_TEST_SESSION, [book.id]);
 
-    expect(result[book.id]?.[0]?.download?.thumbnails?.thumbhash).toBe("downloadhash");
+    expect(result[book.id]?.[0]?.download?.thumbnails?.thumbhash).toBe(
+      "downloadhash",
+    );
   });
 
   it("returns media for multiple books", async () => {
@@ -340,7 +357,10 @@ describe("getMediaForBooks", () => {
     const media1 = await createMedia(db, { bookId: book1.id });
     const media2 = await createMedia(db, { bookId: book2.id });
 
-    const result = await getMediaForBooks(DEFAULT_TEST_SESSION, [book1.id, book2.id]);
+    const result = await getMediaForBooks(DEFAULT_TEST_SESSION, [
+      book1.id,
+      book2.id,
+    ]);
 
     expect(result[book1.id]?.[0]?.id).toBe(media1.id);
     expect(result[book2.id]?.[0]?.id).toBe(media2.id);
@@ -372,8 +392,14 @@ describe("getNarratorsForMedia", () => {
     const db = getDb();
 
     const media = await createMedia(db);
-    await createMediaNarrator(db, { mediaId: media.id, narrator: { name: "Narrator One" } });
-    await createMediaNarrator(db, { mediaId: media.id, narrator: { name: "Narrator Two" } });
+    await createMediaNarrator(db, {
+      mediaId: media.id,
+      narrator: { name: "Narrator One" },
+    });
+    await createMediaNarrator(db, {
+      mediaId: media.id,
+      narrator: { name: "Narrator Two" },
+    });
 
     const result = await getNarratorsForMedia(DEFAULT_TEST_SESSION, [media.id]);
 
@@ -387,10 +413,19 @@ describe("getNarratorsForMedia", () => {
 
     const media1 = await createMedia(db);
     const media2 = await createMedia(db);
-    await createMediaNarrator(db, { mediaId: media1.id, narrator: { name: "Narrator A" } });
-    await createMediaNarrator(db, { mediaId: media2.id, narrator: { name: "Narrator B" } });
+    await createMediaNarrator(db, {
+      mediaId: media1.id,
+      narrator: { name: "Narrator A" },
+    });
+    await createMediaNarrator(db, {
+      mediaId: media2.id,
+      narrator: { name: "Narrator B" },
+    });
 
-    const result = await getNarratorsForMedia(DEFAULT_TEST_SESSION, [media1.id, media2.id]);
+    const result = await getNarratorsForMedia(DEFAULT_TEST_SESSION, [
+      media1.id,
+      media2.id,
+    ]);
 
     expect(result[media1.id]?.[0]?.name).toBe("Narrator A");
     expect(result[media2.id]?.[0]?.name).toBe("Narrator B");
@@ -410,7 +445,10 @@ describe("getNarratorsForMedia", () => {
     const db = getDb();
 
     const book = await createBook(db, { url: "https://other-server.com" });
-    const media = await createMedia(db, { url: "https://other-server.com", bookId: book.id });
+    const media = await createMedia(db, {
+      url: "https://other-server.com",
+      bookId: book.id,
+    });
     await createMediaNarrator(db, {
       url: "https://other-server.com",
       mediaId: media.id,
