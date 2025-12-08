@@ -1,6 +1,7 @@
 import * as schema from "@/src/db/schema";
 import {
   bumpPlaythroughDataVersion,
+  initialDataVersionState,
   initializeDataVersion,
   setLibraryDataVersion,
   useDataVersion,
@@ -13,14 +14,8 @@ const { getDb } = setupTestDatabase();
 
 const session = DEFAULT_TEST_SESSION;
 
-const initialState = {
-  initialized: false,
-  libraryDataVersion: null,
-  playthroughDataVersion: 0,
-};
-
 describe("data-version store", () => {
-  resetStoreBeforeEach(useDataVersion, initialState);
+  resetStoreBeforeEach(useDataVersion, initialDataVersionState);
 
   describe("initializeDataVersion", () => {
     it("sets initialized to true after initialization", async () => {

@@ -34,11 +34,74 @@ function applyMigrations(sqlite: Database.Database): void {
   }
 }
 
-export type TestDatabase = BetterSQLite3Database<typeof schema>;
+type BaseBetterSQLite3Database = BetterSQLite3Database<typeof schema>;
+
+/**
+ * Extended database type that supports async transaction functions.
+ * This matches expo-sqlite's async transaction API while using better-sqlite3 under the hood.
+ *
+ * We use Omit to remove the original sync transaction method and replace it with an async one.
+ */
+export type TestDatabase = Omit<BaseBetterSQLite3Database, "transaction"> & {
+  transaction<T>(
+    fn: (tx: BaseBetterSQLite3Database) => T | Promise<T>,
+  ): Promise<T>;
+};
+
+/**
+ * Wrap a better-sqlite3 drizzle database to support async transaction functions.
+ *
+ * better-sqlite3 is synchronous, but expo-sqlite (used in production) is async.
+ * This wrapper allows the same async transaction API to work in tests.
+ *
+ * The key insight is that since better-sqlite3 is synchronous, all database
+ * operations complete immediately. We use better-sqlite3's native transaction
+ * to ensure atomicity, then await any promises from the callback.
+ */
+function wrapDatabaseForAsyncTransactions(
+  db: BaseBetterSQLite3Database,
+  sqlite: Database.Database,
+): TestDatabase {
+  // Create a proxy that intercepts the transaction method
+  return new Proxy(db, {
+    get(target, prop) {
+      if (prop === "transaction") {
+        // Return our async-compatible transaction wrapper
+        return async <T>(
+          fn: (tx: BaseBetterSQLite3Database) => T | Promise<T>,
+        ): Promise<T> => {
+          // Use better-sqlite3's native transaction for atomicity
+          // The transaction wrapper executes synchronously, but we handle
+          // the async callback by awaiting its result after the sync transaction
+          let resultOrPromise: T | Promise<T>;
+
+          const nativeTx = sqlite.transaction(() => {
+            // Pass the db itself as the "transaction" context
+            // For better-sqlite3, this is fine since all operations are sync
+            // and the native transaction handles atomicity
+            resultOrPromise = fn(target);
+          });
+
+          // Execute the native transaction (this runs synchronously)
+          nativeTx();
+
+          // If the callback returned a promise, await it
+          // (The actual DB operations have already completed synchronously)
+          return resultOrPromise!;
+        };
+      }
+      // For all other properties, return the original
+      return Reflect.get(target, prop);
+    },
+  }) as unknown as TestDatabase;
+}
 
 /**
  * Create a fresh in-memory SQLite database with all migrations applied.
  * Each call returns a new isolated database instance.
+ *
+ * The returned database supports async transaction functions to match
+ * expo-sqlite's API used in production code.
  *
  * @example
  * const { db, close } = createTestDatabase();
@@ -48,7 +111,8 @@ export type TestDatabase = BetterSQLite3Database<typeof schema>;
 export function createTestDatabase(): { db: TestDatabase; close: () => void } {
   const sqlite = new Database(":memory:");
   applyMigrations(sqlite);
-  const db = drizzle(sqlite, { schema });
+  const baseDb = drizzle(sqlite, { schema });
+  const db = wrapDatabaseForAsyncTransactions(baseDb, sqlite);
 
   return {
     db,

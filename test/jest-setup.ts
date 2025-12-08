@@ -13,6 +13,28 @@ jest.mock("@/src/utils/crypto", () => ({
 }));
 
 // =============================================================================
+// GraphQL API Mock
+// =============================================================================
+
+// Mock function exposed for test control
+export const mockGetLibraryChangesSince = jest.fn();
+
+jest.mock("@/src/graphql/api", () => ({
+  getLibraryChangesSince: (...args: unknown[]) =>
+    mockGetLibraryChangesSince(...args),
+}));
+
+// =============================================================================
+// Session Store Mock (for forceSignOut)
+// =============================================================================
+
+export const mockForceSignOut = jest.fn();
+
+jest.mock("@/src/stores/session", () => ({
+  forceSignOut: () => mockForceSignOut(),
+}));
+
+// =============================================================================
 // Expo FileSystem Mock
 // =============================================================================
 

@@ -8,11 +8,15 @@ interface DataVersionState {
   playthroughDataVersion: number;
 }
 
-export const useDataVersion = create<DataVersionState>(() => ({
+export const initialDataVersionState: DataVersionState = {
   initialized: false,
   libraryDataVersion: null,
   playthroughDataVersion: 0,
-}));
+};
+
+export const useDataVersion = create<DataVersionState>(
+  () => initialDataVersionState,
+);
 
 /**
  * Initialize the data version store.
