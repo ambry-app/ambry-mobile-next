@@ -313,6 +313,15 @@ describe("progress-save-service", () => {
     });
   });
 
+  describe("error handling", () => {
+    it("handles TrackPlayer errors gracefully", async () => {
+      mockTrackPlayerGetTrack.mockRejectedValue(new Error("TrackPlayer error"));
+
+      // Should not throw
+      await expect(saveNow()).resolves.not.toThrow();
+    });
+  });
+
   describe("stopMonitoring", () => {
     it("stops the save interval", async () => {
       const db = getDb();

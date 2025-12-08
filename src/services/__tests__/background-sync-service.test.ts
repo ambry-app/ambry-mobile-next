@@ -19,6 +19,7 @@ import {
   mockUnregisterTaskAsync,
   mockUpdatePlayerState,
 } from "@test/jest-setup";
+import { emptyLibraryChanges, emptyUserChanges } from "@test/sync-fixtures";
 
 // Setup test database (needed for sync operations)
 setupTestDatabase();
@@ -37,35 +38,14 @@ describe("background-sync-service", () => {
     mockSyncProgress.mockReset();
     mockUpdatePlayerState.mockReset();
 
-    // Default mock implementations
+    // Default mock implementations using proper fixtures
     mockGetLibraryChangesSince.mockResolvedValue({
       success: true,
-      result: {
-        library: {
-          __typename: "Library" as const,
-          people: { edges: [], pageInfo: { hasNextPage: false } },
-          series: { edges: [], pageInfo: { hasNextPage: false } },
-          books: { edges: [], pageInfo: { hasNextPage: false } },
-          media: { edges: [], pageInfo: { hasNextPage: false } },
-          deletedPeople: [],
-          deletedSeries: [],
-          deletedBooks: [],
-          deletedMedia: [],
-        },
-      },
+      result: emptyLibraryChanges(),
     });
     mockGetUserChangesSince.mockResolvedValue({
       success: true,
-      result: {
-        me: {
-          __typename: "User" as const,
-          email: session.email,
-          loadedSeries: { edges: [], pageInfo: { hasNextPage: false } },
-          shelvedMedia: { edges: [], pageInfo: { hasNextPage: false } },
-          playerStates: { edges: [], pageInfo: { hasNextPage: false } },
-          playthroughs: { edges: [], pageInfo: { hasNextPage: false } },
-        },
-      },
+      result: emptyUserChanges(),
     });
     mockSyncProgress.mockResolvedValue({ success: true, result: {} });
     mockUpdatePlayerState.mockResolvedValue({ success: true, result: {} });
@@ -156,15 +136,23 @@ describe("background-sync-service", () => {
       expect(mockGetLibraryChangesSince).not.toHaveBeenCalled();
     });
 
-    it("calls sync operations when session exists", async () => {
+    it("runs full sync cycle and returns success when session exists", async () => {
       useSession.setState({ session });
 
       const taskCallback = getDefinedTaskCallback();
-      await taskCallback!();
+      const result = await taskCallback!();
 
-      // Verify sync down was called (syncs library changes from server)
+      // Should return success (not fail)
+      expect(result).toBe("success");
+
+      // Verify syncDown was called (syncs library changes from server)
       expect(mockGetLibraryChangesSince).toHaveBeenCalled();
       expect(mockGetUserChangesSince).toHaveBeenCalled();
+
+      // Verify WAL checkpoint was executed (confirms we reached the success path)
+      expect(mockExpoDbExecSync).toHaveBeenCalledWith(
+        "PRAGMA wal_checkpoint(TRUNCATE);",
+      );
     });
 
     it("returns failed when sync throws an error", async () => {

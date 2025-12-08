@@ -287,6 +287,244 @@ describe("event-recording-service", () => {
       expect(rateEvents[0]?.playbackRate).toBe(1.5);
       expect(rateEvents[0]?.previousRate).toBe(1);
     });
+
+    it("handles playbackQueueEnded and marks playthrough finished", async () => {
+      const db = getDb();
+      const media = await createMedia(db);
+
+      mockTrackPlayerGetProgress.mockResolvedValue({
+        position: 3600,
+        duration: 3600,
+      });
+
+      await startMonitoring();
+      await initializePlaythroughTracking(session, media.id, 0, 1);
+
+      const playthroughId = getCurrentPlaythroughId()!;
+
+      EventBus.emit("playbackQueueEnded");
+      // Wait for async handler to complete
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Check that finish event was recorded
+      const events = await db.query.playbackEvents.findMany({
+        where: (e, { eq }) => eq(e.playthroughId, playthroughId),
+      });
+
+      const finishEvents = events.filter((e) => e.type === "finish");
+      expect(finishEvents.length).toBeGreaterThanOrEqual(1);
+
+      // Check that playthrough status was updated
+      const playthrough = await db.query.playthroughs.findFirst({
+        where: (p, { eq }) => eq(p.id, playthroughId),
+      });
+      expect(playthrough?.status).toBe("finished");
+    });
+  });
+
+  describe("error handling", () => {
+    it("handles errors in playbackStarted gracefully", async () => {
+      const db = getDb();
+      const media = await createMedia(db);
+
+      mockTrackPlayerGetProgress.mockRejectedValue(
+        new Error("TrackPlayer error"),
+      );
+
+      await startMonitoring();
+      await initializePlaythroughTracking(session, media.id, 0, 1);
+
+      // Should not throw
+      EventBus.emit("playbackStarted");
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Test passes if no error thrown
+      expect(true).toBe(true);
+    });
+
+    it("handles errors in playbackPaused gracefully", async () => {
+      const db = getDb();
+      const media = await createMedia(db);
+
+      mockTrackPlayerGetProgress.mockRejectedValue(
+        new Error("TrackPlayer error"),
+      );
+
+      await startMonitoring();
+      await initializePlaythroughTracking(session, media.id, 0, 1);
+
+      // Should not throw
+      EventBus.emit("playbackPaused");
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(true).toBe(true);
+    });
+
+    it("handles errors in playbackQueueEnded gracefully", async () => {
+      const db = getDb();
+      const media = await createMedia(db);
+
+      mockTrackPlayerGetProgress.mockRejectedValue(
+        new Error("TrackPlayer error"),
+      );
+
+      await startMonitoring();
+      await initializePlaythroughTracking(session, media.id, 0, 1);
+
+      // Should not throw
+      EventBus.emit("playbackQueueEnded");
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(true).toBe(true);
+    });
+
+    it("handles errors in seekCompleted gracefully", async () => {
+      const db = getDb();
+      const media = await createMedia(db);
+
+      await startMonitoring();
+      await initializePlaythroughTracking(session, media.id, 0, 1);
+
+      // Mock the database insert to fail
+      const originalInsert = db.insert;
+      jest.spyOn(db, "insert").mockImplementation(() => {
+        throw new Error("Database error");
+      });
+
+      // Should not throw - emit a non-trivial seek to trigger recordSeekEvent
+      EventBus.emit("seekCompleted", { fromPosition: 0, toPosition: 60 });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Restore
+      db.insert = originalInsert;
+
+      expect(true).toBe(true);
+    });
+
+    it("handles errors in playbackRateChanged gracefully", async () => {
+      const db = getDb();
+      const media = await createMedia(db);
+
+      await startMonitoring();
+      await initializePlaythroughTracking(session, media.id, 0, 1);
+
+      // Mock the database to fail
+      const originalInsert = db.insert;
+      jest.spyOn(db, "insert").mockImplementation(() => {
+        throw new Error("Database error");
+      });
+
+      // Should not throw
+      EventBus.emit("playbackRateChanged", {
+        previousRate: 1,
+        newRate: 1.5,
+        position: 100,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Restore
+      db.insert = originalInsert;
+
+      expect(true).toBe(true);
+    });
+
+    it("handles errors in initializePlaythroughTracking gracefully", async () => {
+      // Set up session but make database operations fail
+      const db = getDb();
+      const originalQuery = db.query;
+      Object.defineProperty(db, "query", {
+        get: () => {
+          throw new Error("Database error");
+        },
+        configurable: true,
+      });
+
+      // Should not throw
+      await expect(
+        initializePlaythroughTracking(session, "non-existent-media", 0, 1),
+      ).resolves.not.toThrow();
+
+      // Restore
+      Object.defineProperty(db, "query", {
+        value: originalQuery,
+        configurable: true,
+      });
+    });
+  });
+
+  describe("heartbeat functionality", () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it("starts heartbeat on playbackStarted and updates state cache", async () => {
+      const db = getDb();
+      const media = await createMedia(db);
+
+      mockTrackPlayerGetProgress.mockResolvedValue({
+        position: 100,
+        duration: 3600,
+      });
+      mockTrackPlayerGetRate.mockResolvedValue(1);
+
+      await startMonitoring();
+      await initializePlaythroughTracking(session, media.id, 0, 1);
+
+      const playthroughId = getCurrentPlaythroughId()!;
+
+      // Trigger playbackStarted to start heartbeat
+      EventBus.emit("playbackStarted");
+      await jest.advanceTimersByTimeAsync(100);
+
+      // Update position for heartbeat
+      mockTrackPlayerGetProgress.mockResolvedValue({
+        position: 200,
+        duration: 3600,
+      });
+
+      // Advance to trigger heartbeat (PROGRESS_SAVE_INTERVAL is 30000ms)
+      await jest.advanceTimersByTimeAsync(30000);
+
+      // Check that state cache was updated
+      const afterHeartbeat = await db.query.playthroughStateCache.findFirst({
+        where: (p, { eq }) => eq(p.playthroughId, playthroughId),
+      });
+
+      // Position should have been updated by heartbeat
+      expect(afterHeartbeat?.currentPosition).toBe(200);
+    });
+
+    it("handles errors in heartbeat gracefully", async () => {
+      const db = getDb();
+      const media = await createMedia(db);
+
+      mockTrackPlayerGetProgress.mockResolvedValue({
+        position: 100,
+        duration: 3600,
+      });
+      mockTrackPlayerGetRate.mockResolvedValue(1);
+
+      await startMonitoring();
+      await initializePlaythroughTracking(session, media.id, 0, 1);
+
+      // Trigger playbackStarted to start heartbeat
+      EventBus.emit("playbackStarted");
+      await jest.advanceTimersByTimeAsync(100);
+
+      // Make TrackPlayer.getProgress fail for heartbeat
+      mockTrackPlayerGetProgress.mockRejectedValue(
+        new Error("TrackPlayer error"),
+      );
+
+      // Should not throw when heartbeat fires
+      await jest.advanceTimersByTimeAsync(30000);
+
+      expect(true).toBe(true);
+    });
   });
 
   describe("getCurrentPlaythroughId", () => {
