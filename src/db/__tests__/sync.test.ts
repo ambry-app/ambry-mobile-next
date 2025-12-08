@@ -1538,6 +1538,37 @@ describe("syncUp", () => {
       const profiles = await db.query.serverProfiles.findMany();
       expect(profiles).toHaveLength(0);
     });
+
+    it("stops syncing on server error", async () => {
+      const db = getDb();
+      await setupMediaInDb(db);
+
+      const now = new Date();
+      await db.insert(schema.localPlayerStates).values({
+        url: session.url,
+        userEmail: session.email,
+        mediaId: "media-1",
+        position: 1500,
+        playbackRate: 1.0,
+        status: "in_progress",
+        insertedAt: now,
+        updatedAt: now,
+      });
+
+      mockUpdatePlayerState.mockResolvedValue({
+        success: false,
+        error: {
+          code: ExecuteAuthenticatedErrorCode.SERVER_ERROR,
+          status: 500,
+        },
+      });
+
+      await syncUp(session);
+
+      // Should not update lastUpSync on error
+      const profiles = await db.query.serverProfiles.findMany();
+      expect(profiles).toHaveLength(0);
+    });
   });
 });
 

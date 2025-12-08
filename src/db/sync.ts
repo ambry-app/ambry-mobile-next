@@ -21,10 +21,39 @@ import {
   syncProgress,
   updatePlayerState,
 } from "@/graphql/api";
-import { ExecuteAuthenticatedErrorCode } from "@/graphql/client/execute";
+import {
+  ExecuteAuthenticatedError,
+  ExecuteAuthenticatedErrorCode,
+} from "@/graphql/client/execute";
 import { setLibraryDataVersion } from "@/stores/data-version";
 import { useDevice } from "@/stores/device";
 import { forceSignOut, Session } from "@/stores/session";
+
+/**
+ * Handles API errors from authenticated GraphQL requests.
+ * Returns true if the error was handled (caller should return early),
+ * false otherwise (should never happen due to exhaustiveness check).
+ */
+function handleApiError(
+  error: ExecuteAuthenticatedError,
+  context: string,
+): true {
+  switch (error.code) {
+    case ExecuteAuthenticatedErrorCode.UNAUTHORIZED:
+      console.warn(`[${context}] unauthorized, signing out...`);
+      resetAndSignOut();
+      return true;
+    case ExecuteAuthenticatedErrorCode.NETWORK_ERROR:
+      console.error(`[${context}] network error, we'll try again later`);
+      return true;
+    case ExecuteAuthenticatedErrorCode.SERVER_ERROR:
+    case ExecuteAuthenticatedErrorCode.GQL_ERROR:
+      console.error(`[${context}] server error, we'll try again later`);
+      return true;
+  }
+  // istanbul ignore next - exhaustiveness check, should never be reached
+  error satisfies never;
+}
 
 export async function getServerSyncTimestamps(session: Session) {
   const result = await getDb()
@@ -66,21 +95,8 @@ export async function syncDownLibrary(session: Session) {
   const result = await getLibraryChangesSince(session, lastSync);
 
   if (!result.success) {
-    switch (result.error.code) {
-      case ExecuteAuthenticatedErrorCode.UNAUTHORIZED:
-        console.warn("[SyncDown] unauthorized, signing out...");
-        await resetAndSignOut();
-        return;
-      case ExecuteAuthenticatedErrorCode.NETWORK_ERROR:
-        console.error("[SyncDown] network error, we'll try again later");
-        return;
-      case ExecuteAuthenticatedErrorCode.SERVER_ERROR:
-      case ExecuteAuthenticatedErrorCode.GQL_ERROR:
-        console.error("[SyncDown] server error, we'll try again later");
-        return;
-      default:
-        return result.error satisfies never;
-    }
+    handleApiError(result.error, "SyncDown");
+    return;
   }
 
   const changes = result.result;
@@ -463,21 +479,8 @@ export async function syncDownUser(session: Session) {
   const result = await getUserChangesSince(session, lastSync);
 
   if (!result.success) {
-    switch (result.error.code) {
-      case ExecuteAuthenticatedErrorCode.UNAUTHORIZED:
-        console.warn("[SyncDown] unauthorized, signing out...");
-        await resetAndSignOut();
-        return;
-      case ExecuteAuthenticatedErrorCode.NETWORK_ERROR:
-        console.error("[SyncDown] network error, we'll try again later");
-        return;
-      case ExecuteAuthenticatedErrorCode.SERVER_ERROR:
-      case ExecuteAuthenticatedErrorCode.GQL_ERROR:
-        console.error("[SyncDown] server error, we'll try again later");
-        return;
-      default:
-        return result.error satisfies never;
-    }
+    handleApiError(result.error, "SyncDown");
+    return;
   }
 
   const changes = result.result;
@@ -591,21 +594,8 @@ export async function syncUp(session: Session) {
     );
 
     if (!result.success) {
-      switch (result.error.code) {
-        case ExecuteAuthenticatedErrorCode.UNAUTHORIZED:
-          console.warn("[SyncUp] unauthorized, signing out...");
-          await resetAndSignOut();
-          return;
-        case ExecuteAuthenticatedErrorCode.NETWORK_ERROR:
-          console.error("[SyncUp] network error, we'll try again later");
-          return;
-        case ExecuteAuthenticatedErrorCode.SERVER_ERROR:
-        case ExecuteAuthenticatedErrorCode.GQL_ERROR:
-          console.error("[SyncUp] server error, we'll try again later");
-          return;
-        default:
-          return result.error satisfies never;
-      }
+      handleApiError(result.error, "SyncUp");
+      return;
     }
   }
 
@@ -738,23 +728,8 @@ export async function syncPlaythroughs(session: Session) {
   const result = await syncProgress(session, input);
 
   if (!result.success) {
-    switch (result.error.code) {
-      case ExecuteAuthenticatedErrorCode.UNAUTHORIZED:
-        console.warn("[SyncPlaythroughs] unauthorized, signing out...");
-        await resetAndSignOut();
-        return;
-      case ExecuteAuthenticatedErrorCode.NETWORK_ERROR:
-        console.error(
-          "[SyncPlaythroughs] network error, we'll try again later",
-        );
-        return;
-      case ExecuteAuthenticatedErrorCode.SERVER_ERROR:
-      case ExecuteAuthenticatedErrorCode.GQL_ERROR:
-        console.error("[SyncPlaythroughs] server error, we'll try again later");
-        return;
-      default:
-        return result.error satisfies never;
-    }
+    handleApiError(result.error, "SyncPlaythroughs");
+    return;
   }
 
   const syncResult = result.result.syncProgress;
