@@ -58,6 +58,23 @@ jest.mock("@/graphql/api", () => ({
 }));
 
 // =============================================================================
+// React Native Track Player Mock
+// =============================================================================
+
+export const mockTrackPlayerGetProgress = jest.fn();
+export const mockTrackPlayerGetRate = jest.fn();
+export const mockTrackPlayerSeekTo = jest.fn();
+
+jest.mock("react-native-track-player", () => ({
+  __esModule: true,
+  default: {
+    getProgress: () => mockTrackPlayerGetProgress(),
+    getRate: () => mockTrackPlayerGetRate(),
+    seekTo: (pos: number) => mockTrackPlayerSeekTo(pos),
+  },
+}));
+
+// =============================================================================
 // Expo FileSystem Mock
 // =============================================================================
 
