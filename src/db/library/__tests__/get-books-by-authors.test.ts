@@ -118,6 +118,24 @@ describe("getBooksByAuthors", () => {
     );
   });
 
+  it("includes media with empty narrators array if media has no narrators", async () => {
+    const db = getDb();
+
+    const author = await createAuthor(db);
+    const book = await createBook(db);
+    await createBookAuthor(db, { bookId: book.id, authorId: author.id });
+    await createMedia(db, { bookId: book.id }); // No narrators created
+
+    const result = await getBooksByAuthors(
+      DEFAULT_TEST_SESSION,
+      [{ id: author.id, name: author.name }],
+      10,
+    );
+
+    expect(result[0]?.books[0]?.media).toHaveLength(1);
+    expect(result[0]?.books[0]?.media[0]?.narrators).toEqual([]);
+  });
+
   it("respects the books limit per author", async () => {
     const db = getDb();
 

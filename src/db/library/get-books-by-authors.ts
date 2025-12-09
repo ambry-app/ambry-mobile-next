@@ -43,9 +43,9 @@ export async function getBooksByAuthors(
   // NOTE: small improvement possible by missing out authors that have no books
   return authors.map((author) => ({
     ...author,
-    books: (booksForAuthors[author.id] ?? []).map((book) => ({
+    books: booksForAuthors[author.id]!.map((book) => ({
       ...book,
-      authors: authorsForBooks[book.id] ?? [],
+      authors: authorsForBooks[book.id]!,
       media: (mediaForBooks[book.id] ?? []).map((media) => ({
         ...media,
         narrators: narratorsForMedia[media.id] ?? [],
