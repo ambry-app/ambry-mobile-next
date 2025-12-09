@@ -146,6 +146,24 @@ describe("getSeriesWithBooks", () => {
     );
   });
 
+  it("includes media with empty narrators array if media has no narrators", async () => {
+    const db = getDb();
+
+    const series = await createSeries(db);
+    const book = await createBook(db);
+    await createSeriesBook(db, { seriesId: series.id, bookId: book.id });
+    await createMedia(db, { bookId: book.id }); // No narrators created
+
+    const result = await getSeriesWithBooks(
+      DEFAULT_TEST_SESSION,
+      [{ id: series.id, name: series.name }],
+      10,
+    );
+
+    expect(result[0]?.seriesBooks[0]?.book.media).toHaveLength(1);
+    expect(result[0]?.seriesBooks[0]?.book.media[0]?.narrators).toEqual([]);
+  });
+
   it("sorts books by book number numerically", async () => {
     const db = getDb();
 
