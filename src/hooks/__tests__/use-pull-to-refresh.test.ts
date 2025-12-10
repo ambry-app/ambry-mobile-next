@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react-hooks";
+import { act, renderHook } from "@testing-library/react-native";
 
 import * as syncModule from "@/db/sync";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
