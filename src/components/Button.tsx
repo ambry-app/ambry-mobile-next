@@ -20,6 +20,7 @@ export function Button(props: ButtonProps) {
     <TouchableOpacity
       onPress={onPress}
       style={[styles.container, { padding: size / 2 }, style]}
+      accessibilityRole="button"
     >
       <View style={[styles.container]}>{children}</View>
     </TouchableOpacity>
