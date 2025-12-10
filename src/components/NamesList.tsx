@@ -5,13 +5,14 @@ type NamesListProps = {
   numberOfLines?: number;
   prefix?: string;
   style?: StyleProp<TextStyle>;
+  testID?: string;
 };
 
 export function NamesList(props: NamesListProps) {
   const { names, numberOfLines, prefix, style } = props;
 
   return (
-    <Text style={style} numberOfLines={numberOfLines}>
+    <Text style={style} numberOfLines={numberOfLines} testID={props.testID}>
       {prefix && prefix + " "}
       {names.map((name, i) => [i > 0 && ", ", <Text key={i}>{name}</Text>])}
     </Text>

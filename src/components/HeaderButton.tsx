@@ -8,12 +8,14 @@ type HeaderButtonProps = {
   label: string;
   onPress: () => void;
   showCaret?: boolean;
+  testID?: string;
 };
 
 export function HeaderButton({
   label,
   onPress,
   showCaret = true,
+  testID,
 }: HeaderButtonProps) {
   return (
     <IconButton
@@ -22,6 +24,7 @@ export function HeaderButton({
       color={Colors.zinc[100]}
       style={styles.button}
       onPress={onPress}
+      testID={testID}
     >
       <Text style={styles.label} numberOfLines={1}>
         {label}

@@ -19,6 +19,7 @@ type IconButtonProps = {
   onLongPress?: () => void;
   children?: React.ReactNode;
   solid?: boolean;
+  testID?: string;
 };
 
 export function IconButton(props: IconButtonProps) {
@@ -35,7 +36,11 @@ export function IconButton(props: IconButtonProps) {
   } = props;
 
   return (
-    <TouchableOpacity onPress={onPress} onLongPress={onLongPress}>
+    <TouchableOpacity
+      onPress={onPress}
+      onLongPress={onLongPress}
+      testID={props.testID}
+    >
       <View style={[styles.container, { padding: size / 2 }, style]}>
         {/* NOTE: for some reason the some icons get cut off when height and
         width is exactly equal to the icon size */}

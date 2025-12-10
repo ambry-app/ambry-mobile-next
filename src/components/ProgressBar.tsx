@@ -13,7 +13,10 @@ export function ProgressBar(props: ProgressBarProps) {
 
   return (
     <View style={styles.progressBar}>
-      <View style={[styles.progressBarFill, { width: `${percent}%` }]}></View>
+      <View
+        style={[styles.progressBarFill, { width: `${percent}%` }]}
+        testID={"progress-bar-fill"}
+      ></View>
     </View>
   );
 }
