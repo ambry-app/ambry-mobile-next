@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import { getServerSyncTimestamps } from "@/db/sync";
+import { getServerSyncTimestamps } from "@/db/sync-helpers";
 
 import { Session } from "./session";
 

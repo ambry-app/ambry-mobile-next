@@ -1,12 +1,12 @@
 import * as schema from "@/db/schema";
 import {
-  getServerSyncTimestamps,
   syncDown,
   syncDownLibrary,
   syncDownUser,
   syncPlaythroughs,
   syncUp,
 } from "@/db/sync";
+import { getServerSyncTimestamps } from "@/db/sync-helpers";
 import { ExecuteAuthenticatedErrorCode } from "@/graphql/client/execute";
 import { initialDataVersionState, useDataVersion } from "@/stores/data-version";
 import { initialDeviceState, useDevice } from "@/stores/device";

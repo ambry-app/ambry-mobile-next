@@ -4,7 +4,7 @@ import TrackPlayer from "react-native-track-player";
 import { App } from "expo-router/build/qualified-entry";
 import { renderRootComponent } from "expo-router/build/renderRootComponent";
 
-import { PlaybackService } from "@/src/services/playback-service";
+import { PlaybackService } from "@/services/playback-service";
 
 import "@expo/metro-runtime";
 

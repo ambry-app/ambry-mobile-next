@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { AppStateStatus } from "react-native";
 
-import { getServerSyncTimestamps } from "@/db/sync";
+import { getServerSyncTimestamps } from "@/db/sync-helpers";
 import { setLibraryDataVersion } from "@/stores/data-version";
 import { useSession } from "@/stores/session";
 
