@@ -32,6 +32,6 @@ jobs:
       - name: Run tsc
         run: npx tsc
       - name: Run tests
-        run: npm run test:ci
+        run: npm test
       - name: Run prebuild
         run: npm run prebuild
