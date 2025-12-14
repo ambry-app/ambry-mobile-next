@@ -97,6 +97,35 @@ describe("playthroughs module", () => {
 
       expect(result).toBeUndefined();
     });
+
+    it("returns most recent when multiple in-progress playthroughs exist (migration edge case)", async () => {
+      const db = getDb();
+      const media = await createMedia(db);
+
+      // Create two in-progress playthroughs (simulating migration edge case)
+      const older = await createPlaythrough(db, {
+        id: "pt-older",
+        mediaId: media.id,
+        status: "in_progress",
+        updatedAt: new Date("2024-01-01"),
+      });
+
+      const newer = await createPlaythrough(db, {
+        id: "pt-newer",
+        mediaId: media.id,
+        status: "in_progress",
+        updatedAt: new Date("2024-01-02"),
+      });
+
+      const result = await playthroughs.getActivePlaythrough(
+        testSession,
+        media.id,
+      );
+
+      // Should return the most recently updated one
+      expect(result?.id).toBe(newer.id);
+      expect(result?.id).not.toBe(older.id);
+    });
   });
 
   describe("getPlaythroughById", () => {

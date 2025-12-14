@@ -18,6 +18,7 @@ export async function getActivePlaythrough(session: Session, mediaId: string) {
       eq(schema.playthroughs.status, "in_progress"),
       isNull(schema.playthroughs.deletedAt),
     ),
+    orderBy: desc(schema.playthroughs.updatedAt), // If duplicates exist (migration edge case), pick most recent
     with: {
       stateCache: true,
       media: {

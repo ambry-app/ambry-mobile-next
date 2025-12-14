@@ -9,7 +9,8 @@ interface OldPlayerState {
   position: number;
   playbackRate: number;
   status: "not_started" | "in_progress" | "finished";
-  updatedAt: number;
+  insertedAt: number; // When user first started (Unix seconds)
+  updatedAt: number; // When user last played (Unix seconds)
 }
 
 /**
@@ -20,9 +21,9 @@ interface OldPlayerState {
 export async function detectOldPlayerStateSchema(): Promise<boolean> {
   const db = getExpoDb();
 
-  // Check if old playerStates table exists
+  // Check if old player_states table exists
   const result = db.getFirstSync<{ count: number }>(
-    "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='playerStates'",
+    "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='player_states'",
   );
 
   return (result?.count ?? 0) > 0;
@@ -53,12 +54,50 @@ export async function migrateFromPlayerStateToPlaythrough(): Promise<void> {
   const expoDb = getExpoDb();
   const db = getDb();
 
-  // Fetch ALL old player states (not just current session)
-  const oldPlayerStates = expoDb.getAllSync<OldPlayerState>(
-    `SELECT * FROM playerStates`,
+  // Fetch from both tables: synced player_states and local_player_states
+  // Use try-catch in case one table doesn't exist
+  let syncedStates: OldPlayerState[] = [];
+  try {
+    syncedStates = expoDb.getAllSync<OldPlayerState>(
+      `SELECT url, user_email as userEmail, media_id as mediaId, position, playback_rate as playbackRate, status, inserted_at as insertedAt, updated_at as updatedAt FROM player_states`,
+    );
+  } catch {
+    console.log("[Migration] player_states table not found or empty");
+  }
+
+  let localStates: OldPlayerState[] = [];
+  try {
+    localStates = expoDb.getAllSync<OldPlayerState>(
+      `SELECT url, user_email as userEmail, media_id as mediaId, position, playback_rate as playbackRate, status, inserted_at as insertedAt, updated_at as updatedAt FROM local_player_states`,
+    );
+  } catch {
+    console.log("[Migration] local_player_states table not found or empty");
+  }
+
+  console.log(
+    `[Migration] Found ${syncedStates.length} synced states, ${localStates.length} local states`,
   );
 
-  console.log(`[Migration] Found ${oldPlayerStates.length} old player states`);
+  // Coalesce: for each (url, userEmail, mediaId), prefer local over synced
+  // Local has real user activity timestamps, synced has server sync timestamps
+  const stateMap = new Map<string, OldPlayerState>();
+
+  // Add synced states first
+  for (const state of syncedStates) {
+    const key = `${state.url}::${state.userEmail}::${state.mediaId}`;
+    stateMap.set(key, state);
+  }
+
+  // Add local states (always overwrite synced - local is source of truth)
+  for (const state of localStates) {
+    const key = `${state.url}::${state.userEmail}::${state.mediaId}`;
+    stateMap.set(key, state);
+  }
+
+  const oldPlayerStates = Array.from(stateMap.values());
+  console.log(
+    `[Migration] Coalesced to ${oldPlayerStates.length} unique player states`,
+  );
 
   // We don't use deviceId for synthetic events since we don't know
   // which device originally created each state
@@ -79,6 +118,9 @@ export async function migrateFromPlayerStateToPlaythrough(): Promise<void> {
 
     const now = new Date();
     const playthroughId = randomUUID();
+    // SQLite timestamps are in seconds, convert to milliseconds for Date
+    const startedAt = new Date(playerState.insertedAt * 1000);
+    const updatedAt = new Date(playerState.updatedAt * 1000);
 
     // Create playthrough (use playerState's url/email, not current session)
     await db.insert(schema.playthroughs).values({
@@ -87,13 +129,10 @@ export async function migrateFromPlayerStateToPlaythrough(): Promise<void> {
       userEmail: playerState.userEmail,
       mediaId: playerState.mediaId,
       status: playerState.status === "finished" ? "finished" : "in_progress",
-      startedAt: new Date(playerState.updatedAt),
-      finishedAt:
-        playerState.status === "finished"
-          ? new Date(playerState.updatedAt)
-          : null,
-      createdAt: now,
-      updatedAt: now,
+      startedAt, // When user first started playing
+      finishedAt: playerState.status === "finished" ? updatedAt : null,
+      createdAt: now, // Migration time
+      updatedAt, // When user last played (for ordering)
       syncedAt: null, // Mark for sync
     });
 
@@ -103,7 +142,7 @@ export async function migrateFromPlayerStateToPlaythrough(): Promise<void> {
       playthroughId,
       deviceId,
       type: "pause",
-      timestamp: new Date(playerState.updatedAt),
+      timestamp: updatedAt, // When user last played
       position: playerState.position,
       playbackRate: playerState.playbackRate,
       syncedAt: null, // Mark for sync
@@ -116,7 +155,7 @@ export async function migrateFromPlayerStateToPlaythrough(): Promise<void> {
         playthroughId,
         deviceId,
         type: "finish",
-        timestamp: new Date(playerState.updatedAt),
+        timestamp: updatedAt, // When user finished
         syncedAt: null, // Mark for sync
       });
     }
@@ -126,17 +165,17 @@ export async function migrateFromPlayerStateToPlaythrough(): Promise<void> {
       playthroughId,
       currentPosition: playerState.position,
       currentRate: playerState.playbackRate,
-      lastEventAt: new Date(playerState.updatedAt),
+      lastEventAt: updatedAt, // When user last played
       totalListeningTime: 0, // Can't calculate from single pause event
-      updatedAt: now,
+      updatedAt, // Match playthrough's updatedAt
     });
   }
 
-  console.log("[Migration] Dropping old playerStates tables");
+  console.log("[Migration] Dropping old player_states tables");
 
   // Drop old tables
-  expoDb.execSync("DROP TABLE IF EXISTS playerStates");
-  expoDb.execSync("DROP TABLE IF EXISTS localPlayerStates");
+  expoDb.execSync("DROP TABLE IF EXISTS player_states");
+  expoDb.execSync("DROP TABLE IF EXISTS local_player_states");
 
   console.log("[Migration] Migration complete");
 }
