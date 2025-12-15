@@ -130,9 +130,8 @@ const logout = useSession((state) => state.logout);
 Services are decoupled via EventBus:
 
 - **`playback-service.ts`**: TrackPlayer event adapter, emits EventBus events
-- **`event-recording-service.ts`**: Records playback events (play, pause, seek, rate change) for sync
+- **`event-recording-service.ts`**: Records playback events (play, pause, seek, rate change, finish) as events for sync
 - **`sleep-timer-service.ts`**: Manages sleep timer, volume fade, auto-pause
-- **`progress-save-service.ts`**: Periodically saves playback position to DB (30s interval while playing)
 
 Each service:
 
@@ -174,19 +173,24 @@ Each service:
 **Key Tables**:
 
 - **Library tables**: `people`, `authors`, `narrators`, `books`, `media`, `series` (synced from server)
-- **Player state**: `playerStates` (server source), `localPlayerStates` (local modifications)
+- **Playback progress**: `playthroughs` (listening sessions), `playbackEvents` (event-sourced history)
 - **Downloads**: `downloads` (local file paths, resumable state)
 - **User data**: `localUserSettings`, `shelvedMedia`
 - **Sync metadata**: `syncedServers`, `serverProfiles` (timestamps for incremental sync)
 
-**Dual-state Pattern for Player Progress**:
+**Event-Sourced Playback Progress**:
 
-- `playerStates`: Read-only, synced from server
-- `localPlayerStates`: Local modifications pending sync
-- When loading media, compare timestamps to use newer state
-- Progress automatically saved every 30s during playback (via `progress-save-service.ts`)
-- Saved immediately on pause and playback end
-- See `db/player-states.ts` for reconciliation logic
+- **`playthroughs`**: Listening sessions for media (one per listen, status: in_progress/finished/abandoned)
+- **`playbackEvents`**: Immutable event log (play, pause, seek, rate_change, finish, abandon)
+- **`playthroughStateCache`**: Materialized view of current position/rate (rebuilt from events)
+- Events recorded in real-time via `event-recording-service.ts`
+- Bidirectional sync via `syncPlaythroughs()` - sends unsynced events, receives server state
+- Server is authoritative for completed/abandoned playthroughs
+- See `db/playthroughs.ts` for event recording and state reconstruction logic
+
+**Migration from PlayerState**:
+
+The old `playerStates`/`localPlayerStates` single-state tracking system was replaced with the event-sourced model. A one-time migration (`db/migration-player-state.ts`) converts old data to synthetic playthrough + events. The migration runs automatically on boot if old data exists and uses a kv-store flag to prevent re-running.
 
 **Schema Changes**:
 
@@ -229,21 +233,26 @@ const data = result.result; // Type-safe success path
 
 ### Data Synchronization
 
-**Bi-directional Sync** (`db/sync.ts`):
+**Main Sync Function** (`db/sync.ts`):
 
-**Down-sync** (pull from server):
+The `sync(session)` function performs both library and playthrough sync in parallel:
 
-1. Query `getLibraryChangesSince(lastDownSync)` - single large query
+**Library Sync** (`syncLibrary`):
+
+1. Query `getLibraryChangesSince(lastDownSync)` - single large query for all entity types
 2. Transform GraphQL data to database schema
 3. Upsert all records in single transaction
 4. Handle deletions
-5. Update `lastDownSync` and `newDataAsOf` timestamps
+5. Update `lastDownSync` and `newDataAsOf` timestamps in `syncedServers` table
 
-**Up-sync** (push to server):
+**Playthrough Sync** (`syncPlaythroughs` - bidirectional):
 
-1. Query local player state changes since `lastUpSync`
-2. Send each changed state via `updatePlayerState` mutation
-3. Update `lastUpSync` timestamp
+1. Send unsynced playthroughs and events to server via `syncProgress` mutation
+2. Receive server-authoritative playthroughs and events in same response
+3. Upsert received playthroughs and events to local database
+4. Mark sent items as synced (`syncedAt` timestamp)
+5. Update state cache for any position changes
+6. Update `lastDownSync` timestamp in `serverProfiles` table
 
 **Sync Timing**:
 
@@ -288,15 +297,16 @@ router.back();
 **Boot Sequence** (`hooks/use-app-boot.ts`):
 
 1. Apply database migrations (Drizzle `useMigrations` hook)
-2. Check session (exit early if none)
-3. `initializeDevice()` - Load/create device ID from SecureStore
-4. `initializeDataVersion(session)` - Load sync timestamps, returns `{ needsInitialSync }`
-5. `initializeDownloads(session)` - Load download states from DB
-6. `initializeSleepTimer(session)` - Load sleep timer preferences from DB
-7. Initial sync if needed (`syncDown` on first connection to server)
-8. `initializePlayer(session)` - Setup TrackPlayer + load most recent media
-9. Register background sync task
-10. Set ready (hide splash screen)
+2. Run PlayerState → Playthrough migration if needed (one-time data migration)
+3. Check session (exit early if none)
+4. `initializeDevice()` - Load/create device ID from SecureStore
+5. `initializeDataVersion(session)` - Load sync timestamps, returns `{ needsInitialSync }`
+6. `initializeDownloads(session)` - Load download states from DB
+7. `initializeSleepTimer(session)` - Load sleep timer preferences from DB
+8. Initial sync if needed (`sync(session)` on first connection to server)
+9. `initializePlayer(session)` - Setup TrackPlayer + load most recent media
+10. Register background sync task
+11. Set ready (hide splash screen)
 
 **Key behavior**: Each `initialize*()` function checks its store's `initialized` flag and skips if already initialized. This enables efficient app resume when JS context persists - stores already have correct state from before app was "killed", so no redundant DB queries occur.
 
