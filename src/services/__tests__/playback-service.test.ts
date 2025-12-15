@@ -4,10 +4,6 @@ jest.mock("@/services/sleep-timer-service", () => ({
   startMonitoring: jest.fn(),
 }));
 
-jest.mock("@/services/progress-save-service", () => ({
-  startMonitoring: jest.fn(),
-}));
-
 jest.mock("@/services/event-recording-service", () => ({
   startMonitoring: jest.fn().mockResolvedValue(undefined),
 }));
@@ -22,7 +18,6 @@ jest.mock("@/utils/seek", () => ({
 
 import * as EventRecording from "@/services/event-recording-service";
 import { PlaybackService } from "@/services/playback-service";
-import * as ProgressSave from "@/services/progress-save-service";
 import * as SleepTimer from "@/services/sleep-timer-service";
 import { EventBus } from "@/utils";
 import {
@@ -78,12 +73,6 @@ describe("playback-service", () => {
       await PlaybackService();
 
       expect(SleepTimer.startMonitoring).toHaveBeenCalled();
-    });
-
-    it("starts ProgressSave monitoring", async () => {
-      await PlaybackService();
-
-      expect(ProgressSave.startMonitoring).toHaveBeenCalled();
     });
 
     it("starts EventRecording monitoring", async () => {

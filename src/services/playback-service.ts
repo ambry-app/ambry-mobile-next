@@ -1,7 +1,6 @@
 import TrackPlayer, { Event } from "react-native-track-player";
 
 import * as EventRecording from "@/services/event-recording-service";
-import * as ProgressSave from "@/services/progress-save-service";
 import * as SleepTimer from "@/services/sleep-timer-service";
 import { EventBus } from "@/utils";
 import { seek, seekImmediateNoLog } from "@/utils/seek";
@@ -149,6 +148,5 @@ export const PlaybackService = async function () {
   // Initialize services
   // Each service will set up its own EventBus listeners
   SleepTimer.startMonitoring();
-  ProgressSave.startMonitoring();
   await EventRecording.startMonitoring();
 };

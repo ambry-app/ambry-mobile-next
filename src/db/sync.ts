@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/db";
 import {
@@ -15,11 +15,9 @@ import type { SyncProgressInput } from "@/graphql/api";
 import {
   DeviceType,
   getLibraryChangesSince,
-  getUserChangesSince,
   PlaybackEventType,
   PlaythroughStatus,
   syncProgress,
-  updatePlayerState,
 } from "@/graphql/api";
 import {
   ExecuteAuthenticatedError,
@@ -453,156 +451,19 @@ export async function syncDownLibrary(session: Session) {
 }
 
 export async function syncDownUser(session: Session) {
-  console.debug("[SyncDown] syncing user player states...");
-
-  const serverProfile = await getDb().query.serverProfiles.findFirst({
-    where: and(
-      eq(schema.serverProfiles.url, session.url),
-      eq(schema.serverProfiles.userEmail, session.email),
-    ),
-  });
-
-  const lastSync = serverProfile?.lastDownSync;
-  const result = await getUserChangesSince(session, lastSync);
-
-  if (!result.success) {
-    handleApiError(result.error, "SyncDown");
-    return;
-  }
-
-  const changes = result.result;
-
-  if (!changes) return;
-
-  const playerStatesValues = changes.playerStatesChangedSince.map(
-    (playerState) => {
-      return {
-        url: session.url,
-        id: playerState.id,
-        userEmail: session.email,
-        mediaId: playerState.media.id,
-        status: playerState.status.toLowerCase() as
-          | "not_started"
-          | "in_progress"
-          | "finished",
-        playbackRate: playerState.playbackRate,
-        position: playerState.position,
-        insertedAt: new Date(playerState.insertedAt),
-        updatedAt: new Date(playerState.updatedAt),
-      };
-    },
+  // Old PlayerState sync removed - now handled by playthrough sync via syncProgress
+  console.debug(
+    "[SyncDown] user sync skipped (player states migrated to playthroughs)",
   );
-
-  await getDb().transaction(async (tx) => {
-    if (playerStatesValues.length !== 0) {
-      console.debug(
-        "[SyncDown] inserting",
-        playerStatesValues.length,
-        "player states...",
-      );
-      await tx
-        .insert(schema.playerStates)
-        .values(playerStatesValues)
-        .onConflictDoUpdate({
-          target: [schema.playerStates.url, schema.playerStates.id],
-          set: {
-            status: sql`excluded.status`,
-            playbackRate: sql`excluded.playback_rate`,
-            position: sql`excluded.position`,
-            updatedAt: sql`excluded.updated_at`,
-          },
-        });
-      console.debug("[SyncDown] player states inserted");
-    }
-
-    const serverTime = new Date(changes.serverTime);
-
-    const countChanges = changes.playerStatesChangedSince.length;
-
-    const newDataAsOf =
-      countChanges > 0 || serverProfile === undefined
-        ? serverTime
-        : serverProfile.newDataAsOf;
-
-    await tx
-      .insert(schema.serverProfiles)
-      .values({
-        url: session.url,
-        userEmail: session.email,
-        lastDownSync: serverTime,
-        newDataAsOf: newDataAsOf,
-      })
-      .onConflictDoUpdate({
-        target: [schema.serverProfiles.url, schema.serverProfiles.userEmail],
-        set: {
-          lastDownSync: sql`excluded.last_down_sync`,
-          newDataAsOf: sql`excluded.new_data_as_of`,
-        },
-      });
-  });
-
-  console.debug("[SyncDown] user player state sync complete");
+  return Promise.resolve();
 }
 
 export async function syncUp(session: Session) {
-  console.debug("[SyncUp] syncing...");
-
-  const server = await getDb().query.serverProfiles.findFirst({
-    where: and(
-      eq(schema.serverProfiles.url, session.url),
-      eq(schema.serverProfiles.userEmail, session.email),
-    ),
-  });
-
-  const lastSync = server?.lastUpSync;
-  const now = new Date();
-
-  const changedPlayerStates = await getDb().query.localPlayerStates.findMany({
-    columns: { mediaId: true, playbackRate: true, position: true },
-    where: and(
-      eq(schema.localPlayerStates.url, session.url),
-      eq(schema.localPlayerStates.userEmail, session.email),
-      gte(schema.localPlayerStates.updatedAt, lastSync || new Date(0)),
-    ),
-  });
-
+  // Old PlayerState sync removed - now handled by playthrough sync via syncProgress
   console.debug(
-    "[SyncUp] syncing",
-    changedPlayerStates.length,
-    "player states",
+    "[SyncUp] sync skipped (player states migrated to playthroughs)",
   );
-
-  for (const playerState of changedPlayerStates) {
-    const result = await updatePlayerState(
-      session,
-      playerState.mediaId,
-      playerState.position,
-      playerState.playbackRate,
-    );
-
-    if (!result.success) {
-      handleApiError(result.error, "SyncUp");
-      return;
-    }
-  }
-
-  console.debug("[SyncUp] server request(s) complete");
-
-  await getDb()
-    .insert(schema.serverProfiles)
-    .values({
-      url: session.url,
-      userEmail: session.email,
-      lastUpSync: now,
-    })
-    .onConflictDoUpdate({
-      target: [schema.serverProfiles.url, schema.serverProfiles.userEmail],
-      set: {
-        lastUpSync: sql`excluded.last_up_sync`,
-      },
-    });
-
-  console.debug("[SyncUp] sync complete");
+  return Promise.resolve();
 }
 
 // =============================================================================

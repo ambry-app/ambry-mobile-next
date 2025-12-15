@@ -155,67 +155,6 @@ export function getLibraryChangesSince(
   );
 }
 
-const userChangesSinceQuery = graphql(`
-  query UserChangesSince($since: DateTime) {
-    playerStatesChangedSince(since: $since) {
-      id
-      media {
-        id
-      }
-      status
-      playbackRate
-      position
-      insertedAt
-      updatedAt
-    }
-    serverTime
-  }
-`);
-
-export function getUserChangesSince(
-  session: Session,
-  since: Date | null | undefined,
-) {
-  return executeAuthenticated(
-    session.url,
-    session.token,
-    userChangesSinceQuery,
-    {
-      since,
-    },
-  );
-}
-
-const updatePlayerStateMutation = graphql(`
-  mutation UpdatePlayerState($input: UpdatePlayerStateInput!) {
-    updatePlayerState(input: $input) {
-      playerState {
-        updatedAt
-      }
-    }
-  }
-`);
-
-export function updatePlayerState(
-  session: Session,
-  mediaId: string,
-  position: number,
-  playbackRate: number,
-) {
-  return executeAuthenticated(
-    session.url,
-    session.token,
-    updatePlayerStateMutation,
-    {
-      input: {
-        mediaId,
-        position,
-        playbackRate,
-      },
-    },
-  );
-}
-
 const createSessionMutation = graphql(`
   mutation CreateSession($input: CreateSessionInput!) {
     createSession(input: $input) {
