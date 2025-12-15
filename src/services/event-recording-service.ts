@@ -227,7 +227,16 @@ async function handlePlaybackStarted() {
 async function handlePlaybackPaused() {
   if (!currentPlaythroughId) return;
 
+  // Only record pause event if we were actually playing (heartbeat was running)
+  const wasPlaying = heartbeatInterval !== null;
   stopHeartbeat();
+
+  if (!wasPlaying) {
+    console.debug(
+      "[EventRecording] Skipping pause event - never started playing",
+    );
+    return;
+  }
 
   try {
     const { position } = await TrackPlayer.getProgress();
