@@ -9,14 +9,11 @@ import { DEFAULT_TEST_SESSION } from "@test/factories";
 setupTestDatabase();
 
 describe("usePullToRefresh", () => {
-  let syncDownSpy: jest.SpyInstance | undefined;
-  let syncPlaythroughsSpy: jest.SpyInstance | undefined;
+  let syncSpy: jest.SpyInstance | undefined;
 
   afterEach(() => {
-    syncDownSpy?.mockRestore();
-    syncPlaythroughsSpy?.mockRestore();
-    syncDownSpy = undefined;
-    syncPlaythroughsSpy = undefined;
+    syncSpy?.mockRestore();
+    syncSpy = undefined;
   });
 
   it("refreshing is false initially", () => {
@@ -25,16 +22,11 @@ describe("usePullToRefresh", () => {
   });
 
   it("refreshing is true during onRefresh, then false after", async () => {
-    // Patch syncDown and syncPlaythroughs to delay
-    syncDownSpy = jest
-      .spyOn(syncModule, "syncDown")
-      .mockImplementation(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 10));
-        return [undefined, undefined];
-      });
-    syncPlaythroughsSpy = jest
-      .spyOn(syncModule, "syncPlaythroughs")
-      .mockImplementation(async () => {});
+    // Patch sync to delay
+    syncSpy = jest.spyOn(syncModule, "sync").mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return [undefined, undefined];
+    });
 
     const { result } = renderHook(() => usePullToRefresh(DEFAULT_TEST_SESSION));
 

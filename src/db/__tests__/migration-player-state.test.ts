@@ -8,8 +8,8 @@
 import Storage from "expo-sqlite/kv-store";
 
 import {
-  detectOldPlayerStateSchema,
   migrateFromPlayerStateToPlaythrough,
+  needsPlayerStateMigration,
 } from "@/db/migration-player-state";
 import * as schema from "@/db/schema";
 import { setupTestDatabase } from "@test/db-test-utils";
@@ -104,7 +104,7 @@ async function insertOldLocalPlayerState(
 // Tests: Detection
 // =============================================================================
 
-describe("detectOldPlayerStateSchema", () => {
+describe("needsPlayerStateMigration", () => {
   it("returns false when migration flag is set", async () => {
     const db = getDb();
     const media = await createMedia(db, { id: "media-1" });
@@ -118,7 +118,7 @@ describe("detectOldPlayerStateSchema", () => {
     // Set migration flag
     mockStorage["playerstate_migration_v1"] = "completed";
 
-    const needsMigration = await detectOldPlayerStateSchema();
+    const needsMigration = await needsPlayerStateMigration();
 
     expect(needsMigration).toBe(false);
     expect(Storage.getItem).toHaveBeenCalledWith("playerstate_migration_v1");
@@ -134,14 +134,14 @@ describe("detectOldPlayerStateSchema", () => {
       userEmail: DEFAULT_TEST_SESSION.email,
     });
 
-    const needsMigration = await detectOldPlayerStateSchema();
+    const needsMigration = await needsPlayerStateMigration();
 
     expect(needsMigration).toBe(true);
   });
 
   it("returns false when old table exists but is empty", async () => {
     // Table exists (created by migration), but is empty
-    const needsMigration = await detectOldPlayerStateSchema();
+    const needsMigration = await needsPlayerStateMigration();
 
     expect(needsMigration).toBe(false);
   });
@@ -149,7 +149,7 @@ describe("detectOldPlayerStateSchema", () => {
   it("returns false when old table does not exist", async () => {
     // This test doesn't apply anymore since table is always created by migrations
     // But the function still handles the case gracefully with a try-catch
-    const needsMigration = await detectOldPlayerStateSchema();
+    const needsMigration = await needsPlayerStateMigration();
 
     expect(needsMigration).toBe(false);
   });

@@ -65,12 +65,12 @@ const deletionsTables = {
   PERSON: schema.people,
 };
 
-export async function syncDown(session: Session) {
-  return Promise.all([syncDownLibrary(session), syncPlaythroughs(session)]);
+export async function sync(session: Session) {
+  return Promise.all([syncLibrary(session), syncPlaythroughs(session)]);
 }
 
-export async function syncDownLibrary(session: Session) {
-  console.debug("[SyncDown] syncing library...");
+export async function syncLibrary(session: Session) {
+  console.debug("[SyncLibrary] syncing library...");
 
   const syncedServer = await getDb().query.syncedServers.findFirst({
     where: eq(schema.syncedServers.url, session.url),
@@ -447,23 +447,7 @@ export async function syncDownLibrary(session: Session) {
   // Update global data version store
   if (newDataAsOf) setLibraryDataVersion(newDataAsOf);
 
-  console.debug("[SyncDown] library sync complete");
-}
-
-export async function syncDownUser(session: Session) {
-  // Old PlayerState sync removed - now handled by playthrough sync via syncProgress
-  console.debug(
-    "[SyncDown] user sync skipped (player states migrated to playthroughs)",
-  );
-  return Promise.resolve();
-}
-
-export async function syncUp(session: Session) {
-  // Old PlayerState sync removed - now handled by playthrough sync via syncProgress
-  console.debug(
-    "[SyncUp] sync skipped (player states migrated to playthroughs)",
-  );
-  return Promise.resolve();
+  console.debug("[SyncLibrary] library sync complete");
 }
 
 // =============================================================================

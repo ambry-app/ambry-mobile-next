@@ -2,7 +2,7 @@ import * as BackgroundTask from "expo-background-task";
 import * as TaskManager from "expo-task-manager";
 
 import { getExpoDb } from "@/db/db";
-import { syncDown, syncPlaythroughs, syncUp } from "@/db/sync";
+import { sync } from "@/db/sync";
 import { useSession } from "@/stores/session";
 
 const BACKGROUND_SYNC_TASK_NAME = "ambry-background-sync";
@@ -17,9 +17,7 @@ TaskManager.defineTask(BACKGROUND_SYNC_TASK_NAME, async () => {
   }
 
   try {
-    await syncDown(session);
-    await syncUp(session);
-    await syncPlaythroughs(session);
+    await sync(session);
 
     console.debug("[BackgroundSync] performing WAL checkpoint");
     getExpoDb().execSync("PRAGMA wal_checkpoint(TRUNCATE);");

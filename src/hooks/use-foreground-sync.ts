@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { AppStateStatus } from "react-native";
 
 import { getExpoDb } from "@/db/db";
-import { syncDown, syncPlaythroughs, syncUp } from "@/db/sync";
+import { sync } from "@/db/sync";
 import { useSession } from "@/stores/session";
 
 // Periodic sync every 15 minutes while the app is in the foreground.
@@ -19,9 +19,7 @@ export function useForegroundSync(appState: AppStateStatus) {
       }
 
       try {
-        await syncDown(session);
-        await syncUp(session);
-        await syncPlaythroughs(session);
+        await sync(session);
 
         console.debug("[ForegroundSync] performing WAL checkpoint");
         getExpoDb().execSync("PRAGMA wal_checkpoint(TRUNCATE);");

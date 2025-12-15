@@ -16,11 +16,11 @@ interface OldPlayerState {
 }
 
 /**
- * Detects if the old PlayerState schema exists in the database.
+ * Checks if the PlayerState migration needs to be run.
  *
- * Returns true if migration is needed.
+ * Returns true if migration is needed (flag not set and old data exists).
  */
-export async function detectOldPlayerStateSchema(): Promise<boolean> {
+export async function needsPlayerStateMigration(): Promise<boolean> {
   // Check if migration has already been completed
   const migrated = await Storage.getItem("playerstate_migration_v1");
   if (migrated === "completed") {

@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import { syncDown, syncPlaythroughs } from "@/db/sync";
+import { sync } from "@/db/sync";
 import { Session } from "@/stores/session";
 
 export function usePullToRefresh(session: Session) {
@@ -9,8 +9,7 @@ export function usePullToRefresh(session: Session) {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await syncDown(session);
-      await syncPlaythroughs(session);
+      await sync(session);
     } catch (error) {
       console.error("Pull-to-refresh sync error:", error);
     } finally {

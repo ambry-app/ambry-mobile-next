@@ -1,5 +1,5 @@
 import * as schema from "@/db/schema";
-import { syncDown, syncDownLibrary, syncPlaythroughs } from "@/db/sync";
+import { sync, syncLibrary, syncPlaythroughs } from "@/db/sync";
 import { getServerSyncTimestamps } from "@/db/sync-helpers";
 import { ExecuteAuthenticatedErrorCode } from "@/graphql/client/execute";
 import { initialDataVersionState, useDataVersion } from "@/stores/data-version";
@@ -83,11 +83,11 @@ describe("getServerSyncTimestamps", () => {
 });
 
 // =============================================================================
-// syncDown
+// sync
 // =============================================================================
 
-describe("syncDown", () => {
-  it("calls syncDownLibrary and syncPlaythroughs", async () => {
+describe("sync", () => {
+  it("calls syncLibrary and syncPlaythroughs", async () => {
     const serverTime = "2024-01-15T10:00:00.000Z";
 
     // Set up device info for syncPlaythroughs
@@ -113,7 +113,7 @@ describe("syncDown", () => {
       result: { syncProgress: emptySyncProgressResult(serverTime) },
     });
 
-    await syncDown(session);
+    await sync(session);
 
     expect(mockGetLibraryChangesSince).toHaveBeenCalledTimes(1);
     expect(mockSyncProgress).toHaveBeenCalledTimes(1);
@@ -146,7 +146,7 @@ describe("syncDown", () => {
       result: { syncProgress: emptySyncProgressResult(serverTime) },
     });
 
-    await syncDown(session);
+    await sync(session);
 
     // Both syncedServers and serverProfiles should be updated
     const syncedServers = await db.query.syncedServers.findMany();
@@ -158,10 +158,10 @@ describe("syncDown", () => {
 });
 
 // =============================================================================
-// syncDownLibrary
+// syncLibrary
 // =============================================================================
 
-describe("syncDownLibrary", () => {
+describe("syncLibrary", () => {
   // ===========================================================================
   // Happy Path: Basic sync operations
   // ===========================================================================
@@ -176,7 +176,7 @@ describe("syncDownLibrary", () => {
         result: emptyLibraryChanges(serverTime),
       });
 
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       // Verify syncedServers record was created
       const syncedServers = await db.query.syncedServers.findMany();
@@ -194,7 +194,7 @@ describe("syncDownLibrary", () => {
         result: emptyLibraryChanges(serverTime),
       });
 
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const { libraryDataVersion } = useDataVersion.getState();
       expect(libraryDataVersion).toBe(new Date(serverTime).getTime());
@@ -210,14 +210,14 @@ describe("syncDownLibrary", () => {
         success: true,
         result: emptyLibraryChanges(firstServerTime),
       });
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       // Second sync (should pass lastDownSync)
       mockGetLibraryChangesSince.mockResolvedValueOnce({
         success: true,
         result: emptyLibraryChanges(secondServerTime),
       });
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       // Verify the API was called with the correct lastDownSync
       expect(mockGetLibraryChangesSince).toHaveBeenCalledTimes(2);
@@ -259,7 +259,7 @@ describe("syncDownLibrary", () => {
         },
       });
 
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const people = await db.query.people.findMany();
       expect(people).toHaveLength(1);
@@ -286,7 +286,7 @@ describe("syncDownLibrary", () => {
         },
       });
 
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const authors = await db.query.authors.findMany();
       expect(authors).toHaveLength(1);
@@ -313,7 +313,7 @@ describe("syncDownLibrary", () => {
         },
       });
 
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const narrators = await db.query.narrators.findMany();
       expect(narrators).toHaveLength(1);
@@ -336,7 +336,7 @@ describe("syncDownLibrary", () => {
         },
       });
 
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const books = await db.query.books.findMany();
       expect(books).toHaveLength(1);
@@ -359,7 +359,7 @@ describe("syncDownLibrary", () => {
         },
       });
 
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const allSeries = await db.query.series.findMany();
       expect(allSeries).toHaveLength(1);
@@ -386,7 +386,7 @@ describe("syncDownLibrary", () => {
         },
       });
 
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const allMedia = await db.query.media.findMany();
       expect(allMedia).toHaveLength(1);
@@ -421,7 +421,7 @@ describe("syncDownLibrary", () => {
         },
       });
 
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const bookAuthors = await db.query.bookAuthors.findMany();
       expect(bookAuthors).toHaveLength(1);
@@ -450,7 +450,7 @@ describe("syncDownLibrary", () => {
         },
       });
 
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const seriesBooks = await db.query.seriesBooks.findMany();
       expect(seriesBooks).toHaveLength(1);
@@ -486,7 +486,7 @@ describe("syncDownLibrary", () => {
         },
       });
 
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const mediaNarrators = await db.query.mediaNarrators.findMany();
       expect(mediaNarrators).toHaveLength(1);
@@ -515,7 +515,7 @@ describe("syncDownLibrary", () => {
           ],
         },
       });
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       // Second sync: update person
       mockGetLibraryChangesSince.mockResolvedValueOnce({
@@ -531,7 +531,7 @@ describe("syncDownLibrary", () => {
           ],
         },
       });
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const people = await db.query.people.findMany();
       expect(people).toHaveLength(1);
@@ -552,7 +552,7 @@ describe("syncDownLibrary", () => {
           ],
         },
       });
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       // Second sync
       mockGetLibraryChangesSince.mockResolvedValueOnce({
@@ -564,7 +564,7 @@ describe("syncDownLibrary", () => {
           ],
         },
       });
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const books = await db.query.books.findMany();
       expect(books).toHaveLength(1);
@@ -588,7 +588,7 @@ describe("syncDownLibrary", () => {
           peopleChangedSince: [createLibraryPerson({ id: "person-1" })],
         },
       });
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       // Verify person exists
       let people = await db.query.people.findMany();
@@ -604,7 +604,7 @@ describe("syncDownLibrary", () => {
           ],
         },
       });
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       // Verify person deleted
       people = await db.query.people.findMany();
@@ -626,7 +626,7 @@ describe("syncDownLibrary", () => {
           mediaChangedSince: [media],
         },
       });
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       // Verify media exists
       let allMedia = await db.query.media.findMany();
@@ -642,7 +642,7 @@ describe("syncDownLibrary", () => {
           ],
         },
       });
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       // Verify media deleted
       allMedia = await db.query.media.findMany();
@@ -662,7 +662,7 @@ describe("syncDownLibrary", () => {
           seriesChangedSince: [createLibrarySeries({ id: "series-1" })],
         },
       });
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       // Second sync: delete all
       mockGetLibraryChangesSince.mockResolvedValueOnce({
@@ -676,7 +676,7 @@ describe("syncDownLibrary", () => {
           ],
         },
       });
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       expect(await db.query.people.findMany()).toHaveLength(0);
       expect(await db.query.books.findMany()).toHaveLength(0);
@@ -697,7 +697,7 @@ describe("syncDownLibrary", () => {
         error: { code: ExecuteAuthenticatedErrorCode.NETWORK_ERROR },
       });
 
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const servers = await db.query.syncedServers.findMany();
       expect(servers).toHaveLength(0);
@@ -714,7 +714,7 @@ describe("syncDownLibrary", () => {
         },
       });
 
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const servers = await db.query.syncedServers.findMany();
       expect(servers).toHaveLength(0);
@@ -731,7 +731,7 @@ describe("syncDownLibrary", () => {
         },
       });
 
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const servers = await db.query.syncedServers.findMany();
       expect(servers).toHaveLength(0);
@@ -743,7 +743,7 @@ describe("syncDownLibrary", () => {
         error: { code: ExecuteAuthenticatedErrorCode.UNAUTHORIZED },
       });
 
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       // Session should be cleared (signed out)
       expect(useSession.getState().session).toBeNull();
@@ -757,7 +757,7 @@ describe("syncDownLibrary", () => {
         error: { code: ExecuteAuthenticatedErrorCode.UNAUTHORIZED },
       });
 
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const servers = await db.query.syncedServers.findMany();
       expect(servers).toHaveLength(0);
@@ -778,7 +778,7 @@ describe("syncDownLibrary", () => {
         result: emptyLibraryChanges(serverTime),
       });
 
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const syncedServers = await db.query.syncedServers.findMany();
       expect(syncedServers[0]!.newDataAsOf).toEqual(new Date(serverTime));
@@ -794,7 +794,7 @@ describe("syncDownLibrary", () => {
         success: true,
         result: emptyLibraryChanges(serverTime1),
       });
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       // Second sync with new data
       mockGetLibraryChangesSince.mockResolvedValueOnce({
@@ -804,7 +804,7 @@ describe("syncDownLibrary", () => {
           peopleChangedSince: [createLibraryPerson({ id: "person-1" })],
         },
       });
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const syncedServers = await db.query.syncedServers.findMany();
       expect(syncedServers[0]!.newDataAsOf).toEqual(new Date(serverTime2));
@@ -823,14 +823,14 @@ describe("syncDownLibrary", () => {
           peopleChangedSince: [createLibraryPerson({ id: "person-1" })],
         },
       });
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       // Second sync without new data
       mockGetLibraryChangesSince.mockResolvedValueOnce({
         success: true,
         result: emptyLibraryChanges(serverTime2),
       });
-      await syncDownLibrary(session);
+      await syncLibrary(session);
 
       const syncedServers = await db.query.syncedServers.findMany();
       // lastDownSync should update to serverTime2
@@ -874,7 +874,7 @@ describe("syncPlaythroughs", () => {
         ],
       },
     });
-    await syncDownLibrary(session);
+    await syncLibrary(session);
   }
 
   // ===========================================================================

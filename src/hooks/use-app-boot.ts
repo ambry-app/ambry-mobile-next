@@ -3,10 +3,10 @@ import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 
 import { getExpoSqliteDb } from "@/db/db";
 import {
-  detectOldPlayerStateSchema,
   migrateFromPlayerStateToPlaythrough,
+  needsPlayerStateMigration,
 } from "@/db/migration-player-state";
-import { syncDown } from "@/db/sync";
+import { sync } from "@/db/sync";
 import { registerBackgroundSyncTask } from "@/services/background-sync-service";
 import { initializeDataVersion } from "@/stores/data-version";
 import { initializeDevice } from "@/stores/device";
@@ -32,9 +32,9 @@ const useAppBoot = () => {
     async function runPlayerStateMigration() {
       if (!migrationSuccess) return;
 
-      const needsMigration = await detectOldPlayerStateSchema();
-      if (needsMigration) {
-        console.log("[AppBoot] Old PlayerState schema detected, migrating...");
+      const shouldMigrate = await needsPlayerStateMigration();
+      if (shouldMigrate) {
+        console.log("[AppBoot] Old PlayerState data detected, migrating...");
         try {
           await migrateFromPlayerStateToPlaythrough();
           console.log("[AppBoot] PlayerState migration complete");
@@ -73,7 +73,7 @@ const useAppBoot = () => {
       if (needsInitialSync) {
         try {
           console.debug("[AppBoot] Initial sync...");
-          await syncDown(session);
+          await sync(session);
           console.debug("[AppBoot] Initial sync complete");
         } catch (e) {
           console.error("[AppBoot] Initial sync error", e);
