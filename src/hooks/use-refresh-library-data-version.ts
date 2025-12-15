@@ -14,8 +14,8 @@ export function useRefreshLibraryDataVersion(appState: AppStateStatus) {
     const run = async () => {
       if (session && appState === "active") {
         console.debug("[AppState] reloading library data version");
-        const { newDataAsOf } = await getServerSyncTimestamps(session);
-        if (newDataAsOf) setLibraryDataVersion(newDataAsOf);
+        const { libraryDataVersion } = await getServerSyncTimestamps(session);
+        if (libraryDataVersion) setLibraryDataVersion(libraryDataVersion);
       }
     };
 

@@ -541,10 +541,10 @@ export type PlaythroughStateCacheSelect =
 // specific user account
 export const syncedServers = sqliteTable("synced_servers", {
   url: text("url").notNull().primaryKey(),
-  // the last time we checked the server for new data (library)
-  lastDownSync: integer("last_down_sync", { mode: "timestamp" }),
-  // the last time data was actually updated locally
-  newDataAsOf: integer("new_data_as_of", { mode: "timestamp" }),
+  // timestamp of last sync check for library data (used for incremental sync)
+  lastSyncTime: integer("last_sync_time", { mode: "timestamp" }),
+  // timestamp when library data actually changed locally (used for cache invalidation)
+  libraryDataVersion: integer("library_data_version", { mode: "timestamp" }),
 });
 
 // data related to user accounts on specific servers
@@ -553,12 +553,8 @@ export const serverProfiles = sqliteTable(
   {
     url: text("url").notNull(),
     userEmail: text("user_email").notNull(),
-    // the last time we checked the server for new data (player states)
-    lastDownSync: integer("last_down_sync", { mode: "timestamp" }),
-    // the last time data was actually updated locally
-    newDataAsOf: integer("new_data_as_of", { mode: "timestamp" }),
-    // the last time we sent data to the server (player states)
-    lastUpSync: integer("last_up_sync", { mode: "timestamp" }),
+    // timestamp of last playthrough sync (bidirectional - send unsynced + receive server updates)
+    lastSyncTime: integer("last_sync_time", { mode: "timestamp" }),
   },
   (table) => [primaryKey({ columns: [table.url, table.userEmail] })],
 );

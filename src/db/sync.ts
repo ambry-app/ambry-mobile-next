@@ -23,7 +23,10 @@ import {
   ExecuteAuthenticatedError,
   ExecuteAuthenticatedErrorCode,
 } from "@/graphql/client/execute";
-import { setLibraryDataVersion } from "@/stores/data-version";
+import {
+  bumpPlaythroughDataVersion,
+  setLibraryDataVersion,
+} from "@/stores/data-version";
 import { useDevice } from "@/stores/device";
 import { forceSignOut, Session } from "@/stores/session";
 
@@ -76,7 +79,7 @@ export async function syncLibrary(session: Session) {
     where: eq(schema.syncedServers.url, session.url),
   });
 
-  const lastSync = syncedServer?.lastDownSync;
+  const lastSync = syncedServer?.lastSyncTime;
   const result = await getLibraryChangesSince(session, lastSync);
 
   if (!result.success) {
@@ -426,20 +429,20 @@ export async function syncLibrary(session: Session) {
     newDataAsOf =
       countChanges > 0 || syncedServer === undefined
         ? serverTime
-        : syncedServer.newDataAsOf;
+        : syncedServer.libraryDataVersion;
 
     await tx
       .insert(schema.syncedServers)
       .values({
         url: session.url,
-        lastDownSync: serverTime,
-        newDataAsOf: newDataAsOf,
+        lastSyncTime: serverTime,
+        libraryDataVersion: newDataAsOf,
       })
       .onConflictDoUpdate({
         target: [schema.syncedServers.url],
         set: {
-          lastDownSync: sql`excluded.last_down_sync`,
-          newDataAsOf: sql`excluded.new_data_as_of`,
+          lastSyncTime: sql`excluded.last_sync_time`,
+          libraryDataVersion: sql`excluded.library_data_version`,
         },
       });
   });
@@ -525,7 +528,7 @@ export async function syncPlaythroughs(session: Session) {
 
   // Prepare input for syncProgress mutation
   const input: SyncProgressInput = {
-    lastSyncTime: serverProfile?.lastDownSync ?? null,
+    lastSyncTime: serverProfile?.lastSyncTime ?? null,
     device: {
       id: deviceInfo.id,
       type: deviceTypeMap[deviceInfo.type] ?? DeviceType.Web,
@@ -649,12 +652,12 @@ export async function syncPlaythroughs(session: Session) {
     .values({
       url: session.url,
       userEmail: session.email,
-      lastDownSync: serverTime,
+      lastSyncTime: serverTime,
     })
     .onConflictDoUpdate({
       target: [schema.serverProfiles.url, schema.serverProfiles.userEmail],
       set: {
-        lastDownSync: sql`excluded.last_down_sync`,
+        lastSyncTime: sql`excluded.last_sync_time`,
       },
     });
 
@@ -665,6 +668,9 @@ export async function syncPlaythroughs(session: Session) {
     syncResult.events.length,
     "events",
   );
+
+  // Notify UI that playthrough data changed
+  bumpPlaythroughDataVersion();
 }
 
 function resetAndSignOut() {

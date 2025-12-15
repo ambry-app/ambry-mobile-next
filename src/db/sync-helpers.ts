@@ -7,12 +7,12 @@ import type { Session } from "@/stores/session";
 export async function getServerSyncTimestamps(session: Session) {
   const result = await getDb()
     .select({
-      lastDownSync: schema.syncedServers.lastDownSync,
-      newDataAsOf: schema.syncedServers.newDataAsOf,
+      lastSyncTime: schema.syncedServers.lastSyncTime,
+      libraryDataVersion: schema.syncedServers.libraryDataVersion,
     })
     .from(schema.syncedServers)
     .where(eq(schema.syncedServers.url, session.url))
     .limit(1);
 
-  return result[0] || { lastDownSync: null, newDataAsOf: null };
+  return result[0] || { lastSyncTime: null, libraryDataVersion: null };
 }

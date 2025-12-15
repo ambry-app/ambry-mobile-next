@@ -30,12 +30,12 @@ describe("data-version store", () => {
       expect(result.needsInitialSync).toBe(true);
     });
 
-    it("returns needsInitialSync: true when lastDownSync is null", async () => {
+    it("returns needsInitialSync: true when lastSyncTime is null", async () => {
       const db = getDb();
       await createSyncedServer(db, {
         url: session.url,
-        lastDownSync: null,
-        newDataAsOf: null,
+        lastSyncTime: null,
+        libraryDataVersion: null,
       });
 
       const result = await initializeDataVersion(session);
@@ -43,12 +43,12 @@ describe("data-version store", () => {
       expect(result.needsInitialSync).toBe(true);
     });
 
-    it("returns needsInitialSync: false when lastDownSync exists", async () => {
+    it("returns needsInitialSync: false when lastSyncTime exists", async () => {
       const db = getDb();
       await createSyncedServer(db, {
         url: session.url,
-        lastDownSync: new Date(),
-        newDataAsOf: new Date(),
+        lastSyncTime: new Date(),
+        libraryDataVersion: new Date(),
       });
 
       const result = await initializeDataVersion(session);
@@ -56,13 +56,13 @@ describe("data-version store", () => {
       expect(result.needsInitialSync).toBe(false);
     });
 
-    it("sets libraryDataVersion from newDataAsOf timestamp", async () => {
+    it("sets libraryDataVersion from libraryDataVersion timestamp", async () => {
       const db = getDb();
       const timestamp = new Date("2024-06-15T12:00:00Z");
       await createSyncedServer(db, {
         url: session.url,
-        lastDownSync: new Date(),
-        newDataAsOf: timestamp,
+        lastSyncTime: new Date(),
+        libraryDataVersion: timestamp,
       });
 
       await initializeDataVersion(session);
@@ -72,12 +72,12 @@ describe("data-version store", () => {
       );
     });
 
-    it("sets libraryDataVersion to null when newDataAsOf is null", async () => {
+    it("sets libraryDataVersion to null when libraryDataVersion is null", async () => {
       const db = getDb();
       await createSyncedServer(db, {
         url: session.url,
-        lastDownSync: new Date(),
-        newDataAsOf: null,
+        lastSyncTime: new Date(),
+        libraryDataVersion: null,
       });
 
       await initializeDataVersion(session);
@@ -92,8 +92,8 @@ describe("data-version store", () => {
 
       await createSyncedServer(db, {
         url: session.url,
-        lastDownSync: new Date(),
-        newDataAsOf: firstTimestamp,
+        lastSyncTime: new Date(),
+        libraryDataVersion: firstTimestamp,
       });
 
       // First initialization
@@ -105,7 +105,7 @@ describe("data-version store", () => {
       // Update the database - but this shouldn't affect the store
       await db
         .update(schema.syncedServers)
-        .set({ newDataAsOf: secondTimestamp });
+        .set({ libraryDataVersion: secondTimestamp });
 
       // Second call should skip and return false
       const result = await initializeDataVersion(session);
@@ -120,8 +120,8 @@ describe("data-version store", () => {
       const db = getDb();
       await createSyncedServer(db, {
         url: session.url,
-        lastDownSync: new Date(),
-        newDataAsOf: new Date(),
+        lastSyncTime: new Date(),
+        libraryDataVersion: new Date(),
       });
 
       await initializeDataVersion(session);
@@ -137,13 +137,13 @@ describe("data-version store", () => {
 
       await createSyncedServer(db, {
         url: session.url,
-        lastDownSync: new Date(),
-        newDataAsOf: thisServerTimestamp,
+        lastSyncTime: new Date(),
+        libraryDataVersion: thisServerTimestamp,
       });
       await createSyncedServer(db, {
         url: otherSession.url,
-        lastDownSync: new Date(),
-        newDataAsOf: otherServerTimestamp,
+        lastSyncTime: new Date(),
+        libraryDataVersion: otherServerTimestamp,
       });
 
       await initializeDataVersion(session);

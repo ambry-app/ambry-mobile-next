@@ -35,14 +35,15 @@ export async function initializeDataVersion(
 
   console.debug("[DataVersion] Initializing");
 
-  const { lastDownSync, newDataAsOf } = await getServerSyncTimestamps(session);
+  const { lastSyncTime, libraryDataVersion } =
+    await getServerSyncTimestamps(session);
 
   useDataVersion.setState({
     initialized: true,
-    libraryDataVersion: newDataAsOf?.getTime() ?? null,
+    libraryDataVersion: libraryDataVersion?.getTime() ?? null,
   });
 
-  return { needsInitialSync: lastDownSync === null };
+  return { needsInitialSync: lastSyncTime === null };
 }
 
 /**

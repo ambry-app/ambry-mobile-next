@@ -241,11 +241,11 @@ describe("test factories", () => {
     it("creates a synced server", async () => {
       const db = getDb();
       const syncedServer = await createSyncedServer(db, {
-        lastDownSync: new Date("2024-01-01"),
+        lastSyncTime: new Date("2024-01-01"),
       });
 
       expect(syncedServer.url).toBe(DEFAULT_TEST_SESSION.url);
-      expect(syncedServer.lastDownSync).toBeDefined();
+      expect(syncedServer.lastSyncTime).toBeDefined();
     });
 
     it("creates a server profile", async () => {

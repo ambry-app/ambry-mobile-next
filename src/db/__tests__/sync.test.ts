@@ -58,27 +58,27 @@ describe("getServerSyncTimestamps", () => {
     const result = await getServerSyncTimestamps(session);
 
     expect(result).toEqual({
-      lastDownSync: null,
-      newDataAsOf: null,
+      lastSyncTime: null,
+      libraryDataVersion: null,
     });
   });
 
   it("returns existing timestamps when record exists", async () => {
     const db = getDb();
-    const lastDownSync = new Date("2024-01-15T10:00:00.000Z");
-    const newDataAsOf = new Date("2024-01-14T10:00:00.000Z");
+    const lastSyncTime = new Date("2024-01-15T10:00:00.000Z");
+    const libraryDataVersion = new Date("2024-01-14T10:00:00.000Z");
 
     // Insert a synced server record
     await db.insert(schema.syncedServers).values({
       url: session.url,
-      lastDownSync,
-      newDataAsOf,
+      lastSyncTime,
+      libraryDataVersion,
     });
 
     const result = await getServerSyncTimestamps(session);
 
-    expect(result.lastDownSync).toEqual(lastDownSync);
-    expect(result.newDataAsOf).toEqual(newDataAsOf);
+    expect(result.lastSyncTime).toEqual(lastSyncTime);
+    expect(result.libraryDataVersion).toEqual(libraryDataVersion);
   });
 });
 
@@ -182,8 +182,8 @@ describe("syncLibrary", () => {
       const syncedServers = await db.query.syncedServers.findMany();
       expect(syncedServers).toHaveLength(1);
       expect(syncedServers[0]!.url).toBe(session.url);
-      expect(syncedServers[0]!.lastDownSync).toEqual(new Date(serverTime));
-      expect(syncedServers[0]!.newDataAsOf).toEqual(new Date(serverTime));
+      expect(syncedServers[0]!.lastSyncTime).toEqual(new Date(serverTime));
+      expect(syncedServers[0]!.libraryDataVersion).toEqual(new Date(serverTime));
     });
 
     it("updates libraryDataVersion store after sync", async () => {
@@ -200,26 +200,26 @@ describe("syncLibrary", () => {
       expect(libraryDataVersion).toBe(new Date(serverTime).getTime());
     });
 
-    it("passes lastDownSync to API on subsequent syncs", async () => {
+    it("passes lastSyncTime to API on subsequent syncs", async () => {
       const db = getDb();
       const firstServerTime = "2024-01-15T10:00:00.000Z";
       const secondServerTime = "2024-01-15T11:00:00.000Z";
 
-      // First sync (no lastDownSync)
+      // First sync (no lastSyncTime)
       mockGetLibraryChangesSince.mockResolvedValueOnce({
         success: true,
         result: emptyLibraryChanges(firstServerTime),
       });
       await syncLibrary(session);
 
-      // Second sync (should pass lastDownSync)
+      // Second sync (should pass lastSyncTime)
       mockGetLibraryChangesSince.mockResolvedValueOnce({
         success: true,
         result: emptyLibraryChanges(secondServerTime),
       });
       await syncLibrary(session);
 
-      // Verify the API was called with the correct lastDownSync
+      // Verify the API was called with the correct lastSyncTime
       expect(mockGetLibraryChangesSince).toHaveBeenCalledTimes(2);
       // First call: no prior sync, so lastSync is undefined (from DB query returning undefined)
       expect(mockGetLibraryChangesSince).toHaveBeenNthCalledWith(
@@ -234,9 +234,9 @@ describe("syncLibrary", () => {
         new Date(firstServerTime),
       );
 
-      // Verify lastDownSync was updated
+      // Verify lastSyncTime was updated
       const syncedServers = await db.query.syncedServers.findMany();
-      expect(syncedServers[0]!.lastDownSync).toEqual(
+      expect(syncedServers[0]!.lastSyncTime).toEqual(
         new Date(secondServerTime),
       );
     });
@@ -765,11 +765,11 @@ describe("syncLibrary", () => {
   });
 
   // ===========================================================================
-  // Timestamp tracking (newDataAsOf)
+  // Timestamp tracking (libraryDataVersion)
   // ===========================================================================
 
   describe("timestamp tracking", () => {
-    it("sets newDataAsOf to serverTime on first sync", async () => {
+    it("sets libraryDataVersion to serverTime on first sync", async () => {
       const db = getDb();
       const serverTime = "2024-01-15T10:00:00.000Z";
 
@@ -781,10 +781,10 @@ describe("syncLibrary", () => {
       await syncLibrary(session);
 
       const syncedServers = await db.query.syncedServers.findMany();
-      expect(syncedServers[0]!.newDataAsOf).toEqual(new Date(serverTime));
+      expect(syncedServers[0]!.libraryDataVersion).toEqual(new Date(serverTime));
     });
 
-    it("updates newDataAsOf when changes received", async () => {
+    it("updates libraryDataVersion when changes received", async () => {
       const db = getDb();
       const serverTime1 = "2024-01-15T10:00:00.000Z";
       const serverTime2 = "2024-01-15T11:00:00.000Z";
@@ -807,10 +807,10 @@ describe("syncLibrary", () => {
       await syncLibrary(session);
 
       const syncedServers = await db.query.syncedServers.findMany();
-      expect(syncedServers[0]!.newDataAsOf).toEqual(new Date(serverTime2));
+      expect(syncedServers[0]!.libraryDataVersion).toEqual(new Date(serverTime2));
     });
 
-    it("keeps previous newDataAsOf when no changes received", async () => {
+    it("keeps previous libraryDataVersion when no changes received", async () => {
       const db = getDb();
       const serverTime1 = "2024-01-15T10:00:00.000Z";
       const serverTime2 = "2024-01-15T11:00:00.000Z";
@@ -833,10 +833,10 @@ describe("syncLibrary", () => {
       await syncLibrary(session);
 
       const syncedServers = await db.query.syncedServers.findMany();
-      // lastDownSync should update to serverTime2
-      expect(syncedServers[0]!.lastDownSync).toEqual(new Date(serverTime2));
-      // But newDataAsOf should remain at serverTime1 (when we last had actual changes)
-      expect(syncedServers[0]!.newDataAsOf).toEqual(new Date(serverTime1));
+      // lastSyncTime should update to serverTime2
+      expect(syncedServers[0]!.lastSyncTime).toEqual(new Date(serverTime2));
+      // But libraryDataVersion should remain at serverTime1 (when we last had actual changes)
+      expect(syncedServers[0]!.libraryDataVersion).toEqual(new Date(serverTime1));
     });
   });
 });
@@ -913,7 +913,7 @@ describe("syncPlaythroughs", () => {
       expect(input.events).toHaveLength(0);
     });
 
-    it("updates server profile lastDownSync on empty sync", async () => {
+    it("updates server profile lastSyncTime on empty sync", async () => {
       const db = getDb();
       initializeDeviceStore();
 
@@ -927,7 +927,7 @@ describe("syncPlaythroughs", () => {
 
       const profiles = await db.query.serverProfiles.findMany();
       expect(profiles).toHaveLength(1);
-      expect(profiles[0]!.lastDownSync).toEqual(new Date(serverTime));
+      expect(profiles[0]!.lastSyncTime).toEqual(new Date(serverTime));
     });
   });
 
