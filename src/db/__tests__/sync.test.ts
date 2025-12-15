@@ -183,7 +183,9 @@ describe("syncLibrary", () => {
       expect(syncedServers).toHaveLength(1);
       expect(syncedServers[0]!.url).toBe(session.url);
       expect(syncedServers[0]!.lastSyncTime).toEqual(new Date(serverTime));
-      expect(syncedServers[0]!.libraryDataVersion).toEqual(new Date(serverTime));
+      expect(syncedServers[0]!.libraryDataVersion).toEqual(
+        new Date(serverTime),
+      );
     });
 
     it("updates libraryDataVersion store after sync", async () => {
@@ -781,7 +783,9 @@ describe("syncLibrary", () => {
       await syncLibrary(session);
 
       const syncedServers = await db.query.syncedServers.findMany();
-      expect(syncedServers[0]!.libraryDataVersion).toEqual(new Date(serverTime));
+      expect(syncedServers[0]!.libraryDataVersion).toEqual(
+        new Date(serverTime),
+      );
     });
 
     it("updates libraryDataVersion when changes received", async () => {
@@ -807,7 +811,9 @@ describe("syncLibrary", () => {
       await syncLibrary(session);
 
       const syncedServers = await db.query.syncedServers.findMany();
-      expect(syncedServers[0]!.libraryDataVersion).toEqual(new Date(serverTime2));
+      expect(syncedServers[0]!.libraryDataVersion).toEqual(
+        new Date(serverTime2),
+      );
     });
 
     it("keeps previous libraryDataVersion when no changes received", async () => {
@@ -836,7 +842,9 @@ describe("syncLibrary", () => {
       // lastSyncTime should update to serverTime2
       expect(syncedServers[0]!.lastSyncTime).toEqual(new Date(serverTime2));
       // But libraryDataVersion should remain at serverTime1 (when we last had actual changes)
-      expect(syncedServers[0]!.libraryDataVersion).toEqual(new Date(serverTime1));
+      expect(syncedServers[0]!.libraryDataVersion).toEqual(
+        new Date(serverTime1),
+      );
     });
   });
 });
