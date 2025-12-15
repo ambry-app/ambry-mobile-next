@@ -66,7 +66,7 @@ const deletionsTables = {
 };
 
 export async function syncDown(session: Session) {
-  return Promise.all([syncDownLibrary(session), syncDownUser(session)]);
+  return Promise.all([syncDownLibrary(session), syncPlaythroughs(session)]);
 }
 
 export async function syncDownLibrary(session: Session) {

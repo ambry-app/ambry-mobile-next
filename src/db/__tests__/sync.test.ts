@@ -87,26 +87,63 @@ describe("getServerSyncTimestamps", () => {
 // =============================================================================
 
 describe("syncDown", () => {
-  it("calls syncDownLibrary", async () => {
+  it("calls syncDownLibrary and syncPlaythroughs", async () => {
     const serverTime = "2024-01-15T10:00:00.000Z";
+
+    // Set up device info for syncPlaythroughs
+    useDevice.setState({
+      initialized: true,
+      deviceInfo: {
+        id: "test-device-id",
+        type: "android",
+        brand: "TestBrand",
+        modelName: "TestModel",
+        osName: "Android",
+        osVersion: "14",
+      },
+    });
 
     mockGetLibraryChangesSince.mockResolvedValue({
       success: true,
       result: emptyLibraryChanges(serverTime),
     });
 
+    mockSyncProgress.mockResolvedValue({
+      success: true,
+      result: { syncProgress: emptySyncProgressResult(serverTime) },
+    });
+
     await syncDown(session);
 
     expect(mockGetLibraryChangesSince).toHaveBeenCalledTimes(1);
+    expect(mockSyncProgress).toHaveBeenCalledTimes(1);
   });
 
   it("completes successfully when sync succeeds", async () => {
     const db = getDb();
     const serverTime = "2024-01-15T10:00:00.000Z";
 
+    // Set up device info for syncPlaythroughs
+    useDevice.setState({
+      initialized: true,
+      deviceInfo: {
+        id: "test-device-id",
+        type: "android",
+        brand: "TestBrand",
+        modelName: "TestModel",
+        osName: "Android",
+        osVersion: "14",
+      },
+    });
+
     mockGetLibraryChangesSince.mockResolvedValue({
       success: true,
       result: emptyLibraryChanges(serverTime),
+    });
+
+    mockSyncProgress.mockResolvedValue({
+      success: true,
+      result: { syncProgress: emptySyncProgressResult(serverTime) },
     });
 
     await syncDown(session);
