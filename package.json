@@ -56,7 +56,6 @@
       "!src/app/**",
       "!src/utils/crypto.ts",
       "!src/db/db.ts",
-      "!src/db/player-states.ts",
       "!src/types/**",
       "!src/styles/**",
       "!src/**/index.ts"

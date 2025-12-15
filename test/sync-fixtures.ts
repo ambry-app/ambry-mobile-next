@@ -5,14 +5,12 @@
 import type {
   LibraryChangesSinceQuery,
   SyncProgressMutation,
-  UserChangesSinceQuery,
 } from "@/graphql/client/graphql";
 import {
   DateFormat,
   DeletionType,
   MediaProcessingStatus,
   PlaybackEventType,
-  PlayerStateStatus,
   PlaythroughStatus,
 } from "@/graphql/client/graphql";
 
@@ -22,7 +20,6 @@ export {
   DeletionType,
   MediaProcessingStatus,
   PlaybackEventType,
-  PlayerStateStatus,
   PlaythroughStatus,
 };
 
@@ -308,42 +305,6 @@ export function createLibraryDeletion(
     __typename: "Deletion",
     type,
     recordId,
-  };
-}
-
-// =============================================================================
-// User Changes (syncDownUser)
-// =============================================================================
-
-type PlayerStateChange =
-  UserChangesSinceQuery["playerStatesChangedSince"][number];
-
-export function emptyUserChanges(
-  serverTime = new Date().toISOString(),
-): UserChangesSinceQuery {
-  return {
-    serverTime,
-    playerStatesChangedSince: [],
-  };
-}
-
-export function createUserPlayerState(
-  overrides: Partial<PlayerStateChange> & { mediaId?: string } = {},
-): PlayerStateChange {
-  const id = overrides.id ?? nextId("player-state");
-  const mediaId = overrides.mediaId ?? nextId("media");
-  const now = new Date().toISOString();
-
-  return {
-    __typename: "PlayerState",
-    id,
-    media: { __typename: "Media", id: mediaId },
-    status: PlayerStateStatus.InProgress,
-    playbackRate: 1.0,
-    position: 0,
-    insertedAt: now,
-    updatedAt: now,
-    ...overrides,
   };
 }
 

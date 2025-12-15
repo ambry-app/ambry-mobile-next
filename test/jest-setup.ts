@@ -18,8 +18,6 @@ jest.mock("@/utils/crypto", () => ({
 
 // Mock functions exposed for test control
 export const mockGetLibraryChangesSince = jest.fn();
-export const mockGetUserChangesSince = jest.fn();
-export const mockUpdatePlayerState = jest.fn();
 export const mockSyncProgress = jest.fn();
 export const mockCreateSession = jest.fn();
 export const mockDeleteSession = jest.fn();
@@ -27,8 +25,6 @@ export const mockDeleteSession = jest.fn();
 jest.mock("@/graphql/api", () => ({
   getLibraryChangesSince: (...args: unknown[]) =>
     mockGetLibraryChangesSince(...args),
-  getUserChangesSince: (...args: unknown[]) => mockGetUserChangesSince(...args),
-  updatePlayerState: (...args: unknown[]) => mockUpdatePlayerState(...args),
   syncProgress: (...args: unknown[]) => mockSyncProgress(...args),
   createSession: (...args: unknown[]) => mockCreateSession(...args),
   deleteSession: (...args: unknown[]) => mockDeleteSession(...args),

@@ -12,14 +12,12 @@ import {
   getDefinedTaskCallback,
   mockExpoDbExecSync,
   mockGetLibraryChangesSince,
-  mockGetUserChangesSince,
   mockIsTaskRegisteredAsync,
   mockRegisterTaskAsync,
   mockSyncProgress,
   mockUnregisterTaskAsync,
-  mockUpdatePlayerState,
 } from "@test/jest-setup";
-import { emptyLibraryChanges, emptyUserChanges } from "@test/sync-fixtures";
+import { emptyLibraryChanges } from "@test/sync-fixtures";
 
 // Setup test database (needed for sync operations)
 setupTestDatabase();
@@ -34,21 +32,14 @@ describe("background-sync-service", () => {
     mockUnregisterTaskAsync.mockReset();
     mockExpoDbExecSync.mockReset();
     mockGetLibraryChangesSince.mockReset();
-    mockGetUserChangesSince.mockReset();
     mockSyncProgress.mockReset();
-    mockUpdatePlayerState.mockReset();
 
     // Default mock implementations using proper fixtures
     mockGetLibraryChangesSince.mockResolvedValue({
       success: true,
       result: emptyLibraryChanges(),
     });
-    mockGetUserChangesSince.mockResolvedValue({
-      success: true,
-      result: emptyUserChanges(),
-    });
     mockSyncProgress.mockResolvedValue({ success: true, result: {} });
-    mockUpdatePlayerState.mockResolvedValue({ success: true, result: {} });
 
     // Set up device store (needed for syncPlaythroughs)
     useDevice.setState({
@@ -145,9 +136,8 @@ describe("background-sync-service", () => {
       // Should return success (not fail)
       expect(result).toBe("success");
 
-      // Verify syncDown was called (syncs library changes from server)
+      // Verify syncDownLibrary was called (syncs library changes from server)
       expect(mockGetLibraryChangesSince).toHaveBeenCalled();
-      expect(mockGetUserChangesSince).toHaveBeenCalled();
 
       // Verify WAL checkpoint was executed (confirms we reached the success path)
       expect(mockExpoDbExecSync).toHaveBeenCalledWith(

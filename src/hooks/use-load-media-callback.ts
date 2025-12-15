@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 
-import { syncDownUser } from "@/db/sync";
 import {
   expandPlayer,
   loadMedia,
@@ -18,7 +17,6 @@ export default function useLoadMediaCallback(
     prepareToLoadMedia();
     expandPlayer();
     setTimeout(async () => {
-      await syncDownUser(session);
       await loadMedia(session, mediaId);
     }, 400);
   }, [mediaId, session]);
