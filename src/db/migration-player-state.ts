@@ -1,4 +1,6 @@
-import { getDb, getExpoDb } from "@/db/db";
+import Storage from "expo-sqlite/kv-store";
+
+import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
 import { randomUUID } from "@/utils/crypto";
 
@@ -19,14 +21,31 @@ interface OldPlayerState {
  * Returns true if migration is needed.
  */
 export async function detectOldPlayerStateSchema(): Promise<boolean> {
-  const db = getExpoDb();
+  // Check if migration has already been completed
+  const migrated = await Storage.getItem("playerstate_migration_v1");
+  if (migrated === "completed") {
+    console.log("[Migration] Migration already completed (flag set)");
+    return false;
+  }
 
-  // Check if old player_states table exists
-  const result = db.getFirstSync<{ count: number }>(
-    "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='player_states'",
-  );
+  const db = getDb();
 
-  return (result?.count ?? 0) > 0;
+  // Check if old player_states table exists and has data
+  try {
+    const results = await db.select().from(schema.playerStates).limit(1);
+    const hasData = results.length > 0;
+
+    if (hasData) {
+      console.log("[Migration] Found old player_states data, migration needed");
+    } else {
+      console.log("[Migration] No old player_states data found");
+    }
+
+    return hasData;
+  } catch {
+    console.log("[Migration] player_states table not found");
+    return false;
+  }
 }
 
 /**
@@ -36,7 +55,7 @@ export async function detectOldPlayerStateSchema(): Promise<boolean> {
  * 1. Reads ALL old PlayerState records (for all users/sessions)
  * 2. Creates Playthrough records with synthetic events
  * 3. Marks them for sync (syncedAt = null)
- * 4. Drops old tables
+ * 4. Sets completion flag (tables will be dropped via Drizzle migration later)
  *
  * Client-side migration approach: Client is source of truth.
  * Server receives these playthroughs as NEW data when client syncs up.
@@ -51,25 +70,48 @@ export async function detectOldPlayerStateSchema(): Promise<boolean> {
 export async function migrateFromPlayerStateToPlaythrough(): Promise<void> {
   console.log("[Migration] Starting PlayerState → Playthrough migration");
 
-  const expoDb = getExpoDb();
   const db = getDb();
 
+  // Clean up any partial migration data from previous incomplete run
+  // Safe to delete all playthroughs because migration blocks app boot,
+  // so user cannot have created any real playthroughs yet
+  console.log("[Migration] Cleaning up any partial migration data");
+  await db.delete(schema.playthroughStateCache);
+  await db.delete(schema.playbackEvents);
+  await db.delete(schema.playthroughs);
+
   // Fetch from both tables: synced player_states and local_player_states
-  // Use try-catch in case one table doesn't exist
+  // Use try-catch in case tables don't exist (fresh install)
   let syncedStates: OldPlayerState[] = [];
   try {
-    syncedStates = expoDb.getAllSync<OldPlayerState>(
-      `SELECT url, user_email as userEmail, media_id as mediaId, position, playback_rate as playbackRate, status, inserted_at as insertedAt, updated_at as updatedAt FROM player_states`,
-    );
+    const results = await db.select().from(schema.playerStates);
+    syncedStates = results.map((row) => ({
+      url: row.url,
+      userEmail: row.userEmail,
+      mediaId: row.mediaId,
+      position: row.position,
+      playbackRate: row.playbackRate,
+      status: row.status,
+      insertedAt: Math.floor(row.insertedAt.getTime() / 1000), // Convert Date to Unix seconds
+      updatedAt: Math.floor(row.updatedAt.getTime() / 1000),
+    }));
   } catch {
     console.log("[Migration] player_states table not found or empty");
   }
 
   let localStates: OldPlayerState[] = [];
   try {
-    localStates = expoDb.getAllSync<OldPlayerState>(
-      `SELECT url, user_email as userEmail, media_id as mediaId, position, playback_rate as playbackRate, status, inserted_at as insertedAt, updated_at as updatedAt FROM local_player_states`,
-    );
+    const results = await db.select().from(schema.localPlayerStates);
+    localStates = results.map((row) => ({
+      url: row.url,
+      userEmail: row.userEmail,
+      mediaId: row.mediaId,
+      position: row.position,
+      playbackRate: row.playbackRate,
+      status: row.status,
+      insertedAt: Math.floor(row.insertedAt.getTime() / 1000),
+      updatedAt: Math.floor(row.updatedAt.getTime() / 1000),
+    }));
   } catch {
     console.log("[Migration] local_player_states table not found or empty");
   }
@@ -171,11 +213,11 @@ export async function migrateFromPlayerStateToPlaythrough(): Promise<void> {
     });
   }
 
-  console.log("[Migration] Dropping old player_states tables");
+  console.log("[Migration] Setting completion flag");
 
-  // Drop old tables
-  expoDb.execSync("DROP TABLE IF EXISTS player_states");
-  expoDb.execSync("DROP TABLE IF EXISTS local_player_states");
+  // Mark migration as complete
+  // Tables will be dropped via Drizzle migration later (after all users have migrated)
+  await Storage.setItem("playerstate_migration_v1", "completed");
 
   console.log("[Migration] Migration complete");
 }

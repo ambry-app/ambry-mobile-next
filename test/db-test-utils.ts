@@ -137,7 +137,7 @@ export function createTestDatabase(): { db: TestDatabase; close: () => void } {
  * });
  */
 export function setupTestDatabase() {
-  let testDb: { db: TestDatabase; close: () => void } | null = null;
+  let testDb: ReturnType<typeof createTestDatabase> | null = null;
 
   beforeEach(() => {
     testDb = createTestDatabase();
