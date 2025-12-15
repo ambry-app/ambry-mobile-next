@@ -437,7 +437,7 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                   size={24}
                   icon="ellipsis-vertical"
                   color={Colors.zinc[100]}
-                  onPress={() => console.log("TODO: context menu")}
+                  onPress={() => console.debug("TODO: context menu")}
                   style={{ opacity: 0 }}
                 />
               </Animated.View>

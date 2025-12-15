@@ -34,10 +34,10 @@ const useAppBoot = () => {
 
       const shouldMigrate = await needsPlayerStateMigration();
       if (shouldMigrate) {
-        console.log("[AppBoot] Old PlayerState data detected, migrating...");
+        console.debug("[AppBoot] Old PlayerState data detected, migrating...");
         try {
           await migrateFromPlayerStateToPlaythrough();
-          console.log("[AppBoot] PlayerState migration complete");
+          console.debug("[AppBoot] PlayerState migration complete");
         } catch (e) {
           console.error("[AppBoot] PlayerState migration error", e);
           // Continue boot even if migration fails

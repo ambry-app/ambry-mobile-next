@@ -24,7 +24,7 @@ export async function needsPlayerStateMigration(): Promise<boolean> {
   // Check if migration has already been completed
   const migrated = await Storage.getItem("playerstate_migration_v1");
   if (migrated === "completed") {
-    console.log("[Migration] Migration already completed (flag set)");
+    console.debug("[Migration] Migration already completed (flag set)");
     return false;
   }
 
@@ -36,14 +36,16 @@ export async function needsPlayerStateMigration(): Promise<boolean> {
     const hasData = results.length > 0;
 
     if (hasData) {
-      console.log("[Migration] Found old player_states data, migration needed");
+      console.debug(
+        "[Migration] Found old player_states data, migration needed",
+      );
     } else {
-      console.log("[Migration] No old player_states data found");
+      console.debug("[Migration] No old player_states data found");
     }
 
     return hasData;
   } catch {
-    console.log("[Migration] player_states table not found");
+    console.debug("[Migration] player_states table not found");
     return false;
   }
 }
@@ -68,14 +70,14 @@ export async function needsPlayerStateMigration(): Promise<boolean> {
  * require a logged-in user.
  */
 export async function migrateFromPlayerStateToPlaythrough(): Promise<void> {
-  console.log("[Migration] Starting PlayerState → Playthrough migration");
+  console.debug("[Migration] Starting PlayerState → Playthrough migration");
 
   const db = getDb();
 
   // Clean up any partial migration data from previous incomplete run
   // Safe to delete all playthroughs because migration blocks app boot,
   // so user cannot have created any real playthroughs yet
-  console.log("[Migration] Cleaning up any partial migration data");
+  console.debug("[Migration] Cleaning up any partial migration data");
   await db.delete(schema.playthroughStateCache);
   await db.delete(schema.playbackEvents);
   await db.delete(schema.playthroughs);
@@ -96,7 +98,7 @@ export async function migrateFromPlayerStateToPlaythrough(): Promise<void> {
       updatedAt: Math.floor(row.updatedAt.getTime() / 1000),
     }));
   } catch {
-    console.log("[Migration] player_states table not found or empty");
+    console.debug("[Migration] player_states table not found or empty");
   }
 
   let localStates: OldPlayerState[] = [];
@@ -113,10 +115,10 @@ export async function migrateFromPlayerStateToPlaythrough(): Promise<void> {
       updatedAt: Math.floor(row.updatedAt.getTime() / 1000),
     }));
   } catch {
-    console.log("[Migration] local_player_states table not found or empty");
+    console.debug("[Migration] local_player_states table not found or empty");
   }
 
-  console.log(
+  console.debug(
     `[Migration] Found ${syncedStates.length} synced states, ${localStates.length} local states`,
   );
 
@@ -137,7 +139,7 @@ export async function migrateFromPlayerStateToPlaythrough(): Promise<void> {
   }
 
   const oldPlayerStates = Array.from(stateMap.values());
-  console.log(
+  console.debug(
     `[Migration] Coalesced to ${oldPlayerStates.length} unique player states`,
   );
 
@@ -148,13 +150,13 @@ export async function migrateFromPlayerStateToPlaythrough(): Promise<void> {
   for (const playerState of oldPlayerStates) {
     // Skip not_started states (in new model, no playthrough = not started)
     if (playerState.status === "not_started") {
-      console.log(
+      console.debug(
         `[Migration] Skipping not_started state for ${playerState.mediaId}`,
       );
       continue;
     }
 
-    console.log(
+    console.debug(
       `[Migration] Migrating player state for ${playerState.userEmail}@${playerState.url}/${playerState.mediaId}`,
     );
 
@@ -213,11 +215,11 @@ export async function migrateFromPlayerStateToPlaythrough(): Promise<void> {
     });
   }
 
-  console.log("[Migration] Setting completion flag");
+  console.debug("[Migration] Setting completion flag");
 
   // Mark migration as complete
   // Tables will be dropped via Drizzle migration later (after all users have migrated)
   await Storage.setItem("playerstate_migration_v1", "completed");
 
-  console.log("[Migration] Migration complete");
+  console.debug("[Migration] Migration complete");
 }

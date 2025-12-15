@@ -88,6 +88,6 @@ export async function signOut() {
 // gotten an unauthorized error back from the server with the current token,
 // meaning we've been signed out server-side
 export function forceSignOut() {
-  console.log("[Session] Forcing sign out");
+  console.debug("[Session] Forcing sign out");
   useSession.setState({ session: null });
 }
