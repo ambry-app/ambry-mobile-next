@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { isMediaOnShelf, toggleMediaOnShelf } from "@/db/shelves";
+import { bumpShelfDataVersion } from "@/stores/data-version";
 import { Session } from "@/stores/session";
 
 export function useShelvedMedia(
@@ -17,6 +18,7 @@ export function useShelvedMedia(
   const toggleOnShelf = useCallback(async () => {
     await toggleMediaOnShelf(session, mediaId, shelfName);
     await load();
+    bumpShelfDataVersion();
   }, [session, mediaId, shelfName, load]);
 
   useEffect(() => {

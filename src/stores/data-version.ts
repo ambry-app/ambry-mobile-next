@@ -8,12 +8,14 @@ interface DataVersionState {
   initialized: boolean;
   libraryDataVersion: number | null;
   playthroughDataVersion: number;
+  shelfDataVersion: number;
 }
 
 export const initialDataVersionState: DataVersionState = {
   initialized: false,
   libraryDataVersion: null,
   playthroughDataVersion: 0,
+  shelfDataVersion: 0,
 };
 
 export const useDataVersion = create<DataVersionState>(
@@ -60,5 +62,15 @@ export function setLibraryDataVersion(date: Date) {
 export function bumpPlaythroughDataVersion() {
   useDataVersion.setState((state) => ({
     playthroughDataVersion: state.playthroughDataVersion + 1,
+  }));
+}
+
+/**
+ * Bump the shelf data version (called when shelf state changes).
+ * This triggers re-fetches in components that display shelf data.
+ */
+export function bumpShelfDataVersion() {
+  useDataVersion.setState((state) => ({
+    shelfDataVersion: state.shelfDataVersion + 1,
   }));
 }

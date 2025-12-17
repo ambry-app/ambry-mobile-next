@@ -32,6 +32,12 @@ export default function ShelfStackLayout() {
           title: "Finished",
         }}
       />
+      <Stack.Screen
+        name="saved"
+        options={{
+          title: "Saved for Later",
+        }}
+      />
     </Stack>
   );
 }
