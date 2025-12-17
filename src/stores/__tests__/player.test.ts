@@ -10,6 +10,7 @@ import { stopMonitoring } from "@/services/event-recording-service";
 import { initialDeviceState, useDevice } from "@/stores/device";
 import {
   cancelResumePrompt,
+  checkForResumePrompt,
   expandPlayer,
   forceUnloadPlayer,
   handleResumePlaythrough,
@@ -954,10 +955,10 @@ describe("player store", () => {
         expect(state.playbackRate).toBe(1.5);
       });
 
-      it("shows resume prompt for finished playthrough", async () => {
+      it("creates new playthrough when none exists", async () => {
         const db = getDb();
 
-        // Set up media
+        // Set up media with no playthrough
         const media = await createMedia(db, {
           id: "media-3",
           duration: "3600",
@@ -966,33 +967,19 @@ describe("player store", () => {
         });
         await createBookAuthor(db, { bookId: media.bookId });
 
-        // Create a finished playthrough
-        const playthrough = await createPlaythrough(db, {
-          mediaId: "media-3",
-          status: "finished",
-        });
-        await createPlaythroughStateCache(db, {
-          playthroughId: playthrough.id,
-          currentPosition: 3500,
-          currentRate: 1.0,
-        });
-
         await loadMedia(DEFAULT_TEST_SESSION, "media-3");
 
         const state = usePlayer.getState();
-        expect(state.pendingResumePrompt).toEqual({
-          mediaId: "media-3",
-          playthroughId: playthrough.id,
-          playthroughStatus: "finished",
-          position: 3500,
-        });
+        expect(state.mediaId).toBe("media-3");
+        expect(state.position).toBe(0);
         expect(state.loadingNewMedia).toBe(false);
       });
+    });
 
-      it("shows resume prompt for abandoned playthrough", async () => {
+    describe("checkForResumePrompt()", () => {
+      it("returns false for active playthrough", async () => {
         const db = getDb();
 
-        // Set up media
         const media = await createMedia(db, {
           id: "media-4",
           duration: "3600",
@@ -1001,9 +988,87 @@ describe("player store", () => {
         });
         await createBookAuthor(db, { bookId: media.bookId });
 
-        // Create an abandoned playthrough
-        const playthrough = await createPlaythrough(db, {
+        await createPlaythrough(db, {
           mediaId: "media-4",
+          status: "in_progress",
+        });
+
+        const needsPrompt = await checkForResumePrompt(
+          DEFAULT_TEST_SESSION,
+          "media-4",
+        );
+
+        expect(needsPrompt).toBe(false);
+        expect(usePlayer.getState().pendingResumePrompt).toBeNull();
+      });
+
+      it("returns false when no playthrough exists", async () => {
+        const db = getDb();
+
+        await createMedia(db, {
+          id: "media-5",
+          duration: "3600",
+          hlsPath: "/hls/media-5",
+          mpdPath: "/mpd/media-5",
+        });
+
+        const needsPrompt = await checkForResumePrompt(
+          DEFAULT_TEST_SESSION,
+          "media-5",
+        );
+
+        expect(needsPrompt).toBe(false);
+        expect(usePlayer.getState().pendingResumePrompt).toBeNull();
+      });
+
+      it("shows resume prompt for finished playthrough", async () => {
+        const db = getDb();
+
+        const media = await createMedia(db, {
+          id: "media-6",
+          duration: "3600",
+          hlsPath: "/hls/media-6",
+          mpdPath: "/mpd/media-6",
+        });
+        await createBookAuthor(db, { bookId: media.bookId });
+
+        const playthrough = await createPlaythrough(db, {
+          mediaId: "media-6",
+          status: "finished",
+        });
+        await createPlaythroughStateCache(db, {
+          playthroughId: playthrough.id,
+          currentPosition: 3500,
+          currentRate: 1.0,
+        });
+
+        const needsPrompt = await checkForResumePrompt(
+          DEFAULT_TEST_SESSION,
+          "media-6",
+        );
+
+        expect(needsPrompt).toBe(true);
+        expect(usePlayer.getState().pendingResumePrompt).toEqual({
+          mediaId: "media-6",
+          playthroughId: playthrough.id,
+          playthroughStatus: "finished",
+          position: 3500,
+        });
+      });
+
+      it("shows resume prompt for abandoned playthrough", async () => {
+        const db = getDb();
+
+        const media = await createMedia(db, {
+          id: "media-7",
+          duration: "3600",
+          hlsPath: "/hls/media-7",
+          mpdPath: "/mpd/media-7",
+        });
+        await createBookAuthor(db, { bookId: media.bookId });
+
+        const playthrough = await createPlaythrough(db, {
+          mediaId: "media-7",
           status: "abandoned",
         });
         await createPlaythroughStateCache(db, {
@@ -1012,11 +1077,14 @@ describe("player store", () => {
           currentRate: 1.25,
         });
 
-        await loadMedia(DEFAULT_TEST_SESSION, "media-4");
+        const needsPrompt = await checkForResumePrompt(
+          DEFAULT_TEST_SESSION,
+          "media-7",
+        );
 
-        const state = usePlayer.getState();
-        expect(state.pendingResumePrompt).toEqual({
-          mediaId: "media-4",
+        expect(needsPrompt).toBe(true);
+        expect(usePlayer.getState().pendingResumePrompt).toEqual({
+          mediaId: "media-7",
           playthroughId: playthrough.id,
           playthroughStatus: "abandoned",
           position: 1800,

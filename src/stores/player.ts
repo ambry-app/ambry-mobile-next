@@ -201,11 +201,33 @@ export function prepareToLoadMedia() {
 export async function loadMedia(session: Session, mediaId: string) {
   const track = await loadMediaIntoTrackPlayer(session, mediaId);
 
-  // If a prompt is pending, don't overwrite state - user needs to make a choice
-  if (usePlayer.getState().pendingResumePrompt) {
+  usePlayer.setState({
+    loadingNewMedia: false,
+    mediaId: track.mediaId,
+    duration: track.duration,
+    position: track.position,
+    playbackRate: track.playbackRate,
+    streaming: track.streaming,
+    ...initialChapterState(track.chapters, track.position, track.duration),
+  });
+}
+
+/**
+ * Load an active playthrough into TrackPlayer and update player state.
+ * Shared helper used by handleResumePlaythrough and handleStartFresh.
+ */
+async function loadActivePlaythroughAndUpdateState(
+  session: Session,
+  mediaId: string,
+): Promise<void> {
+  const playthrough = await getActivePlaythrough(session, mediaId);
+  if (!playthrough) {
+    console.error("[Player] No active playthrough found for media:", mediaId);
+    usePlayer.setState({ loadingNewMedia: false });
     return;
   }
 
+  const track = await loadPlaythroughIntoTrackPlayer(session, playthrough);
   usePlayer.setState({
     loadingNewMedia: false,
     mediaId: track.mediaId,
@@ -230,27 +252,11 @@ export async function handleResumePlaythrough(session: Session) {
     prompt.playthroughId,
   );
 
-  // Clear the prompt and expand the player
   usePlayer.setState({ pendingResumePrompt: null, loadingNewMedia: true });
   expandPlayer();
 
-  // Resume the playthrough
   await resumePlaythrough(session, prompt.playthroughId);
-
-  // Load it into the player
-  const playthrough = await getActivePlaythrough(session, prompt.mediaId);
-  if (playthrough) {
-    const track = await loadPlaythroughIntoTrackPlayer(session, playthrough);
-    usePlayer.setState({
-      loadingNewMedia: false,
-      mediaId: track.mediaId,
-      duration: track.duration,
-      position: track.position,
-      playbackRate: track.playbackRate,
-      streaming: track.streaming,
-      ...initialChapterState(track.chapters, track.position, track.duration),
-    });
-  }
+  await loadActivePlaythroughAndUpdateState(session, prompt.mediaId);
 }
 
 /**
@@ -266,28 +272,12 @@ export async function handleStartFresh(session: Session) {
     prompt.mediaId,
   );
 
-  // Clear the prompt and expand the player
   usePlayer.setState({ pendingResumePrompt: null, loadingNewMedia: true });
   expandPlayer();
 
-  // Create a new playthrough
   const playthroughId = await createPlaythrough(session, prompt.mediaId);
   await recordStartEvent(playthroughId);
-
-  // Load it into the player
-  const playthrough = await getActivePlaythrough(session, prompt.mediaId);
-  if (playthrough) {
-    const track = await loadPlaythroughIntoTrackPlayer(session, playthrough);
-    usePlayer.setState({
-      loadingNewMedia: false,
-      mediaId: track.mediaId,
-      duration: track.duration,
-      position: track.position,
-      playbackRate: track.playbackRate,
-      streaming: track.streaming,
-      ...initialChapterState(track.chapters, track.position, track.duration),
-    });
-  }
+  await loadActivePlaythroughAndUpdateState(session, prompt.mediaId);
 }
 
 /**
@@ -618,50 +608,10 @@ async function loadMediaIntoTrackPlayer(
     return loadPlaythroughIntoTrackPlayer(session, playthrough);
   }
 
-  // Check for finished or abandoned playthrough
-  const previousPlaythrough = await getFinishedOrAbandonedPlaythrough(
-    session,
-    mediaId,
-  );
-
-  if (
-    previousPlaythrough &&
-    (previousPlaythrough.status === "finished" ||
-      previousPlaythrough.status === "abandoned")
-  ) {
-    // Show "Resume or start fresh?" prompt
-    console.debug(
-      "[Player] Found previous playthrough:",
-      previousPlaythrough.id,
-      "status:",
-      previousPlaythrough.status,
-      "- showing prompt",
-    );
-
-    usePlayer.setState({
-      loadingNewMedia: false,
-      pendingResumePrompt: {
-        mediaId,
-        playthroughId: previousPlaythrough.id,
-        playthroughStatus: previousPlaythrough.status,
-        position: previousPlaythrough.stateCache?.currentPosition ?? 0,
-      },
-    });
-
-    // Return early - the user will make a choice via the dialog
-    // For now, return a placeholder result (won't be used since loadingNewMedia is false)
-    return {
-      mediaId,
-      duration: 0,
-      position: 0,
-      playbackRate: 1,
-      streaming: true,
-      chapters: [],
-    };
-  }
-
-  // No playthrough exists - create a new one
-  console.debug("[Player] No playthrough found; creating new one");
+  // No active playthrough - create a new one
+  // Note: finished/abandoned playthroughs are handled by checkForResumePrompt
+  // before this function is called
+  console.debug("[Player] No active playthrough found; creating new one");
 
   const playthroughId = await createPlaythrough(session, mediaId);
   await recordStartEvent(playthroughId);
