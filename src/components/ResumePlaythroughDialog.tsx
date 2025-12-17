@@ -1,4 +1,10 @@
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -11,6 +17,7 @@ import {
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 import { secondsDisplay } from "@/utils";
+import { timeAgo } from "@/utils/date";
 
 type ResumePlaythroughDialogProps = {
   session: Session;
@@ -24,21 +31,35 @@ export function ResumePlaythroughDialog({
   const { top, bottom } = useSafeAreaInsets();
   const loadingNewMedia = usePlayer((state) => state.loadingNewMedia);
 
+  const relativeTime = timeAgo(prompt.statusDate);
+  const daysSince = Math.floor(
+    (Date.now() - prompt.statusDate.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  const absoluteDate = prompt.statusDate.toLocaleDateString("en-US");
+  const dateText = daysSince >= 7 ? ` (${absoluteDate})` : "";
+
   const statusText =
     prompt.playthroughStatus === "finished"
-      ? "You've previously finished this book."
-      : "You've previously abandoned this book.";
+      ? `You finished this ${relativeTime}${dateText}.`
+      : `You abandoned this ${relativeTime}${dateText}.`;
 
+  const percentage =
+    prompt.duration > 0
+      ? Math.round((prompt.position / prompt.duration) * 100)
+      : 0;
+
+  // Only show position for abandoned playthroughs (finished is always 100%)
   const positionText =
-    prompt.position > 0
-      ? `Your last position was ${secondsDisplay(prompt.position)}.`
+    prompt.playthroughStatus === "abandoned" && prompt.position > 0
+      ? `Your last position was ${secondsDisplay(prompt.position)} (${percentage}%).`
       : null;
 
   return (
-    <View
+    <Pressable
       style={[styles.container, { paddingTop: top, paddingBottom: bottom }]}
+      onPress={() => !loadingNewMedia && cancelResumePrompt()}
     >
-      <View style={styles.content}>
+      <Pressable style={styles.content} onPress={() => {}}>
         <Text style={styles.title}>Resume or Start Fresh?</Text>
         <Text style={styles.description}>{statusText}</Text>
         {positionText && <Text style={styles.description}>{positionText}</Text>}
@@ -77,8 +98,8 @@ export function ResumePlaythroughDialog({
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>
-      </View>
-    </View>
+      </Pressable>
+    </Pressable>
   );
 }
 

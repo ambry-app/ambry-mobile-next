@@ -89,6 +89,11 @@ export async function getFinishedOrAbandonedPlaythrough(
     orderBy: desc(schema.playthroughs.updatedAt),
     with: {
       stateCache: true,
+      media: {
+        columns: {
+          duration: true,
+        },
+      },
     },
   });
 }

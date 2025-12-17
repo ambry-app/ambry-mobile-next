@@ -209,6 +209,8 @@ describe("player store", () => {
             playthroughId: "playthrough-1",
             playthroughStatus: "finished",
             position: 100,
+            duration: 3600,
+            statusDate: new Date(),
           },
         });
 
@@ -1053,6 +1055,8 @@ describe("player store", () => {
           playthroughId: playthrough.id,
           playthroughStatus: "finished",
           position: 3500,
+          duration: 3600,
+          statusDate: expect.any(Date),
         });
       });
 
@@ -1088,6 +1092,8 @@ describe("player store", () => {
           playthroughId: playthrough.id,
           playthroughStatus: "abandoned",
           position: 1800,
+          duration: 3600,
+          statusDate: expect.any(Date),
         });
       });
     });
@@ -1123,6 +1129,8 @@ describe("player store", () => {
             playthroughId: playthrough.id,
             playthroughStatus: "finished",
             position: 3500,
+            duration: 3600,
+            statusDate: new Date(),
           },
         });
 
@@ -1188,6 +1196,8 @@ describe("player store", () => {
             playthroughId: oldPlaythrough.id,
             playthroughStatus: "finished",
             position: 3500,
+            duration: 3600,
+            statusDate: new Date(),
           },
         });
 

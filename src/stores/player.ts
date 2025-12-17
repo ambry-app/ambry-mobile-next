@@ -49,6 +49,8 @@ export interface PendingResumePrompt {
   playthroughId: string;
   playthroughStatus: "finished" | "abandoned";
   position: number;
+  duration: number;
+  statusDate: Date;
 }
 
 export interface PlayerState {
@@ -322,6 +324,11 @@ export async function checkForResumePrompt(
       "- showing prompt",
     );
 
+    const statusDate =
+      previousPlaythrough.status === "finished"
+        ? previousPlaythrough.finishedAt
+        : previousPlaythrough.abandonedAt;
+
     usePlayer.setState({
       loadingNewMedia: false,
       pendingResumePrompt: {
@@ -329,6 +336,8 @@ export async function checkForResumePrompt(
         playthroughId: previousPlaythrough.id,
         playthroughStatus: previousPlaythrough.status,
         position: previousPlaythrough.stateCache?.currentPosition ?? 0,
+        duration: parseFloat(previousPlaythrough.media.duration || "0"),
+        statusDate: statusDate || new Date(),
       },
     });
 
