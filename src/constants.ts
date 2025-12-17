@@ -16,3 +16,6 @@ export const PROGRESS_SAVE_INTERVAL = 30000;
 
 /* Sleep timer fade out duration (in milliseconds) */
 export const SLEEP_TIMER_FADE_OUT_TIME = 30000;
+
+/* Player expand animation duration (in milliseconds) - must match CustomTabBarWithPlayer */
+export const PLAYER_EXPAND_ANIMATION_DURATION = 400;

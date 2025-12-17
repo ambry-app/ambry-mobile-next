@@ -31,7 +31,11 @@ import {
   Scrubber,
   ThumbnailImage,
 } from "@/components";
-import { PLAYER_HEIGHT, TAB_BAR_BASE_HEIGHT } from "@/constants";
+import {
+  PLAYER_EXPAND_ANIMATION_DURATION,
+  PLAYER_HEIGHT,
+  TAB_BAR_BASE_HEIGHT,
+} from "@/constants";
 import { getMedia } from "@/db/library";
 import useBackHandler from "@/hooks/use-back-handler";
 import { useLibraryData } from "@/hooks/use-library-data";
@@ -78,7 +82,10 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
 
     expansion.value = withTiming(
       1.0,
-      { duration: 400, easing: Easing.out(Easing.exp) },
+      {
+        duration: PLAYER_EXPAND_ANIMATION_DURATION,
+        easing: Easing.out(Easing.exp),
+      },
       () => {
         scheduleOnRN(setExpanded, true);
       },
@@ -90,7 +97,10 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
 
     expansion.value = withTiming(
       0.0,
-      { duration: 400, easing: Easing.out(Easing.exp) },
+      {
+        duration: PLAYER_EXPAND_ANIMATION_DURATION,
+        easing: Easing.out(Easing.exp),
+      },
       () => {
         scheduleOnRN(setExpanded, false);
       },

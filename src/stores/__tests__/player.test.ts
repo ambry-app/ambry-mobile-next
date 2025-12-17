@@ -1139,7 +1139,9 @@ describe("player store", () => {
           },
         });
 
-        await handleResumePlaythrough(DEFAULT_TEST_SESSION);
+        const promise = handleResumePlaythrough(DEFAULT_TEST_SESSION);
+        await jest.runAllTimersAsync();
+        await promise;
 
         const state = usePlayer.getState();
         expect(state.pendingResumePrompt).toBeNull();
@@ -1151,7 +1153,9 @@ describe("player store", () => {
       it("does nothing if no pending prompt", async () => {
         usePlayer.setState({ pendingResumePrompt: null });
 
-        await handleResumePlaythrough(DEFAULT_TEST_SESSION);
+        const promise = handleResumePlaythrough(DEFAULT_TEST_SESSION);
+        await jest.runAllTimersAsync();
+        await promise;
 
         // State should be unchanged
         expect(mockTrackPlayerAdd).not.toHaveBeenCalled();
@@ -1200,7 +1204,9 @@ describe("player store", () => {
           },
         });
 
-        await handleStartFresh(DEFAULT_TEST_SESSION);
+        const promise = handleStartFresh(DEFAULT_TEST_SESSION);
+        await jest.runAllTimersAsync();
+        await promise;
 
         const state = usePlayer.getState();
         expect(state.pendingResumePrompt).toBeNull();
@@ -1212,7 +1218,9 @@ describe("player store", () => {
       it("does nothing if no pending prompt", async () => {
         usePlayer.setState({ pendingResumePrompt: null });
 
-        await handleStartFresh(DEFAULT_TEST_SESSION);
+        const promise = handleStartFresh(DEFAULT_TEST_SESSION);
+        await jest.runAllTimersAsync();
+        await promise;
 
         // State should be unchanged
         expect(mockTrackPlayerAdd).not.toHaveBeenCalled();

@@ -2,7 +2,7 @@ import { useCallback } from "react";
 
 import {
   checkForResumePrompt,
-  expandPlayer,
+  expandPlayerAndWait,
   loadMedia,
   pause,
   prepareToLoadMedia,
@@ -26,10 +26,8 @@ export default function useLoadMediaCallback(
 
     // No prompt needed, proceed with normal loading
     prepareToLoadMedia();
-    expandPlayer();
-    setTimeout(async () => {
-      await loadMedia(session, mediaId);
-    }, 400);
+    await expandPlayerAndWait();
+    await loadMedia(session, mediaId);
   }, [mediaId, session]);
 
   return loadMediaCallback;

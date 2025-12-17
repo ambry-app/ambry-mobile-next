@@ -13,6 +13,7 @@ import TrackPlayer, {
 import { create } from "zustand";
 
 import {
+  PLAYER_EXPAND_ANIMATION_DURATION,
   SEEK_ACCUMULATION_WINDOW,
   SEEK_EVENT_ACCUMULATION_WINDOW,
 } from "@/constants";
@@ -253,7 +254,7 @@ export async function handleResumePlaythrough(session: Session) {
   );
 
   usePlayer.setState({ pendingResumePrompt: null, loadingNewMedia: true });
-  expandPlayer();
+  await expandPlayerAndWait();
 
   await resumePlaythrough(session, prompt.playthroughId);
   await loadActivePlaythroughAndUpdateState(session, prompt.mediaId);
@@ -273,7 +274,7 @@ export async function handleStartFresh(session: Session) {
   );
 
   usePlayer.setState({ pendingResumePrompt: null, loadingNewMedia: true });
-  expandPlayer();
+  await expandPlayerAndWait();
 
   const playthroughId = await createPlaythrough(session, prompt.mediaId);
   await recordStartEvent(playthroughId);
@@ -339,6 +340,17 @@ export async function checkForResumePrompt(
 
 export function expandPlayer() {
   EventBus.emit("expandPlayer");
+}
+
+/**
+ * Expand the player and wait for the expansion animation to complete.
+ * Uses a timeout matching the animation duration defined in CustomTabBarWithPlayer.
+ */
+export function expandPlayerAndWait(): Promise<void> {
+  EventBus.emit("expandPlayer");
+  return new Promise((resolve) => {
+    setTimeout(resolve, PLAYER_EXPAND_ANIMATION_DURATION);
+  });
 }
 
 export async function play() {
