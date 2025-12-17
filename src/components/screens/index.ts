@@ -1,5 +1,7 @@
 export * from "./AuthorScreen";
 export * from "./BookScreen";
+export * from "./CustomTabBar";
+export * from "./CustomTabBarWithPlayer";
 export * from "./DownloadActionsModal";
 export * from "./DownloadsScreen";
 export * from "./FinishedScreen";
@@ -10,4 +12,3 @@ export * from "./NarratorScreen";
 export * from "./PersonScreen";
 export * from "./SeriesScreen";
 export * from "./ShelfScreen";
-export * from "./TabBarWithPlayer";

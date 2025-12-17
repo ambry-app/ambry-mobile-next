@@ -64,7 +64,7 @@ export function TimeAgo({ date, style }: TimeAgoProps) {
 
 const styles = {
   text: {
-    fontSize: 12,
+    fontSize: 14,
     color: Colors.zinc[400],
     marginBottom: 4,
   },

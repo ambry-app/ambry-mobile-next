@@ -1,4 +1,4 @@
-import * as FileSystem from "expo-file-system/legacy";
+import { Paths } from "expo-file-system";
 
 /**
  * Convert a path to an absolute document directory path.
@@ -18,16 +18,16 @@ export function documentDirectoryFilePath(path: string): string {
   if (path.startsWith("file:///")) {
     // This path was erroneously stored as an absolute path. We just want the
     // last segment (the filename) of the path, so we can generate a new
-    // absolute path given the current `FileSystem.documentDirectory`.
-    // (on iOS, `FileSystem.documentDirectory` changes between app upgrades)
+    // absolute path given the current document directory. (on iOS, the document
+    // directory changes between app upgrades)
     const [lastSegment] = path.split("/").slice(-1);
 
     if (!lastSegment) {
       throw new Error("Invalid file path: no filename");
     }
 
-    return FileSystem.documentDirectory + lastSegment;
+    return Paths.document.uri + lastSegment;
   }
 
-  return FileSystem.documentDirectory + path;
+  return Paths.document.uri + path;
 }

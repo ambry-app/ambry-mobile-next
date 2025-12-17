@@ -1,4 +1,4 @@
-import * as FileSystem from "expo-file-system/legacy";
+import * as LegacyFileSystem from "expo-file-system/legacy";
 
 import {
   cancelDownload,
@@ -140,8 +140,8 @@ describe("downloads store", () => {
         status: "ready",
       });
 
-      // Verify FileSystem was called correctly
-      expect(FileSystem.createDownloadResumable).toHaveBeenCalledWith(
+      // Verify LegacyFileSystem was called correctly
+      expect(LegacyFileSystem.createDownloadResumable).toHaveBeenCalledWith(
         `${testSession.url}/audio/media-dl/stream.mp4`,
         "file:///test-document-directory/media-dl.mp4",
         { headers: { Authorization: `Bearer ${testSession.token}` } },
@@ -162,12 +162,12 @@ describe("downloads store", () => {
           }) => void)
         | undefined;
 
-      (FileSystem.createDownloadResumable as jest.Mock).mockImplementation(
-        (_url, _dest, _opts, progressCallback) => {
-          capturedProgressCallback = progressCallback;
-          return mockDownloadResumable;
-        },
-      );
+      (
+        LegacyFileSystem.createDownloadResumable as jest.Mock
+      ).mockImplementation((_url, _dest, _opts, progressCallback) => {
+        capturedProgressCallback = progressCallback;
+        return mockDownloadResumable;
+      });
 
       mockDownloadResumable.downloadAsync.mockResolvedValue({
         uri: "file:///test-document-directory/media-progress.mp4",
@@ -239,7 +239,7 @@ describe("downloads store", () => {
         uri: "file:///test-document-directory/media-thumb.mp4",
         status: 200,
       });
-      (FileSystem.downloadAsync as jest.Mock).mockResolvedValue({
+      (LegacyFileSystem.downloadAsync as jest.Mock).mockResolvedValue({
         status: 200,
       });
 
@@ -260,8 +260,8 @@ describe("downloads store", () => {
       );
 
       // Verify all thumbnails were downloaded
-      expect(FileSystem.downloadAsync).toHaveBeenCalledTimes(5);
-      expect(FileSystem.downloadAsync).toHaveBeenCalledWith(
+      expect(LegacyFileSystem.downloadAsync).toHaveBeenCalledTimes(5);
+      expect(LegacyFileSystem.downloadAsync).toHaveBeenCalledWith(
         `${testSession.url}/images/xs.webp`,
         "file:///test-document-directory/media-thumb-xs.webp",
         expect.any(Object),
@@ -450,7 +450,7 @@ describe("downloads store", () => {
       await removeDownload(testSession, "media-remove");
 
       // Verify file was deleted
-      expect(FileSystem.deleteAsync).toHaveBeenCalledWith(
+      expect(LegacyFileSystem.deleteAsync).toHaveBeenCalledWith(
         "file:///test-document-directory/media-remove.mp4",
       );
 
@@ -485,7 +485,7 @@ describe("downloads store", () => {
       await removeDownload(testSession, "media-with-thumbs");
 
       // 1 for main file + 5 for thumbnails
-      expect(FileSystem.deleteAsync).toHaveBeenCalledTimes(6);
+      expect(LegacyFileSystem.deleteAsync).toHaveBeenCalledTimes(6);
     });
 
     it("reloads player if removing download for currently loaded media", async () => {
@@ -524,7 +524,7 @@ describe("downloads store", () => {
       });
 
       // Mock deleteAsync to fail
-      (FileSystem.deleteAsync as jest.Mock).mockRejectedValue(
+      (LegacyFileSystem.deleteAsync as jest.Mock).mockRejectedValue(
         new Error("File not found"),
       );
 

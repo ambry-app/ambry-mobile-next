@@ -38,7 +38,7 @@ export function RecentlyFinished({ session }: RecentlyFinishedProps) {
 
   const navigateToAll = () => {
     router.push({
-      pathname: "/(tabs)/(shelf)/finished",
+      pathname: "/(tabs)/(home)/(shelf)/finished",
     });
   };
 

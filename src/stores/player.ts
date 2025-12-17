@@ -230,8 +230,9 @@ export async function handleResumePlaythrough(session: Session) {
     prompt.playthroughId,
   );
 
-  // Clear the prompt
+  // Clear the prompt and expand the player
   usePlayer.setState({ pendingResumePrompt: null, loadingNewMedia: true });
+  expandPlayer();
 
   // Resume the playthrough
   await resumePlaythrough(session, prompt.playthroughId);
@@ -265,8 +266,9 @@ export async function handleStartFresh(session: Session) {
     prompt.mediaId,
   );
 
-  // Clear the prompt
+  // Clear the prompt and expand the player
   usePlayer.setState({ pendingResumePrompt: null, loadingNewMedia: true });
+  expandPlayer();
 
   // Create a new playthrough
   const playthroughId = await createPlaythrough(session, prompt.mediaId);
@@ -292,7 +294,57 @@ export async function handleStartFresh(session: Session) {
  * Cancel the resume prompt without making a choice.
  */
 export function cancelResumePrompt() {
-  usePlayer.setState({ pendingResumePrompt: null });
+  usePlayer.setState({ pendingResumePrompt: null, loadingNewMedia: false });
+}
+
+/**
+ * Check if loading this media would trigger a resume prompt.
+ * If so, sets pendingResumePrompt and returns true.
+ * If not, returns false and the caller should proceed with loading.
+ */
+export async function checkForResumePrompt(
+  session: Session,
+  mediaId: string,
+): Promise<boolean> {
+  // Check for active (in_progress) playthrough - no prompt needed
+  const activePlaythrough = await getActivePlaythrough(session, mediaId);
+  if (activePlaythrough) {
+    return false;
+  }
+
+  // Check for finished or abandoned playthrough
+  const previousPlaythrough = await getFinishedOrAbandonedPlaythrough(
+    session,
+    mediaId,
+  );
+
+  if (
+    previousPlaythrough &&
+    (previousPlaythrough.status === "finished" ||
+      previousPlaythrough.status === "abandoned")
+  ) {
+    console.debug(
+      "[Player] Found previous playthrough:",
+      previousPlaythrough.id,
+      "status:",
+      previousPlaythrough.status,
+      "- showing prompt",
+    );
+
+    usePlayer.setState({
+      loadingNewMedia: false,
+      pendingResumePrompt: {
+        mediaId,
+        playthroughId: previousPlaythrough.id,
+        playthroughStatus: previousPlaythrough.status,
+        position: previousPlaythrough.stateCache?.currentPosition ?? 0,
+      },
+    });
+
+    return true;
+  }
+
+  return false;
 }
 
 export function expandPlayer() {

@@ -1,79 +1,50 @@
-import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import { Tabs } from "expo-router";
+import { Platform } from "react-native";
+import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
+import { Stack } from "expo-router";
 
-import { TabBar } from "@/components";
-import { TabBarWithPlayer } from "@/components/screens";
+import { ResumePlaythroughDialog } from "@/components";
+import { CustomTabBar, CustomTabBarWithPlayer } from "@/components/screens";
 import { usePlayer } from "@/stores/player";
-import { Session, useSession } from "@/stores/session";
-import { Colors } from "@/styles";
+import { useSession } from "@/stores/session";
 
-export default function TabsLayout() {
+const screenOptions: NativeStackNavigationOptions =
+  Platform.OS === "ios"
+    ? {
+        headerTransparent: true,
+        headerBlurEffect: "systemChromeMaterialDark",
+      }
+    : {};
+
+export default function TabsWrapperLayout() {
   const session = useSession((state) => state.session);
+  const mediaId = usePlayer((state) => state.mediaId);
+  const pendingResumePrompt = usePlayer((state) => state.pendingResumePrompt);
+  const playerVisible = !!mediaId;
 
   if (!session) return null;
 
-  return <AppTabs session={session} />;
-}
-
-function AppTabs({ session }: { session: Session }) {
-  const mediaId = usePlayer((state) => state.mediaId);
-  const playerVisible = !!mediaId;
-
   return (
-    <Tabs
-      screenOptions={{
-        animation: "shift",
-        tabBarActiveTintColor: Colors.lime[400],
-        tabBarStyle: playerVisible ? { borderTopWidth: 0 } : {},
-        tabBarLabelStyle: { paddingBottom: 4 },
-      }}
-      tabBar={(props) =>
-        playerVisible ? (
-          <TabBarWithPlayer {...props} session={session} mediaId={mediaId} />
-        ) : (
-          <TabBar {...props} />
-        )
-      }
-      backBehavior="history"
-    >
-      <Tabs.Screen
-        name="(library)"
-        options={{
-          headerShown: false,
-          title: "Library",
-          tabBarIcon: ({ color }) => (
-            <FontAwesome6 size={24} name="book-open" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="(shelf)"
-        options={{
-          headerShown: false,
-          title: "My Shelf",
-          tabBarIcon: ({ color }) => (
-            <FontAwesome6 size={24} name="book-bookmark" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="downloads"
-        options={{
-          title: "Downloads",
-          tabBarIcon: ({ color }) => (
-            <FontAwesome6 size={24} name="download" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: "Settings",
-          tabBarIcon: ({ color }) => (
-            <FontAwesome6 size={24} name="gear" color={color} />
-          ),
-        }}
-      />
-    </Tabs>
+    <>
+      <Stack screenOptions={screenOptions}>
+        <Stack.Screen name="(home)" options={{ headerShown: false }} />
+        <Stack.Screen name="media/[id]" />
+        <Stack.Screen name="book/[id]" />
+        <Stack.Screen name="person/[id]" />
+        <Stack.Screen name="author/[id]" />
+        <Stack.Screen name="narrator/[id]" />
+        <Stack.Screen name="series/[id]" />
+      </Stack>
+      {playerVisible ? (
+        <CustomTabBarWithPlayer session={session} mediaId={mediaId} />
+      ) : (
+        <CustomTabBar />
+      )}
+      {pendingResumePrompt && (
+        <ResumePlaythroughDialog
+          session={session}
+          prompt={pendingResumePrompt}
+        />
+      )}
+    </>
   );
 }

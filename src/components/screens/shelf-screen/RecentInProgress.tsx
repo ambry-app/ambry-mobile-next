@@ -46,7 +46,7 @@ export function RecentInProgress({ session }: RecentInProgressProps) {
 
   const navigateToAll = () => {
     router.push({
-      pathname: "/(tabs)/(shelf)/in-progress",
+      pathname: "/(tabs)/(home)/(shelf)/in-progress",
     });
   };
 

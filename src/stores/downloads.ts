@@ -1,4 +1,7 @@
-import * as FileSystem from "expo-file-system/legacy";
+import { Paths } from "expo-file-system";
+// Legacy imports required for download functionality with progress tracking
+// (the new API doesn't support progress callbacks yet)
+import * as LegacyFileSystem from "expo-file-system/legacy";
 import { create } from "zustand";
 
 import {
@@ -22,7 +25,7 @@ export interface Download {
   status: DownloadStatus;
   thumbnails?: DownloadedThumbnails | null;
   progress?: number;
-  resumable?: FileSystem.DownloadResumable;
+  resumable?: LegacyFileSystem.DownloadResumable;
 }
 
 export interface DownloadsState {
@@ -100,7 +103,7 @@ function setDownloadProgress(mediaId: string, progress: number | undefined) {
 
 function setDownloadResumable(
   mediaId: string,
-  resumable: FileSystem.DownloadResumable | undefined,
+  resumable: LegacyFileSystem.DownloadResumable | undefined,
 ) {
   useDownloads.setState((state) => {
     const prev = state.downloads[mediaId];
@@ -123,7 +126,7 @@ export async function startDownload(
   uri: string,
   thumbnails: Thumbnails | null,
 ) {
-  const destinationFilePath = FileSystem.documentDirectory + `${mediaId}.mp4`;
+  const destinationFilePath = Paths.document.uri + `${mediaId}.mp4`;
 
   console.debug("[Downloads] Downloading to", destinationFilePath);
 
@@ -145,7 +148,7 @@ export async function startDownload(
   }
 
   const progressCallback = (
-    downloadProgress: FileSystem.DownloadProgressData,
+    downloadProgress: LegacyFileSystem.DownloadProgressData,
   ) => {
     const progress =
       downloadProgress.totalBytesWritten /
@@ -153,7 +156,7 @@ export async function startDownload(
     setDownloadProgress(mediaId, progress);
   };
 
-  const downloadResumable = FileSystem.createDownloadResumable(
+  const downloadResumable = LegacyFileSystem.createDownloadResumable(
     `${session.url}/${uri}`,
     destinationFilePath,
     { headers: { Authorization: `Bearer ${session.token}` } },
@@ -236,38 +239,38 @@ async function downloadThumbnails(
   const options = { headers: { Authorization: `Bearer ${session.token}` } };
 
   const downloadedThumbnails = {
-    extraSmall: FileSystem.documentDirectory + `${mediaId}-xs.webp`,
-    small: FileSystem.documentDirectory + `${mediaId}-sm.webp`,
-    medium: FileSystem.documentDirectory + `${mediaId}-md.webp`,
-    large: FileSystem.documentDirectory + `${mediaId}-lg.webp`,
-    extraLarge: FileSystem.documentDirectory + `${mediaId}-xl.webp`,
+    extraSmall: Paths.document.uri + `${mediaId}-xs.webp`,
+    small: Paths.document.uri + `${mediaId}-sm.webp`,
+    medium: Paths.document.uri + `${mediaId}-md.webp`,
+    large: Paths.document.uri + `${mediaId}-lg.webp`,
+    extraLarge: Paths.document.uri + `${mediaId}-xl.webp`,
     thumbhash: thumbnails.thumbhash,
   };
 
   console.debug("[Downloads] Downloading thumbnails:", downloadedThumbnails);
 
   await Promise.all([
-    FileSystem.downloadAsync(
+    LegacyFileSystem.downloadAsync(
       `${session.url}/${thumbnails.extraSmall}`,
       downloadedThumbnails.extraSmall,
       options,
     ),
-    FileSystem.downloadAsync(
+    LegacyFileSystem.downloadAsync(
       `${session.url}/${thumbnails.small}`,
       downloadedThumbnails.small,
       options,
     ),
-    FileSystem.downloadAsync(
+    LegacyFileSystem.downloadAsync(
       `${session.url}/${thumbnails.medium}`,
       downloadedThumbnails.medium,
       options,
     ),
-    FileSystem.downloadAsync(
+    LegacyFileSystem.downloadAsync(
       `${session.url}/${thumbnails.large}`,
       downloadedThumbnails.large,
       options,
     ),
-    FileSystem.downloadAsync(
+    LegacyFileSystem.downloadAsync(
       `${session.url}/${thumbnails.extraLarge}`,
       downloadedThumbnails.extraLarge,
       options,
@@ -281,7 +284,7 @@ async function downloadThumbnails(
 
 async function tryDelete(path: string): Promise<void> {
   try {
-    await FileSystem.deleteAsync(path);
+    await LegacyFileSystem.deleteAsync(path);
   } catch (e) {
     console.warn("[Downloads] Failed to delete file:", e);
   }

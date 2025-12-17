@@ -11,13 +11,13 @@ import Animated, {
   Easing,
   Extrapolation,
   interpolate,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { scheduleOnRN } from "react-native-worklets";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import { BottomTabBar, BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
 
@@ -28,7 +28,6 @@ import {
   Loading,
   PlayButton,
   PlayerProgressBar,
-  ResumePlaythroughDialog,
   Scrubber,
   ThumbnailImage,
 } from "@/components";
@@ -42,6 +41,7 @@ import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 import { EventBus } from "@/utils";
 
+import { TabBarTabs } from "./tab-bar";
 import {
   ChapterControls,
   PlaybackControls,
@@ -49,18 +49,19 @@ import {
   SeekIndicator,
 } from "./tab-bar-with-player";
 
-type TabBarWithPlayerProps = BottomTabBarProps & {
+type CustomTabBarWithPlayerProps = {
   session: Session;
   mediaId: string;
 };
 
-export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
-  const { state, descriptors, navigation, insets, session, mediaId } = props;
-  const { streaming, loadingNewMedia, pendingResumePrompt } = usePlayer(
-    useShallow(({ streaming, loadingNewMedia, pendingResumePrompt }) => ({
+export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
+  const { session, mediaId } = props;
+  const insets = useSafeAreaInsets();
+
+  const { streaming, loadingNewMedia } = usePlayer(
+    useShallow(({ streaming, loadingNewMedia }) => ({
       streaming,
       loadingNewMedia,
-      pendingResumePrompt,
     })),
   );
   const media = useLibraryData(() => getMedia(session, mediaId), [mediaId]);
@@ -79,7 +80,7 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
       1.0,
       { duration: 400, easing: Easing.out(Easing.exp) },
       () => {
-        runOnJS(setExpanded)(true);
+        scheduleOnRN(setExpanded, true);
       },
     );
   }, [expansion]);
@@ -91,7 +92,7 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
       0.0,
       { duration: 400, easing: Easing.out(Easing.exp) },
       () => {
-        runOnJS(setExpanded)(false);
+        scheduleOnRN(setExpanded, false);
       },
     );
   };
@@ -185,7 +186,8 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
 
   useEffect(() => {
     if (loadingNewMedia) {
-      playerOpacity.value = withTiming(0.0, { duration: 400 });
+      // Immediately hide old content to show loading spinner
+      playerOpacity.value = 0;
     } else {
       setTimeout(() => {
         playerOpacity.value = withTiming(1.0, { duration: 200 });
@@ -207,7 +209,8 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
 
   const playerBackgroundStyle = useAnimatedStyle(() => {
     return {
-      opacity: expansion.value,
+      // Combine expansion (expand/collapse) with playerOpacity (loading fade)
+      opacity: expansion.value * playerOpacity.value,
     };
   });
 
@@ -302,12 +305,7 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
   });
 
   if (!media) {
-    return (
-      <BottomTabBar
-        style={{ height: tabBarHeight }}
-        {...{ state, descriptors, navigation, insets }}
-      />
-    );
+    return <TabBarTabs height={tabBarHeight} paddingBottom={insets.bottom} />;
   }
 
   return (
@@ -470,13 +468,11 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
                       if (!expanded) {
                         expand();
                       } else {
+                        router.navigate({
+                          pathname: "/media/[id]",
+                          params: { id: media.id, title: media.book.title },
+                        });
                         collapse();
-                        setTimeout(() => {
-                          router.navigate({
-                            pathname: "/media/[id]",
-                            params: { id: media.id, title: media.book.title },
-                          });
-                        }, 400);
                       }
                     }}
                   >
@@ -599,18 +595,13 @@ export function TabBarWithPlayer(props: TabBarWithPlayerProps) {
           </Animated.View>
         </GestureDetector>
         <Animated.View style={[{ height: tabBarHeight }, tabBarStyle]}>
-          <BottomTabBar
-            style={{ height: tabBarHeight }}
-            {...{ state, descriptors, navigation, insets }}
+          <TabBarTabs
+            height={tabBarHeight}
+            paddingBottom={insets.bottom}
+            borderTopColor={Colors.zinc[900]}
           />
         </Animated.View>
       </View>
-      {pendingResumePrompt && (
-        <ResumePlaythroughDialog
-          session={session}
-          prompt={pendingResumePrompt}
-        />
-      )}
     </>
   );
 }

@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { StyleSheet, Text } from "react-native";
-import * as FileSystem from "expo-file-system";
+import { File } from "expo-file-system";
 
-import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { FadeInOnMount } from "@/components";
 import { Colors } from "@/styles";
 import { documentDirectoryFilePath } from "@/utils";
 
@@ -11,21 +11,12 @@ type FileSizeProps = {
 };
 
 export function FileSize({ filePath }: FileSizeProps) {
-  const [size, setSize] = useState<string | null>(null);
-  const [isMissing, setIsMissing] = useState(false);
-
-  useEffect(() => {
-    (async function () {
-      const info = await FileSystem.getInfoAsync(
-        documentDirectoryFilePath(filePath),
-      );
-      if (!info.exists) {
-        setIsMissing(true);
-      }
-      if (info.exists && !info.isDirectory) {
-        setSize(formatBytes(info.size));
-      }
-    })();
+  const { size, isMissing } = useMemo(() => {
+    const file = new File(documentDirectoryFilePath(filePath));
+    if (!file.exists) {
+      return { size: null, isMissing: true };
+    }
+    return { size: formatBytes(file.size), isMissing: false };
   }, [filePath]);
 
   if (isMissing) return <Text style={styles.errorText}>file is missing!</Text>;

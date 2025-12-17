@@ -154,8 +154,17 @@ const mockDownloadResumable = {
   cancelAsync: jest.fn(),
 };
 
+// Modern API - only Paths is used from here
+jest.mock("expo-file-system", () => ({
+  Paths: {
+    document: {
+      uri: "file:///test-document-directory/",
+    },
+  },
+}));
+
+// Legacy API - download functions with progress tracking
 jest.mock("expo-file-system/legacy", () => ({
-  documentDirectory: "file:///test-document-directory/",
   downloadAsync: jest.fn(),
   deleteAsync: jest.fn(),
   createDownloadResumable: jest.fn(() => mockDownloadResumable),

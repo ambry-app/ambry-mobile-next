@@ -21,8 +21,15 @@ module.exports = defineConfig([
       "simple-import-sort": simpleImportSort,
     },
 
+    languageOptions: {
+      parserOptions: {
+        project: "./tsconfig.json",
+      },
+    },
+
     rules: {
       "prettier/prettier": "error",
+      "@typescript-eslint/no-deprecated": "warn",
 
       // Import sorting: auto-fixable, separates external from internal
       "simple-import-sort/imports": [
