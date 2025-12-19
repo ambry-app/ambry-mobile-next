@@ -32,10 +32,19 @@ export async function needsPlayerStateMigration(): Promise<boolean> {
 
   // Check if old player_states table exists and has data
   try {
-    const results = await db.select().from(schema.playerStates).limit(1);
-    const hasData = results.length > 0;
+    const playerStateResults = await db
+      .select()
+      .from(schema.playerStates)
+      .limit(1);
+    const hasPlayerStates = playerStateResults.length > 0;
 
-    if (hasData) {
+    const localPlayerStateResults = await db
+      .select()
+      .from(schema.localPlayerStates)
+      .limit(1);
+    const hasLocalPlayerStates = localPlayerStateResults.length > 0;
+
+    if (hasPlayerStates || hasLocalPlayerStates) {
       console.debug(
         "[Migration] Found old player_states data, migration needed",
       );
@@ -43,9 +52,11 @@ export async function needsPlayerStateMigration(): Promise<boolean> {
       console.debug("[Migration] No old player_states data found");
     }
 
-    return hasData;
+    return hasPlayerStates || hasLocalPlayerStates;
   } catch {
-    console.debug("[Migration] player_states table not found");
+    console.debug(
+      "[Migration] player_states or local_player_states table not found",
+    );
     return false;
   }
 }
