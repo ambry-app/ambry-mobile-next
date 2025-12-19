@@ -316,6 +316,28 @@ export async function getMostRecentInProgressPlaythrough(session: Session) {
   });
 }
 
+export async function getAllPlaythroughsForMedia(
+  session: Session,
+  mediaId: string,
+) {
+  return getDb().query.playthroughs.findMany({
+    where: and(
+      eq(schema.playthroughs.url, session.url),
+      eq(schema.playthroughs.userEmail, session.email),
+      eq(schema.playthroughs.mediaId, mediaId),
+      isNull(schema.playthroughs.deletedAt),
+    ),
+    orderBy: desc(schema.playthroughs.updatedAt),
+    with: {
+      stateCache: true,
+    },
+  });
+}
+
+export type PlaythroughForMedia = Awaited<
+  ReturnType<typeof getAllPlaythroughsForMedia>
+>[number];
+
 // =============================================================================
 // Sync Helpers
 // =============================================================================

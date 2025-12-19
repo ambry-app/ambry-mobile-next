@@ -4,7 +4,8 @@ import {
   checkForResumePrompt,
   expandPlayerAndWait,
   loadMedia,
-  pause,
+  pauseIfPlaying,
+  play,
   prepareToLoadMedia,
 } from "@/stores/player";
 import { Session } from "@/stores/session";
@@ -14,7 +15,7 @@ export default function useLoadMediaCallback(
   mediaId: string,
 ) {
   const loadMediaCallback = useCallback(async () => {
-    await pause();
+    await pauseIfPlaying();
 
     // Check if this media has a finished/abandoned playthrough that needs a prompt
     const needsPrompt = await checkForResumePrompt(session, mediaId);
@@ -28,6 +29,7 @@ export default function useLoadMediaCallback(
     prepareToLoadMedia();
     await expandPlayerAndWait();
     await loadMedia(session, mediaId);
+    await play();
   }, [mediaId, session]);
 
   return loadMediaCallback;

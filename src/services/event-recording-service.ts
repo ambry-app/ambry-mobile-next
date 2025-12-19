@@ -227,16 +227,7 @@ async function handlePlaybackStarted() {
 async function handlePlaybackPaused() {
   if (!currentPlaythroughId) return;
 
-  // Only record pause event if we were actually playing (heartbeat was running)
-  const wasPlaying = heartbeatInterval !== null;
   stopHeartbeat();
-
-  if (!wasPlaying) {
-    console.debug(
-      "[EventRecording] Skipping pause event - never started playing",
-    );
-    return;
-  }
 
   try {
     const { position } = await TrackPlayer.getProgress();
@@ -381,6 +372,14 @@ async function heartbeatSave() {
   } catch (error) {
     console.warn("[EventRecording] Error in heartbeat save:", error);
   }
+}
+
+/**
+ * Force an immediate save of the current playback position.
+ * Call this before reloading the player to preserve position.
+ */
+export async function saveCurrentProgress() {
+  await heartbeatSave();
 }
 
 // =============================================================================

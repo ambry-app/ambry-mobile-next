@@ -6,3 +6,4 @@ export * from "./MediaDescription";
 export * from "./OtherBooksByAuthors";
 export * from "./OtherEditions";
 export * from "./OtherMediaByNarrators";
+export * from "./PlaythroughHistory";

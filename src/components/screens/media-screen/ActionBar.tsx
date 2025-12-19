@@ -2,11 +2,12 @@ import { Alert, Share, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
 
-import { IconButton } from "@/components";
+import { IconButton, PlayButton as PlayerPlayButton } from "@/components";
 import { MediaHeaderInfo } from "@/db/library";
 import useLoadMediaCallback from "@/hooks/use-load-media-callback";
 import { useShelvedMedia } from "@/hooks/use-shelved-media";
 import { startDownload, useDownloads } from "@/stores/downloads";
+import { usePlayer } from "@/stores/player";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 
@@ -72,8 +73,23 @@ type PlayButtonProps = {
 };
 
 function PlayButton({ session, media }: PlayButtonProps) {
+  const playerMediaId = usePlayer((state) => state.mediaId);
+  const isCurrentlyLoaded = playerMediaId === media.id;
   const loadMedia = useLoadMediaCallback(session, media.id);
 
+  // If this media is currently loaded, show real-time play/pause button
+  if (isCurrentlyLoaded) {
+    return (
+      <PlayerPlayButton
+        size={32}
+        color={Colors.black}
+        style={styles.playButton}
+        playIconStyle={styles.playButtonIcon}
+      />
+    );
+  }
+
+  // Otherwise show "load media" button
   return (
     <IconButton
       icon="play"

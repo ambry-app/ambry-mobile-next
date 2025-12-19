@@ -15,12 +15,15 @@ type PlayButtonProps = {
   size: number;
   color: string;
   style?: StyleProp<ViewStyle>;
+  /** Style applied only when showing the play icon (useful for visual centering adjustments) */
+  playIconStyle?: StyleProp<ViewStyle>;
 };
 
 export function PlayButton(props: PlayButtonProps) {
-  const { size, color, style } = props;
+  const { size, color, style, playIconStyle } = props;
   const { playing, bufferingDuringPlay } = useIsPlaying();
   const icon = useStateIcon(playing, bufferingDuringPlay);
+  const iconStyle = icon === "play" ? playIconStyle : undefined;
 
   if (!icon || icon === "spinner") {
     return (
@@ -40,6 +43,7 @@ export function PlayButton(props: PlayButtonProps) {
       icon={icon}
       color={color}
       style={style}
+      iconStyle={iconStyle}
     />
   );
 }

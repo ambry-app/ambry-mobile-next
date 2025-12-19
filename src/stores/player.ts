@@ -6,6 +6,7 @@ import TrackPlayer, {
   Event,
   IOSCategory,
   IOSCategoryMode,
+  isPlaying,
   PitchAlgorithm,
   Progress,
   TrackType,
@@ -243,6 +244,25 @@ async function loadActivePlaythroughAndUpdateState(
 }
 
 /**
+ * Resume a specific playthrough and load it into the player.
+ * Can be used to resume any abandoned/finished playthrough by ID.
+ */
+export async function resumeAndLoadPlaythrough(
+  session: Session,
+  playthroughId: string,
+  mediaId: string,
+) {
+  console.debug("[Player] Resuming playthrough:", playthroughId);
+
+  usePlayer.setState({ loadingNewMedia: true });
+  await expandPlayerAndWait();
+
+  await resumePlaythrough(session, playthroughId);
+  await loadActivePlaythroughAndUpdateState(session, mediaId);
+  await play();
+}
+
+/**
  * Handle user choosing to resume a previous playthrough.
  * Called from the ResumePlaythroughDialog.
  */
@@ -250,16 +270,8 @@ export async function handleResumePlaythrough(session: Session) {
   const prompt = usePlayer.getState().pendingResumePrompt;
   if (!prompt) return;
 
-  console.debug(
-    "[Player] User chose to resume playthrough:",
-    prompt.playthroughId,
-  );
-
-  usePlayer.setState({ pendingResumePrompt: null, loadingNewMedia: true });
-  await expandPlayerAndWait();
-
-  await resumePlaythrough(session, prompt.playthroughId);
-  await loadActivePlaythroughAndUpdateState(session, prompt.mediaId);
+  usePlayer.setState({ pendingResumePrompt: null });
+  await resumeAndLoadPlaythrough(session, prompt.playthroughId, prompt.mediaId);
 }
 
 /**
@@ -281,6 +293,7 @@ export async function handleStartFresh(session: Session) {
   const playthroughId = await createPlaythrough(session, prompt.mediaId);
   await recordStartEvent(playthroughId);
   await loadActivePlaythroughAndUpdateState(session, prompt.mediaId);
+  await play();
 }
 
 /**
@@ -377,6 +390,18 @@ export async function pause() {
   EventBus.emit("playbackPaused", { remote: false });
 }
 
+/**
+ * Pause playback only if currently playing.
+ * Use this before loading new media to avoid unnecessary pause events
+ * and side effects when nothing is actually playing.
+ */
+export async function pauseIfPlaying() {
+  const { playing } = await isPlaying();
+  if (playing) {
+    await pause();
+  }
+}
+
 export function seekTo(position: number, source: SeekSourceType) {
   seek(position, false, source);
 }
@@ -426,7 +451,7 @@ export async function tryUnloadPlayer() {
     // TODO: will we miss important seek events?
     if (seekEventTimer) clearTimeout(seekEventTimer);
 
-    await pause();
+    await pauseIfPlaying();
     await TrackPlayer.reset();
     usePlayer.setState({ ...initialState });
   } catch (error) {

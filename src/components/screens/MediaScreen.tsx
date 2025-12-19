@@ -10,6 +10,7 @@ import {
   OtherBooksByAuthors,
   OtherEditions,
   OtherMediaByNarrators,
+  PlaythroughHistory,
 } from "@/components/screens/media-screen";
 import { getMediaHeaderInfo } from "@/db/library";
 import { useLibraryData } from "@/hooks/use-library-data";
@@ -39,6 +40,11 @@ export function MediaScreen(props: MediaScreenProps) {
       <FadeInOnMount>
         <Header media={media} />
         <ActionBar media={media} session={session} />
+        <PlaythroughHistory
+          session={session}
+          mediaId={media.id}
+          mediaDuration={media.duration ? parseFloat(media.duration) : null}
+        />
         <MediaDescription media={media} />
       </FadeInOnMount>
       <Delay delay={100}>
