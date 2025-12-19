@@ -71,7 +71,7 @@ export const mockTrackPlayerGetTrack = jest.fn();
 export const mockTrackPlayerSetupPlayer = jest.fn();
 export const mockTrackPlayerUpdateOptions = jest.fn();
 export const mockTrackPlayerAddEventListener = jest.fn();
-export const mockIsPlaying = jest.fn();
+export const mockIsPlaying = jest.fn().mockResolvedValue({ playing: false });
 
 jest.mock("react-native-track-player", () => ({
   __esModule: true,

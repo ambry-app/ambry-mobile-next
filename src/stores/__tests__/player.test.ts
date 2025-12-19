@@ -41,6 +41,7 @@ import {
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
 import {
+  mockIsPlaying,
   mockTrackPlayerAdd,
   mockTrackPlayerGetProgress,
   mockTrackPlayerGetRate,
@@ -743,6 +744,9 @@ describe("player store", () => {
   describe("lifecycle", () => {
     describe("tryUnloadPlayer()", () => {
       it("pauses playback", async () => {
+        // Set up as if something is playing
+        mockIsPlaying.mockResolvedValueOnce({ playing: true });
+
         await tryUnloadPlayer();
 
         expect(mockTrackPlayerPause).toHaveBeenCalled();

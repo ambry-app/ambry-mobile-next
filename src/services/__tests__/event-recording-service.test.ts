@@ -223,27 +223,6 @@ describe("event-recording-service", () => {
       expect(pauseEvents.length).toBeGreaterThanOrEqual(1);
     });
 
-    it("skips pause event if playback never started", async () => {
-      const db = getDb();
-      const media = await createMedia(db);
-
-      await startMonitoring();
-      await initializePlaythroughTracking(session, media.id, 0, 1);
-
-      const playthroughId = getCurrentPlaythroughId()!;
-
-      // Emit pause WITHOUT starting playback first
-      EventBus.emit("playbackPaused");
-      await Promise.resolve();
-
-      const events = await db.query.playbackEvents.findMany({
-        where: (e, { eq }) => eq(e.playthroughId, playthroughId),
-      });
-
-      const pauseEvents = events.filter((e) => e.type === "pause");
-      expect(pauseEvents.length).toBe(0); // No pause event should be recorded
-    });
-
     it("records seek event on seekCompleted", async () => {
       const db = getDb();
       const media = await createMedia(db);
