@@ -290,24 +290,32 @@ async function handlePlaybackQueueEnded() {
 interface SeekCompletedEvent {
   fromPosition: number;
   toPosition: number;
+  timestamp: Date;
 }
 
 /**
  * Handle debounced seek completion.
  * Records the seek event to the database.
+ * Uses the timestamp from when the seek was actually applied, not when this
+ * debounced event fired.
  */
 async function handleSeekCompleted(event: SeekCompletedEvent) {
   if (!currentPlaythroughId) return;
 
   try {
-    const { fromPosition, toPosition } = event;
+    const { fromPosition, toPosition, timestamp } = event;
 
     // Don't record trivial seeks (< 2 seconds)
     if (Math.abs(toPosition - fromPosition) < 2) {
       return;
     }
 
-    await recordSeekEvent(fromPosition, toPosition, currentPlaybackRate);
+    await recordSeekEvent(
+      fromPosition,
+      toPosition,
+      currentPlaybackRate,
+      timestamp,
+    );
   } catch (error) {
     console.warn("[EventRecording] Error handling seek completed:", error);
   }
@@ -405,6 +413,7 @@ async function recordPlayEvent(position: number, playbackRate: number) {
   await updateStateCache(currentPlaythroughId, position, playbackRate, now);
 
   console.debug("[EventRecording] Recorded play event at position", position);
+  EventBus.emit("playbackEventRecorded");
 }
 
 async function recordPauseEvent(position: number, playbackRate: number) {
@@ -426,31 +435,36 @@ async function recordPauseEvent(position: number, playbackRate: number) {
   await updateStateCache(currentPlaythroughId, position, playbackRate, now);
 
   console.debug("[EventRecording] Recorded pause event at position", position);
+  EventBus.emit("playbackEventRecorded");
 }
 
 async function recordSeekEvent(
   fromPosition: number,
   toPosition: number,
   playbackRate: number,
+  timestamp: Date,
 ) {
   const session = useSession.getState().session;
   if (!session || !currentPlaythroughId) return;
-
-  const now = new Date();
 
   await getDb().insert(schema.playbackEvents).values({
     id: randomUUID(),
     playthroughId: currentPlaythroughId,
     deviceId: getDeviceIdSync(),
     type: "seek",
-    timestamp: now,
+    timestamp,
     position: toPosition,
     playbackRate,
     fromPosition,
     toPosition,
   });
 
-  await updateStateCache(currentPlaythroughId, toPosition, playbackRate, now);
+  await updateStateCache(
+    currentPlaythroughId,
+    toPosition,
+    playbackRate,
+    timestamp,
+  );
 
   console.debug(
     "[EventRecording] Recorded seek event from",
@@ -458,6 +472,7 @@ async function recordSeekEvent(
     "to",
     toPosition.toFixed(1),
   );
+  EventBus.emit("playbackEventRecorded");
 }
 
 async function recordRateChangeEvent(
@@ -489,6 +504,7 @@ async function recordRateChangeEvent(
     "to",
     newRate,
   );
+  EventBus.emit("playbackEventRecorded");
 }
 
 /**

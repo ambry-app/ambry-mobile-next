@@ -1,11 +1,13 @@
-import { Button, StyleSheet, Text, View } from "react-native";
+import { Button, StyleSheet, Switch, Text, View } from "react-native";
 
+import { useDebug } from "@/stores/debug";
 import { tryUnloadPlayer } from "@/stores/player";
 import { signOut, useSession } from "@/stores/session";
 import { Colors } from "@/styles";
 
 export default function SettingsRoute() {
   const session = useSession((state) => state.session);
+  const { debugModeEnabled, setDebugModeEnabled } = useDebug();
 
   if (!session) return null;
 
@@ -25,6 +27,16 @@ export default function SettingsRoute() {
         }}
         color={Colors.lime[500]}
       />
+
+      <View style={styles.debugSection}>
+        <Text style={styles.debugLabel}>Debug Mode</Text>
+        <Switch
+          value={debugModeEnabled}
+          onValueChange={setDebugModeEnabled}
+          trackColor={{ false: Colors.zinc[700], true: Colors.lime[600] }}
+          thumbColor={debugModeEnabled ? Colors.lime[300] : Colors.zinc[400]}
+        />
+      </View>
     </View>
   );
 }
@@ -38,5 +50,18 @@ const styles = StyleSheet.create({
   },
   text: {
     color: Colors.zinc[100],
+  },
+  debugSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 32,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.zinc[700],
+  },
+  debugLabel: {
+    color: Colors.zinc[400],
+    fontSize: 14,
   },
 });

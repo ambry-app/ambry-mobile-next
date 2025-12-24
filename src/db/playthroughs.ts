@@ -382,6 +382,32 @@ export type PlaythroughForMedia = Awaited<
 >[number];
 
 // =============================================================================
+// Debug
+// =============================================================================
+
+export async function getPlaythroughForDebug(playthroughId: string) {
+  const playthrough = await getDb().query.playthroughs.findFirst({
+    where: eq(schema.playthroughs.id, playthroughId),
+    with: {
+      stateCache: true,
+    },
+  });
+
+  if (!playthrough) return null;
+
+  const events = await getDb().query.playbackEvents.findMany({
+    where: eq(schema.playbackEvents.playthroughId, playthroughId),
+    orderBy: desc(schema.playbackEvents.timestamp),
+  });
+
+  return { playthrough, events };
+}
+
+export type PlaythroughDebugData = NonNullable<
+  Awaited<ReturnType<typeof getPlaythroughForDebug>>
+>;
+
+// =============================================================================
 // Sync Helpers
 // =============================================================================
 

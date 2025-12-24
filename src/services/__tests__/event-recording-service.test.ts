@@ -233,7 +233,12 @@ describe("event-recording-service", () => {
       const playthroughId = getCurrentPlaythroughId()!;
 
       // Emit seek event (must be > 2 seconds to be recorded)
-      EventBus.emit("seekCompleted", { fromPosition: 0, toPosition: 60 });
+      const seekTimestamp = new Date();
+      EventBus.emit("seekCompleted", {
+        fromPosition: 0,
+        toPosition: 60,
+        timestamp: seekTimestamp,
+      });
       await Promise.resolve();
 
       const events = await db.query.playbackEvents.findMany({
@@ -256,7 +261,11 @@ describe("event-recording-service", () => {
       const playthroughId = getCurrentPlaythroughId()!;
 
       // Emit trivial seek
-      EventBus.emit("seekCompleted", { fromPosition: 0, toPosition: 1 });
+      EventBus.emit("seekCompleted", {
+        fromPosition: 0,
+        toPosition: 1,
+        timestamp: new Date(),
+      });
       await Promise.resolve();
 
       const events = await db.query.playbackEvents.findMany({
@@ -397,7 +406,11 @@ describe("event-recording-service", () => {
       });
 
       // Should not throw - emit a non-trivial seek to trigger recordSeekEvent
-      EventBus.emit("seekCompleted", { fromPosition: 0, toPosition: 60 });
+      EventBus.emit("seekCompleted", {
+        fromPosition: 0,
+        toPosition: 60,
+        timestamp: new Date(),
+      });
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Restore

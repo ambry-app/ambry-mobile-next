@@ -145,10 +145,14 @@ describe("seek", () => {
       jest.advanceTimersByTime(4500);
       await Promise.resolve();
 
-      expect(eventBusSpy).toHaveBeenCalledWith("seekCompleted", {
-        fromPosition: 100,
-        toPosition: 110,
-      });
+      expect(eventBusSpy).toHaveBeenCalledWith(
+        "seekCompleted",
+        expect.objectContaining({
+          fromPosition: 100,
+          toPosition: 110,
+          timestamp: expect.any(Date),
+        }),
+      );
     });
 
     it("resets accumulator after short timer fires", async () => {

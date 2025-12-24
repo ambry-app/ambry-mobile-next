@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
 
 import {
@@ -17,6 +18,7 @@ import {
 import { useLibraryData } from "@/hooks/use-library-data";
 import useLoadMediaCallback from "@/hooks/use-load-media-callback";
 import { useDataVersion } from "@/stores/data-version";
+import { useDebug } from "@/stores/debug";
 import {
   pauseIfPlaying,
   resumeAndLoadPlaythrough,
@@ -65,7 +67,7 @@ export function PlaythroughHistory({
     <View style={styles.container}>
       <View style={styles.card}>
         {primaryIsNowPlaying ? (
-          <NowPlayingRow />
+          <NowPlayingRow playthroughId={primaryPlaythrough.id} />
         ) : (
           <PlaythroughRow
             session={session}
@@ -110,7 +112,9 @@ export function PlaythroughHistory({
 /**
  * Special row for the currently playing media that shows real-time player state.
  */
-function NowPlayingRow() {
+function NowPlayingRow({ playthroughId }: { playthroughId: string }) {
+  const debugModeEnabled = useDebug((state) => state.debugModeEnabled);
+
   // Use real-time player state
   const { position, duration, playbackRate } = usePlayer(
     useShallow(({ position, duration, playbackRate }) => ({
@@ -125,8 +129,12 @@ function NowPlayingRow() {
   const remainingRealTime =
     playbackRate > 0 ? remainingBookTime / playbackRate : remainingBookTime;
 
-  return (
-    <View style={styles.row}>
+  const handleDebugTap = () => {
+    router.push(`/playthrough-debug/${playthroughId}`);
+  };
+
+  const rowContent = (
+    <>
       <View style={styles.iconContainer}>
         <FontAwesome6 name="book-open" size={16} color={Colors.zinc[100]} />
       </View>
@@ -141,8 +149,18 @@ function NowPlayingRow() {
         </View>
         <Text style={styles.dateLabel}>Currently listening</Text>
       </View>
-    </View>
+    </>
   );
+
+  if (debugModeEnabled) {
+    return (
+      <Pressable style={[styles.row, styles.debugRow]} onPress={handleDebugTap}>
+        {rowContent}
+      </Pressable>
+    );
+  }
+
+  return <View style={styles.row}>{rowContent}</View>;
 }
 
 type PlaythroughRowProps = {
@@ -156,6 +174,7 @@ function PlaythroughRow({
   playthrough,
   mediaDuration,
 }: PlaythroughRowProps) {
+  const debugModeEnabled = useDebug((state) => state.debugModeEnabled);
   const position = playthrough.stateCache?.currentPosition ?? 0;
   const rate = playthrough.stateCache?.currentRate ?? 1;
   const duration = mediaDuration ?? 0;
@@ -244,8 +263,12 @@ function PlaythroughRow({
   const actionHandler =
     playthrough.status === "in_progress" ? handleContinue : handleResume;
 
-  return (
-    <View style={styles.row}>
+  const handleDebugTap = () => {
+    router.push(`/playthrough-debug/${playthrough.id}`);
+  };
+
+  const rowContent = (
+    <>
       <View style={styles.iconContainer}>
         <FontAwesome6
           name={statusIcon}
@@ -275,8 +298,18 @@ function PlaythroughRow({
           color={Colors.zinc[500]}
         />
       </TouchableOpacity>
-    </View>
+    </>
   );
+
+  if (debugModeEnabled) {
+    return (
+      <Pressable style={[styles.row, styles.debugRow]} onPress={handleDebugTap}>
+        {rowContent}
+      </Pressable>
+    );
+  }
+
+  return <View style={styles.row}>{rowContent}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -358,5 +391,12 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.zinc[700],
+  },
+  debugRow: {
+    borderWidth: 1,
+    borderColor: Colors.lime[600],
+    borderRadius: 8,
+    padding: 8,
+    margin: -8,
   },
 });

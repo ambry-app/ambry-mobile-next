@@ -97,6 +97,8 @@ export interface PlayerState {
   seekEventFrom: number | null;
   /** The position to which the analytics seek event will apply */
   seekEventTo: number | null;
+  /** The timestamp when the seek was actually applied (for accurate event recording) */
+  seekEventTimestamp: Date | null;
 
   /* chapter state */
 
@@ -131,6 +133,7 @@ const initialState = {
   seekEffectiveDiff: null,
   seekEventFrom: null,
   seekEventTo: null,
+  seekEventTimestamp: null,
   chapters: [],
   currentChapter: undefined,
   previousChapterStartTime: 0,
@@ -874,6 +877,7 @@ async function seek(
     usePlayer.setState({ seekIsApplying: true });
 
     await TrackPlayer.seekTo(seekPosition);
+    const seekEventTimestamp = new Date();
     EventBus.emit("seekApplied", {
       position: seekPosition,
       duration,
@@ -889,15 +893,21 @@ async function seek(
       seekPosition: null,
       seekEffectiveDiff: null,
       seekEventTo: seekPosition,
+      seekEventTimestamp,
     });
   }, SEEK_ACCUMULATION_WINDOW);
 
   // On longer delay, emit debounced seek event for recording
   seekEventTimer = setTimeout(() => {
     seekEventTimer = null;
-    const { seekEventFrom, seekEventTo } = usePlayer.getState();
+    const { seekEventFrom, seekEventTo, seekEventTimestamp } =
+      usePlayer.getState();
 
-    if (seekEventFrom == null || seekEventTo == null) {
+    if (
+      seekEventFrom == null ||
+      seekEventTo == null ||
+      seekEventTimestamp == null
+    ) {
       throw new Error("Seek event state invalid");
     }
 
@@ -911,11 +921,13 @@ async function seek(
     EventBus.emit("seekCompleted", {
       fromPosition: seekEventFrom,
       toPosition: seekEventTo,
+      timestamp: seekEventTimestamp,
     });
 
     usePlayer.setState({
       seekEventFrom: null,
       seekEventTo: null,
+      seekEventTimestamp: null,
     });
   }, SEEK_EVENT_ACCUMULATION_WINDOW);
 }

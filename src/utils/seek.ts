@@ -21,6 +21,7 @@ let playbackRate: number | null = null;
 let duration: number | null = null;
 let seekEventFrom: number | null = null;
 let seekEventTo: number | null = null;
+let seekEventTimestamp: Date | null = null;
 
 export async function seek(interval: number) {
   if (isSeeking) return;
@@ -78,6 +79,7 @@ export async function seek(interval: number) {
     );
 
     await TrackPlayer.seekTo(newPosition);
+    seekEventTimestamp = new Date();
     EventBus.emit("seekApplied", {
       position: newPosition,
       duration,
@@ -94,7 +96,11 @@ export async function seek(interval: number) {
   seekEventTimer = setTimeout(() => {
     seekEventTimer = null;
 
-    if (seekEventFrom == null || seekEventTo == null) {
+    if (
+      seekEventFrom == null ||
+      seekEventTo == null ||
+      seekEventTimestamp == null
+    ) {
       throw new Error("Seek event state invalid");
     }
 
@@ -108,10 +114,12 @@ export async function seek(interval: number) {
     EventBus.emit("seekCompleted", {
       fromPosition: seekEventFrom,
       toPosition: seekEventTo,
+      timestamp: seekEventTimestamp,
     });
 
     seekEventFrom = null;
     seekEventTo = null;
+    seekEventTimestamp = null;
   }, SEEK_EVENT_ACCUMULATION_WINDOW);
 }
 

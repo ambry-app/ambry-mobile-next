@@ -322,10 +322,14 @@ describe("player store", () => {
         // Long timer fires (5000ms total)
         await jest.advanceTimersByTimeAsync(4500);
 
-        expect(eventBusSpy).toHaveBeenCalledWith("seekCompleted", {
-          fromPosition: 100,
-          toPosition: 500,
-        });
+        expect(eventBusSpy).toHaveBeenCalledWith(
+          "seekCompleted",
+          expect.objectContaining({
+            fromPosition: 100,
+            toPosition: 500,
+            timestamp: expect.any(Date),
+          }),
+        );
       });
 
       it("clamps position to duration bounds", async () => {
