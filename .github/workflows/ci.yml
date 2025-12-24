@@ -29,6 +29,8 @@ jobs:
         run: npm run doctor
       - name: Run eslint
         run: npm run lint -- --max-warnings 0
+      - name: Generate Expo Router types
+        run: npx expo customize tsconfig.json
       - name: Run tsc
         run: npx tsc
       - name: Run tests
