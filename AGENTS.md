@@ -62,10 +62,12 @@ npm run ios-preview          # Build iOS preview locally with EAS
 - **`/src/app/`**: Expo Router file-based routing. Each file is a route, `_layout.tsx` files define navigation structure
 - **`/src/components/`**: Reusable UI components. Complex screens in `screens/` subdirectory with modular organization
 - **`/src/stores/`**: Zustand stores for global state (session, player, downloads, data-version, screen)
-- **`/src/db/`**: Drizzle ORM schema, migrations, and data access layer
+- **`/src/db/`**: Drizzle ORM schema and data access layer
   - `schema.ts`: Complete database schema
   - `sync.ts`: Bi-directional server sync logic
   - `library/`: Query functions organized by entity type
+  - `playthroughs.ts`: Event-sourced playback progress logic
+- **`/drizzle/`**: Generated database migrations (run `npm run generate-migrations` after schema changes)
 - **`/src/graphql/`**: GraphQL API layer
   - `api.ts`: High-level API functions
   - `client/`: Generated types and execution logic
@@ -272,11 +274,15 @@ The `sync(session)` function performs both library and playthrough sync in paral
 **File-based with Expo Router**:
 
 - `app/_layout.tsx`: Root layout with auth guards
+- `app/sign-in.tsx`: Sign-in screen (unauthenticated)
 - `app/(tabs)/`: Protected tab navigation
-  - `(library)/`: Library stack (search, book/media/author/series details)
-  - `(shelf)/`: User shelf stack (now playing, in-progress)
-  - `downloads.tsx`, `settings.tsx`: Tab screens
-- Modal screens: `sleep-timer.tsx`, `playback-rate.tsx`, `chapter-select.tsx`
+  - `(home)/`: Home tab with nested routing
+    - `index.tsx`: Home screen
+    - `downloads.tsx`, `settings.tsx`: Tab screens
+    - `(library)/`: Library stack (search, browse)
+    - `(shelf)/`: User shelf stack (in-progress, finished, saved)
+  - `book/[id].tsx`, `media/[id].tsx`, `author/[id].tsx`, etc.: Detail screens (direct children of tabs)
+- Modal screens at root: `sleep-timer.tsx`, `playback-rate.tsx`, `chapter-select.tsx`, `download-actions-modal/[id].tsx`
 
 **Authentication Guards**:
 
@@ -390,31 +396,6 @@ Keep all timing/interval constants here for easy adjustment.
 
 **Framework**: Jest with `jest-expo` preset.
 
-### Hook Testing Libraries: Current State and Guidance
-
-**Important:** As of 2025, there are two main libraries for testing React hooks:
-
-- **@testing-library/react-hooks** (deprecated, but stable)
-- **@testing-library/react-native** (actively developed, new `renderHook` API)
-
-#### Deprecation and Migration
-
-- `@testing-library/react-hooks` is deprecated, but still recommended for complex hooks (timers, debounce, async) in React Native, due to better support for Jest fake timers and React Native quirks.
-- The new `renderHook` API in `@testing-library/react-native` is intended to replace it, but is not yet fully feature-complete or reliable for timer-based hooks as of late 2025.
-
-#### Our Policy
-
-- **Both libraries are installed.**
-- Use `@testing-library/react-native`'s `renderHook` for simple hooks (no timers, no async effects).
-- Use `@testing-library/react-hooks` for complex hooks (timers, debounce, async) until the new API is fully stable and reliable for React Native.
-- Monitor [release notes](https://github.com/callstack/react-native-testing-library/releases) and issues for updates; migrate fully when the new API is ready.
-
-#### References
-
-- [Migration guide](https://react-hooks-testing-library.com/migration/react-18)
-- [Open issues](https://github.com/callstack/react-native-testing-library/issues?q=renderHook) on timer/fake timer support
-- [Discussions](https://github.com/testing-library/react-hooks-testing-library/issues) about limitations of the new API
-
 ### Testing Philosophy: Detroit-Style (Classical) Testing
 
 We follow **Detroit-style testing** (also called "Classical" or "Sociable" testing), as opposed to London-style (Mockist/Solitary) testing:
@@ -441,8 +422,8 @@ We follow **Detroit-style testing** (also called "Classical" or "Sociable" testi
 ### Running Tests
 
 ```bash
-npm test            # Watch mode (interactive development)
-npm run test:ci     # Single run (CI/scripts)
+npm test               # Single run
+npm run test:watch     # Watch mode (interactive development)
 npm run test:coverage  # Single run with coverage report
 ```
 

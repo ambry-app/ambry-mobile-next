@@ -343,22 +343,38 @@ export async function getAllPlaythroughsForMedia(
 ) {
   // Order by lastEventAt from state cache (most recent activity first)
   // not updatedAt (which is sync metadata)
-  // We use a subquery-based ordering since Drizzle's relational API
-  // doesn't support ordering by related table fields directly
-  return getDb().query.playthroughs.findMany({
-    where: and(
-      eq(schema.playthroughs.url, session.url),
-      eq(schema.playthroughs.userEmail, session.email),
-      eq(schema.playthroughs.mediaId, mediaId),
-      isNull(schema.playthroughs.deletedAt),
-    ),
-    orderBy: desc(
-      sql`(SELECT ${schema.playthroughStateCache.lastEventAt} FROM ${schema.playthroughStateCache} WHERE ${schema.playthroughStateCache.playthroughId} = ${schema.playthroughs.id})`,
-    ),
-    with: {
-      stateCache: true,
-    },
-  });
+  // Using JOIN pattern consistent with other library queries
+  const results = await getDb()
+    .select({
+      id: schema.playthroughs.id,
+      mediaId: schema.playthroughs.mediaId,
+      status: schema.playthroughs.status,
+      startedAt: schema.playthroughs.startedAt,
+      finishedAt: schema.playthroughs.finishedAt,
+      abandonedAt: schema.playthroughs.abandonedAt,
+      updatedAt: schema.playthroughs.updatedAt,
+      stateCache: {
+        currentPosition: schema.playthroughStateCache.currentPosition,
+        currentRate: schema.playthroughStateCache.currentRate,
+        lastEventAt: schema.playthroughStateCache.lastEventAt,
+      },
+    })
+    .from(schema.playthroughs)
+    .leftJoin(
+      schema.playthroughStateCache,
+      eq(schema.playthroughStateCache.playthroughId, schema.playthroughs.id),
+    )
+    .where(
+      and(
+        eq(schema.playthroughs.url, session.url),
+        eq(schema.playthroughs.userEmail, session.email),
+        eq(schema.playthroughs.mediaId, mediaId),
+        isNull(schema.playthroughs.deletedAt),
+      ),
+    )
+    .orderBy(desc(schema.playthroughStateCache.lastEventAt));
+
+  return results;
 }
 
 export type PlaythroughForMedia = Awaited<
