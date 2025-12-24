@@ -18,7 +18,10 @@ export async function getActivePlaythrough(session: Session, mediaId: string) {
       eq(schema.playthroughs.status, "in_progress"),
       isNull(schema.playthroughs.deletedAt),
     ),
-    orderBy: desc(schema.playthroughs.updatedAt), // If duplicates exist (migration edge case), pick most recent
+    // Note: updatedAt is used here for edge-case duplicate handling during migration,
+    // not for user-facing ordering. There should only ever be one in_progress playthrough
+    // per media, so this ordering rarely matters in practice.
+    orderBy: desc(schema.playthroughs.updatedAt),
     with: {
       stateCache: true,
       media: {
@@ -78,6 +81,8 @@ export async function getFinishedOrAbandonedPlaythrough(
   session: Session,
   mediaId: string,
 ) {
+  // Order by the relevant completion timestamp (finishedAt or abandonedAt)
+  // not updatedAt (which is sync metadata)
   return getDb().query.playthroughs.findFirst({
     where: and(
       eq(schema.playthroughs.url, session.url),
@@ -86,7 +91,9 @@ export async function getFinishedOrAbandonedPlaythrough(
       isNull(schema.playthroughs.deletedAt),
       sql`${schema.playthroughs.status} IN ('finished', 'abandoned')`,
     ),
-    orderBy: desc(schema.playthroughs.updatedAt),
+    orderBy: desc(
+      sql`COALESCE(${schema.playthroughs.finishedAt}, ${schema.playthroughs.abandonedAt})`,
+    ),
     with: {
       stateCache: true,
       media: {
@@ -302,24 +309,42 @@ export async function updateStateCache(
 // =============================================================================
 
 export async function getMostRecentInProgressPlaythrough(session: Session) {
-  return getDb().query.playthroughs.findFirst({
-    where: and(
-      eq(schema.playthroughs.url, session.url),
-      eq(schema.playthroughs.userEmail, session.email),
-      eq(schema.playthroughs.status, "in_progress"),
-      isNull(schema.playthroughs.deletedAt),
-    ),
-    orderBy: desc(schema.playthroughs.updatedAt),
-    with: {
-      stateCache: true,
-    },
-  });
+  // Order by lastEventAt from state cache (when user last listened)
+  // not updatedAt (which is sync metadata)
+  const results = await getDb()
+    .select({
+      id: schema.playthroughs.id,
+      mediaId: schema.playthroughs.mediaId,
+      status: schema.playthroughs.status,
+      lastEventAt: schema.playthroughStateCache.lastEventAt,
+    })
+    .from(schema.playthroughs)
+    .leftJoin(
+      schema.playthroughStateCache,
+      eq(schema.playthroughStateCache.playthroughId, schema.playthroughs.id),
+    )
+    .where(
+      and(
+        eq(schema.playthroughs.url, session.url),
+        eq(schema.playthroughs.userEmail, session.email),
+        eq(schema.playthroughs.status, "in_progress"),
+        isNull(schema.playthroughs.deletedAt),
+      ),
+    )
+    .orderBy(desc(schema.playthroughStateCache.lastEventAt))
+    .limit(1);
+
+  return results[0] ?? null;
 }
 
 export async function getAllPlaythroughsForMedia(
   session: Session,
   mediaId: string,
 ) {
+  // Order by lastEventAt from state cache (most recent activity first)
+  // not updatedAt (which is sync metadata)
+  // We use a subquery-based ordering since Drizzle's relational API
+  // doesn't support ordering by related table fields directly
   return getDb().query.playthroughs.findMany({
     where: and(
       eq(schema.playthroughs.url, session.url),
@@ -327,7 +352,9 @@ export async function getAllPlaythroughsForMedia(
       eq(schema.playthroughs.mediaId, mediaId),
       isNull(schema.playthroughs.deletedAt),
     ),
-    orderBy: desc(schema.playthroughs.updatedAt),
+    orderBy: desc(
+      sql`(SELECT ${schema.playthroughStateCache.lastEventAt} FROM ${schema.playthroughStateCache} WHERE ${schema.playthroughStateCache.playthroughId} = ${schema.playthroughs.id})`,
+    ),
     with: {
       stateCache: true,
     },

@@ -10,7 +10,7 @@ export default function HomeTabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        animation: "shift",
+        // animation: "shift",
         // Hide the built-in tab bar since we render a custom one at the wrapper level
         tabBarStyle: { display: "none" },
       }}

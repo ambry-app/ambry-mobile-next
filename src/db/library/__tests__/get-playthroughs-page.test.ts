@@ -209,25 +209,38 @@ describe("getPlaythroughsPage", () => {
     expect(result).toHaveLength(3);
   });
 
-  it("returns playthroughs sorted by updatedAt descending", async () => {
+  it("returns in_progress playthroughs sorted by lastEventAt descending", async () => {
     const db = getDb();
 
     const book = await createBook(db);
     const media = await createMedia(db, { bookId: book.id });
-    await createPlaythrough(db, {
+
+    // Create playthroughs with state caches that have different lastEventAt values
+    const pt1 = await createPlaythrough(db, {
       mediaId: media.id,
       status: "in_progress",
-      updatedAt: new Date("2024-01-01"),
     });
-    await createPlaythrough(db, {
-      mediaId: media.id,
-      status: "in_progress",
-      updatedAt: new Date("2024-03-01"),
+    await createPlaythroughStateCache(db, {
+      playthroughId: pt1.id,
+      lastEventAt: new Date("2024-01-01"),
     });
-    await createPlaythrough(db, {
+
+    const pt2 = await createPlaythrough(db, {
       mediaId: media.id,
       status: "in_progress",
-      updatedAt: new Date("2024-02-01"),
+    });
+    await createPlaythroughStateCache(db, {
+      playthroughId: pt2.id,
+      lastEventAt: new Date("2024-03-01"),
+    });
+
+    const pt3 = await createPlaythrough(db, {
+      mediaId: media.id,
+      status: "in_progress",
+    });
+    await createPlaythroughStateCache(db, {
+      playthroughId: pt3.id,
+      lastEventAt: new Date("2024-02-01"),
     });
 
     const result = await getPlaythroughsPage(
@@ -236,43 +249,58 @@ describe("getPlaythroughsPage", () => {
       "in_progress",
     );
 
-    expect(result[0]?.updatedAt).toEqual(new Date("2024-03-01"));
-    expect(result[1]?.updatedAt).toEqual(new Date("2024-02-01"));
-    expect(result[2]?.updatedAt).toEqual(new Date("2024-01-01"));
+    // Should be sorted by lastEventAt (from state cache), not updatedAt
+    expect(result[0]?.lastListenedAt).toEqual(new Date("2024-03-01"));
+    expect(result[1]?.lastListenedAt).toEqual(new Date("2024-02-01"));
+    expect(result[2]?.lastListenedAt).toEqual(new Date("2024-01-01"));
   });
 
-  it("supports pagination with updatedBefore", async () => {
+  it("supports pagination with cursorBefore for in_progress", async () => {
     const db = getDb();
 
     const book = await createBook(db);
     const media = await createMedia(db, { bookId: book.id });
-    await createPlaythrough(db, {
+
+    // Create playthroughs with state caches
+    const pt1 = await createPlaythrough(db, {
       mediaId: media.id,
       status: "in_progress",
-      updatedAt: new Date("2024-03-01"),
     });
-    await createPlaythrough(db, {
-      mediaId: media.id,
-      status: "in_progress",
-      updatedAt: new Date("2024-02-01"),
-    });
-    await createPlaythrough(db, {
-      mediaId: media.id,
-      status: "in_progress",
-      updatedAt: new Date("2024-01-01"),
+    await createPlaythroughStateCache(db, {
+      playthroughId: pt1.id,
+      lastEventAt: new Date("2024-03-01"),
     });
 
+    const pt2 = await createPlaythrough(db, {
+      mediaId: media.id,
+      status: "in_progress",
+    });
+    await createPlaythroughStateCache(db, {
+      playthroughId: pt2.id,
+      lastEventAt: new Date("2024-02-01"),
+    });
+
+    const pt3 = await createPlaythrough(db, {
+      mediaId: media.id,
+      status: "in_progress",
+    });
+    await createPlaythroughStateCache(db, {
+      playthroughId: pt3.id,
+      lastEventAt: new Date("2024-01-01"),
+    });
+
+    // Paginate using lastEventAt cursor (for in_progress status)
     const result = await getPlaythroughsPage(
       DEFAULT_TEST_SESSION,
       10,
       "in_progress",
       null,
-      new Date("2024-02-15"),
+      new Date("2024-02-15"), // cursor before Feb 15 should return Feb 1 and Jan 1
     );
 
     expect(result).toHaveLength(2);
-    expect(result[0]?.updatedAt).toEqual(new Date("2024-02-01"));
-    expect(result[1]?.updatedAt).toEqual(new Date("2024-01-01"));
+    expect(result[0]?.lastListenedAt).toEqual(new Date("2024-02-01"));
+    expect(result[1]?.lastListenedAt).toEqual(new Date("2024-01-01"));
   });
 
   it("excludes specific media with withoutMediaId", async () => {

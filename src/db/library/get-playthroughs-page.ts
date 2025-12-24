@@ -11,14 +11,14 @@ export async function getPlaythroughsPage(
   limit: number,
   status: schema.PlaythroughStatus,
   withoutMediaId?: string | null,
-  updatedBefore?: Date,
+  cursorBefore?: Date,
 ) {
   const playthroughs = await getPlaythroughs(
     session,
     limit,
     status,
     withoutMediaId,
-    updatedBefore,
+    cursorBefore,
   );
 
   const mediaIds = playthroughs.map((p) => p.media.id);
@@ -45,8 +45,25 @@ async function getPlaythroughs(
   limit: number,
   status: schema.PlaythroughStatus,
   withoutMediaId?: string | null,
-  updatedBefore?: Date,
+  cursorBefore?: Date,
 ) {
+  // Determine sort/cursor field based on status:
+  // - in_progress: sort by lastEventAt (when user last listened)
+  // - finished: sort by finishedAt (when user finished)
+  // - abandoned: sort by abandonedAt (when user abandoned)
+  const getSortField = () => {
+    switch (status) {
+      case "in_progress":
+        return schema.playthroughStateCache.lastEventAt;
+      case "finished":
+        return schema.playthroughs.finishedAt;
+      case "abandoned":
+        return schema.playthroughs.abandonedAt;
+    }
+  };
+
+  const sortField = getSortField();
+
   const playthroughs = await getDb()
     .select({
       id: schema.playthroughs.id,
@@ -106,12 +123,10 @@ async function getPlaythroughs(
         withoutMediaId
           ? ne(schema.playthroughs.mediaId, withoutMediaId)
           : undefined,
-        updatedBefore
-          ? lt(schema.playthroughs.updatedAt, updatedBefore)
-          : undefined,
+        cursorBefore ? lt(sortField, cursorBefore) : undefined,
       ),
     )
-    .orderBy(desc(schema.playthroughs.updatedAt))
+    .orderBy(desc(sortField))
     .limit(limit);
 
   return playthroughs.map(({ book, download, ...p }) => ({

@@ -196,17 +196,19 @@ describe("playthroughs module", () => {
     it("returns most recent when multiple exist", async () => {
       const db = getDb();
       const media = await createMedia(db);
+      // Now orders by finishedAt (for finished) or abandonedAt (for abandoned)
+      // not by updatedAt
       await createPlaythrough(db, {
         id: "pt-old",
         mediaId: media.id,
         status: "finished",
-        updatedAt: new Date("2024-01-01"),
+        finishedAt: new Date("2024-01-01"),
       });
       await createPlaythrough(db, {
         id: "pt-new",
         mediaId: media.id,
         status: "finished",
-        updatedAt: new Date("2024-06-01"),
+        finishedAt: new Date("2024-06-01"),
       });
 
       const result = await playthroughs.getFinishedOrAbandonedPlaythrough(
@@ -447,21 +449,30 @@ describe("playthroughs module", () => {
   });
 
   describe("getMostRecentInProgressPlaythrough", () => {
-    it("returns most recent in_progress playthrough", async () => {
+    it("returns most recent in_progress playthrough by lastEventAt", async () => {
       const db = getDb();
       const media1 = await createMedia(db);
       const media2 = await createMedia(db);
-      await createPlaythrough(db, {
+
+      // Create playthroughs with state caches - ordering is by lastEventAt now
+      const ptOld = await createPlaythrough(db, {
         id: "pt-old",
         mediaId: media1.id,
         status: "in_progress",
-        updatedAt: new Date("2024-01-01"),
       });
-      await createPlaythrough(db, {
+      await createPlaythroughStateCache(db, {
+        playthroughId: ptOld.id,
+        lastEventAt: new Date("2024-01-01"),
+      });
+
+      const ptNew = await createPlaythrough(db, {
         id: "pt-new",
         mediaId: media2.id,
         status: "in_progress",
-        updatedAt: new Date("2024-06-01"),
+      });
+      await createPlaythroughStateCache(db, {
+        playthroughId: ptNew.id,
+        lastEventAt: new Date("2024-06-01"),
       });
 
       const result =
@@ -470,11 +481,11 @@ describe("playthroughs module", () => {
       expect(result?.id).toBe("pt-new");
     });
 
-    it("returns undefined when no in_progress playthroughs", async () => {
+    it("returns null when no in_progress playthroughs", async () => {
       const result =
         await playthroughs.getMostRecentInProgressPlaythrough(testSession);
 
-      expect(result).toBeUndefined();
+      expect(result).toBeNull();
     });
   });
 
