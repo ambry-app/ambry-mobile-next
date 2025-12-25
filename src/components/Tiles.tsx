@@ -7,10 +7,15 @@ import {
   View,
   ViewStyle,
 } from "react-native";
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 
 import { PlaythroughWithMedia } from "@/db/library";
-import { DownloadedThumbnails, Thumbnails } from "@/db/schema";
+import {
+  DownloadedThumbnails,
+  PlaythroughStatus,
+  Thumbnails,
+} from "@/db/schema";
 import useNavigateToBookCallback from "@/hooks/use-navigate-to-book-callback";
 import { Colors } from "@/styles";
 
@@ -18,6 +23,22 @@ import { BookDetailsText } from "./BookDetailsText";
 import { MultiThumbnailImage } from "./MultiThumbnailImage";
 import { ProgressBar } from "./ProgressBar";
 import { ThumbnailImage } from "./ThumbnailImage";
+
+/**
+ * Get the most relevant playthrough status from a list of media.
+ * Priority: in_progress > finished > abandoned
+ */
+function getBestPlaythroughStatus(
+  media: { playthroughStatus?: PlaythroughStatus | null }[],
+): PlaythroughStatus | null {
+  const statuses = media
+    .map((m) => m.playthroughStatus)
+    .filter((s): s is PlaythroughStatus => s != null);
+  if (statuses.includes("in_progress")) return "in_progress";
+  if (statuses.includes("finished")) return "finished";
+  if (statuses.includes("abandoned")) return "abandoned";
+  return null;
+}
 
 type Media = {
   id: string;
@@ -28,6 +49,7 @@ type Media = {
   download?: {
     thumbnails: DownloadedThumbnails | null;
   } | null;
+  playthroughStatus?: PlaythroughStatus | null;
 };
 
 type Book = {
@@ -47,8 +69,14 @@ type MediaProp = Media & { book: Book };
 type BookProp = Book & { media: Media[] };
 type SeriesBookProp = SeriesBook & { book: BookProp };
 
-type MediaTileProps = { media: MediaProp; style?: StyleProp<ViewStyle> };
-type BookTileProps = { book: BookProp; style?: StyleProp<ViewStyle> };
+type MediaTileProps = {
+  media: MediaProp;
+  style?: StyleProp<ViewStyle>;
+};
+type BookTileProps = {
+  book: BookProp;
+  style?: StyleProp<ViewStyle>;
+};
 type SeriesBookTileProps = {
   seriesBook: SeriesBookProp;
   style?: StyleProp<ViewStyle>;
@@ -59,11 +87,13 @@ type TileProps = {
   media: Media[];
   seriesBook?: SeriesBook;
   style?: StyleProp<ViewStyle>;
+  playthroughStatus?: PlaythroughStatus | null;
 };
 
 type TileImageProps = {
   media: Media[];
   seriesBook?: SeriesBook;
+  playthroughStatus?: PlaythroughStatus | null;
 };
 
 type TileTextProps = {
@@ -87,14 +117,27 @@ type PlaythroughTileProps = {
 
 export const MediaTile = React.memo(function MediaTile(props: MediaTileProps) {
   const { media, style } = props;
-  const tile = <Tile book={media.book} media={[media]} style={style} />;
-  return tile;
+  return (
+    <Tile
+      book={media.book}
+      media={[media]}
+      style={style}
+      playthroughStatus={media.playthroughStatus}
+    />
+  );
 });
 
 export const BookTile = React.memo(function BookTile(props: BookTileProps) {
   const { book, style } = props;
   if (book.media.length === 0) return null;
-  return <Tile book={book} media={book.media} style={style} />;
+  return (
+    <Tile
+      book={book}
+      media={book.media}
+      style={style}
+      playthroughStatus={getBestPlaythroughStatus(book.media)}
+    />
+  );
 });
 
 export const SeriesBookTile = React.memo(function SeriesBookTile(
@@ -108,18 +151,23 @@ export const SeriesBookTile = React.memo(function SeriesBookTile(
       media={seriesBook.book.media}
       seriesBook={seriesBook}
       style={style}
+      playthroughStatus={getBestPlaythroughStatus(seriesBook.book.media)}
     />
   );
 });
 
 export const Tile = React.memo(function Tile(props: TileProps) {
-  const { book, media, seriesBook, style } = props;
+  const { book, media, seriesBook, style, playthroughStatus } = props;
   const navigateToBook = useNavigateToBookCallback(book, media);
 
   return (
     <Pressable onPress={navigateToBook}>
       <View style={[styles.container, style]}>
-        <TileImage media={media} seriesBook={seriesBook} />
+        <TileImage
+          media={media}
+          seriesBook={seriesBook}
+          playthroughStatus={playthroughStatus}
+        />
         <TileText book={book} media={media} />
       </View>
     </Pressable>
@@ -127,7 +175,7 @@ export const Tile = React.memo(function Tile(props: TileProps) {
 });
 
 export const TileImage = React.memo(function TileImage(props: TileImageProps) {
-  const { media, seriesBook } = props;
+  const { media, seriesBook, playthroughStatus } = props;
 
   return (
     <View style={styles.tileImageContainer}>
@@ -136,14 +184,42 @@ export const TileImage = React.memo(function TileImage(props: TileImageProps) {
           Book {seriesBook.bookNumber}
         </Text>
       )}
-      <MultiThumbnailImage
-        thumbnailPairs={media.map((m) => ({
-          thumbnails: m.thumbnails,
-          downloadedThumbnails: m.download?.thumbnails || null,
-        }))}
-        size="large"
-        style={styles.bookThumbnail}
-      />
+      <View>
+        <MultiThumbnailImage
+          thumbnailPairs={media.map((m) => ({
+            thumbnails: m.thumbnails,
+            downloadedThumbnails: m.download?.thumbnails || null,
+          }))}
+          size="large"
+          style={styles.bookThumbnail}
+        />
+        {playthroughStatus && (
+          <PlaythroughStatusBadge status={playthroughStatus} />
+        )}
+      </View>
+    </View>
+  );
+});
+
+type PlaythroughStatusBadgeProps = {
+  status: PlaythroughStatus;
+};
+
+const PlaythroughStatusBadge = React.memo(function PlaythroughStatusBadge(
+  props: PlaythroughStatusBadgeProps,
+) {
+  const { status } = props;
+
+  const iconName =
+    status === "finished"
+      ? "check"
+      : status === "in_progress"
+        ? "book-open"
+        : "xmark"; // abandoned
+
+  return (
+    <View style={styles.badge}>
+      <FontAwesome6 name={iconName} size={18} color={Colors.zinc[300]} solid />
     </View>
   );
 });
@@ -299,5 +375,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.zinc[400],
     textAlign: "center",
+  },
+  badge: {
+    position: "absolute",
+    bottom: 6,
+    right: 6,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.zinc[800],
+    borderWidth: 0.5,
+    borderColor: Colors.zinc[900],
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

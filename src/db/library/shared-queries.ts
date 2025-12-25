@@ -1,7 +1,8 @@
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
+import { PlaythroughStatus } from "@/db/schema";
 import { Session } from "@/stores/session";
 import { groupMapBy } from "@/utils";
 
@@ -181,4 +182,55 @@ export function combineAuthorsAndNarrators(
   }
 
   return [...collapsedMap.values()];
+}
+
+/**
+ * Get playthrough statuses for multiple media items.
+ * Returns the most recent non-deleted playthrough status for each media.
+ * Priority: in_progress > finished > abandoned (by recency within each status)
+ */
+export async function getPlaythroughStatusesForMedia(
+  session: Session,
+  mediaIds: string[],
+): Promise<Record<string, PlaythroughStatus>> {
+  if (mediaIds.length === 0) return {};
+
+  // Get the most recent playthrough for each media
+  // Order by: in_progress first, then by most recent activity
+  const playthroughs = await getDb()
+    .select({
+      mediaId: schema.playthroughs.mediaId,
+      status: schema.playthroughs.status,
+      lastEventAt: schema.playthroughStateCache.lastEventAt,
+    })
+    .from(schema.playthroughs)
+    .leftJoin(
+      schema.playthroughStateCache,
+      eq(schema.playthroughStateCache.playthroughId, schema.playthroughs.id),
+    )
+    .where(
+      and(
+        eq(schema.playthroughs.url, session.url),
+        eq(schema.playthroughs.userEmail, session.email),
+        inArray(schema.playthroughs.mediaId, mediaIds),
+        isNull(schema.playthroughs.deletedAt),
+      ),
+    )
+    .orderBy(
+      // Prioritize in_progress, then order by most recent activity
+      desc(
+        sql`CASE WHEN ${schema.playthroughs.status} = 'in_progress' THEN 1 ELSE 0 END`,
+      ),
+      desc(schema.playthroughStateCache.lastEventAt),
+    );
+
+  // Group by mediaId and take the first (highest priority) status for each
+  const statusMap: Record<string, PlaythroughStatus> = {};
+  for (const p of playthroughs) {
+    if (!statusMap[p.mediaId]) {
+      statusMap[p.mediaId] = p.status;
+    }
+  }
+
+  return statusMap;
 }

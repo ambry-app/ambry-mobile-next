@@ -5,7 +5,10 @@ import * as schema from "@/db/schema";
 import { Session } from "@/stores/session";
 import { requireValue } from "@/utils";
 
-import { getNarratorsForMedia } from "./shared-queries";
+import {
+  getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
+} from "./shared-queries";
 
 export type BookDetails = Awaited<ReturnType<typeof getBookDetails>>;
 
@@ -20,6 +23,10 @@ export async function getBookDetails(
 
   const mediaIds = mediaForBook.map((m) => m.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
 
   return {
     ...book,
@@ -27,6 +34,7 @@ export async function getBookDetails(
     media: mediaForBook.map((media) => ({
       ...media,
       narrators: narratorsForMedia[media.id] ?? [],
+      playthroughStatus: playthroughStatuses[media.id] ?? null,
     })),
   };
 }

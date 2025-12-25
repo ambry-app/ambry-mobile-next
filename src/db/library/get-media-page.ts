@@ -4,7 +4,11 @@ import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
 import { Session } from "@/stores/session";
 
-import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
+import {
+  getAuthorsForBooks,
+  getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
+} from "./shared-queries";
 
 export type MediaPage = Awaited<ReturnType<typeof getMediaPage>>;
 
@@ -22,6 +26,10 @@ export async function getMediaPage(
 
   const mediaIds = media.map((m) => m.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
 
   return media.map((media) => ({
     ...media,
@@ -30,6 +38,7 @@ export async function getMediaPage(
       authors: authorsForBooks[media.book.id] || [],
     },
     narrators: narratorsForMedia[media.id] || [],
+    playthroughStatus: playthroughStatuses[media.id] ?? null,
   }));
 }
 
@@ -45,6 +54,10 @@ export async function getSearchedMedia(
 
   const mediaIds = media.map((m) => m.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
 
   return media.map((media) => ({
     ...media,
@@ -53,6 +66,7 @@ export async function getSearchedMedia(
       authors: authorsForBooks[media.book.id] || [],
     },
     narrators: narratorsForMedia[media.id] || [],
+    playthroughStatus: playthroughStatuses[media.id] ?? null,
   }));
 }
 

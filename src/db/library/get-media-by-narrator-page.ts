@@ -4,7 +4,11 @@ import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
 import { Session } from "@/stores/session";
 
-import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
+import {
+  getAuthorsForBooks,
+  getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
+} from "./shared-queries";
 
 export async function getMediaByNarratorPage(
   session: Session,
@@ -18,6 +22,10 @@ export async function getMediaByNarratorPage(
 
   const mediaIds = media.map((m) => m.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
 
   const bookIds = media.map((media) => media.book.id);
   const authorsForBooks = await getAuthorsForBooks(session, bookIds);
@@ -29,6 +37,7 @@ export async function getMediaByNarratorPage(
       authors: authorsForBooks[media.book.id] ?? [],
     },
     narrators: narratorsForMedia[media.id] ?? [],
+    playthroughStatus: playthroughStatuses[media.id] ?? null,
   }));
 }
 

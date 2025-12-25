@@ -9,6 +9,7 @@ import {
   getAuthorsForBooks,
   getMediaForBooks,
   getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
 } from "./shared-queries";
 
 export type SeriesWithBooks = Awaited<ReturnType<typeof getSeriesWithBooks>>;
@@ -34,6 +35,10 @@ export async function getSeriesWithBooks(
 
   const mediaIds = flatMapGroups(mediaForBooks, (media) => media.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
 
   // NOTE: small improvement possible by missing out series that have no books
   return series.map((series) => ({
@@ -47,6 +52,7 @@ export async function getSeriesWithBooks(
           media: (mediaForBooks[seriesBook.book.id] ?? []).map((media) => ({
             ...media,
             narrators: narratorsForMedia[media.id] ?? [],
+            playthroughStatus: playthroughStatuses[media.id] ?? null,
           })),
         },
       }),

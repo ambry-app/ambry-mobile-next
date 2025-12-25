@@ -6,7 +6,11 @@ import { Session } from "@/stores/session";
 import { flatMapGroups } from "@/utils";
 
 import { MediaHeaderInfo } from "./get-media-header-info";
-import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
+import {
+  getAuthorsForBooks,
+  getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
+} from "./shared-queries";
 
 export type NarratorsWithOtherMedia = Awaited<
   ReturnType<typeof getOtherMediaByNarrators>
@@ -31,12 +35,17 @@ export async function getOtherMediaByNarrators(
 
   const mediaIds = flatMapGroups(mediaByNarratorId, (media) => media.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
 
   return media.narrators.map((narrator) => ({
     ...narrator,
     media: (mediaByNarratorId[narrator.id] ?? []).map((m) => ({
       ...m,
       narrators: narratorsForMedia[m.id] ?? [],
+      playthroughStatus: playthroughStatuses[m.id] ?? null,
       book: {
         ...m.book,
         authors: authorsForBooks[m.book.id] ?? [],

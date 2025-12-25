@@ -9,6 +9,7 @@ import {
   getAuthorsForBooks,
   getMediaForBooks,
   getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
 } from "./shared-queries";
 
 export async function getBooksByAuthorPage(
@@ -25,6 +26,10 @@ export async function getBooksByAuthorPage(
 
   const mediaIds = flatMapGroups(mediaForBooks, (media) => media.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
 
   return books.map((book) => ({
     ...book,
@@ -32,6 +37,7 @@ export async function getBooksByAuthorPage(
     media: (mediaForBooks[book.id] ?? []).map((media) => ({
       ...media,
       narrators: narratorsForMedia[media.id] ?? [],
+      playthroughStatus: playthroughStatuses[media.id] ?? null,
     })),
   }));
 }

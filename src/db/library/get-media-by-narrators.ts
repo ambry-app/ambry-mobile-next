@@ -5,7 +5,11 @@ import * as schema from "@/db/schema";
 import { Session } from "@/stores/session";
 import { flatMapGroups } from "@/utils";
 
-import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
+import {
+  getAuthorsForBooks,
+  getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
+} from "./shared-queries";
 
 export type MediaByNarratorsType = Awaited<
   ReturnType<typeof getMediaByNarrators>
@@ -35,6 +39,10 @@ export async function getMediaByNarrators(
 
   const mediaIds = flatMapGroups(mediaForNarrators, (m) => m.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
 
   return narrators.map((narrator) => ({
     ...narrator,
@@ -45,6 +53,7 @@ export async function getMediaByNarrators(
         authors: authorsForBooks[media.book.id] ?? [],
       },
       narrators: narratorsForMedia[media.id] ?? [],
+      playthroughStatus: playthroughStatuses[media.id] ?? null,
     })),
   }));
 }

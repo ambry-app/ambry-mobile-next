@@ -5,7 +5,10 @@ import * as schema from "@/db/schema";
 import { Session } from "@/stores/session";
 
 import { MediaHeaderInfo } from "./get-media-header-info";
-import { getNarratorsForMedia } from "./shared-queries";
+import {
+  getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
+} from "./shared-queries";
 
 export type BookOtherEditions = Awaited<
   ReturnType<typeof getBookOtherEditions>
@@ -23,12 +26,17 @@ export async function getBookOtherEditions(
 
   const mediaIds = otherMedia.map((m) => m.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
 
   return {
     ...book,
     media: otherMedia.map((media) => ({
       ...media,
       narrators: narratorsForMedia[media.id] ?? [],
+      playthroughStatus: playthroughStatuses[media.id] ?? null,
     })),
   };
 }
