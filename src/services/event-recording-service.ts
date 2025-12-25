@@ -210,14 +210,17 @@ export async function initializePlaythroughTracking(
 // =============================================================================
 
 async function handlePlaybackStarted() {
-  if (!currentPlaythroughId) return;
+  // Capture at the start - may change during async operations
+  const playthroughId = currentPlaythroughId;
+
+  if (!playthroughId) return;
 
   try {
     const { position } = await TrackPlayer.getProgress();
     const rate = await TrackPlayer.getRate();
     currentPlaybackRate = rate;
 
-    await recordPlayEvent(position, rate);
+    await recordPlayEvent(playthroughId, position, rate);
     startHeartbeat();
   } catch (error) {
     console.warn("[EventRecording] Error handling playback started:", error);
@@ -225,13 +228,17 @@ async function handlePlaybackStarted() {
 }
 
 async function handlePlaybackPaused() {
-  if (!currentPlaythroughId) return;
+  // Capture these at the start - they may change during async operations
+  const playthroughId = currentPlaythroughId;
+  const playbackRate = currentPlaybackRate;
+
+  if (!playthroughId) return;
 
   stopHeartbeat();
 
   try {
     const { position } = await TrackPlayer.getProgress();
-    await recordPauseEvent(position, currentPlaybackRate);
+    await recordPauseEvent(playthroughId, position, playbackRate);
 
     // Trigger sync in background after pause (non-blocking)
     triggerSyncOnPause();
@@ -255,7 +262,11 @@ function triggerSyncOnPause() {
 }
 
 async function handlePlaybackQueueEnded() {
-  if (!currentPlaythroughId) return;
+  // Capture these at the start - they may change during async operations
+  const playthroughId = currentPlaythroughId;
+  const playbackRate = currentPlaybackRate;
+
+  if (!playthroughId) return;
 
   const session = useSession.getState().session;
   if (!session) return;
@@ -266,12 +277,12 @@ async function handlePlaybackQueueEnded() {
     const { duration } = await TrackPlayer.getProgress();
 
     // Record pause at end position
-    await recordPauseEvent(duration, currentPlaybackRate);
+    await recordPauseEvent(playthroughId, duration, playbackRate);
 
     // Mark playthrough as finished
     console.debug("[EventRecording] Playback ended, marking as finished");
-    await recordFinishEvent(currentPlaythroughId);
-    await updatePlaythroughStatus(session, currentPlaythroughId, "finished", {
+    await recordFinishEvent(playthroughId);
+    await updatePlaythroughStatus(session, playthroughId, "finished", {
       finishedAt: new Date(),
     });
 
@@ -300,7 +311,11 @@ interface SeekCompletedEvent {
  * debounced event fired.
  */
 async function handleSeekCompleted(event: SeekCompletedEvent) {
-  if (!currentPlaythroughId) return;
+  // Capture at the start - may change during async operations
+  const playthroughId = currentPlaythroughId;
+  const playbackRate = currentPlaybackRate;
+
+  if (!playthroughId) return;
 
   try {
     const { fromPosition, toPosition, timestamp } = event;
@@ -311,9 +326,10 @@ async function handleSeekCompleted(event: SeekCompletedEvent) {
     }
 
     await recordSeekEvent(
+      playthroughId,
       fromPosition,
       toPosition,
-      currentPlaybackRate,
+      playbackRate,
       timestamp,
     );
   } catch (error) {
@@ -328,10 +344,14 @@ interface RateChangedEvent {
 }
 
 async function handlePlaybackRateChanged(event: RateChangedEvent) {
-  if (!currentPlaythroughId) return;
+  // Capture at the start - may change during async operations
+  const playthroughId = currentPlaythroughId;
+
+  if (!playthroughId) return;
 
   try {
     await recordRateChangeEvent(
+      playthroughId,
       event.position,
       event.newRate,
       event.previousRate,
@@ -394,15 +414,19 @@ export async function saveCurrentProgress() {
 // Event Recording Functions
 // =============================================================================
 
-async function recordPlayEvent(position: number, playbackRate: number) {
+async function recordPlayEvent(
+  playthroughId: string,
+  position: number,
+  playbackRate: number,
+) {
   const session = useSession.getState().session;
-  if (!session || !currentPlaythroughId) return;
+  if (!session) return;
 
   const now = new Date();
 
   await getDb().insert(schema.playbackEvents).values({
     id: randomUUID(),
-    playthroughId: currentPlaythroughId,
+    playthroughId,
     deviceId: getDeviceIdSync(),
     type: "play",
     timestamp: now,
@@ -410,21 +434,25 @@ async function recordPlayEvent(position: number, playbackRate: number) {
     playbackRate,
   });
 
-  await updateStateCache(currentPlaythroughId, position, playbackRate, now);
+  await updateStateCache(playthroughId, position, playbackRate, now);
 
   console.debug("[EventRecording] Recorded play event at position", position);
   EventBus.emit("playbackEventRecorded");
 }
 
-async function recordPauseEvent(position: number, playbackRate: number) {
+async function recordPauseEvent(
+  playthroughId: string,
+  position: number,
+  playbackRate: number,
+) {
   const session = useSession.getState().session;
-  if (!session || !currentPlaythroughId) return;
+  if (!session) return;
 
   const now = new Date();
 
   await getDb().insert(schema.playbackEvents).values({
     id: randomUUID(),
-    playthroughId: currentPlaythroughId,
+    playthroughId,
     deviceId: getDeviceIdSync(),
     type: "pause",
     timestamp: now,
@@ -432,24 +460,25 @@ async function recordPauseEvent(position: number, playbackRate: number) {
     playbackRate,
   });
 
-  await updateStateCache(currentPlaythroughId, position, playbackRate, now);
+  await updateStateCache(playthroughId, position, playbackRate, now);
 
   console.debug("[EventRecording] Recorded pause event at position", position);
   EventBus.emit("playbackEventRecorded");
 }
 
 async function recordSeekEvent(
+  playthroughId: string,
   fromPosition: number,
   toPosition: number,
   playbackRate: number,
   timestamp: Date,
 ) {
   const session = useSession.getState().session;
-  if (!session || !currentPlaythroughId) return;
+  if (!session) return;
 
   await getDb().insert(schema.playbackEvents).values({
     id: randomUUID(),
-    playthroughId: currentPlaythroughId,
+    playthroughId,
     deviceId: getDeviceIdSync(),
     type: "seek",
     timestamp,
@@ -459,12 +488,7 @@ async function recordSeekEvent(
     toPosition,
   });
 
-  await updateStateCache(
-    currentPlaythroughId,
-    toPosition,
-    playbackRate,
-    timestamp,
-  );
+  await updateStateCache(playthroughId, toPosition, playbackRate, timestamp);
 
   console.debug(
     "[EventRecording] Recorded seek event from",
@@ -476,18 +500,19 @@ async function recordSeekEvent(
 }
 
 async function recordRateChangeEvent(
+  playthroughId: string,
   position: number,
   newRate: number,
   previousRate: number,
 ) {
   const session = useSession.getState().session;
-  if (!session || !currentPlaythroughId) return;
+  if (!session) return;
 
   const now = new Date();
 
   await getDb().insert(schema.playbackEvents).values({
     id: randomUUID(),
-    playthroughId: currentPlaythroughId,
+    playthroughId,
     deviceId: getDeviceIdSync(),
     type: "rate_change",
     timestamp: now,
@@ -496,7 +521,7 @@ async function recordRateChangeEvent(
     previousRate,
   });
 
-  await updateStateCache(currentPlaythroughId, position, newRate, now);
+  await updateStateCache(playthroughId, position, newRate, now);
 
   console.debug(
     "[EventRecording] Recorded rate change from",

@@ -274,6 +274,7 @@ export async function computeStateFromEvents(
 
 /**
  * Update the state cache for a playthrough.
+ * Only updates if the event is newer than the current cached state.
  */
 export async function updateStateCache(
   playthroughId: string,
@@ -283,6 +284,16 @@ export async function updateStateCache(
 ) {
   const now = new Date();
   const lastEventAt = eventAt ?? now;
+
+  // Check if there's an existing cache entry with a newer timestamp
+  const existing = await getDb().query.playthroughStateCache.findFirst({
+    where: eq(schema.playthroughStateCache.playthroughId, playthroughId),
+  });
+
+  // Only update if no existing entry, or if this event is newer
+  if (existing && existing.lastEventAt >= lastEventAt) {
+    return; // Skip - existing cache is more recent
+  }
 
   await getDb()
     .insert(schema.playthroughStateCache)
