@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, Text, TouchableOpacity, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
@@ -12,7 +12,6 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleOnRN } from "react-native-worklets";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
-import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
 
 import {
@@ -501,12 +500,6 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                     onPress={() => {
                       if (!expanded) {
                         expand();
-                      } else {
-                        router.navigate({
-                          pathname: "/media/[id]",
-                          params: { id: media.id, title: media.book.title },
-                        });
-                        collapse();
                       }
                     }}
                   >
@@ -569,26 +562,14 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
               >
                 <View style={{ width: "10%" }}></View>
                 <View style={{ width: "80%" }}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      collapse();
-                      setTimeout(() => {
-                        router.navigate({
-                          pathname: "/media/[id]",
-                          params: { id: media.id, title: media.book.title },
-                        });
-                      }, 400);
-                    }}
-                  >
-                    <BookDetailsText
-                      textStyle={{ textAlign: "center" }}
-                      baseFontSize={16}
-                      titleWeight={700}
-                      title={media.book.title}
-                      authors={media.book.authors.map((a) => a.name)}
-                      narrators={media.narrators.map((n) => n.name)}
-                    />
-                  </TouchableOpacity>
+                  <BookDetailsText
+                    textStyle={{ textAlign: "center" }}
+                    baseFontSize={16}
+                    titleWeight={700}
+                    title={media.book.title}
+                    authors={media.book.authors.map((a) => a.name)}
+                    narrators={media.narrators.map((n) => n.name)}
+                  />
                 </View>
                 <View style={{ width: "10%" }}></View>
               </Animated.View>
