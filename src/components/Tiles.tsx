@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import {
   Pressable,
   StyleProp,
@@ -9,12 +9,14 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 
+import { PlaythroughWithMedia } from "@/db/library";
 import { DownloadedThumbnails, Thumbnails } from "@/db/schema";
 import useNavigateToBookCallback from "@/hooks/use-navigate-to-book-callback";
 import { Colors } from "@/styles";
 
 import { BookDetailsText } from "./BookDetailsText";
 import { MultiThumbnailImage } from "./MultiThumbnailImage";
+import { ProgressBar } from "./ProgressBar";
 import { ThumbnailImage } from "./ThumbnailImage";
 
 type Media = {
@@ -75,6 +77,11 @@ type PersonTileProps = {
   realName: string;
   thumbnails: Thumbnails | null;
   label: string;
+  style?: StyleProp<ViewStyle>;
+};
+
+type PlaythroughTileProps = {
+  playthrough: PlaythroughWithMedia;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -197,10 +204,58 @@ export const PersonTile = React.memo(function PersonTile(
   );
 });
 
+export const PlaythroughTile = React.memo(function PlaythroughTile(
+  props: PlaythroughTileProps,
+) {
+  const { playthrough, style } = props;
+  const duration = playthrough.media.duration
+    ? Number(playthrough.media.duration)
+    : false;
+  const percent = duration ? (playthrough.position / duration) * 100 : false;
+
+  const navigateToMedia = useCallback(() => {
+    router.navigate({
+      pathname: "/media/[id]",
+      params: {
+        id: playthrough.media.id,
+        title: playthrough.media.book.title,
+      },
+    });
+  }, [playthrough.media.id, playthrough.media.book.title]);
+
+  return (
+    <Pressable onPress={navigateToMedia}>
+      <View style={[styles.playthroughContainer, style]}>
+        <View>
+          <ThumbnailImage
+            thumbnails={playthrough.media.thumbnails}
+            downloadedThumbnails={playthrough.media.download?.thumbnails}
+            size="large"
+            style={styles.playthroughThumbnail}
+          />
+          {duration !== false && (
+            <ProgressBar position={playthrough.position} duration={duration} />
+          )}
+          {percent !== false && (
+            <Text style={styles.progressText} numberOfLines={1}>
+              {percent.toFixed(1)}%
+            </Text>
+          )}
+        </View>
+        <TileText book={playthrough.media.book} media={[playthrough.media]} />
+      </View>
+    </Pressable>
+  );
+});
+
 const styles = StyleSheet.create({
   container: {
     display: "flex",
     gap: 12,
+  },
+  playthroughContainer: {
+    display: "flex",
+    gap: 4,
   },
   tileImageContainer: {
     display: "flex",
@@ -213,6 +268,11 @@ const styles = StyleSheet.create({
   personThumbnail: {
     aspectRatio: 1,
     borderRadius: 999,
+  },
+  playthroughThumbnail: {
+    aspectRatio: 1,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
   },
   bookNumber: {
     fontSize: 16,
@@ -232,6 +292,11 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
+    color: Colors.zinc[400],
+    textAlign: "center",
+  },
+  progressText: {
+    fontSize: 14,
     color: Colors.zinc[400],
     textAlign: "center",
   },

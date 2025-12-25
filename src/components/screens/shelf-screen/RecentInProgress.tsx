@@ -81,7 +81,7 @@ export function RecentInProgress({ session }: RecentInProgressProps) {
         renderItem={({ item }) => (
           <FadeInOnMount style={[styles.tile, { width: tileSize }]}>
             {item.lastListenedAt && <TimeAgo date={item.lastListenedAt} />}
-            <PlaythroughTile playthrough={item} session={session} />
+            <PlaythroughTile playthrough={item} />
           </FadeInOnMount>
         )}
       />

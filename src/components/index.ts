@@ -14,7 +14,6 @@ export * from "./MultiThumbnailImage";
 export * from "./NamesList";
 export * from "./PlayButton";
 export * from "./PlayerProgressBar";
-export * from "./PlaythroughTile";
 export * from "./ProgressBar";
 export * from "./ResumePlaythroughDialog";
 export * from "./ScreenCentered";

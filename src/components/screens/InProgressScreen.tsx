@@ -40,7 +40,7 @@ export function InProgressScreen({ session }: InProgressScreenProps) {
       renderItem={({ item }) => (
         <FadeInOnMount style={styles.tile}>
           {item.lastListenedAt && <TimeAgo date={item.lastListenedAt} />}
-          <PlaythroughTile playthrough={item} session={session} />
+          <PlaythroughTile playthrough={item} />
         </FadeInOnMount>
       )}
       onEndReached={loadMore}
