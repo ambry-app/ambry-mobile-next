@@ -19,3 +19,6 @@ export const SLEEP_TIMER_FADE_OUT_TIME = 30000;
 
 /* Player expand animation duration (in milliseconds) - must match CustomTabBarWithPlayer */
 export const PLAYER_EXPAND_ANIMATION_DURATION = 400;
+
+/* Threshold for prompting user to mark playthrough as finished (95%) */
+export const FINISH_PROMPT_THRESHOLD = 0.95;

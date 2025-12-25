@@ -5,6 +5,7 @@ export * from "./Button";
 export * from "./Delay";
 export * from "./Description";
 export * from "./FadeInOnMount";
+export * from "./FinishPlaythroughDialog";
 export * from "./FocusableTextInput";
 export * from "./HeaderButton";
 export * from "./IconButton";

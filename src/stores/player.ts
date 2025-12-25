@@ -14,6 +14,7 @@ import TrackPlayer, {
 import { create } from "zustand";
 
 import {
+  FINISH_PROMPT_THRESHOLD,
   PLAYER_EXPAND_ANIMATION_DURATION,
   SEEK_ACCUMULATION_WINDOW,
   SEEK_EVENT_ACCUMULATION_WINDOW,
@@ -25,12 +26,16 @@ import {
   getFinishedOrAbandonedPlaythrough,
   getMostRecentInProgressPlaythrough,
   resumePlaythrough,
+  updatePlaythroughStatus,
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
 import {
+  getCurrentPlaythroughId,
   initializePlaythroughTracking,
+  recordFinishEvent,
   recordStartEvent,
 } from "@/services/event-recording-service";
+import { bumpPlaythroughDataVersion } from "@/stores/data-version";
 import { documentDirectoryFilePath, EventBus } from "@/utils";
 
 import { Session, useSession } from "./session";
@@ -54,6 +59,17 @@ export interface PendingResumePrompt {
   statusDate: Date;
 }
 
+export interface PendingFinishPrompt {
+  /** The playthrough that's about to be unloaded */
+  currentPlaythroughId: string;
+  currentMediaId: string;
+  currentMediaTitle: string;
+  currentPosition: number;
+  currentDuration: number;
+  /** The new media the user wants to load */
+  newMediaId: string;
+}
+
 export interface PlayerState {
   /* initialization state */
 
@@ -67,6 +83,9 @@ export interface PlayerState {
 
   /** When set, shows a dialog asking user to resume or start fresh */
   pendingResumePrompt: PendingResumePrompt | null;
+
+  /** When set, shows a dialog asking user if they want to mark current playthrough as finished */
+  pendingFinishPrompt: PendingFinishPrompt | null;
 
   /* playback state */
 
@@ -121,6 +140,7 @@ const initialState = {
   streaming: undefined,
   loadingNewMedia: false,
   pendingResumePrompt: null,
+  pendingFinishPrompt: null,
   position: 0,
   duration: 0,
   playbackRate: 1,
@@ -304,6 +324,142 @@ export async function handleStartFresh(session: Session) {
  */
 export function cancelResumePrompt() {
   usePlayer.setState({ pendingResumePrompt: null, loadingNewMedia: false });
+}
+
+// =============================================================================
+// Finish Prompt (when unloading a playthrough that's almost complete)
+// =============================================================================
+
+/**
+ * Check if the current playthrough should prompt for finish before loading new media.
+ * If so, sets pendingFinishPrompt and returns true.
+ * If not, returns false and the caller should proceed with loading.
+ */
+export async function checkForFinishPrompt(
+  session: Session,
+  newMediaId: string,
+): Promise<boolean> {
+  const { mediaId, position, duration } = usePlayer.getState();
+
+  // No current media loaded - nothing to prompt about
+  if (!mediaId) return false;
+
+  // Same media being loaded - no prompt needed
+  if (mediaId === newMediaId) return false;
+
+  // Get the current playthrough ID
+  const currentPlaythroughId = getCurrentPlaythroughId();
+  if (!currentPlaythroughId) return false;
+
+  // Check if position is > 95% of duration
+  if (duration <= 0) return false;
+  const percentComplete = position / duration;
+  if (percentComplete <= FINISH_PROMPT_THRESHOLD) return false;
+
+  // Get the current media info for the dialog
+  const currentPlaythrough = await getActivePlaythrough(session, mediaId);
+  if (!currentPlaythrough) return false;
+
+  console.debug(
+    "[Player] Current playthrough is",
+    (percentComplete * 100).toFixed(1) + "%",
+    "complete - showing finish prompt",
+  );
+
+  usePlayer.setState({
+    pendingFinishPrompt: {
+      currentPlaythroughId,
+      currentMediaId: mediaId,
+      currentMediaTitle: currentPlaythrough.media.book.title,
+      currentPosition: position,
+      currentDuration: duration,
+      newMediaId,
+    },
+  });
+
+  return true;
+}
+
+/**
+ * Handle user choosing to mark the current playthrough as finished.
+ * Called from the FinishPlaythroughDialog.
+ */
+export async function handleMarkFinished(session: Session) {
+  const prompt = usePlayer.getState().pendingFinishPrompt;
+  if (!prompt) return;
+
+  console.debug(
+    "[Player] User chose to mark playthrough as finished:",
+    prompt.currentPlaythroughId,
+  );
+
+  // Clear the prompt and start loading
+  usePlayer.setState({ pendingFinishPrompt: null, loadingNewMedia: true });
+
+  // Record finish event and update status
+  await recordFinishEvent(prompt.currentPlaythroughId);
+  await updatePlaythroughStatus(
+    session,
+    prompt.currentPlaythroughId,
+    "finished",
+    {
+      finishedAt: new Date(),
+    },
+  );
+
+  // Notify UI that playthrough data changed
+  bumpPlaythroughDataVersion();
+
+  // Now load the new media
+  await proceedWithLoadingNewMedia(session, prompt.newMediaId);
+}
+
+/**
+ * Handle user choosing to skip marking as finished and just load the new media.
+ * Called from the FinishPlaythroughDialog.
+ */
+export async function handleSkipFinish(session: Session) {
+  const prompt = usePlayer.getState().pendingFinishPrompt;
+  if (!prompt) return;
+
+  console.debug(
+    "[Player] User chose to skip marking as finished, loading new media:",
+    prompt.newMediaId,
+  );
+
+  // Clear the prompt and start loading
+  usePlayer.setState({ pendingFinishPrompt: null, loadingNewMedia: true });
+
+  // Load the new media without marking current as finished
+  await proceedWithLoadingNewMedia(session, prompt.newMediaId);
+}
+
+/**
+ * Cancel the finish prompt without making a choice.
+ */
+export function cancelFinishPrompt() {
+  usePlayer.setState({ pendingFinishPrompt: null });
+}
+
+/**
+ * Internal helper to proceed with loading new media after finish prompt is resolved.
+ */
+async function proceedWithLoadingNewMedia(
+  session: Session,
+  newMediaId: string,
+) {
+  await expandPlayerAndWait();
+
+  // Check if new media has a finished/abandoned playthrough that needs resume prompt
+  const needsResumePrompt = await checkForResumePrompt(session, newMediaId);
+  if (needsResumePrompt) {
+    // Resume dialog will handle the rest
+    return;
+  }
+
+  // No resume prompt needed, proceed with loading
+  await loadMedia(session, newMediaId);
+  await play();
 }
 
 /**
