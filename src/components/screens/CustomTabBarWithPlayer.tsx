@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Pressable, Text, TouchableOpacity, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
@@ -62,10 +56,12 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
   const { session, mediaId } = props;
   const insets = useSafeAreaInsets();
 
-  const { streaming, loadingNewMedia } = usePlayer(
-    useShallow(({ streaming, loadingNewMedia }) => ({
+  const { streaming, loadingNewMedia, position, duration } = usePlayer(
+    useShallow(({ streaming, loadingNewMedia, position, duration }) => ({
       streaming,
       loadingNewMedia,
+      position,
+      duration,
     })),
   );
   const media = useLibraryData(() => getMedia(session, mediaId), [mediaId]);
@@ -184,10 +180,16 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
       ),
       bottom: interpolate(expansion.value, [0, 1], [tabBarHeight, 0]),
       paddingTop: interpolate(expansion.value, [0, 1], [0, insets.top]),
-      borderTopWidth: interpolate(
+    };
+  });
+
+  const miniProgressBarStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(
         expansion.value,
-        [0, 1],
-        [StyleSheet.hairlineWidth, 0],
+        [0, 0.25],
+        [1, 0],
+        Extrapolation.CLAMP,
       ),
     };
   });
@@ -348,11 +350,33 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                 width: "100%",
                 position: "absolute",
                 backgroundColor: Colors.zinc[900],
-                borderColor: Colors.zinc[600],
               },
               playerContainerStyle,
             ]}
           >
+            {/* Mini progress bar - visible when collapsed, acts as separator above tab bar */}
+            <Animated.View
+              style={[
+                {
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: 2,
+                  backgroundColor: Colors.zinc[700],
+                  zIndex: 10,
+                },
+                miniProgressBarStyle,
+              ]}
+            >
+              <View
+                style={{
+                  height: 2,
+                  width: `${duration > 0 ? (position / duration) * 100 : 0}%`,
+                  backgroundColor: Colors.lime[400],
+                }}
+              />
+            </Animated.View>
             <Animated.View
               style={[
                 {
