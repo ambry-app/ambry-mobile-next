@@ -5,6 +5,7 @@ import Animated, {
   Easing,
   useAnimatedProps,
   useAnimatedStyle,
+  useDerivedValue,
   useFrameCallback,
   useSharedValue,
   withDecay,
@@ -235,50 +236,50 @@ export const Scrubber = memo(function Scrubber() {
       }
     });
 
-  const animatedScrubberStyle = useAnimatedStyle(() => {
-    const value = translateX.value;
+  // Consolidate all translateX-dependent calculations into one derived value
+  const animatedValues = useDerivedValue(() => {
+    const x = translateX.value;
 
-    if (value < -HALF_WIDTH) {
-      // we're at the end or in the middle somewhere
-      return {
-        transform: [{ translateX: (HALF_WIDTH + value) % (SPACING * 12) }],
-      };
-    } else {
-      // we're at the beginning
-      return {
-        transform: [{ translateX: HALF_WIDTH + value }],
-      };
-    }
-  });
+    // Scrubber transform
+    const scrubberTranslateX =
+      x < -HALF_WIDTH
+        ? (HALF_WIDTH + x) % (SPACING * 12) // end or middle
+        : HALF_WIDTH + x; // beginning
 
-  const animatedMaskStyle = useAnimatedStyle(() => {
-    const value = translateX.value;
-
-    if (value < -HALF_WIDTH && value - HALF_WIDTH <= maxTranslateX) {
+    // Mask width
+    let maskWidth = WIDTH + 120;
+    if (x < -HALF_WIDTH && x - HALF_WIDTH <= maxTranslateX) {
       // we're at the end
-      const translate = (HALF_WIDTH + value) % (SPACING * 12);
-      const diff = maxTranslateX - value;
-      const width = HALF_WIDTH - translate - diff;
-      return {
-        width: width,
-      };
-    } else {
-      // we're at the beginning or in the middle somewhere
-      return {
-        width: WIDTH + 120,
-      };
+      const translate = (HALF_WIDTH + x) % (SPACING * 12);
+      const diff = maxTranslateX - x;
+      maskWidth = HALF_WIDTH - translate - diff;
     }
+
+    // Marker transform
+    const markerTranslateX = HALF_WIDTH + x;
+
+    return {
+      scrubberTranslateX,
+      maskWidth,
+      markerTranslateX,
+    };
   });
 
-  const animatedMarkerStyle = useAnimatedStyle(() => {
-    const value = translateX.value;
+  const animatedScrubberStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: animatedValues.value.scrubberTranslateX }],
+  }));
 
-    return { transform: [{ translateX: HALF_WIDTH + value }] };
-  });
+  const animatedMaskStyle = useAnimatedStyle(() => ({
+    width: animatedValues.value.maskWidth,
+  }));
 
-  const animatedTimecodeStyle = useAnimatedStyle(() => {
-    return { opacity: withTiming(timecodeOpacity.value) };
-  });
+  const animatedMarkerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: animatedValues.value.markerTranslateX }],
+  }));
+
+  const animatedTimecodeStyle = useAnimatedStyle(() => ({
+    opacity: withTiming(timecodeOpacity.value),
+  }));
 
   const animatedTimecodeProps = useAnimatedProps(() => {
     const total = clamp(translateXToTime(translateX.value), 0, duration);
