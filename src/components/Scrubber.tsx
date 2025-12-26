@@ -195,6 +195,16 @@ export const Scrubber = memo(function Scrubber() {
       }
     })
     .onEnd((event) => {
+      // If it's just a tap (no significant velocity or movement), skip seeking
+      const isTap =
+        Math.abs(event.velocityX) < 50 &&
+        Math.abs(translateX.value - startX.value) < 2;
+
+      if (isTap) {
+        scheduleOnRN(setIsScrubbing, false);
+        return;
+      }
+
       const onFinish = (finished: boolean | undefined) => {
         isAnimating.value = false;
 
@@ -229,9 +239,8 @@ export const Scrubber = memo(function Scrubber() {
       }
     })
     .onFinalize(() => {
+      // onEnd handles all seeking now; onFinalize just ensures cleanup
       if (!isAnimating.value) {
-        const newPosition = translateXToTime(translateX.value);
-        scheduleOnRN(seekTo, newPosition, SeekSource.SCRUBBER);
         scheduleOnRN(setIsScrubbing, false);
       }
     });

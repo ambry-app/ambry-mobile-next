@@ -45,7 +45,6 @@ import {
   ChapterControls,
   PlaybackControls,
   PlayerSettingButtons,
-  SeekIndicator,
 } from "./tab-bar-with-player";
 
 // Memoized mini progress bar - subscribes to progressPercent (updates every 5s)
@@ -710,7 +709,6 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                         <PlayerProgressBar />
                       </View>
                       <View>
-                        <SeekIndicator />
                         <PlaybackControls />
                         <ChapterControls />
                       </View>

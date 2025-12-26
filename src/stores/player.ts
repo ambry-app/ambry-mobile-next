@@ -124,6 +124,8 @@ export interface PlayerState {
   seekEventTo: number | null;
   /** The timestamp when the seek was actually applied (for accurate event recording) */
   seekEventTimestamp: Date | null;
+  /** Direction of the last seek button press ('left' for backward, 'right' for forward) */
+  seekLastDirection: "left" | "right" | null;
 
   /* chapter state */
 
@@ -163,6 +165,7 @@ const initialState = {
   seekEventFrom: null,
   seekEventTo: null,
   seekEventTimestamp: null,
+  seekLastDirection: null,
   chapters: [],
   currentChapter: undefined,
   previousChapterStartTime: 0,
@@ -981,6 +984,8 @@ async function seek(
 
   // Each tap
   if (isRelative) {
+    const seekLastDirection = target < 0 ? "left" : "right";
+
     usePlayer.setState((state) => {
       if (
         state.seekAccumulator == null ||
@@ -1001,6 +1006,7 @@ async function seek(
         seekAccumulator,
         seekPosition,
         seekEffectiveDiff,
+        seekLastDirection,
       };
     });
   } else {
@@ -1012,6 +1018,7 @@ async function seek(
       const seekBasePosition = target;
       let seekPosition = target;
       const seekEffectiveDiff = seekPosition - state.seekOriginalPosition;
+      const seekLastDirection = seekEffectiveDiff < 0 ? "left" : "right";
 
       seekPosition = Math.max(0, Math.min(seekPosition, state.duration));
 
@@ -1020,6 +1027,7 @@ async function seek(
         seekAccumulator: 0,
         seekPosition,
         seekEffectiveDiff,
+        seekLastDirection,
       };
     });
   }
@@ -1062,6 +1070,7 @@ async function seek(
       seekAccumulator: null,
       seekPosition: null,
       seekEffectiveDiff: null,
+      seekLastDirection: null,
       seekEventTo: seekPosition,
       seekEventTimestamp,
     });

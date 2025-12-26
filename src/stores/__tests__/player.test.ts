@@ -81,6 +81,7 @@ const initialPlayerState = {
   seekEffectiveDiff: null,
   seekEventFrom: null,
   seekEventTo: null,
+  seekLastDirection: null,
   chapters: [],
   currentChapter: undefined,
   previousChapterStartTime: 0,
