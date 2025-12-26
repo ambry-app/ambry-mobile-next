@@ -11,10 +11,9 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Line, Path, Rect } from "react-native-svg";
-import {
+import TrackPlayer, {
   State,
   usePlaybackState,
-  useProgress,
 } from "react-native-track-player";
 import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 import { useShallow } from "zustand/shallow";
@@ -133,7 +132,7 @@ const Markers = memo(function Markers({ markers }: MarkersProps) {
         key={i}
         style={[styles.marker, { left: marker * FACTOR }]}
       >
-        {/* eslint-disable @typescript-eslint/no-deprecated -- SVG attributes, not reanimated props */}
+        {}
         <Rect
           x="0"
           y="0"
@@ -145,25 +144,28 @@ const Markers = memo(function Markers({ markers }: MarkersProps) {
           stroke={colors.weak}
           strokeWidth="2"
         />
-        {/* eslint-enable @typescript-eslint/no-deprecated */}
+        {}
       </Svg>
     );
   });
 });
 
-export function Scrubber() {
+export const Scrubber = memo(function Scrubber() {
   const { state } = usePlaybackState();
-  const { position: positionInput, duration } = useProgress(500);
-  const { playbackRate, chapters } = usePlayer(
-    useShallow(({ playbackRate, chapters }) => ({
+  // Only subscribe to values that rarely change - NOT position
+  const { playbackRate, chapters, duration } = usePlayer(
+    useShallow(({ playbackRate, chapters, duration }) => ({
       playbackRate,
       chapters,
+      duration,
     })),
   );
   const playing = state === State.Playing;
   const markers = chapters?.map((chapter) => chapter.startTime) || [];
 
-  const translateX = useSharedValue(timeToTranslateX(positionInput));
+  // Get initial position once without subscribing
+  const initialPosition = useRef(usePlayer.getState().position);
+  const translateX = useSharedValue(timeToTranslateX(initialPosition.current));
   const [isScrubbing, setIsScrubbing] = useIsScrubbing();
   const maxTranslateX = timeToTranslateX(duration);
   const startX = useSharedValue(0);
@@ -358,19 +360,37 @@ export function Scrubber() {
     };
   }, [isScrubbing, translateX, isAnimatingUserSeek]);
 
-  // Sync to position when it changes (drift correction on JS thread, not every frame)
+  // Periodic drift correction - check every 2 seconds without causing re-renders
+  // Only runs while playing and not scrubbing
   useEffect(() => {
-    if (isScrubbing || isAnimatingUserSeek.value) return;
+    // Don't run drift correction while scrubbing or paused
+    if (isScrubbing || !playing) return;
 
-    const animatedPos = translateXToTime(translateX.value);
-    const drift = Math.abs(animatedPos - positionInput);
+    const checkDrift = async () => {
+      if (isAnimatingUserSeek.value) return;
 
-    // Snap if drifted more than 500ms
-    // Note: When paused, position updates from seeks will trigger this
-    if (drift > 0.5) {
-      translateX.value = timeToTranslateX(positionInput);
-    }
-  }, [positionInput, isScrubbing, translateX, isAnimatingUserSeek]);
+      try {
+        const { position } = await TrackPlayer.getProgress();
+        const animatedPos = translateXToTime(translateX.value);
+        const drift = Math.abs(animatedPos - position);
+
+        // Snap if drifted more than 500ms
+        if (drift > 0.5) {
+          translateX.value = timeToTranslateX(position);
+        }
+      } catch {
+        // TrackPlayer not ready, ignore
+      }
+    };
+
+    // Check immediately on mount/state change
+    checkDrift();
+
+    // Then check periodically (every 2 seconds is plenty for drift correction)
+    const intervalId = setInterval(checkDrift, 2000);
+
+    return () => clearInterval(intervalId);
+  }, [isScrubbing, playing, translateX, isAnimatingUserSeek]);
 
   return (
     <GestureDetector gesture={panGestureHandler}>
@@ -401,7 +421,7 @@ export function Scrubber() {
       </Animated.View>
     </GestureDetector>
   );
-}
+});
 
 const colors = {
   accent: Colors.lime[400],

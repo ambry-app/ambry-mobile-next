@@ -1,11 +1,21 @@
-import { FlatList, StyleSheet, Text } from "react-native";
+import { useMemo } from "react";
+import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 
-import { FadeInOnMount, MediaTile } from "@/components";
+import { MediaTile } from "@/components";
 import { PAGE_SIZE } from "@/constants";
 import { getSearchedMedia } from "@/db/library";
 import { useLibraryData } from "@/hooks/use-library-data";
+import { useScreen } from "@/stores/screen";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
+
+// FlatList layout constants for 2-column grid
+const FLATLIST_PADDING = 8;
+const TILE_PADDING = 8;
+const TILE_MARGIN_BOTTOM = 8;
+const TILE_GAP = 12;
+const TEXT_HEIGHT = 46;
+const NUM_COLUMNS = 2;
 
 type SearchResultsProps = {
   session: Session;
@@ -14,9 +24,26 @@ type SearchResultsProps = {
 
 export function SearchResults(props: SearchResultsProps) {
   const { session, searchQuery } = props;
+  const screenWidth = useScreen((state) => state.screenWidth);
   const media = useLibraryData(
     () => getSearchedMedia(session, PAGE_SIZE, searchQuery),
     [searchQuery],
+  );
+
+  const itemHeight = useMemo(() => {
+    const contentWidth = screenWidth - FLATLIST_PADDING * 2;
+    const tileWidth = contentWidth / NUM_COLUMNS;
+    const imageWidth = tileWidth - TILE_PADDING * 2;
+    return imageWidth + TILE_GAP + TEXT_HEIGHT + TILE_MARGIN_BOTTOM;
+  }, [screenWidth]);
+
+  const getItemLayout = useMemo(
+    () => (_data: unknown, index: number) => ({
+      length: itemHeight,
+      offset: itemHeight * index,
+      index,
+    }),
+    [itemHeight],
   );
 
   if (!media) {
@@ -38,12 +65,16 @@ export function SearchResults(props: SearchResultsProps) {
       style={styles.flatlist}
       data={media}
       keyExtractor={(item) => item.id}
-      numColumns={2}
+      numColumns={NUM_COLUMNS}
       renderItem={({ item }) => (
-        <FadeInOnMount style={styles.tile}>
+        <View style={styles.tile}>
           <MediaTile media={item} />
-        </FadeInOnMount>
+        </View>
       )}
+      getItemLayout={getItemLayout}
+      removeClippedSubviews={Platform.OS === "android"}
+      maxToRenderPerBatch={10}
+      windowSize={5}
     />
   );
 }

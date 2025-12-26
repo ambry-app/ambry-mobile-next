@@ -22,7 +22,7 @@ export function useForegroundSync(appState: AppStateStatus) {
         await sync(session);
 
         console.debug("[ForegroundSync] performing WAL checkpoint");
-        getExpoDb().execSync("PRAGMA wal_checkpoint(TRUNCATE);");
+        getExpoDb().execSync("PRAGMA wal_checkpoint(PASSIVE);");
 
         console.debug("[ForegroundSync] completed successfully");
       } catch (error) {

@@ -8,7 +8,6 @@ import TrackPlayer, {
   IOSCategoryMode,
   isPlaying,
   PitchAlgorithm,
-  Progress,
   TrackType,
 } from "react-native-track-player";
 import { create } from "zustand";
@@ -79,7 +78,7 @@ export interface PlayerState {
   streaming: boolean | undefined;
   loadingNewMedia: boolean;
 
-  /* resume prompt state */
+  /* prompt state */
 
   /** When set, shows a dialog asking user to resume or start fresh */
   pendingResumePrompt: PendingResumePrompt | null;
@@ -95,6 +94,8 @@ export interface PlayerState {
   duration: number;
   /** Current TrackPlayer playback rate */
   playbackRate: number;
+  /** Current progress percent (0-100), updated less frequently than position */
+  progressPercent: number;
 
   /* seek state */
 
@@ -144,6 +145,7 @@ const initialState = {
   position: 0,
   duration: 0,
   playbackRate: 1,
+  progressPercent: 0,
   userIsSeeking: false,
   seekIsApplying: false,
   seekOriginalPosition: null,
@@ -631,24 +633,19 @@ export async function forceUnloadPlayer() {
   return Promise.resolve();
 }
 
-function onPlaybackProgressUpdated(progress: Progress) {
-  setProgress(progress.position, progress.duration);
-}
-
 function onPlaybackQueueEnded() {
   const { duration } = usePlayer.getState();
   console.debug("[Player] PlaybackQueueEnded at position", duration);
   setProgress(duration, duration);
 }
 
-function onSeekApplied(progress: Progress) {
+function onSeekApplied(progress: { position: number; duration: number }) {
   console.debug("[Player] seekApplied", progress);
   setProgress(progress.position, progress.duration);
 }
 
 function setProgress(position: number, duration: number) {
   usePlayer.setState({ position, duration });
-
   maybeUpdateChapterState();
 }
 
@@ -866,7 +863,7 @@ async function loadMostRecentMediaIntoTrackPlayer(
     };
   }
 
-  // Find most recent in-progress playthrough
+  // Find most recent in-progress playthrough (returns full data to avoid redundant queries)
   const mostRecentPlaythrough =
     await getMostRecentInProgressPlaythrough(session);
 
@@ -879,10 +876,11 @@ async function loadMostRecentMediaIntoTrackPlayer(
     "[Player] Loading most recent playthrough:",
     mostRecentPlaythrough.id,
     "mediaId:",
-    mostRecentPlaythrough.mediaId,
+    mostRecentPlaythrough.media.id,
   );
 
-  return loadMediaIntoTrackPlayer(session, mostRecentPlaythrough.mediaId);
+  // Load directly using the full playthrough data (no additional query needed)
+  return loadPlaythroughIntoTrackPlayer(session, mostRecentPlaythrough);
 }
 
 function initialChapterState(
@@ -910,7 +908,9 @@ function initialChapterState(
 function maybeUpdateChapterState() {
   const { position, currentChapter } = usePlayer.getState();
 
-  if (!currentChapter) return;
+  if (!currentChapter) {
+    return;
+  }
 
   if (
     position < currentChapter.startTime ||
@@ -1123,17 +1123,34 @@ async function seekImmediateNoLog(target: number, isRelative = false) {
   usePlayer.setState({ seekIsApplying: false });
 }
 
+// Intervals for progress polling
+const POSITION_POLL_INTERVAL = 1000; // 1 second for position/duration
+const PROGRESS_PERCENT_INTERVAL = 5000; // 5 seconds for progressPercent
+
 export function usePlayerSubscriptions(appState: AppStateStatus) {
   const playerLoaded = usePlayer((state) => !!state.mediaId);
 
   useEffect(() => {
     const subscriptions: EmitterSubscription[] = [];
+    let positionIntervalId: NodeJS.Timeout | null = null;
+    let progressPercentIntervalId: NodeJS.Timeout | null = null;
+
+    const pollPosition = async () => {
+      const progress = await TrackPlayer.getProgress();
+      setProgress(progress.position, progress.duration);
+    };
+
+    const updateProgressPercent = () => {
+      const { position, duration } = usePlayer.getState();
+      const progressPercent = duration > 0 ? (position / duration) * 100 : 0;
+      usePlayer.setState({ progressPercent });
+    };
 
     const init = async () => {
       console.debug("[Player] Getting initial progress");
       const progress = await TrackPlayer.getProgress();
-
       setProgress(progress.position, progress.duration);
+      updateProgressPercent();
     };
 
     if (appState === "active" && playerLoaded) {
@@ -1141,12 +1158,13 @@ export function usePlayerSubscriptions(appState: AppStateStatus) {
 
       console.debug("[Player] Subscribing to player events");
 
-      // TODO: maybe use `useProgress` so the interval is controllable by us. Or maybe write our own...
-      subscriptions.push(
-        TrackPlayer.addEventListener(
-          Event.PlaybackProgressUpdated,
-          onPlaybackProgressUpdated,
-        ),
+      // Fast interval: poll position/duration every 1 second
+      positionIntervalId = setInterval(pollPosition, POSITION_POLL_INTERVAL);
+
+      // Slow interval: update progressPercent every 5 seconds
+      progressPercentIntervalId = setInterval(
+        updateProgressPercent,
+        PROGRESS_PERCENT_INTERVAL,
       );
 
       subscriptions.push(
@@ -1160,6 +1178,8 @@ export function usePlayerSubscriptions(appState: AppStateStatus) {
     }
 
     return () => {
+      if (positionIntervalId) clearInterval(positionIntervalId);
+      if (progressPercentIntervalId) clearInterval(progressPercentIntervalId);
       if (subscriptions.length !== 0)
         console.debug("[Player] Unsubscribing from player events");
       subscriptions.forEach((sub) => sub.remove());

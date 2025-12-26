@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
   Extrapolation,
   interpolate,
+  SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -46,6 +47,51 @@ import {
   SeekIndicator,
 } from "./tab-bar-with-player";
 
+// Memoized mini progress bar - subscribes to progressPercent (updates every 5s)
+const MiniProgressBar = memo(function MiniProgressBar({
+  expansion,
+}: {
+  expansion: SharedValue<number>;
+}) {
+  const progressPercent = usePlayer((state) => state.progressPercent);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(
+        expansion.value,
+        [0, 0.25],
+        [1, 0],
+        Extrapolation.CLAMP,
+      ),
+    };
+  });
+
+  return (
+    <Animated.View
+      style={[
+        {
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 2,
+          backgroundColor: Colors.zinc[700],
+          zIndex: 10,
+        },
+        animatedStyle,
+      ]}
+    >
+      <View
+        style={{
+          height: 2,
+          width: `${progressPercent}%`,
+          backgroundColor: Colors.lime[400],
+        }}
+      />
+    </Animated.View>
+  );
+});
+
 type CustomTabBarWithPlayerProps = {
   session: Session;
   mediaId: string;
@@ -55,12 +101,10 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
   const { session, mediaId } = props;
   const insets = useSafeAreaInsets();
 
-  const { streaming, loadingNewMedia, position, duration } = usePlayer(
-    useShallow(({ streaming, loadingNewMedia, position, duration }) => ({
+  const { streaming, loadingNewMedia } = usePlayer(
+    useShallow(({ streaming, loadingNewMedia }) => ({
       streaming,
       loadingNewMedia,
-      position,
-      duration,
     })),
   );
   const media = useLibraryData(() => getMedia(session, mediaId), [mediaId]);
@@ -179,17 +223,6 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
       ),
       bottom: interpolate(expansion.value, [0, 1], [tabBarHeight, 0]),
       paddingTop: interpolate(expansion.value, [0, 1], [0, insets.top]),
-    };
-  });
-
-  const miniProgressBarStyle = useAnimatedStyle(() => {
-    return {
-      opacity: interpolate(
-        expansion.value,
-        [0, 0.25],
-        [1, 0],
-        Extrapolation.CLAMP,
-      ),
     };
   });
 
@@ -353,29 +386,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
               playerContainerStyle,
             ]}
           >
-            {/* Mini progress bar - visible when collapsed, acts as separator above tab bar */}
-            <Animated.View
-              style={[
-                {
-                  position: "absolute",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: 2,
-                  backgroundColor: Colors.zinc[700],
-                  zIndex: 10,
-                },
-                miniProgressBarStyle,
-              ]}
-            >
-              <View
-                style={{
-                  height: 2,
-                  width: `${duration > 0 ? (position / duration) * 100 : 0}%`,
-                  backgroundColor: Colors.lime[400],
-                }}
-              />
-            </Animated.View>
+            <MiniProgressBar expansion={expansion} />
             <Animated.View
               style={[
                 {

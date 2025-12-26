@@ -1,6 +1,6 @@
-import { FlatList, StyleSheet, Text } from "react-native";
+import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 
-import { FadeInOnMount, Loading, PlaythroughTile, TimeAgo } from "@/components";
+import { Loading, PlaythroughTile, TimeAgo } from "@/components";
 import { PAGE_SIZE } from "@/constants";
 import { getPlaythroughsPage } from "@/db/library";
 import { usePaginatedLibraryData } from "@/hooks/use-paginated-library-data";
@@ -38,11 +38,14 @@ export function InProgressScreen({ session }: InProgressScreenProps) {
       keyExtractor={(item) => item.id}
       numColumns={2}
       renderItem={({ item }) => (
-        <FadeInOnMount style={styles.tile}>
+        <View style={styles.tile}>
           {item.lastListenedAt && <TimeAgo date={item.lastListenedAt} />}
           <PlaythroughTile playthrough={item} />
-        </FadeInOnMount>
+        </View>
       )}
+      removeClippedSubviews={Platform.OS === "android"}
+      maxToRenderPerBatch={10}
+      windowSize={5}
       onEndReached={loadMore}
       onEndReachedThreshold={0.5}
       refreshing={refreshing}

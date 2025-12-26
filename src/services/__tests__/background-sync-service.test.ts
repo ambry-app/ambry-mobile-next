@@ -141,7 +141,7 @@ describe("background-sync-service", () => {
 
       // Verify WAL checkpoint was executed (confirms we reached the success path)
       expect(mockExpoDbExecSync).toHaveBeenCalledWith(
-        "PRAGMA wal_checkpoint(TRUNCATE);",
+        "PRAGMA wal_checkpoint(PASSIVE);",
       );
     });
 

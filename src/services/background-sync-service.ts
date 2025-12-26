@@ -20,7 +20,7 @@ TaskManager.defineTask(BACKGROUND_SYNC_TASK_NAME, async () => {
     await sync(session);
 
     console.debug("[BackgroundSync] performing WAL checkpoint");
-    getExpoDb().execSync("PRAGMA wal_checkpoint(TRUNCATE);");
+    getExpoDb().execSync("PRAGMA wal_checkpoint(PASSIVE);");
 
     console.debug("[BackgroundSync] completed successfully");
     return BackgroundTask.BackgroundTaskResult.Success;

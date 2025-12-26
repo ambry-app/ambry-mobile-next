@@ -1,6 +1,6 @@
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
 
-import { Delay, FadeInOnMount } from "@/components";
+import { FadeInOnMount } from "@/components";
 import {
   ActionBar,
   BooksInSeries,
@@ -47,21 +47,17 @@ export function MediaScreen(props: MediaScreenProps) {
         />
         <MediaDescription media={media} />
       </FadeInOnMount>
-      <Delay delay={100}>
-        <MediaAuthorsAndNarrators media={media} session={session} />
-        <OtherEditions media={media} session={session} />
-        <Delay delay={100}>
-          {media.book.series.length > 0 && (
-            <BooksInSeries media={media} session={session} />
-          )}
-          {media.book.authors.length > 0 && (
-            <OtherBooksByAuthors media={media} session={session} />
-          )}
-          {media.narrators.length > 0 && (
-            <OtherMediaByNarrators media={media} session={session} />
-          )}
-        </Delay>
-      </Delay>
+      <MediaAuthorsAndNarrators media={media} session={session} />
+      <OtherEditions media={media} session={session} />
+      {media.book.series.length > 0 && (
+        <BooksInSeries media={media} session={session} />
+      )}
+      {media.book.authors.length > 0 && (
+        <OtherBooksByAuthors media={media} session={session} />
+      )}
+      {media.narrators.length > 0 && (
+        <OtherMediaByNarrators media={media} session={session} />
+      )}
     </ScrollView>
   );
 }

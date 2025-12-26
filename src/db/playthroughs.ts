@@ -322,13 +322,13 @@ export async function updateStateCache(
 export async function getMostRecentInProgressPlaythrough(session: Session) {
   // Order by lastEventAt from state cache (when user last listened)
   // not updatedAt (which is sync metadata)
-  const results = await getDb()
-    .select({
-      id: schema.playthroughs.id,
-      mediaId: schema.playthroughs.mediaId,
-      status: schema.playthroughs.status,
-      lastEventAt: schema.playthroughStateCache.lastEventAt,
-    })
+  // Returns full playthrough data needed for player initialization to avoid redundant queries
+  //
+  // Two-step query: first find the ID using join (to order by state cache),
+  // then fetch full relational data. This avoids the redundant query in
+  // loadMediaIntoTrackPlayer while still supporting the orderBy on joined table.
+  const recentResult = await getDb()
+    .select({ id: schema.playthroughs.id })
     .from(schema.playthroughs)
     .leftJoin(
       schema.playthroughStateCache,
@@ -345,7 +345,44 @@ export async function getMostRecentInProgressPlaythrough(session: Session) {
     .orderBy(desc(schema.playthroughStateCache.lastEventAt))
     .limit(1);
 
-  return results[0] ?? null;
+  if (!recentResult[0]) return null;
+
+  // Fetch full playthrough data with all relations
+  return getDb().query.playthroughs.findFirst({
+    where: eq(schema.playthroughs.id, recentResult[0].id),
+    with: {
+      stateCache: true,
+      media: {
+        columns: {
+          id: true,
+          thumbnails: true,
+          mpdPath: true,
+          hlsPath: true,
+          duration: true,
+          chapters: true,
+        },
+        with: {
+          download: {
+            columns: { status: true, filePath: true, thumbnails: true },
+          },
+          book: {
+            columns: { id: true, title: true },
+            with: {
+              bookAuthors: {
+                columns: { id: true },
+                with: {
+                  author: {
+                    columns: { id: true, name: true },
+                    with: { person: { columns: { id: true } } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
 }
 
 export async function getAllPlaythroughsForMedia(

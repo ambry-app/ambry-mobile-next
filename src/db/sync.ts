@@ -6,9 +6,6 @@ import {
   getUnsyncedPlaythroughs,
   markEventsSynced,
   markPlaythroughsSynced,
-  updateStateCache,
-  upsertPlaybackEvent,
-  upsertPlaythrough,
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
 import type { SyncProgressInput } from "@/graphql/api";
@@ -587,79 +584,125 @@ export async function syncPlaythroughs(session: Session) {
     );
   }
 
-  // Upsert received playthroughs from server
-  for (const playthrough of syncResult.playthroughs) {
-    await upsertPlaythrough({
-      id: playthrough.id,
-      url: session.url,
-      userEmail: session.email,
-      mediaId: playthrough.media.id,
-      status: playthrough.status.toLowerCase() as
-        | "in_progress"
-        | "finished"
-        | "abandoned",
-      startedAt: new Date(playthrough.startedAt),
-      finishedAt: playthrough.finishedAt
-        ? new Date(playthrough.finishedAt)
-        : null,
-      abandonedAt: playthrough.abandonedAt
-        ? new Date(playthrough.abandonedAt)
-        : null,
-      deletedAt: playthrough.deletedAt ? new Date(playthrough.deletedAt) : null,
-      createdAt: new Date(playthrough.insertedAt),
-      updatedAt: new Date(playthrough.updatedAt),
-      syncedAt: serverTime,
-    });
-  }
+  // Batch all database operations in a single transaction for better performance
+  await getDb().transaction(async (tx) => {
+    // Upsert received playthroughs from server
+    for (const playthrough of syncResult.playthroughs) {
+      const playthroughData = {
+        id: playthrough.id,
+        url: session.url,
+        userEmail: session.email,
+        mediaId: playthrough.media.id,
+        status: playthrough.status.toLowerCase() as
+          | "in_progress"
+          | "finished"
+          | "abandoned",
+        startedAt: new Date(playthrough.startedAt),
+        finishedAt: playthrough.finishedAt
+          ? new Date(playthrough.finishedAt)
+          : null,
+        abandonedAt: playthrough.abandonedAt
+          ? new Date(playthrough.abandonedAt)
+          : null,
+        deletedAt: playthrough.deletedAt
+          ? new Date(playthrough.deletedAt)
+          : null,
+        createdAt: new Date(playthrough.insertedAt),
+        updatedAt: new Date(playthrough.updatedAt),
+        syncedAt: serverTime,
+      };
 
-  // Upsert received events from server
-  for (const event of syncResult.events) {
-    await upsertPlaybackEvent({
-      id: event.id,
-      playthroughId: event.playthroughId,
-      deviceId: event.deviceId,
-      type: event.type.toLowerCase() as
-        | "start"
-        | "play"
-        | "pause"
-        | "seek"
-        | "rate_change"
-        | "finish"
-        | "abandon",
-      timestamp: new Date(event.timestamp),
-      position: event.position,
-      playbackRate: event.playbackRate,
-      fromPosition: event.fromPosition,
-      toPosition: event.toPosition,
-      previousRate: event.previousRate,
-      syncedAt: serverTime,
-    });
-
-    // Update state cache for received events (if playback event with position)
-    if (event.position != null && event.playbackRate != null) {
-      await updateStateCache(
-        event.playthroughId,
-        event.position,
-        event.playbackRate,
-        new Date(event.timestamp),
-      );
+      await tx
+        .insert(schema.playthroughs)
+        .values(playthroughData)
+        .onConflictDoUpdate({
+          target: [schema.playthroughs.url, schema.playthroughs.id],
+          set: {
+            status: playthroughData.status,
+            startedAt: playthroughData.startedAt,
+            finishedAt: playthroughData.finishedAt,
+            abandonedAt: playthroughData.abandonedAt,
+            deletedAt: playthroughData.deletedAt,
+            updatedAt: playthroughData.updatedAt,
+            syncedAt: playthroughData.syncedAt,
+          },
+        });
     }
-  }
 
-  // Update server profile with new sync time
-  await getDb()
-    .insert(schema.serverProfiles)
-    .values({
-      url: session.url,
-      userEmail: session.email,
-      lastSyncTime: serverTime,
-    })
-    .onConflictDoUpdate({
-      target: [schema.serverProfiles.url, schema.serverProfiles.userEmail],
-      set: {
-        lastSyncTime: sql`excluded.last_sync_time`,
-      },
-    });
+    // Upsert received events from server
+    for (const event of syncResult.events) {
+      const eventData = {
+        id: event.id,
+        playthroughId: event.playthroughId,
+        deviceId: event.deviceId,
+        type: event.type.toLowerCase() as
+          | "start"
+          | "play"
+          | "pause"
+          | "seek"
+          | "rate_change"
+          | "finish"
+          | "abandon",
+        timestamp: new Date(event.timestamp),
+        position: event.position,
+        playbackRate: event.playbackRate,
+        fromPosition: event.fromPosition,
+        toPosition: event.toPosition,
+        previousRate: event.previousRate,
+        syncedAt: serverTime,
+      };
+
+      await tx
+        .insert(schema.playbackEvents)
+        .values(eventData)
+        .onConflictDoUpdate({
+          target: schema.playbackEvents.id,
+          set: {
+            syncedAt: eventData.syncedAt,
+          },
+        });
+
+      // Update state cache for received events (if playback event with position)
+      if (event.position != null && event.playbackRate != null) {
+        const now = new Date();
+        const lastEventAt = new Date(event.timestamp);
+
+        await tx
+          .insert(schema.playthroughStateCache)
+          .values({
+            playthroughId: event.playthroughId,
+            currentPosition: event.position,
+            currentRate: event.playbackRate,
+            lastEventAt,
+            updatedAt: now,
+          })
+          .onConflictDoUpdate({
+            target: schema.playthroughStateCache.playthroughId,
+            set: {
+              currentPosition: event.position,
+              currentRate: event.playbackRate,
+              lastEventAt: sql`MAX(${schema.playthroughStateCache.lastEventAt}, ${lastEventAt.toISOString()})`,
+              updatedAt: now,
+            },
+          });
+      }
+    }
+
+    // Update server profile with new sync time
+    await tx
+      .insert(schema.serverProfiles)
+      .values({
+        url: session.url,
+        userEmail: session.email,
+        lastSyncTime: serverTime,
+      })
+      .onConflictDoUpdate({
+        target: [schema.serverProfiles.url, schema.serverProfiles.userEmail],
+        set: {
+          lastSyncTime: sql`excluded.last_sync_time`,
+        },
+      });
+  });
 
   console.debug(
     "[SyncPlaythroughs] complete - received",

@@ -3,14 +3,10 @@ import { StyleSheet, View } from "react-native";
 import { Colors } from "@/styles";
 
 type ProgressBarProps = {
-  position: number;
-  duration: number;
+  percent: number;
 };
 
-export function ProgressBar(props: ProgressBarProps) {
-  const { position, duration } = props;
-  const percent = duration > 0 ? (position / duration) * 100 : 0;
-
+export function ProgressBar({ percent }: ProgressBarProps) {
   return (
     <View style={styles.progressBar}>
       <View

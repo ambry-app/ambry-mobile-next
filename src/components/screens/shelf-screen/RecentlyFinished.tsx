@@ -1,13 +1,7 @@
 import { FlatList, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import {
-  FadeInOnMount,
-  HeaderButton,
-  MediaTile,
-  SeeAllTile,
-  TimeAgo,
-} from "@/components";
+import { HeaderButton, MediaTile, SeeAllTile, TimeAgo } from "@/components";
 import {
   HORIZONTAL_LIST_LIMIT,
   HORIZONTAL_TILE_SPACING,
@@ -61,6 +55,8 @@ export function RecentlyFinished({ session }: RecentlyFinishedProps) {
         horizontal={true}
         showsHorizontalScrollIndicator={false}
         snapToInterval={tileSize + HORIZONTAL_TILE_SPACING}
+        windowSize={3}
+        initialNumToRender={4}
         ListHeaderComponent={<View style={styles.listHeader} />}
         ListFooterComponent={
           hasMore ? (
@@ -71,10 +67,10 @@ export function RecentlyFinished({ session }: RecentlyFinishedProps) {
           ) : null
         }
         renderItem={({ item }) => (
-          <FadeInOnMount style={[styles.tile, { width: tileSize }]}>
+          <View style={[styles.tile, { width: tileSize }]}>
             {item.finishedAt && <TimeAgo date={item.finishedAt} />}
             <MediaTile media={item.media} />
-          </FadeInOnMount>
+          </View>
         )}
       />
     </View>

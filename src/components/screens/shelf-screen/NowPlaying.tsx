@@ -1,11 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import {
-  FadeInOnMount,
-  PlayerProgressBar,
-  TileImage,
-  TileText,
-} from "@/components";
+import { PlayerProgressBar, TileImage, TileText } from "@/components";
 import { getMedia } from "@/db/library";
 import { useLibraryData } from "@/hooks/use-library-data";
 import { expandPlayer, usePlayer } from "@/stores/player";
@@ -35,7 +30,7 @@ function NowPlayingDetails({ session, mediaId }: NowPlayingDetailsProps) {
   if (!media) return null;
 
   return (
-    <FadeInOnMount style={styles.container}>
+    <View style={styles.container}>
       <Text style={styles.label} numberOfLines={1}>
         Now Playing
       </Text>
@@ -51,7 +46,7 @@ function NowPlayingDetails({ session, mediaId }: NowPlayingDetailsProps) {
           </View>
         </View>
       </Pressable>
-    </FadeInOnMount>
+    </View>
   );
 }
 

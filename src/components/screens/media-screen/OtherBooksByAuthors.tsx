@@ -1,12 +1,7 @@
 import { FlatList, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import {
-  BookTile,
-  FadeInOnMount,
-  HeaderButton,
-  SeeAllTile,
-} from "@/components";
+import { BookTile, HeaderButton, SeeAllTile } from "@/components";
 import {
   HORIZONTAL_LIST_LIMIT,
   HORIZONTAL_TILE_SPACING,
@@ -78,7 +73,10 @@ function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
         data={author.books}
         keyExtractor={(item) => item.id}
         horizontal={true}
+        showsHorizontalScrollIndicator={false}
         snapToInterval={tileSize + HORIZONTAL_TILE_SPACING}
+        windowSize={3}
+        initialNumToRender={4}
         ListHeaderComponent={<View style={styles.listHeader} />}
         ListFooterComponent={
           hasMore ? (
@@ -91,13 +89,11 @@ function OtherBooksByAuthor(props: OtherBooksByAuthorProps) {
             />
           ) : null
         }
-        renderItem={({ item }) => {
-          return (
-            <FadeInOnMount style={[styles.tile, { width: tileSize }]}>
-              <BookTile book={item} />
-            </FadeInOnMount>
-          );
-        }}
+        renderItem={({ item }) => (
+          <View style={[styles.tile, { width: tileSize }]}>
+            <BookTile book={item} />
+          </View>
+        )}
       />
     </View>
   );

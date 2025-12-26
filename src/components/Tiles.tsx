@@ -309,9 +309,7 @@ export const PlaythroughTile = React.memo(function PlaythroughTile(
             size="large"
             style={styles.playthroughThumbnail}
           />
-          {duration !== false && (
-            <ProgressBar position={playthrough.position} duration={duration} />
-          )}
+          {percent !== false && <ProgressBar percent={percent} />}
           {percent !== false && (
             <Text style={styles.progressText} numberOfLines={1}>
               {percent.toFixed(1)}%
