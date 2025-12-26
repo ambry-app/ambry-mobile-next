@@ -97,6 +97,11 @@ export interface PlayerState {
   /** Current progress percent (0-100), updated less frequently than position */
   progressPercent: number;
 
+  /** Whether mini player content should render (true when collapsed or animating) */
+  shouldRenderMini: boolean;
+  /** Whether expanded player content should render (true when expanded or animating) */
+  shouldRenderExpanded: boolean;
+
   /* seek state */
 
   /** Whether the user is currently seeking, multiple taps will accumulate before applying */
@@ -146,6 +151,8 @@ const initialState = {
   duration: 0,
   playbackRate: 1,
   progressPercent: 0,
+  shouldRenderMini: false,
+  shouldRenderExpanded: true,
   userIsSeeking: false,
   seekIsApplying: false,
   seekOriginalPosition: null,
@@ -523,6 +530,13 @@ export async function checkForResumePrompt(
 
 export function expandPlayer() {
   EventBus.emit("expandPlayer");
+}
+
+export function setPlayerRenderState(
+  shouldRenderMini: boolean,
+  shouldRenderExpanded: boolean,
+) {
+  usePlayer.setState({ shouldRenderMini, shouldRenderExpanded });
 }
 
 /**

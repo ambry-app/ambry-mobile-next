@@ -111,27 +111,19 @@ export function PlaythroughHistory({
 
 /**
  * Special row for the currently playing media that shows real-time player state.
+ * Uses conditional rendering to avoid subscribing to frequent updates when hidden.
  */
 function NowPlayingRow({ playthroughId }: { playthroughId: string }) {
   const debugModeEnabled = useDebug((state) => state.debugModeEnabled);
-
-  // Use real-time player state
-  const { position, duration, playbackRate } = usePlayer(
-    useShallow(({ position, duration, playbackRate }) => ({
-      position,
-      duration,
-      playbackRate,
-    })),
-  );
-
-  const percentage = duration > 0 ? Math.round((position / duration) * 100) : 0;
-  const remainingBookTime = duration - position;
-  const remainingRealTime =
-    playbackRate > 0 ? remainingBookTime / playbackRate : remainingBookTime;
+  // Check if this screen is visible (not hidden behind expanded player)
+  const shouldRenderMini = usePlayer((state) => state.shouldRenderMini);
 
   const handleDebugTap = () => {
     router.push(`/playthrough-debug/${playthroughId}`);
   };
+
+  // Time info is only shown when visible (requires subscription to position updates)
+  const timeInfo = shouldRenderMini ? <NowPlayingTimeInfo /> : null;
 
   const rowContent = (
     <>
@@ -143,9 +135,7 @@ function NowPlayingRow({ playthroughId }: { playthroughId: string }) {
           <Text style={[styles.statusLabel, { color: Colors.zinc[100] }]}>
             Now Playing
           </Text>
-          <Text style={styles.timeInfo}>
-            {percentage}% · {secondsDisplay(remainingRealTime)} left
-          </Text>
+          {timeInfo}
         </View>
         <Text style={styles.dateLabel}>Currently listening</Text>
       </View>
@@ -161,6 +151,31 @@ function NowPlayingRow({ playthroughId }: { playthroughId: string }) {
   }
 
   return <View style={styles.row}>{rowContent}</View>;
+}
+
+/**
+ * Subscribes to real-time player state for time display.
+ * Only mounted when the screen is visible (not hidden behind expanded player).
+ */
+function NowPlayingTimeInfo() {
+  const { position, duration, playbackRate } = usePlayer(
+    useShallow(({ position, duration, playbackRate }) => ({
+      position,
+      duration,
+      playbackRate,
+    })),
+  );
+
+  const percentage = duration > 0 ? Math.round((position / duration) * 100) : 0;
+  const remainingBookTime = duration - position;
+  const remainingRealTime =
+    playbackRate > 0 ? remainingBookTime / playbackRate : remainingBookTime;
+
+  return (
+    <Text style={styles.timeInfo}>
+      {percentage}% · {secondsDisplay(remainingRealTime)} left
+    </Text>
+  );
 }
 
 type PlaythroughRowProps = {

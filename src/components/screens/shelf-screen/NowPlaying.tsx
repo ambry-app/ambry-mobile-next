@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useShallow } from "zustand/shallow";
 
 import { PlayerProgressBar, TileImage, TileText } from "@/components";
 import { getMedia } from "@/db/library";
@@ -12,9 +13,16 @@ type NowPlayingProps = {
 };
 
 export function NowPlaying({ session }: NowPlayingProps) {
-  const mediaId = usePlayer((state) => state.mediaId);
+  const { mediaId, shouldRenderMini } = usePlayer(
+    useShallow(({ mediaId, shouldRenderMini }) => ({
+      mediaId,
+      shouldRenderMini,
+    })),
+  );
 
-  if (!mediaId) return null;
+  // Don't render when player is fully expanded (we're hidden behind it anyway)
+  // shouldRenderMini is false when fully expanded, true when collapsed or animating
+  if (!mediaId || !shouldRenderMini) return null;
 
   return <NowPlayingDetails session={session} mediaId={mediaId} />;
 }

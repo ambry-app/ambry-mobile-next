@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -7,6 +7,7 @@ import Animated, {
   interpolate,
   SharedValue,
   useAnimatedStyle,
+  useDerivedValue,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
@@ -33,7 +34,7 @@ import {
 import { getMedia } from "@/db/library";
 import useBackHandler from "@/hooks/use-back-handler";
 import { useLibraryData } from "@/hooks/use-library-data";
-import { usePlayer } from "@/stores/player";
+import { setPlayerRenderState, usePlayer } from "@/stores/player";
 import { useScreen } from "@/stores/screen";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
@@ -101,14 +102,24 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
   const { session, mediaId } = props;
   const insets = useSafeAreaInsets();
 
-  const { streaming, loadingNewMedia } = usePlayer(
-    useShallow(({ streaming, loadingNewMedia }) => ({
-      streaming,
-      loadingNewMedia,
-    })),
-  );
+  const { streaming, loadingNewMedia, shouldRenderMini, shouldRenderExpanded } =
+    usePlayer(
+      useShallow(
+        ({
+          streaming,
+          loadingNewMedia,
+          shouldRenderMini,
+          shouldRenderExpanded,
+        }) => ({
+          streaming,
+          loadingNewMedia,
+          shouldRenderMini,
+          shouldRenderExpanded,
+        }),
+      ),
+    );
   const media = useLibraryData(() => getMedia(session, mediaId), [mediaId]);
-  const [expanded, setExpanded] = useState(true);
+
   const expansion = useSharedValue(1.0);
   const { screenHeight, screenWidth, shortScreen } = useScreen(
     (state) => state,
@@ -116,35 +127,113 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
   const whereItWas = useSharedValue(0);
   const onPanEndAction = useSharedValue<"none" | "expand" | "collapse">("none");
 
-  const expand = useCallback(() => {
-    "worklet";
+  // Helper to set render state via scheduleOnRN (for use in worklets)
+  const setRenderBoth = useCallback(() => {
+    setPlayerRenderState(true, true);
+  }, []);
 
+  const setRenderExpanded = useCallback(() => {
+    setPlayerRenderState(false, true);
+  }, []);
+
+  const setRenderCollapsed = useCallback(() => {
+    setPlayerRenderState(true, false);
+  }, []);
+
+  // Deferred expand: mount components first, then animate
+  const expand = useCallback(() => {
+    // If already expanded, just ensure animation is at 1.0
+    if (!shouldRenderMini && shouldRenderExpanded) {
+      expansion.value = withTiming(1.0, {
+        duration: PLAYER_EXPAND_ANIMATION_DURATION,
+        easing: Easing.out(Easing.exp),
+      });
+      return;
+    }
+
+    // Mount both first
+    setPlayerRenderState(true, true);
+
+    // Wait for React to render, then animate
+    requestAnimationFrame(() => {
+      expansion.value = withTiming(
+        1.0,
+        {
+          duration: PLAYER_EXPAND_ANIMATION_DURATION,
+          easing: Easing.out(Easing.exp),
+        },
+        (finished) => {
+          if (finished) {
+            scheduleOnRN(setRenderExpanded);
+          }
+        },
+      );
+    });
+  }, [expansion, shouldRenderMini, shouldRenderExpanded, setRenderExpanded]);
+
+  // Deferred collapse: mount components first, then animate
+  const collapse = useCallback(() => {
+    // If already collapsed, just ensure animation is at 0.0
+    if (shouldRenderMini && !shouldRenderExpanded) {
+      expansion.value = withTiming(0.0, {
+        duration: PLAYER_EXPAND_ANIMATION_DURATION,
+        easing: Easing.out(Easing.exp),
+      });
+      return;
+    }
+
+    // Mount both first
+    setPlayerRenderState(true, true);
+
+    // Wait for React to render, then animate
+    requestAnimationFrame(() => {
+      expansion.value = withTiming(
+        0.0,
+        {
+          duration: PLAYER_EXPAND_ANIMATION_DURATION,
+          easing: Easing.out(Easing.exp),
+        },
+        (finished) => {
+          if (finished) {
+            scheduleOnRN(setRenderCollapsed);
+          }
+        },
+      );
+    });
+  }, [expansion, shouldRenderMini, shouldRenderExpanded, setRenderCollapsed]);
+
+  // Worklet versions for use in gesture handlers
+  const expandWorklet = useCallback(() => {
+    "worklet";
     expansion.value = withTiming(
       1.0,
       {
         duration: PLAYER_EXPAND_ANIMATION_DURATION,
         easing: Easing.out(Easing.exp),
       },
-      () => {
-        scheduleOnRN(setExpanded, true);
+      (finished) => {
+        if (finished) {
+          scheduleOnRN(setRenderExpanded);
+        }
       },
     );
-  }, [expansion]);
+  }, [expansion, setRenderExpanded]);
 
-  const collapse = () => {
+  const collapseWorklet = useCallback(() => {
     "worklet";
-
     expansion.value = withTiming(
       0.0,
       {
         duration: PLAYER_EXPAND_ANIMATION_DURATION,
         easing: Easing.out(Easing.exp),
       },
-      () => {
-        scheduleOnRN(setExpanded, false);
+      (finished) => {
+        if (finished) {
+          scheduleOnRN(setRenderCollapsed);
+        }
       },
     );
-  };
+  }, [expansion, setRenderCollapsed]);
 
   useEffect(() => {
     const handler = () => {
@@ -168,7 +257,12 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
   };
 
   const panGesture = Gesture.Pan()
-    .onStart((e) => {
+    .onTouchesDown(() => {
+      // Pre-mount components early, before pan visually starts
+      // This gives React time to render before the gesture animation begins
+      scheduleOnRN(setRenderBoth);
+    })
+    .onStart(() => {
       whereItWas.value = expansion.value;
     })
     .onUpdate((e) => {
@@ -186,46 +280,27 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
       if (e.velocityY < -300) onPanEndAction.value = "expand";
       if (e.velocityY > 300) onPanEndAction.value = "collapse";
     })
-    .onEnd((e) => {
+    .onEnd(() => {
+      // Use worklet versions since we're already in 'both' state
       if (onPanEndAction.value === "expand") {
-        expand();
+        expandWorklet();
       } else if (onPanEndAction.value === "collapse") {
-        collapse();
+        collapseWorklet();
       }
     });
 
   const gestures = Gesture.Race(panGesture);
 
+  // Use shouldRenderExpanded to determine if player can be collapsed
   useBackHandler(() => {
-    if (expanded) {
+    if (shouldRenderExpanded && expansion.value > 0.5) {
       collapse();
       return true;
     }
     return false;
   });
 
-  const tabBarStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          translateY: interpolate(expansion.value, [0, 1], [0, tabBarHeight]),
-        },
-      ],
-    };
-  });
-
-  const playerContainerStyle = useAnimatedStyle(() => {
-    return {
-      height: interpolate(
-        expansion.value,
-        [0, 1],
-        [PLAYER_HEIGHT, screenHeight],
-      ),
-      bottom: interpolate(expansion.value, [0, 1], [tabBarHeight, 0]),
-      paddingTop: interpolate(expansion.value, [0, 1], [0, insets.top]),
-    };
-  });
-
+  // Consolidated animated values - compute all interpolations in one place
   const playerOpacity = useSharedValue(0.0);
 
   useEffect(() => {
@@ -239,114 +314,119 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
     }
   }, [loadingNewMedia, playerOpacity]);
 
-  const playerStyle = useAnimatedStyle(() => {
-    return {
-      opacity: playerOpacity.value,
-    };
-  });
+  // Pre-compute all animated values in a single derived value to reduce worklet overhead
+  const animatedValues = useDerivedValue(() => {
+    const e = expansion.value;
+    const po = playerOpacity.value;
 
-  const playerLoadingStyle = useAnimatedStyle(() => {
     return {
-      opacity: interpolate(playerOpacity.value, [0, 1], [1, 0]),
-    };
-  });
-
-  const playerBackgroundStyle = useAnimatedStyle(() => {
-    return {
-      // Combine expansion (expand/collapse) with playerOpacity (loading fade)
-      opacity: expansion.value * playerOpacity.value,
-    };
-  });
-
-  const backgroundStyle = useAnimatedStyle(() => {
-    return {
-      opacity: expansion.value,
-    };
-  });
-
-  const leftGutterStyle = useAnimatedStyle(() => {
-    return {
-      width: interpolate(
-        expansion.value,
+      // Tab bar
+      tabBarTranslateY: interpolate(e, [0, 1], [0, tabBarHeight]),
+      // Player container
+      playerHeight: interpolate(e, [0, 1], [PLAYER_HEIGHT, screenHeight]),
+      playerBottom: interpolate(e, [0, 1], [tabBarHeight, 0]),
+      playerPaddingTop: interpolate(e, [0, 1], [0, insets.top]),
+      // Opacities
+      playerOpacity: po,
+      playerLoadingOpacity: interpolate(po, [0, 1], [1, 0]),
+      playerBackgroundOpacity: e * po,
+      backgroundOpacity: e,
+      // Image area
+      leftGutterWidth: interpolate(
+        e,
         [0, 0.75],
         [0, imageGutterWidth],
         Extrapolation.CLAMP,
       ),
-    };
-  });
-
-  const imageStyle = useAnimatedStyle(() => {
-    return {
-      height: interpolate(
-        expansion.value,
-        [0, 1],
-        [PLAYER_HEIGHT, largeImageSize],
-      ),
-      width: interpolate(
-        expansion.value,
-        [0, 1],
-        [PLAYER_HEIGHT, largeImageSize],
-      ),
-      padding: interpolate(expansion.value, [0, 1], [8, 0]),
-    };
-  });
-
-  const miniControlsStyle = useAnimatedStyle(() => {
-    return {
-      width: interpolate(
-        expansion.value,
+      imageSize: interpolate(e, [0, 1], [PLAYER_HEIGHT, largeImageSize]),
+      imagePadding: interpolate(e, [0, 1], [8, 0]),
+      // Mini controls (fade out early)
+      miniControlsWidth: interpolate(
+        e,
         [0, 1],
         [miniControlsWidth, imageGutterWidth],
       ),
-      opacity: interpolate(
-        expansion.value,
+      miniControlsOpacity: interpolate(
+        e,
         [0, 0.25],
         [1, 0],
         Extrapolation.CLAMP,
       ),
-    };
-  });
-
-  const controlsStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          translateY: interpolate(expansion.value, [0, 1], [256, 0]),
-        },
-      ],
-      marginBottom: interpolate(expansion.value, [0, 1], [-512, 0]),
-      opacity: interpolate(
-        expansion.value,
+      // Expanded controls (fade in late)
+      controlsTranslateY: interpolate(e, [0, 1], [256, 0]),
+      controlsMarginBottom: interpolate(e, [0, 1], [-512, 0]),
+      controlsOpacity: interpolate(e, [0.75, 1], [0, 1], Extrapolation.CLAMP),
+      // Top action bar
+      topActionBarHeight: interpolate(e, [0, 0.75], [0, 36]),
+      topActionBarOpacity: interpolate(
+        e,
         [0.75, 1],
         [0, 1],
         Extrapolation.CLAMP,
       ),
+      // Info section
+      infoPaddingTop: interpolate(e, [0.75, 1], [64, 8]),
+      infoOpacity: interpolate(e, [0.75, 1], [0, 1], Extrapolation.CLAMP),
     };
   });
 
-  const topActionBarStyle = useAnimatedStyle(() => {
-    return {
-      height: interpolate(expansion.value, [0, 0.75], [0, 36]),
-      opacity: interpolate(
-        expansion.value,
-        [0.75, 1],
-        [0, 1],
-        Extrapolation.CLAMP,
-      ),
-    };
-  });
+  // Individual animated styles that read from the consolidated values
+  const tabBarStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: animatedValues.value.tabBarTranslateY }],
+  }));
 
-  const infoStyle = useAnimatedStyle(() => {
-    return {
-      paddingTop: interpolate(expansion.value, [0.75, 1], [64, 8]),
-      opacity: interpolate(
-        expansion.value,
-        [0.75, 1],
-        [0, 1],
-        Extrapolation.CLAMP,
-      ),
-    };
-  });
+  const playerContainerStyle = useAnimatedStyle(() => ({
+    height: animatedValues.value.playerHeight,
+    bottom: animatedValues.value.playerBottom,
+    paddingTop: animatedValues.value.playerPaddingTop,
+  }));
+
+  const playerStyle = useAnimatedStyle(() => ({
+    opacity: animatedValues.value.playerOpacity,
+  }));
+
+  const playerLoadingStyle = useAnimatedStyle(() => ({
+    opacity: animatedValues.value.playerLoadingOpacity,
+  }));
+
+  const playerBackgroundStyle = useAnimatedStyle(() => ({
+    opacity: animatedValues.value.playerBackgroundOpacity,
+  }));
+
+  const backgroundStyle = useAnimatedStyle(() => ({
+    opacity: animatedValues.value.backgroundOpacity,
+  }));
+
+  const leftGutterStyle = useAnimatedStyle(() => ({
+    width: animatedValues.value.leftGutterWidth,
+  }));
+
+  const imageStyle = useAnimatedStyle(() => ({
+    height: animatedValues.value.imageSize,
+    width: animatedValues.value.imageSize,
+    padding: animatedValues.value.imagePadding,
+  }));
+
+  const miniControlsStyle = useAnimatedStyle(() => ({
+    width: animatedValues.value.miniControlsWidth,
+    opacity: animatedValues.value.miniControlsOpacity,
+  }));
+
+  const controlsStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: animatedValues.value.controlsTranslateY }],
+    marginBottom: animatedValues.value.controlsMarginBottom,
+    opacity: animatedValues.value.controlsOpacity,
+  }));
+
+  const topActionBarStyle = useAnimatedStyle(() => ({
+    height: animatedValues.value.topActionBarHeight,
+    opacity: animatedValues.value.topActionBarOpacity,
+  }));
+
+  const infoStyle = useAnimatedStyle(() => ({
+    paddingTop: animatedValues.value.infoPaddingTop,
+    opacity: animatedValues.value.infoOpacity,
+  }));
 
   if (!media) {
     return <TabBarTabs height={tabBarHeight} paddingBottom={insets.bottom} />;
@@ -386,7 +466,10 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
               playerContainerStyle,
             ]}
           >
-            <MiniProgressBar expansion={expansion} />
+            {/* Mini progress bar - only when not fully expanded */}
+            {shouldRenderMini && <MiniProgressBar expansion={expansion} />}
+
+            {/* Blurred background - always render for smooth animation */}
             <Animated.View
               style={[
                 {
@@ -413,6 +496,8 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                 size="extraSmall"
               />
             </Animated.View>
+
+            {/* Loading spinner - always render */}
             <Animated.View
               style={[
                 {
@@ -429,60 +514,66 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
             >
               <Loading />
             </Animated.View>
+
             <Animated.View
               style={[{ display: "flex", height: "100%" }, playerStyle]}
             >
-              <Animated.View
-                style={[
-                  {
-                    display: "flex",
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    overflow: "hidden",
-                    paddingHorizontal: 16,
-                    backgroundColor: debugBackground("emerald"),
-                  },
-                  topActionBarStyle,
-                ]}
-              >
-                <IconButton
-                  size={24}
-                  icon="chevron-down"
-                  color={Colors.zinc[100]}
-                  onPress={() => collapse()}
-                />
-
-                {streaming !== undefined && (
-                  <View
-                    style={{
-                      alignSelf: "flex-end",
-                      paddingBottom: 4,
+              {/* Top action bar - only when not fully collapsed */}
+              {shouldRenderExpanded && (
+                <Animated.View
+                  style={[
+                    {
                       display: "flex",
                       flexDirection: "row",
                       alignItems: "center",
-                      gap: 4,
-                    }}
-                  >
-                    <FontAwesome6
-                      size={12}
-                      name={streaming ? "cloud-arrow-down" : "download"}
-                      color={Colors.zinc[700]}
-                    />
-                    <Text style={{ color: Colors.zinc[700] }}>
-                      {streaming ? "streaming" : "downloaded"}
-                    </Text>
-                  </View>
-                )}
+                      justifyContent: "space-between",
+                      overflow: "hidden",
+                      paddingHorizontal: 16,
+                      backgroundColor: debugBackground("emerald"),
+                    },
+                    topActionBarStyle,
+                  ]}
+                >
+                  <IconButton
+                    size={24}
+                    icon="chevron-down"
+                    color={Colors.zinc[100]}
+                    onPress={() => collapse()}
+                  />
 
-                <IconButton
-                  size={24}
-                  icon="ellipsis-vertical"
-                  color={Colors.zinc[100]}
-                  onPress={() => console.debug("TODO: context menu")}
-                  style={{ opacity: 0 }}
-                />
-              </Animated.View>
+                  {streaming !== undefined && (
+                    <View
+                      style={{
+                        alignSelf: "flex-end",
+                        paddingBottom: 4,
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <FontAwesome6
+                        size={12}
+                        name={streaming ? "cloud-arrow-down" : "download"}
+                        color={Colors.zinc[700]}
+                      />
+                      <Text style={{ color: Colors.zinc[700] }}>
+                        {streaming ? "streaming" : "downloaded"}
+                      </Text>
+                    </View>
+                  )}
+
+                  <IconButton
+                    size={24}
+                    icon="ellipsis-vertical"
+                    color={Colors.zinc[100]}
+                    onPress={() => console.debug("TODO: context menu")}
+                    style={{ opacity: 0 }}
+                  />
+                </Animated.View>
+              )}
+
+              {/* Image row with mini controls */}
               <View
                 style={{
                   display: "flex",
@@ -496,7 +587,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                     },
                     leftGutterStyle,
                   ]}
-                ></Animated.View>
+                />
                 <Animated.View
                   style={[
                     {
@@ -509,7 +600,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                 >
                   <Pressable
                     onPress={() => {
-                      if (!expanded) {
+                      if (shouldRenderMini) {
                         expand();
                       }
                     }}
@@ -526,97 +617,108 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                     />
                   </Pressable>
                 </Animated.View>
-                <Animated.View
-                  style={[
-                    {
-                      height: PLAYER_HEIGHT,
-                      display: "flex",
-                      flexDirection: "row",
-                      alignItems: "center",
-                      paddingLeft: 8,
-                      backgroundColor: debugBackground(Colors.red[900]),
-                    },
-                    miniControlsStyle,
-                  ]}
-                >
-                  <View
-                    style={{
-                      flexGrow: 1,
-                      flexShrink: 1,
-                      flexBasis: 0,
-                    }}
+
+                {/* Mini controls - only when not fully expanded */}
+                {shouldRenderMini && (
+                  <Animated.View
+                    style={[
+                      {
+                        height: PLAYER_HEIGHT,
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingLeft: 8,
+                        backgroundColor: debugBackground(Colors.red[900]),
+                      },
+                      miniControlsStyle,
+                    ]}
                   >
-                    <Pressable onPress={() => expand()}>
+                    <View
+                      style={{
+                        flexGrow: 1,
+                        flexShrink: 1,
+                        flexBasis: 0,
+                      }}
+                    >
+                      <Pressable onPress={() => expand()}>
+                        <BookDetailsText
+                          baseFontSize={14}
+                          title={media.book.title}
+                          authors={media.book.authors.map((a) => a.name)}
+                          narrators={media.narrators.map((n) => n.name)}
+                        />
+                      </Pressable>
+                    </View>
+                    <PlayButton size={32} color={Colors.zinc[100]} />
+                  </Animated.View>
+                )}
+              </View>
+
+              {/* Expanded content - only when not fully collapsed */}
+              {shouldRenderExpanded && (
+                <>
+                  {/* Info section with centered book details */}
+                  <Animated.View
+                    style={[
+                      {
+                        display: "flex",
+                        flexDirection: "row",
+                        backgroundColor: debugBackground("indigo"),
+                        paddingTop: 8,
+                      },
+                      infoStyle,
+                    ]}
+                  >
+                    <View style={{ width: "10%" }} />
+                    <View style={{ width: "80%" }}>
                       <BookDetailsText
-                        baseFontSize={14}
+                        textStyle={{ textAlign: "center" }}
+                        baseFontSize={16}
+                        titleWeight={700}
                         title={media.book.title}
                         authors={media.book.authors.map((a) => a.name)}
                         narrators={media.narrators.map((n) => n.name)}
                       />
-                    </Pressable>
-                  </View>
-                  <View style={{ pointerEvents: expanded ? "none" : "auto" }}>
-                    <PlayButton size={32} color={Colors.zinc[100]} />
-                  </View>
-                </Animated.View>
-              </View>
-              <Animated.View
-                style={[
-                  {
-                    display: "flex",
-                    flexDirection: "row",
-                    backgroundColor: debugBackground("indigo"),
-                    paddingTop: 8,
-                  },
-                  infoStyle,
-                ]}
-              >
-                <View style={{ width: "10%" }}></View>
-                <View style={{ width: "80%" }}>
-                  <BookDetailsText
-                    textStyle={{ textAlign: "center" }}
-                    baseFontSize={16}
-                    titleWeight={700}
-                    title={media.book.title}
-                    authors={media.book.authors.map((a) => a.name)}
-                    narrators={media.narrators.map((n) => n.name)}
-                  />
-                </View>
-                <View style={{ width: "10%" }}></View>
-              </Animated.View>
-              <Animated.View
-                style={[
-                  {
-                    display: "flex",
-                    flexGrow: 1,
-                    justifyContent: "space-between",
-                    paddingBottom: insets.bottom,
-                    backgroundColor: debugBackground("blue"),
-                  },
-                  controlsStyle,
-                ]}
-              >
-                <View
-                  style={{
-                    paddingHorizontal: "10%",
-                    paddingTop: 16,
-                    display: "flex",
-                    justifyContent: "space-evenly",
-                    flexGrow: 1,
-                  }}
-                >
-                  <View style={{ display: "flex", gap: 16 }}>
-                    <PlayerSettingButtons />
-                    <PlayerProgressBar />
-                  </View>
-                  <View>
-                    <SeekIndicator />
-                    <PlaybackControls />
-                    <ChapterControls />
-                  </View>
-                </View>
-                <Scrubber />
-              </Animated.View>
+                    </View>
+                    <View style={{ width: "10%" }} />
+                  </Animated.View>
+
+                  {/* Controls section */}
+                  <Animated.View
+                    style={[
+                      {
+                        display: "flex",
+                        flexGrow: 1,
+                        justifyContent: "space-between",
+                        paddingBottom: insets.bottom,
+                        backgroundColor: debugBackground("blue"),
+                      },
+                      controlsStyle,
+                    ]}
+                  >
+                    <View
+                      style={{
+                        paddingHorizontal: "10%",
+                        paddingTop: 16,
+                        display: "flex",
+                        justifyContent: "space-evenly",
+                        flexGrow: 1,
+                      }}
+                    >
+                      <View style={{ display: "flex", gap: 16 }}>
+                        <PlayerSettingButtons />
+                        <PlayerProgressBar />
+                      </View>
+                      <View>
+                        <SeekIndicator />
+                        <PlaybackControls />
+                        <ChapterControls />
+                      </View>
+                    </View>
+                    <Scrubber />
+                  </Animated.View>
+                </>
+              )}
             </Animated.View>
           </Animated.View>
         </GestureDetector>

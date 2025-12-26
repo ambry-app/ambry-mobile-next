@@ -15,21 +15,38 @@ const PlayerProgressBarFill = memo(function PlayerProgressBarFill() {
 });
 
 // Subscribes to position/duration/playbackRate (updates every 1s)
+// Also subscribes to seekPosition to show pending seeks immediately
 const TimeDisplays = memo(function TimeDisplays() {
-  const { position, duration, playbackRate, progressPercent } = usePlayer(
-    useShallow(({ position, duration, playbackRate, progressPercent }) => ({
-      position,
-      duration,
-      playbackRate,
-      progressPercent,
-    })),
-  );
+  const { position, duration, playbackRate, progressPercent, seekPosition } =
+    usePlayer(
+      useShallow(
+        ({
+          position,
+          duration,
+          playbackRate,
+          progressPercent,
+          seekPosition,
+        }) => ({
+          position,
+          duration,
+          playbackRate,
+          progressPercent,
+          seekPosition,
+        }),
+      ),
+    );
+
+  // Use seekPosition if available (during seek accumulation), otherwise use position
+  const displayPosition = seekPosition ?? position;
 
   return (
     <View style={styles.timeDisplayRow}>
-      <Text style={styles.timeDisplayText}>{secondsDisplay(position)}</Text>
       <Text style={styles.timeDisplayText}>
-        -{secondsDisplay(Math.max(duration - position, 0) / playbackRate)}
+        {secondsDisplay(displayPosition)}
+      </Text>
+      <Text style={styles.timeDisplayText}>
+        -
+        {secondsDisplay(Math.max(duration - displayPosition, 0) / playbackRate)}
       </Text>
       <Text style={[styles.timeDisplayText, styles.percentText]}>
         {progressPercent.toFixed(1)}%
