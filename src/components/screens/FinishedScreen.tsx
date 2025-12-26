@@ -15,7 +15,8 @@ type FinishedScreenProps = {
 export function FinishedScreen({ session }: FinishedScreenProps) {
   const getPage = (pageSize: number, cursor: Date | undefined) =>
     getPlaythroughsPage(session, pageSize, "finished", null, cursor);
-  const getCursor = (item: { updatedAt: Date }) => item.updatedAt;
+  // finishedAt is always set for finished playthroughs
+  const getCursor = (item: { finishedAt: Date | null }) => item.finishedAt!;
   const page = usePaginatedLibraryData(PAGE_SIZE, getPage, getCursor);
   const { items: playthroughs, hasMore, loadMore } = page;
   const { refreshing, onRefresh } = usePullToRefresh(session);
