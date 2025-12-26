@@ -666,6 +666,8 @@ export async function syncPlaythroughs(session: Session) {
       if (event.position != null && event.playbackRate != null) {
         const now = new Date();
         const lastEventAt = new Date(event.timestamp);
+        // Convert to Unix timestamp (seconds) for SQLite integer comparison
+        const lastEventAtUnix = Math.floor(lastEventAt.getTime() / 1000);
 
         await tx
           .insert(schema.playthroughStateCache)
@@ -681,7 +683,7 @@ export async function syncPlaythroughs(session: Session) {
             set: {
               currentPosition: event.position,
               currentRate: event.playbackRate,
-              lastEventAt: sql`MAX(${schema.playthroughStateCache.lastEventAt}, ${lastEventAt.toISOString()})`,
+              lastEventAt: sql`MAX(${schema.playthroughStateCache.lastEventAt}, ${lastEventAtUnix})`,
               updatedAt: now,
             },
           });

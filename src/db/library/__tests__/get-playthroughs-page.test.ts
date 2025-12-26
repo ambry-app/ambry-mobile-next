@@ -155,6 +155,7 @@ describe("getPlaythroughsPage", () => {
 
     expect(result[0]?.position).toBe(0);
     expect(result[0]?.playbackRate).toBe(1);
+    expect(result[0]?.lastListenedAt).toBeNull();
   });
 
   it("includes download thumbnails when media is downloaded", async () => {
