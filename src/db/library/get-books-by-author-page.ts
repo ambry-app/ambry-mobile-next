@@ -10,6 +10,7 @@ import {
   getMediaForBooks,
   getNarratorsForMedia,
   getPlaythroughStatusesForMedia,
+  getSavedForLaterStatusForMedia,
 } from "./shared-queries";
 
 export async function getBooksByAuthorPage(
@@ -30,6 +31,7 @@ export async function getBooksByAuthorPage(
     session,
     mediaIds,
   );
+  const savedForLater = await getSavedForLaterStatusForMedia(session, mediaIds);
 
   return books.map((book) => ({
     ...book,
@@ -38,6 +40,7 @@ export async function getBooksByAuthorPage(
       ...media,
       narrators: narratorsForMedia[media.id] ?? [],
       playthroughStatus: playthroughStatuses[media.id] ?? null,
+      isOnSavedShelf: savedForLater.has(media.id),
     })),
   }));
 }

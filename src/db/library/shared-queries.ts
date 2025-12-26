@@ -185,6 +185,34 @@ export function combineAuthorsAndNarrators(
 }
 
 /**
+ * Get saved-for-later status for multiple media items.
+ * Returns a set of media IDs that are on the user's "saved" shelf.
+ */
+export async function getSavedForLaterStatusForMedia(
+  session: Session,
+  mediaIds: string[],
+): Promise<Set<string>> {
+  if (mediaIds.length === 0) return new Set();
+
+  const savedMedia = await getDb()
+    .select({
+      mediaId: schema.shelvedMedia.mediaId,
+    })
+    .from(schema.shelvedMedia)
+    .where(
+      and(
+        eq(schema.shelvedMedia.url, session.url),
+        eq(schema.shelvedMedia.userEmail, session.email),
+        eq(schema.shelvedMedia.shelfName, "saved"),
+        inArray(schema.shelvedMedia.mediaId, mediaIds),
+        isNull(schema.shelvedMedia.deletedAt),
+      ),
+    );
+
+  return new Set(savedMedia.map((m) => m.mediaId));
+}
+
+/**
  * Get playthrough statuses for multiple media items.
  * Returns the most recent non-deleted playthrough status for each media.
  * Priority: in_progress > finished > abandoned (by recency within each status)

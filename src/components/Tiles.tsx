@@ -40,6 +40,15 @@ function getBestPlaythroughStatus(
   return null;
 }
 
+/**
+ * Check if any media in a list is on the saved-for-later shelf.
+ */
+function isAnyMediaOnSavedShelf(
+  media: { isOnSavedShelf?: boolean }[],
+): boolean {
+  return media.some((m) => m.isOnSavedShelf);
+}
+
 type Media = {
   id: string;
   thumbnails: Thumbnails | null;
@@ -50,6 +59,7 @@ type Media = {
     thumbnails: DownloadedThumbnails | null;
   } | null;
   playthroughStatus?: PlaythroughStatus | null;
+  isOnSavedShelf?: boolean;
 };
 
 type Book = {
@@ -88,12 +98,14 @@ type TileProps = {
   seriesBook?: SeriesBook;
   style?: StyleProp<ViewStyle>;
   playthroughStatus?: PlaythroughStatus | null;
+  isOnSavedShelf?: boolean;
 };
 
 type TileImageProps = {
   media: Media[];
   seriesBook?: SeriesBook;
   playthroughStatus?: PlaythroughStatus | null;
+  isOnSavedShelf?: boolean;
 };
 
 type TileTextProps = {
@@ -123,6 +135,7 @@ export const MediaTile = React.memo(function MediaTile(props: MediaTileProps) {
       media={[media]}
       style={style}
       playthroughStatus={media.playthroughStatus}
+      isOnSavedShelf={media.isOnSavedShelf}
     />
   );
 });
@@ -136,6 +149,7 @@ export const BookTile = React.memo(function BookTile(props: BookTileProps) {
       media={book.media}
       style={style}
       playthroughStatus={getBestPlaythroughStatus(book.media)}
+      isOnSavedShelf={isAnyMediaOnSavedShelf(book.media)}
     />
   );
 });
@@ -152,12 +166,14 @@ export const SeriesBookTile = React.memo(function SeriesBookTile(
       seriesBook={seriesBook}
       style={style}
       playthroughStatus={getBestPlaythroughStatus(seriesBook.book.media)}
+      isOnSavedShelf={isAnyMediaOnSavedShelf(seriesBook.book.media)}
     />
   );
 });
 
 export const Tile = React.memo(function Tile(props: TileProps) {
-  const { book, media, seriesBook, style, playthroughStatus } = props;
+  const { book, media, seriesBook, style, playthroughStatus, isOnSavedShelf } =
+    props;
   const navigateToBook = useNavigateToBookCallback(book, media);
 
   return (
@@ -167,6 +183,7 @@ export const Tile = React.memo(function Tile(props: TileProps) {
           media={media}
           seriesBook={seriesBook}
           playthroughStatus={playthroughStatus}
+          isOnSavedShelf={isOnSavedShelf}
         />
         <TileText book={book} media={media} />
       </View>
@@ -175,7 +192,7 @@ export const Tile = React.memo(function Tile(props: TileProps) {
 });
 
 export const TileImage = React.memo(function TileImage(props: TileImageProps) {
-  const { media, seriesBook, playthroughStatus } = props;
+  const { media, seriesBook, playthroughStatus, isOnSavedShelf } = props;
 
   return (
     <View style={styles.tileImageContainer}>
@@ -193,6 +210,7 @@ export const TileImage = React.memo(function TileImage(props: TileImageProps) {
           size="large"
           style={styles.bookThumbnail}
         />
+        {isOnSavedShelf && <SavedForLaterBadge />}
         {playthroughStatus && (
           <PlaythroughStatusBadge status={playthroughStatus} />
         )}
@@ -220,6 +238,14 @@ const PlaythroughStatusBadge = React.memo(function PlaythroughStatusBadge(
   return (
     <View style={styles.badge}>
       <FontAwesome6 name={iconName} size={18} color={Colors.zinc[300]} solid />
+    </View>
+  );
+});
+
+const SavedForLaterBadge = React.memo(function SavedForLaterBadge() {
+  return (
+    <View style={styles.savedBadge}>
+      <FontAwesome6 name="bookmark" size={18} color={Colors.zinc[300]} solid />
     </View>
   );
 });
@@ -378,6 +404,20 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 6,
     right: 6,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.zinc[800],
+    borderWidth: 0.5,
+    borderColor: Colors.zinc[900],
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  savedBadge: {
+    position: "absolute",
+    bottom: 6,
+    left: 6,
     width: 32,
     height: 32,
     borderRadius: 16,

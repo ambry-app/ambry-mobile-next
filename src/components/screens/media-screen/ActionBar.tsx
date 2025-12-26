@@ -30,7 +30,7 @@ export function ActionBar({ media, session }: ActionBarProps) {
       <View style={styles.buttonsContainer}>
         <DownloadButton media={media} session={session} />
         <IconButton
-          icon="heart"
+          icon="bookmark"
           solid={isOnShelf}
           size={24}
           style={styles.button}

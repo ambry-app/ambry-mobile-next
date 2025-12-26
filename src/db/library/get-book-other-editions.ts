@@ -8,6 +8,7 @@ import { MediaHeaderInfo } from "./get-media-header-info";
 import {
   getNarratorsForMedia,
   getPlaythroughStatusesForMedia,
+  getSavedForLaterStatusForMedia,
 } from "./shared-queries";
 
 export type BookOtherEditions = Awaited<
@@ -30,6 +31,7 @@ export async function getBookOtherEditions(
     session,
     mediaIds,
   );
+  const savedForLater = await getSavedForLaterStatusForMedia(session, mediaIds);
 
   return {
     ...book,
@@ -37,6 +39,7 @@ export async function getBookOtherEditions(
       ...media,
       narrators: narratorsForMedia[media.id] ?? [],
       playthroughStatus: playthroughStatuses[media.id] ?? null,
+      isOnSavedShelf: savedForLater.has(media.id),
     })),
   };
 }

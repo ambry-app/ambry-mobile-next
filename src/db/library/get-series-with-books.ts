@@ -10,6 +10,7 @@ import {
   getMediaForBooks,
   getNarratorsForMedia,
   getPlaythroughStatusesForMedia,
+  getSavedForLaterStatusForMedia,
 } from "./shared-queries";
 
 export type SeriesWithBooks = Awaited<ReturnType<typeof getSeriesWithBooks>>;
@@ -39,6 +40,7 @@ export async function getSeriesWithBooks(
     session,
     mediaIds,
   );
+  const savedForLater = await getSavedForLaterStatusForMedia(session, mediaIds);
 
   // NOTE: small improvement possible by missing out series that have no books
   return series.map((series) => ({
@@ -53,6 +55,7 @@ export async function getSeriesWithBooks(
             ...media,
             narrators: narratorsForMedia[media.id] ?? [],
             playthroughStatus: playthroughStatuses[media.id] ?? null,
+            isOnSavedShelf: savedForLater.has(media.id),
           })),
         },
       }),

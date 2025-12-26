@@ -8,6 +8,7 @@ import { requireValue } from "@/utils";
 import {
   getNarratorsForMedia,
   getPlaythroughStatusesForMedia,
+  getSavedForLaterStatusForMedia,
 } from "./shared-queries";
 
 export type BookDetails = Awaited<ReturnType<typeof getBookDetails>>;
@@ -27,6 +28,7 @@ export async function getBookDetails(
     session,
     mediaIds,
   );
+  const savedForLater = await getSavedForLaterStatusForMedia(session, mediaIds);
 
   return {
     ...book,
@@ -35,6 +37,7 @@ export async function getBookDetails(
       ...media,
       narrators: narratorsForMedia[media.id] ?? [],
       playthroughStatus: playthroughStatuses[media.id] ?? null,
+      isOnSavedShelf: savedForLater.has(media.id),
     })),
   };
 }

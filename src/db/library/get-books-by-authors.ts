@@ -10,6 +10,7 @@ import {
   getMediaForBooks,
   getNarratorsForMedia,
   getPlaythroughStatusesForMedia,
+  getSavedForLaterStatusForMedia,
 } from "./shared-queries";
 
 export type AuthorsWithBooks = Awaited<ReturnType<typeof getBooksByAuthors>>;
@@ -44,6 +45,7 @@ export async function getBooksByAuthors(
     session,
     mediaIds,
   );
+  const savedForLater = await getSavedForLaterStatusForMedia(session, mediaIds);
 
   // NOTE: small improvement possible by missing out authors that have no books
   return authors.map((author) => ({
@@ -55,6 +57,7 @@ export async function getBooksByAuthors(
         ...media,
         narrators: narratorsForMedia[media.id] ?? [],
         playthroughStatus: playthroughStatuses[media.id] ?? null,
+        isOnSavedShelf: savedForLater.has(media.id),
       })),
     })),
   }));

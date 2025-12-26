@@ -325,7 +325,9 @@ describe("player store", () => {
         await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         // Long timer fires (5000ms total)
-        await jest.advanceTimersByTimeAsync(SEEK_EVENT_ACCUMULATION_WINDOW - SEEK_ACCUMULATION_WINDOW);
+        await jest.advanceTimersByTimeAsync(
+          SEEK_EVENT_ACCUMULATION_WINDOW - SEEK_ACCUMULATION_WINDOW,
+        );
 
         expect(eventBusSpy).toHaveBeenCalledWith(
           "seekCompleted",
