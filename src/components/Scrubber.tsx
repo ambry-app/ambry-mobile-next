@@ -133,10 +133,9 @@ const Markers = memo(function Markers({ markers }: MarkersProps) {
         key={i}
         style={[styles.marker, { left: marker * FACTOR }]}
       >
-        {}
         <Rect
-          x="0"
-          y="0"
+          x="0" // eslint-disable-line @typescript-eslint/no-deprecated
+          y="0" // eslint-disable-line @typescript-eslint/no-deprecated
           rx="2.5"
           ry="2.5"
           height="12"
@@ -145,7 +144,6 @@ const Markers = memo(function Markers({ markers }: MarkersProps) {
           stroke={colors.weak}
           strokeWidth="2"
         />
-        {}
       </Svg>
     );
   });

@@ -10,7 +10,7 @@ import {
 import * as schema from "@/db/schema";
 import type { SyncProgressInput } from "@/graphql/api";
 import {
-  DeviceType,
+  DeviceTypeInput,
   getLibraryChangesSince,
   PlaybackEventType,
   PlaythroughStatus,
@@ -499,10 +499,9 @@ export async function syncPlaythroughs(session: Session) {
   });
 
   // Map local device type to GraphQL enum
-  const deviceTypeMap: Record<string, DeviceType> = {
-    ios: DeviceType.Ios,
-    android: DeviceType.Android,
-    web: DeviceType.Web,
+  const deviceTypeMap: Record<string, DeviceTypeInput> = {
+    ios: DeviceTypeInput.Ios,
+    android: DeviceTypeInput.Android,
   };
 
   // Map local playthrough status to GraphQL enum
@@ -528,7 +527,7 @@ export async function syncPlaythroughs(session: Session) {
     lastSyncTime: serverProfile?.lastSyncTime ?? null,
     device: {
       id: deviceInfo.id,
-      type: deviceTypeMap[deviceInfo.type] ?? DeviceType.Web,
+      type: deviceTypeMap[deviceInfo.type] ?? DeviceTypeInput.Android,
       brand: deviceInfo.brand,
       modelName: deviceInfo.modelName,
       osName: deviceInfo.osName,

@@ -121,13 +121,12 @@ input DeviceInput {
   modelName: String
   osName: String
   osVersion: String
-  type: DeviceType!
+  type: DeviceTypeInput!
 }
 
-enum DeviceType {
+enum DeviceTypeInput {
   ANDROID
   IOS
-  WEB
 }
 
 input LoadPlayerStateInput {
@@ -260,6 +259,7 @@ enum PlaybackEventType {
   PAUSE
   PLAY
   RATE_CHANGE
+  RESUME
   SEEK
   START
 }

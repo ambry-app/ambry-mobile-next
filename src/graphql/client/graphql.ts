@@ -1,7 +1,7 @@
 /* eslint-disable */
 import { DocumentTypeDecoration } from '@graphql-typed-document-node/core';
 export type Maybe<T> = T | null;
-export type InputMaybe<T> = Maybe<T>;
+export type InputMaybe<T> = T | null | undefined;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: Maybe<T[SubKey]> };
 export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
@@ -148,13 +148,12 @@ export type DeviceInput = {
   modelName?: InputMaybe<Scalars['String']['input']>;
   osName?: InputMaybe<Scalars['String']['input']>;
   osVersion?: InputMaybe<Scalars['String']['input']>;
-  type: DeviceType;
+  type: DeviceTypeInput;
 };
 
-export enum DeviceType {
+export enum DeviceTypeInput {
   Android = 'ANDROID',
-  Ios = 'IOS',
-  Web = 'WEB'
+  Ios = 'IOS'
 }
 
 export type LoadPlayerStateInput = {
@@ -306,6 +305,7 @@ export enum PlaybackEventType {
   Pause = 'PAUSE',
   Play = 'PLAY',
   RateChange = 'RATE_CHANGE',
+  Resume = 'RESUME',
   Seek = 'SEEK',
   Start = 'START'
 }
@@ -623,20 +623,6 @@ export type LibraryChangesSinceQueryVariables = Exact<{
 
 export type LibraryChangesSinceQuery = { __typename?: 'RootQueryType', serverTime: any, peopleChangedSince: Array<{ __typename?: 'Person', id: string, name: string, description?: string | null, insertedAt: any, updatedAt: any, thumbnails?: { __typename?: 'Thumbnails', extraLarge: string, large: string, medium: string, small: string, extraSmall: string, thumbhash: string } | null }>, authorsChangedSince: Array<{ __typename?: 'Author', id: string, name: string, insertedAt: any, updatedAt: any, person: { __typename?: 'Person', id: string } }>, narratorsChangedSince: Array<{ __typename?: 'Narrator', id: string, name: string, insertedAt: any, updatedAt: any, person: { __typename?: 'Person', id: string } }>, booksChangedSince: Array<{ __typename?: 'Book', id: string, title: string, published: any, publishedFormat: DateFormat, insertedAt: any, updatedAt: any }>, bookAuthorsChangedSince: Array<{ __typename?: 'BookAuthor', id: string, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, author: { __typename?: 'Author', id: string } }>, seriesChangedSince: Array<{ __typename?: 'Series', id: string, name: string, insertedAt: any, updatedAt: any }>, seriesBooksChangedSince: Array<{ __typename?: 'SeriesBook', id: string, bookNumber: any, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, series: { __typename?: 'Series', id: string } }>, mediaChangedSince: Array<{ __typename?: 'Media', id: string, status: MediaProcessingStatus, description?: string | null, published?: any | null, publishedFormat: DateFormat, publisher?: string | null, notes?: string | null, abridged: boolean, fullCast: boolean, mp4Path?: string | null, mpdPath?: string | null, hlsPath?: string | null, duration?: number | null, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, thumbnails?: { __typename?: 'Thumbnails', extraLarge: string, large: string, medium: string, small: string, extraSmall: string, thumbhash: string } | null, chapters: Array<{ __typename?: 'Chapter', id: string, title?: string | null, startTime: number, endTime?: number | null }>, supplementalFiles: Array<{ __typename?: 'SupplementalFile', filename: string, label?: string | null, mime: string, path: string }> }>, mediaNarratorsChangedSince: Array<{ __typename?: 'MediaNarrator', id: string, insertedAt: any, updatedAt: any, media: { __typename?: 'Media', id: string }, narrator: { __typename?: 'Narrator', id: string } }>, deletionsSince: Array<{ __typename?: 'Deletion', type: DeletionType, recordId: string }> };
 
-export type UserChangesSinceQueryVariables = Exact<{
-  since?: InputMaybe<Scalars['DateTime']['input']>;
-}>;
-
-
-export type UserChangesSinceQuery = { __typename?: 'RootQueryType', serverTime: any, playerStatesChangedSince: Array<{ __typename?: 'PlayerState', id: string, status: PlayerStateStatus, playbackRate: number, position: number, insertedAt: any, updatedAt: any, media: { __typename?: 'Media', id: string } }> };
-
-export type UpdatePlayerStateMutationVariables = Exact<{
-  input: UpdatePlayerStateInput;
-}>;
-
-
-export type UpdatePlayerStateMutation = { __typename?: 'RootMutationType', updatePlayerState?: { __typename?: 'UpdatePlayerStatePayload', playerState: { __typename?: 'PlayerState', updatedAt: any } } | null };
-
 export type CreateSessionMutationVariables = Exact<{
   input: CreateSessionInput;
 }>;
@@ -805,31 +791,6 @@ export const LibraryChangesSinceDocument = new TypedDocumentString(`
   serverTime
 }
     `) as unknown as TypedDocumentString<LibraryChangesSinceQuery, LibraryChangesSinceQueryVariables>;
-export const UserChangesSinceDocument = new TypedDocumentString(`
-    query UserChangesSince($since: DateTime) {
-  playerStatesChangedSince(since: $since) {
-    id
-    media {
-      id
-    }
-    status
-    playbackRate
-    position
-    insertedAt
-    updatedAt
-  }
-  serverTime
-}
-    `) as unknown as TypedDocumentString<UserChangesSinceQuery, UserChangesSinceQueryVariables>;
-export const UpdatePlayerStateDocument = new TypedDocumentString(`
-    mutation UpdatePlayerState($input: UpdatePlayerStateInput!) {
-  updatePlayerState(input: $input) {
-    playerState {
-      updatedAt
-    }
-  }
-}
-    `) as unknown as TypedDocumentString<UpdatePlayerStateMutation, UpdatePlayerStateMutationVariables>;
 export const CreateSessionDocument = new TypedDocumentString(`
     mutation CreateSession($input: CreateSessionInput!) {
   createSession(input: $input) {

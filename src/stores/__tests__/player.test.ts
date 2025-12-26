@@ -5,6 +5,10 @@
  * Only mock external native modules (TrackPlayer).
  */
 
+import {
+  SEEK_ACCUMULATION_WINDOW,
+  SEEK_EVENT_ACCUMULATION_WINDOW,
+} from "@/constants";
 import * as schema from "@/db/schema";
 import { stopMonitoring } from "@/services/event-recording-service";
 import { initialDeviceState, useDevice } from "@/stores/device";
@@ -281,8 +285,8 @@ describe("player store", () => {
         // Should not seek immediately
         expect(mockTrackPlayerSeekTo).not.toHaveBeenCalled();
 
-        // Advance past the debounce window (500ms)
-        await jest.advanceTimersByTimeAsync(500);
+        // Advance past the debounce window (SEEK_ACCUMULATION_WINDOW)
+        await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(500);
       });
@@ -303,7 +307,7 @@ describe("player store", () => {
         seekTo(500, SeekSource.SCRUBBER);
         await Promise.resolve();
 
-        await jest.advanceTimersByTimeAsync(500);
+        await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         expect(eventBusSpy).toHaveBeenCalledWith("seekApplied", {
           position: 500,
@@ -318,10 +322,10 @@ describe("player store", () => {
         await Promise.resolve();
 
         // Short timer fires first
-        await jest.advanceTimersByTimeAsync(500);
+        await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         // Long timer fires (5000ms total)
-        await jest.advanceTimersByTimeAsync(4500);
+        await jest.advanceTimersByTimeAsync(SEEK_EVENT_ACCUMULATION_WINDOW - SEEK_ACCUMULATION_WINDOW);
 
         expect(eventBusSpy).toHaveBeenCalledWith(
           "seekCompleted",
@@ -337,7 +341,7 @@ describe("player store", () => {
         seekTo(5000, SeekSource.SCRUBBER); // Beyond duration
         await Promise.resolve();
 
-        await jest.advanceTimersByTimeAsync(500);
+        await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(3600); // Clamped to duration
       });
@@ -346,7 +350,7 @@ describe("player store", () => {
         seekTo(-100, SeekSource.SCRUBBER); // Negative
         await Promise.resolve();
 
-        await jest.advanceTimersByTimeAsync(500);
+        await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(0);
       });
@@ -357,7 +361,7 @@ describe("player store", () => {
         seekRelative(30, SeekSource.BUTTON); // +30 seconds
         await Promise.resolve();
 
-        await jest.advanceTimersByTimeAsync(500);
+        await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(130); // 100 + 30
       });
@@ -366,7 +370,7 @@ describe("player store", () => {
         seekRelative(-30, SeekSource.BUTTON); // -30 seconds
         await Promise.resolve();
 
-        await jest.advanceTimersByTimeAsync(500);
+        await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(70); // 100 - 30
       });
@@ -379,7 +383,7 @@ describe("player store", () => {
         seekRelative(10, SeekSource.BUTTON);
         await Promise.resolve();
 
-        await jest.advanceTimersByTimeAsync(500);
+        await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         // Should only call seekTo once with accumulated value
         expect(mockTrackPlayerSeekTo).toHaveBeenCalledTimes(1);
@@ -392,7 +396,7 @@ describe("player store", () => {
         seekRelative(10, SeekSource.BUTTON);
         await Promise.resolve();
 
-        await jest.advanceTimersByTimeAsync(500);
+        await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         // Position change = interval * rate = 10 * 1.5 = 15
         expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(115); // 100 + 15
@@ -402,7 +406,7 @@ describe("player store", () => {
         seekRelative(30, SeekSource.BUTTON);
         await Promise.resolve();
 
-        await jest.advanceTimersByTimeAsync(500);
+        await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         expect(eventBusSpy).toHaveBeenCalledWith("seekApplied", {
           position: 130,
@@ -430,7 +434,7 @@ describe("player store", () => {
         skipToEndOfChapter();
         await Promise.resolve();
 
-        await jest.advanceTimersByTimeAsync(500);
+        await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(600); // End of chapter 1
       });
@@ -444,7 +448,7 @@ describe("player store", () => {
         skipToEndOfChapter();
         await Promise.resolve();
 
-        await jest.advanceTimersByTimeAsync(500);
+        await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         expect(mockTrackPlayerSeekTo).not.toHaveBeenCalled();
       });
@@ -463,7 +467,7 @@ describe("player store", () => {
         skipToEndOfChapter();
         await Promise.resolve();
 
-        await jest.advanceTimersByTimeAsync(500);
+        await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(3600); // Uses duration
       });
@@ -478,7 +482,7 @@ describe("player store", () => {
         skipToEndOfChapter();
         await Promise.resolve();
 
-        await jest.advanceTimersByTimeAsync(500);
+        await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         expect(eventBusSpy).toHaveBeenCalledWith("seekApplied", {
           position: 600,
@@ -514,7 +518,7 @@ describe("player store", () => {
         skipToBeginningOfChapter();
         await Promise.resolve();
 
-        await jest.advanceTimersByTimeAsync(500);
+        await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(600); // Start of chapter 2
       });
@@ -537,7 +541,7 @@ describe("player store", () => {
         skipToBeginningOfChapter();
         await Promise.resolve();
 
-        await jest.advanceTimersByTimeAsync(500);
+        await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(0); // Start of chapter 1
       });
@@ -551,7 +555,7 @@ describe("player store", () => {
         skipToBeginningOfChapter();
         await Promise.resolve();
 
-        await jest.advanceTimersByTimeAsync(500);
+        await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         expect(mockTrackPlayerSeekTo).not.toHaveBeenCalled();
       });
@@ -573,7 +577,7 @@ describe("player store", () => {
         skipToBeginningOfChapter();
         await Promise.resolve();
 
-        await jest.advanceTimersByTimeAsync(500);
+        await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
         expect(eventBusSpy).toHaveBeenCalledWith("seekApplied", {
           position: 600,

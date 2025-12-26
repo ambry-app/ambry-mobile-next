@@ -32,10 +32,9 @@ jest.mock("@/graphql/api", () => ({
   CreateSessionErrorCode: {
     INVALID_CREDENTIALS: "CreateSessionErrorCodeInvalidCredentials",
   },
-  DeviceType: {
+  DeviceTypeInput: {
     Android: "ANDROID",
     Ios: "IOS",
-    Web: "WEB",
   },
   PlaybackEventType: {
     Abandon: "ABANDON",

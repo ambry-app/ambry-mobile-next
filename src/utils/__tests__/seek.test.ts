@@ -5,6 +5,10 @@
  * Uses Jest fake timers to test the timing logic.
  */
 
+import {
+  SEEK_ACCUMULATION_WINDOW,
+  SEEK_EVENT_ACCUMULATION_WINDOW,
+} from "@/constants";
 import { SeekSource } from "@/stores/player";
 import { EventBus } from "@/utils/event-bus";
 import { seek, seekImmediateNoLog } from "@/utils/seek";
@@ -51,8 +55,8 @@ describe("seek", () => {
       // Should not seek immediately
       expect(mockTrackPlayerSeekTo).not.toHaveBeenCalled();
 
-      // Advance past the short timer (500ms)
-      jest.advanceTimersByTime(500);
+      // Advance past the short timer
+      jest.advanceTimersByTime(SEEK_ACCUMULATION_WINDOW);
       await Promise.resolve(); // Flush promises
 
       expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(110); // 100 + 10
@@ -61,7 +65,7 @@ describe("seek", () => {
     it("seeks backward by negative interval", async () => {
       await seek(-30); // Seek back 30 seconds
 
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(SEEK_ACCUMULATION_WINDOW);
       await Promise.resolve();
 
       expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(70); // 100 - 30
@@ -72,7 +76,7 @@ describe("seek", () => {
       await seek(10); // Second seek within window
       await seek(10); // Third seek
 
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(SEEK_ACCUMULATION_WINDOW);
       await Promise.resolve();
 
       // Should only call seekTo once with accumulated value
@@ -85,7 +89,7 @@ describe("seek", () => {
 
       await seek(10); // 10 second interval
 
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(SEEK_ACCUMULATION_WINDOW);
       await Promise.resolve();
 
       // Position change = interval * rate = 10 * 1.5 = 15
@@ -100,7 +104,7 @@ describe("seek", () => {
 
       await seek(30); // Try to seek past end
 
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(SEEK_ACCUMULATION_WINDOW);
       await Promise.resolve();
 
       expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(3600); // Clamped to duration
@@ -114,7 +118,7 @@ describe("seek", () => {
 
       await seek(-30); // Try to seek before start
 
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(SEEK_ACCUMULATION_WINDOW);
       await Promise.resolve();
 
       expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(0); // Clamped to 0
@@ -123,7 +127,7 @@ describe("seek", () => {
     it("emits seekApplied event after short delay", async () => {
       await seek(10);
 
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(SEEK_ACCUMULATION_WINDOW);
       await Promise.resolve();
 
       expect(eventBusSpy).toHaveBeenCalledWith("seekApplied", {
@@ -138,11 +142,13 @@ describe("seek", () => {
       await seek(10);
 
       // First, the short timer fires
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(SEEK_ACCUMULATION_WINDOW);
       await Promise.resolve();
 
-      // Then wait for the long timer (5000ms total from first call)
-      jest.advanceTimersByTime(4500);
+      // Then wait for the rest of the long timer
+      jest.advanceTimersByTime(
+        SEEK_EVENT_ACCUMULATION_WINDOW - SEEK_ACCUMULATION_WINDOW,
+      );
       await Promise.resolve();
 
       expect(eventBusSpy).toHaveBeenCalledWith(
@@ -158,7 +164,7 @@ describe("seek", () => {
     it("resets accumulator after short timer fires", async () => {
       await seek(10);
 
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(SEEK_ACCUMULATION_WINDOW);
       await Promise.resolve();
 
       expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(110);
@@ -174,7 +180,7 @@ describe("seek", () => {
       });
 
       await seek(20);
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(SEEK_ACCUMULATION_WINDOW);
       await Promise.resolve();
 
       expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(130); // 110 + 20

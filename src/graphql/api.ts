@@ -256,7 +256,7 @@ const syncProgressMutation = graphql(`
 // Re-export generated types for use in sync.ts
 export type { SyncProgressInput } from "@/graphql/client/graphql";
 export {
-  DeviceType,
+  DeviceTypeInput,
   PlaybackEventType,
   PlaythroughStatus,
 } from "@/graphql/client/graphql";
