@@ -10,6 +10,11 @@
  *
  * All UI components should use these functions instead of directly calling
  * updatePlaythroughStatus for finish/abandon transitions.
+ *
+ * WHY THIS IS SEPARATE FROM playback-coordinator.ts:
+ * The coordinator routes real-time playback events (play, pause, seek) to
+ * multiple handlers. This service orchestrates multi-step lifecycle transitions
+ * called directly from UI components. Different patterns, different callers.
  */
 
 import { updatePlaythroughStatus } from "@/db/playthroughs";

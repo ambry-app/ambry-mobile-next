@@ -22,7 +22,7 @@ export function setOnPauseCallback(callback: () => Promise<void>) {
 
 /**
  * Start monitoring sleep timer (checks every second).
- * The coordinator calls reset/maybeReset/cancel directly - no EventBus listeners needed.
+ * The coordinator calls reset/maybeReset/cancel directly.
  */
 export function startMonitoring() {
   if (sleepTimerCheckInterval) return;

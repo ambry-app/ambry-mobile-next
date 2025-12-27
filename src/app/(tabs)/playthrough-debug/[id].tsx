@@ -12,9 +12,8 @@ import { Colors } from "@/styles";
 export default function PlaythroughDebugRoute() {
   const { id: playthroughId } = useLocalSearchParams<{ id: string }>();
 
-  // Note: auto-refresh on new events was removed when EventBus was removed.
-  // This debug screen now only shows data at page load time.
-  // Pull-to-refresh or navigation can be used to see updates.
+  // This debug screen shows data at page load time.
+  // Navigate away and back to see updates.
   const data = useLibraryData(
     () => getPlaythroughForDebug(playthroughId),
     [playthroughId],

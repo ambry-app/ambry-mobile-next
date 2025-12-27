@@ -391,8 +391,8 @@ export async function saveCurrentProgress() {
  * Only records a pause event if audio is actually playing. If already paused,
  * this is a no-op (the pause event was already recorded when playback stopped).
  *
- * Unlike pauseIfPlaying() which fires events asynchronously via EventBus,
- * this function awaits the event recording before returning.
+ * Unlike pauseIfPlaying() in player.ts which notifies the coordinator
+ * asynchronously, this function awaits the event recording before returning.
  */
 export async function pauseAndRecordEvent() {
   const playthroughId = currentPlaythroughId;

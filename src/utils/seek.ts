@@ -7,9 +7,22 @@ import {
 import * as Coordinator from "@/services/playback-coordinator";
 import { SeekSource } from "@/stores/player";
 
-// Seeking functions for use by the TrackPlayer service. These do not interact
-// with the zustand store in any way, and are only meant for use by the
-// TrackPlayer service.
+/**
+ * Seeking functions for the TrackPlayer background service.
+ *
+ * WHY THIS EXISTS SEPARATELY FROM player.ts:
+ * The playback-service.ts runs in the TrackPlayer foreground service context
+ * and handles remote control events (headphones, lock screen, car controls).
+ * These events fire even when the React component tree isn't mounted.
+ *
+ * player.ts uses Zustand state for seek accumulation, but that state is tied
+ * to React's lifecycle. This module uses plain module-level variables so it
+ * works reliably regardless of React's state.
+ *
+ * Both implementations share the same accumulation logic and timing constants
+ * (SEEK_ACCUMULATION_WINDOW, SEEK_EVENT_ACCUMULATION_WINDOW) and both notify
+ * the coordinator, but they manage their internal state differently.
+ */
 
 let isSeeking = false;
 let seekAccumulator: number | null = null;
