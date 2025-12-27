@@ -22,6 +22,7 @@ import {
   IconButton,
   Loading,
   PlayButton,
+  PlayerContextMenu,
   PlayerProgressBar,
   Scrubber,
   ThumbnailImage,
@@ -562,12 +563,13 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                     </View>
                   )}
 
-                  <IconButton
-                    size={24}
-                    icon="ellipsis-vertical"
-                    color={Colors.zinc[100]}
-                    onPress={() => console.debug("TODO: context menu")}
-                    style={{ opacity: 0 }}
+                  <PlayerContextMenu
+                    session={session}
+                    mediaId={mediaId}
+                    bookTitle={media.book.title}
+                    authors={media.book.authors}
+                    narrators={media.narrators}
+                    onCollapse={collapse}
                   />
                 </Animated.View>
               )}

@@ -1,4 +1,4 @@
-import TrackPlayer from "react-native-track-player";
+import TrackPlayer, { isPlaying } from "react-native-track-player";
 
 import { PROGRESS_SAVE_INTERVAL } from "@/constants";
 import { getDb } from "@/db/db";
@@ -188,6 +188,7 @@ export async function initializePlaythroughTracking(
       );
       const playthroughId = await createPlaythrough(session, mediaId);
       await recordStartEvent(playthroughId);
+      bumpPlaythroughDataVersion();
       playthrough = await getActivePlaythrough(session, mediaId);
     } else {
       console.debug(
@@ -408,6 +409,48 @@ async function heartbeatSave() {
  */
 export async function saveCurrentProgress() {
   await heartbeatSave();
+}
+
+/**
+ * Pause playback (if playing) and record the pause event, waiting for it to complete.
+ * Use this when you need to ensure the pause event is recorded before
+ * performing other operations (like marking a playthrough as finished/abandoned).
+ *
+ * Only records a pause event if audio is actually playing. If already paused,
+ * this is a no-op (the pause event was already recorded when playback stopped).
+ *
+ * Unlike pauseIfPlaying() which fires events asynchronously via EventBus,
+ * this function awaits the event recording before returning.
+ */
+export async function pauseAndRecordEvent() {
+  const playthroughId = currentPlaythroughId;
+  const playbackRate = currentPlaybackRate;
+
+  if (!playthroughId) return;
+
+  // Check if actually playing - if not, nothing to do
+  const { playing } = await isPlaying();
+  if (!playing) {
+    console.debug(
+      "[EventRecording] pauseAndRecordEvent: not playing, skipping",
+    );
+    return;
+  }
+
+  stopHeartbeat();
+
+  try {
+    // Pause the player
+    await TrackPlayer.pause();
+
+    // Record the pause event and wait for it to complete
+    const { position } = await TrackPlayer.getProgress();
+    await recordPauseEvent(playthroughId, position, playbackRate);
+
+    console.debug("[EventRecording] pauseAndRecordEvent completed");
+  } catch (error) {
+    console.warn("[EventRecording] Error in pauseAndRecordEvent:", error);
+  }
 }
 
 // =============================================================================

@@ -11,13 +11,22 @@ import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
 
+import { PlaythroughContextMenu } from "@/components";
 import {
+  deletePlaythrough,
   getAllPlaythroughsForMedia,
   PlaythroughForMedia,
 } from "@/db/playthroughs";
 import { useLibraryData } from "@/hooks/use-library-data";
 import useLoadMediaCallback from "@/hooks/use-load-media-callback";
-import { useDataVersion } from "@/stores/data-version";
+import {
+  abandonPlaythrough,
+  finishPlaythrough,
+} from "@/services/playthrough-lifecycle";
+import {
+  bumpPlaythroughDataVersion,
+  useDataVersion,
+} from "@/stores/data-version";
 import { useDebug } from "@/stores/debug";
 import {
   pauseIfPlaying,
@@ -253,23 +262,31 @@ function PlaythroughRow({
     );
   }, [session, playthrough.id, playthrough.mediaId]);
 
-  const handleMenu = () => {
+  const handleMarkFinished = useCallback(async () => {
+    await finishPlaythrough(session, playthrough.id);
+  }, [session, playthrough.id]);
+
+  const handleAbandon = useCallback(async () => {
+    await abandonPlaythrough(session, playthrough.id);
+  }, [session, playthrough.id]);
+
+  const handleDelete = useCallback(() => {
     Alert.alert(
-      "Playthrough Options",
-      "What would you like to do with this playthrough?",
+      "Delete Playthrough",
+      "Are you sure you want to delete this playthrough? This cannot be undone.",
       [
+        { text: "Cancel", style: "cancel" },
         {
-          text: "Delete Playthrough",
+          text: "Delete",
           style: "destructive",
-          onPress: () => {
-            // TODO: Implement delete
-            Alert.alert("Coming Soon", "Delete functionality coming soon");
+          onPress: async () => {
+            await deletePlaythrough(session, playthrough.id);
+            bumpPlaythroughDataVersion();
           },
         },
-        { text: "Cancel", style: "cancel" },
       ],
     );
-  };
+  }, [session, playthrough.id]);
 
   // Determine action button based on status
   const showActionButton = playthrough.status !== "finished";
@@ -306,13 +323,12 @@ function PlaythroughRow({
           <Text style={styles.actionButtonText}>{actionLabel}</Text>
         </TouchableOpacity>
       )}
-      <TouchableOpacity onPress={handleMenu} style={styles.menuButton}>
-        <FontAwesome6
-          name="ellipsis-vertical"
-          size={16}
-          color={Colors.zinc[500]}
-        />
-      </TouchableOpacity>
+      <PlaythroughContextMenu
+        status={playthrough.status}
+        onMarkFinished={handleMarkFinished}
+        onAbandon={handleAbandon}
+        onDelete={handleDelete}
+      />
     </>
   );
 
@@ -382,10 +398,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: Colors.zinc[100],
-  },
-  menuButton: {
-    padding: 8,
-    marginRight: -8,
   },
   expandIndicator: {
     flexDirection: "row",

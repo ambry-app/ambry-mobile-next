@@ -25,15 +25,14 @@ import {
   getFinishedOrAbandonedPlaythrough,
   getMostRecentInProgressPlaythrough,
   resumePlaythrough,
-  updatePlaythroughStatus,
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
 import {
   getCurrentPlaythroughId,
   initializePlaythroughTracking,
-  recordFinishEvent,
   recordStartEvent,
 } from "@/services/event-recording-service";
+import { finishPlaythrough } from "@/services/playthrough-lifecycle";
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
 import { documentDirectoryFilePath, EventBus } from "@/utils";
 
@@ -293,6 +292,7 @@ export async function resumeAndLoadPlaythrough(
   await expandPlayerAndWait();
 
   await resumePlaythrough(session, playthroughId);
+  bumpPlaythroughDataVersion();
   await loadActivePlaythroughAndUpdateState(session, mediaId);
   await play();
 }
@@ -327,6 +327,7 @@ export async function handleStartFresh(session: Session) {
 
   const playthroughId = await createPlaythrough(session, prompt.mediaId);
   await recordStartEvent(playthroughId);
+  bumpPlaythroughDataVersion();
   await loadActivePlaythroughAndUpdateState(session, prompt.mediaId);
   await play();
 }
@@ -408,19 +409,10 @@ export async function handleMarkFinished(session: Session) {
   // Clear the prompt and start loading
   usePlayer.setState({ pendingFinishPrompt: null, loadingNewMedia: true });
 
-  // Record finish event and update status
-  await recordFinishEvent(prompt.currentPlaythroughId);
-  await updatePlaythroughStatus(
-    session,
-    prompt.currentPlaythroughId,
-    "finished",
-    {
-      finishedAt: new Date(),
-    },
-  );
-
-  // Notify UI that playthrough data changed
-  bumpPlaythroughDataVersion();
+  // Finish the current playthrough (skip unload since we're loading new media)
+  await finishPlaythrough(session, prompt.currentPlaythroughId, {
+    skipUnload: true,
+  });
 
   // Now load the new media
   await proceedWithLoadingNewMedia(session, prompt.newMediaId);
@@ -834,6 +826,7 @@ async function loadMediaIntoTrackPlayer(
 
   const playthroughId = await createPlaythrough(session, mediaId);
   await recordStartEvent(playthroughId);
+  bumpPlaythroughDataVersion();
 
   playthrough = await getActivePlaythrough(session, mediaId);
 

@@ -1,12 +1,33 @@
-import { Alert, Share, StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Share, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
 
-import { IconButton, PlayButton as PlayerPlayButton } from "@/components";
+import {
+  type DownloadState,
+  IconButton,
+  MediaContextMenu,
+  PlayButton as PlayerPlayButton,
+  type PlaythroughState,
+} from "@/components";
 import { MediaHeaderInfo } from "@/db/library";
+import {
+  getActivePlaythrough,
+  getFinishedOrAbandonedPlaythrough,
+} from "@/db/playthroughs";
 import useLoadMediaCallback from "@/hooks/use-load-media-callback";
 import { useShelvedMedia } from "@/hooks/use-shelved-media";
-import { startDownload, useDownloads } from "@/stores/downloads";
+import {
+  abandonPlaythrough,
+  finishPlaythrough,
+} from "@/services/playthrough-lifecycle";
+import { useDataVersion } from "@/stores/data-version";
+import {
+  cancelDownload,
+  removeDownload,
+  startDownload,
+  useDownloads,
+} from "@/stores/downloads";
 import { usePlayer } from "@/stores/player";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
@@ -22,6 +43,114 @@ export function ActionBar({ media, session }: ActionBarProps) {
     media.id,
     "saved",
   );
+
+  // Check if this media is currently loaded in player
+  const playerMediaId = usePlayer((state) => state.mediaId);
+  const isCurrentlyLoaded = playerMediaId === media.id;
+
+  // Subscribe to playthrough data version to refresh when playthroughs change
+  const playthroughVersion = useDataVersion(
+    (state) => state.playthroughDataVersion,
+  );
+
+  // Playthrough state tracking
+  const [playthroughState, setPlaythroughState] =
+    useState<PlaythroughState>("none");
+  const [activePlaythroughId, setActivePlaythroughId] = useState<string | null>(
+    null,
+  );
+
+  // Download state from store
+  const downloadStatus = useDownloads(
+    useShallow((state) => state.downloads[media.id]?.status),
+  );
+  const downloadProgress = useDownloads(
+    useShallow((state) => state.downloads[media.id]?.progress),
+  );
+
+  // Map download store status to MediaContextMenu DownloadState
+  const downloadState: DownloadState =
+    downloadStatus === "pending"
+      ? downloadProgress !== undefined
+        ? "downloading"
+        : "pending"
+      : downloadStatus === "ready"
+        ? "ready"
+        : downloadStatus === "error"
+          ? "error"
+          : "none";
+
+  const loadMedia = useLoadMediaCallback(session, media.id);
+
+  // Fetch playthrough state on mount, when media changes, or when playthrough data changes
+  useEffect(() => {
+    async function fetchPlaythroughState() {
+      const active = await getActivePlaythrough(session, media.id);
+      if (active) {
+        setPlaythroughState("in_progress");
+        setActivePlaythroughId(active.id);
+        return;
+      }
+
+      const finished = await getFinishedOrAbandonedPlaythrough(
+        session,
+        media.id,
+      );
+      if (finished?.status === "finished") {
+        setPlaythroughState("finished");
+        setActivePlaythroughId(null);
+        return;
+      }
+
+      setPlaythroughState("none");
+      setActivePlaythroughId(null);
+    }
+
+    fetchPlaythroughState();
+  }, [session, media.id, playthroughVersion]);
+
+  // Context menu handlers
+  const handlePlay = useCallback(() => {
+    loadMedia();
+  }, [loadMedia]);
+
+  const handleResume = useCallback(() => {
+    loadMedia();
+  }, [loadMedia]);
+
+  const handleAbandon = useCallback(async () => {
+    if (!activePlaythroughId) return;
+    await abandonPlaythrough(session, activePlaythroughId);
+    setPlaythroughState("none");
+    setActivePlaythroughId(null);
+  }, [session, activePlaythroughId]);
+
+  const handleMarkFinished = useCallback(async () => {
+    if (!activePlaythroughId) return;
+    await finishPlaythrough(session, activePlaythroughId);
+    setPlaythroughState("finished");
+    setActivePlaythroughId(null);
+  }, [session, activePlaythroughId]);
+
+  const handleDownload = useCallback(() => {
+    if (!media.mp4Path) return;
+    startDownload(session, media.id, media.mp4Path, media.thumbnails);
+    router.navigate("/downloads");
+  }, [session, media.id, media.mp4Path, media.thumbnails]);
+
+  const handleDeleteDownload = useCallback(async () => {
+    await removeDownload(session, media.id);
+  }, [session, media.id]);
+
+  const handleCancelDownload = useCallback(async () => {
+    await cancelDownload(session, media.id);
+  }, [session, media.id]);
+
+  const handleShare = useCallback(async () => {
+    const mediaURL =
+      session.url + "/audiobooks/" + atob(media.id).split(":")[1];
+    Share.share({ message: mediaURL });
+  }, [session.url, media.id]);
 
   if (!media) return null;
 
@@ -43,23 +172,22 @@ export function ActionBar({ media, session }: ActionBarProps) {
           size={24}
           style={styles.button}
           color={Colors.zinc[100]}
-          onPress={async () => {
-            const mediaURL =
-              session.url + "/audiobooks/" + atob(media.id).split(":")[1];
-            Share.share({ message: mediaURL });
-          }}
+          onPress={handleShare}
         />
-        <IconButton
-          icon="ellipsis-vertical"
-          size={24}
-          style={styles.button}
-          color={Colors.zinc[100]}
-          onPress={() => {
-            Alert.alert(
-              "Coming soon",
-              "This will show a list of additional actions you can take with this audiobook.",
-            );
-          }}
+        <MediaContextMenu
+          playthroughState={playthroughState}
+          downloadState={downloadState}
+          isOnShelf={isOnShelf}
+          isCurrentlyLoaded={isCurrentlyLoaded}
+          onPlay={handlePlay}
+          onResume={handleResume}
+          onAbandon={handleAbandon}
+          onMarkFinished={handleMarkFinished}
+          onDownload={handleDownload}
+          onDeleteDownload={handleDeleteDownload}
+          onCancelDownload={handleCancelDownload}
+          onToggleShelf={toggleOnShelf}
+          onShare={handleShare}
         />
       </View>
       {/* <ExplanationText download={download} /> */}

@@ -11,7 +11,10 @@ export async function getAuthorsForBooks(session: Session, bookIds: string[]) {
 
   const authors = await getDb()
     .select({
+      id: schema.authors.id,
       name: schema.authors.name,
+      personId: schema.people.id,
+      personName: schema.people.name,
       bookId: schema.bookAuthors.bookId,
     })
     .from(schema.bookAuthors)
@@ -20,6 +23,13 @@ export async function getAuthorsForBooks(session: Session, bookIds: string[]) {
       and(
         eq(schema.authors.url, schema.bookAuthors.url),
         eq(schema.authors.id, schema.bookAuthors.authorId),
+      ),
+    )
+    .innerJoin(
+      schema.people,
+      and(
+        eq(schema.people.url, schema.authors.url),
+        eq(schema.people.id, schema.authors.personId),
       ),
     )
     .where(
@@ -87,7 +97,10 @@ export async function getNarratorsForMedia(
 
   const narrators = await getDb()
     .select({
+      id: schema.narrators.id,
       name: schema.narrators.name,
+      personId: schema.people.id,
+      personName: schema.people.name,
       mediaId: schema.mediaNarrators.mediaId,
     })
     .from(schema.mediaNarrators)
@@ -96,6 +109,13 @@ export async function getNarratorsForMedia(
       and(
         eq(schema.narrators.url, schema.mediaNarrators.url),
         eq(schema.narrators.id, schema.mediaNarrators.narratorId),
+      ),
+    )
+    .innerJoin(
+      schema.people,
+      and(
+        eq(schema.people.url, schema.narrators.url),
+        eq(schema.people.id, schema.narrators.personId),
       ),
     )
     .where(

@@ -44,9 +44,7 @@ export function DownloadContextMenu({
       {/* Context menu with invisible trigger on top */}
       <ContextMenu color={Colors.zinc[800]}>
         <ContextMenu.Trigger>
-          <Button elementColors={triggerColors} style={styles.trigger}>
-            {" "}
-          </Button>
+          <Button elementColors={triggerColors}> </Button>
         </ContextMenu.Trigger>
         <ContextMenu.Items>
           {status === "ready" ? (
