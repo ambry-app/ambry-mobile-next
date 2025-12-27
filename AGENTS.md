@@ -285,7 +285,7 @@ The `sync(session)` function performs both library and playthrough sync in paral
     - `(library)/`: Library stack (search, browse)
     - `(shelf)/`: User shelf stack (in-progress, finished, saved)
   - `book/[id].tsx`, `media/[id].tsx`, `author/[id].tsx`, etc.: Detail screens (direct children of tabs)
-- Modal screens at root: `sleep-timer.tsx`, `playback-rate.tsx`, `chapter-select.tsx`, `download-actions-modal/[id].tsx`
+- Modal screens at root: `sleep-timer.tsx`, `playback-rate.tsx`, `chapter-select.tsx`
 
 **Authentication Guards**:
 

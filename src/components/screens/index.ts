@@ -2,7 +2,6 @@ export * from "./AuthorScreen";
 export * from "./BookScreen";
 export * from "./CustomTabBar";
 export * from "./CustomTabBarWithPlayer";
-export * from "./DownloadActionsModal";
 export * from "./DownloadsScreen";
 export * from "./FinishedScreen";
 export * from "./InProgressScreen";
