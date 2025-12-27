@@ -15,7 +15,10 @@ npm start                    # Start Expo dev server
 npm run ios                  # Run on iOS simulator
 npm run android              # Run on Android emulator/device
 npm run prebuild             # Generate native code (when needed)
+npm run prebuild -- --clean  # Clean rebuild of native code
 ```
+
+**CRITICAL**: Always use `npm run` scripts instead of running `npx expo` directly. The npm scripts set `APP_VARIANT=development` which configures the correct package name (`app.ambry.mobile.dev`) and app name (`Ambry (Dev)`). Running `npx expo prebuild` or `npx expo run:android` directly will use the production package name (`app.ambry.mobile`) and cause installation conflicts.
 
 ### Code Generation & Database
 

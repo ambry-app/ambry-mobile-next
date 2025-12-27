@@ -5,13 +5,18 @@ import { useShallow } from "zustand/shallow";
 
 import {
   BookDetailsText,
-  IconButton,
+  DownloadContextMenu,
   Loading,
   ThumbnailImage,
 } from "@/components";
 import { DownloadedMedia } from "@/db/library";
 import { useThrottle } from "@/hooks/use-throttle";
-import { useDownloads } from "@/stores/downloads";
+import {
+  cancelDownload,
+  removeDownload,
+  useDownloads,
+} from "@/stores/downloads";
+import { useSession } from "@/stores/session";
 import { Colors } from "@/styles";
 
 import { FileSize } from "./FileSize";
@@ -21,6 +26,7 @@ type DownloadRowProps = {
 };
 
 export function DownloadRow({ media }: DownloadRowProps) {
+  const session = useSession((state) => state.session);
   const { filePath, status } = useDownloads(
     useShallow((state) => {
       const { filePath, status } = state.downloads[media.id] || {};
@@ -28,7 +34,7 @@ export function DownloadRow({ media }: DownloadRowProps) {
     }),
   );
 
-  if (!status) return null;
+  if (!session || !status) return null;
 
   const navigateToBook = () => {
     router.navigate({
@@ -36,15 +42,6 @@ export function DownloadRow({ media }: DownloadRowProps) {
       params: {
         id: media.id,
         title: media.book.title,
-      },
-    });
-  };
-
-  const openModal = () => {
-    router.navigate({
-      pathname: "/download-actions-modal/[id]",
-      params: {
-        id: media.id,
       },
     });
   };
@@ -81,14 +78,11 @@ export function DownloadRow({ media }: DownloadRowProps) {
           )}
         </View>
         <LoadingIndicator mediaId={media.id} />
-        <View>
-          <IconButton
-            size={16}
-            icon="ellipsis-vertical"
-            color={Colors.zinc[100]}
-            onPress={openModal}
-          />
-        </View>
+        <DownloadContextMenu
+          status={status}
+          onDelete={() => removeDownload(session, media.id)}
+          onCancel={() => cancelDownload(session, media.id)}
+        />
       </View>
       <DownloadProgressBar mediaId={media.id} />
     </>

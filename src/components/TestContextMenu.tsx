@@ -1,5 +1,5 @@
 // Android version (default) - uses Jetpack Compose
-import { Alert } from "react-native";
+import { Alert, StyleSheet } from "react-native";
 import { Button, ContextMenu } from "@expo/ui/jetpack-compose";
 
 import { Colors } from "@/styles";
@@ -9,6 +9,16 @@ export type TestContextMenuProps = {
   onAddToShelf?: () => void;
   onShare?: () => void;
   onDelete?: () => void;
+};
+
+const defaultColors = {
+  containerColor: Colors.zinc[800],
+  contentColor: Colors.zinc[100],
+};
+
+const destructiveColors = {
+  containerColor: Colors.zinc[800],
+  contentColor: Colors.red[400],
 };
 
 export function TestContextMenu({
@@ -21,12 +31,9 @@ export function TestContextMenu({
     <ContextMenu color={Colors.zinc[800]}>
       <ContextMenu.Trigger>
         <Button
-          elementColors={{
-            containerColor: Colors.zinc[800],
-            contentColor: Colors.zinc[100],
-          }}
+          elementColors={defaultColors}
           variant="default"
-          style={{ width: 200, height: 50 }}
+          style={styles.trigger}
         >
           Show Context Menu
         </Button>
@@ -34,40 +41,28 @@ export function TestContextMenu({
       <ContextMenu.Items>
         <Button
           leadingIcon="filled.ArrowDropDown"
-          elementColors={{
-            containerColor: Colors.zinc[800],
-            contentColor: Colors.zinc[100],
-          }}
+          elementColors={defaultColors}
           onPress={onDownload}
         >
           Download
         </Button>
         <Button
           leadingIcon="filled.Star"
-          elementColors={{
-            containerColor: Colors.zinc[800],
-            contentColor: Colors.zinc[100],
-          }}
+          elementColors={defaultColors}
           onPress={onAddToShelf}
         >
           Add to Shelf
         </Button>
         <Button
           leadingIcon="filled.Share"
-          elementColors={{
-            containerColor: Colors.zinc[800],
-            contentColor: Colors.zinc[100],
-          }}
+          elementColors={defaultColors}
           onPress={onShare}
         >
           Share
         </Button>
         <Button
           leadingIcon="filled.Delete"
-          elementColors={{
-            containerColor: Colors.zinc[800],
-            contentColor: Colors.red[400],
-          }}
+          elementColors={destructiveColors}
           onPress={onDelete}
         >
           Delete
@@ -76,3 +71,10 @@ export function TestContextMenu({
     </ContextMenu>
   );
 }
+
+const styles = StyleSheet.create({
+  trigger: {
+    width: 200,
+    height: 50,
+  },
+});

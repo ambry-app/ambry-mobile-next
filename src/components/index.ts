@@ -4,6 +4,7 @@ export * from "./BookDetailsText";
 export * from "./Button";
 export * from "./Delay";
 export * from "./Description";
+export * from "./DownloadContextMenu";
 export * from "./FadeInOnMount";
 export * from "./FinishPlaythroughDialog";
 export * from "./FocusableTextInput";
