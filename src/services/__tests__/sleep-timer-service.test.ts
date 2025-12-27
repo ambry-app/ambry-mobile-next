@@ -4,10 +4,10 @@ import {
   cancel,
   maybeReset,
   reset,
+  setOnPauseCallback,
   startMonitoring,
 } from "@/services/sleep-timer-service";
 import { useSleepTimer } from "@/stores/sleep-timer";
-import { EventBus } from "@/utils";
 import {
   mockIsPlaying,
   mockTrackPlayerPause,
@@ -63,6 +63,24 @@ describe("sleep-timer-service", () => {
     });
   });
 
+  describe("setOnPauseCallback", () => {
+    it("registers a callback that is called when timer expires", async () => {
+      const pauseCallback = jest.fn().mockResolvedValue(undefined);
+      setOnPauseCallback(pauseCallback);
+
+      const now = Date.now();
+      useSleepTimer.setState({
+        sleepTimerEnabled: true,
+        sleepTimerTriggerTime: now - 1000, // Already expired
+      });
+
+      startMonitoring();
+      await jest.advanceTimersByTimeAsync(SLEEP_TIMER_CHECK_INTERVAL);
+
+      expect(pauseCallback).toHaveBeenCalled();
+    });
+  });
+
   describe("checkTimer (via interval)", () => {
     it("resets volume to 1.0 when timer is disabled", async () => {
       useSleepTimer.setState({ sleepTimerEnabled: false });
@@ -98,24 +116,6 @@ describe("sleep-timer-service", () => {
       expect(mockTrackPlayerPause).toHaveBeenCalled();
       expect(mockTrackPlayerSetVolume).toHaveBeenCalledWith(1.0);
       expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
-    });
-
-    it("emits playbackPaused event when timer expires", async () => {
-      const playbackPausedHandler = jest.fn();
-      EventBus.on("playbackPaused", playbackPausedHandler);
-
-      const now = Date.now();
-      useSleepTimer.setState({
-        sleepTimerEnabled: true,
-        sleepTimerTriggerTime: now - 1000,
-      });
-
-      startMonitoring();
-      await jest.advanceTimersByTimeAsync(SLEEP_TIMER_CHECK_INTERVAL);
-
-      expect(playbackPausedHandler).toHaveBeenCalledWith({ remote: false });
-
-      EventBus.off("playbackPaused", playbackPausedHandler);
     });
 
     it("fades volume when within fade out window", async () => {
@@ -269,113 +269,6 @@ describe("sleep-timer-service", () => {
       await cancel();
 
       expect(mockTrackPlayerSetVolume).toHaveBeenCalledWith(1.0);
-    });
-  });
-
-  describe("event handling", () => {
-    beforeEach(() => {
-      useSleepTimer.setState({
-        sleepTimerEnabled: true,
-        sleepTimer: 60,
-      });
-      mockIsPlaying.mockResolvedValue({ playing: true });
-    });
-
-    it("resets timer on playbackStarted", async () => {
-      startMonitoring();
-
-      EventBus.emit("playbackStarted");
-      // Flush microtasks for the async reset() call
-      await Promise.resolve();
-
-      expect(useSleepTimer.getState().sleepTimerTriggerTime).not.toBeNull();
-    });
-
-    it("cancels timer on playbackPaused", async () => {
-      useSleepTimer.setState({ sleepTimerTriggerTime: Date.now() + 60000 });
-
-      startMonitoring();
-
-      EventBus.emit("playbackPaused");
-      await Promise.resolve();
-
-      expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
-    });
-
-    it("cancels timer on playbackQueueEnded", async () => {
-      useSleepTimer.setState({ sleepTimerTriggerTime: Date.now() + 60000 });
-
-      startMonitoring();
-
-      EventBus.emit("playbackQueueEnded");
-      await Promise.resolve();
-
-      expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
-    });
-
-    it("resets timer on remoteDuck", async () => {
-      startMonitoring();
-
-      EventBus.emit("remoteDuck");
-      await Promise.resolve();
-
-      expect(useSleepTimer.getState().sleepTimerTriggerTime).not.toBeNull();
-    });
-
-    it("resets timer on sleepTimerEnabled when playing", async () => {
-      startMonitoring();
-
-      EventBus.emit("sleepTimerEnabled");
-      await Promise.resolve();
-
-      expect(useSleepTimer.getState().sleepTimerTriggerTime).not.toBeNull();
-    });
-
-    it("cancels timer on sleepTimerDisabled", async () => {
-      useSleepTimer.setState({ sleepTimerTriggerTime: Date.now() + 60000 });
-
-      startMonitoring();
-
-      EventBus.emit("sleepTimerDisabled");
-      await Promise.resolve();
-
-      expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
-    });
-
-    it("resets timer on sleepTimerChanged when playing", async () => {
-      const initialTrigger = Date.now() + 60000;
-      useSleepTimer.setState({ sleepTimerTriggerTime: initialTrigger });
-
-      startMonitoring();
-
-      // Change the duration
-      useSleepTimer.setState({ sleepTimer: 120 });
-      EventBus.emit("sleepTimerChanged");
-      await Promise.resolve();
-
-      // Trigger time should be different (reset with new duration)
-      const newTrigger = useSleepTimer.getState().sleepTimerTriggerTime;
-      expect(newTrigger).not.toBeNull();
-      expect(newTrigger).not.toBe(initialTrigger);
-    });
-
-    it("resets timer on seekApplied (non-pause source)", async () => {
-      startMonitoring();
-
-      EventBus.emit("seekApplied", { source: "user" });
-      await Promise.resolve();
-
-      expect(useSleepTimer.getState().sleepTimerTriggerTime).not.toBeNull();
-    });
-
-    it("does not reset timer on seekApplied with pause source", async () => {
-      startMonitoring();
-
-      EventBus.emit("seekApplied", { source: "pause" });
-      await Promise.resolve();
-
-      // maybeReset was not called, so trigger time should still be null
-      expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
     });
   });
 

@@ -1,8 +1,8 @@
 import TrackPlayer, { Event } from "react-native-track-player";
 
 import * as EventRecording from "@/services/event-recording-service";
-import * as SleepTimer from "@/services/sleep-timer-service";
-import { EventBus } from "@/utils";
+import * as Coordinator from "@/services/playback-coordinator";
+import { setProgress } from "@/stores/player";
 import { seek, seekImmediateNoLog } from "@/utils/seek";
 
 export const PlaybackService = async function () {
@@ -48,7 +48,7 @@ export const PlaybackService = async function () {
 
   TrackPlayer.addEventListener(Event.PlaybackQueueEnded, () => {
     console.debug("[TrackPlayer Service] PlaybackQueueEnded");
-    EventBus.emit("playbackQueueEnded");
+    Coordinator.onQueueEnded();
   });
 
   // TrackPlayer.addEventListener(Event.PlaybackResume, (args) => {
@@ -73,7 +73,7 @@ export const PlaybackService = async function () {
 
   TrackPlayer.addEventListener(Event.RemoteDuck, (args) => {
     console.debug("[TrackPlayer Service] RemoteDuck", args);
-    EventBus.emit("remoteDuck", args);
+    Coordinator.onRemoteDuck();
   });
 
   TrackPlayer.addEventListener(Event.RemoteJumpBackward, async (args) => {
@@ -103,14 +103,14 @@ export const PlaybackService = async function () {
 
     await TrackPlayer.pause();
     await seekImmediateNoLog(-1);
-    EventBus.emit("playbackPaused", { remote: true });
+    Coordinator.onPause();
   });
 
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
     console.debug("[TrackPlayer Service] RemotePlay");
 
     await TrackPlayer.play();
-    EventBus.emit("playbackStarted", { remote: true });
+    Coordinator.onPlay();
   });
 
   // TrackPlayer.addEventListener(Event.RemotePlayId, (args) => {
@@ -146,7 +146,7 @@ export const PlaybackService = async function () {
   // });
 
   // Initialize services
-  // Each service will set up its own EventBus listeners
-  SleepTimer.startMonitoring();
-  await EventRecording.startMonitoring();
+  await EventRecording.initialize();
+  Coordinator.setPlayerProgressUpdater(setProgress);
+  Coordinator.initialize();
 };

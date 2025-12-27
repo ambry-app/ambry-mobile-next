@@ -7,14 +7,17 @@ import { Session } from "@/stores/session";
 import {
   initializeSleepTimer,
   setSleepTimer,
+  setSleepTimerSettingsCallback,
   setSleepTimerState,
   setTriggerTime,
   useSleepTimer,
 } from "@/stores/sleep-timer";
-import { EventBus } from "@/utils";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { createLocalUserSettings, DEFAULT_TEST_SESSION } from "@test/factories";
 import { resetStoreBeforeEach } from "@test/store-test-utils";
+
+// Track settings callback calls
+const mockSettingsCallback = jest.fn();
 
 describe("sleep-timer store", () => {
   const { getDb } = setupTestDatabase();
@@ -34,6 +37,14 @@ describe("sleep-timer store", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSettingsCallback.mockReset();
+    // Register the mock callback to track settings changes
+    setSleepTimerSettingsCallback(mockSettingsCallback);
+  });
+
+  afterEach(() => {
+    // Clean up callback
+    setSleepTimerSettingsCallback(null);
   });
 
   describe("initializeSleepTimer", () => {
@@ -97,24 +108,21 @@ describe("sleep-timer store", () => {
   });
 
   describe("setSleepTimerState", () => {
-    it("enables sleep timer and emits event", async () => {
-      const emitSpy = jest.spyOn(EventBus, "emit");
-
+    it("enables sleep timer and calls settings callback with 'enabled'", async () => {
       await setSleepTimerState(testSession, true);
 
       expect(useSleepTimer.getState().sleepTimerEnabled).toBe(true);
-      expect(emitSpy).toHaveBeenCalledWith("sleepTimerEnabled");
+      expect(mockSettingsCallback).toHaveBeenCalledWith("enabled");
     });
 
-    it("disables sleep timer and emits event", async () => {
+    it("disables sleep timer and calls settings callback with 'disabled'", async () => {
       // Start with enabled
       useSleepTimer.setState({ sleepTimerEnabled: true });
-      const emitSpy = jest.spyOn(EventBus, "emit");
 
       await setSleepTimerState(testSession, false);
 
       expect(useSleepTimer.getState().sleepTimerEnabled).toBe(false);
-      expect(emitSpy).toHaveBeenCalledWith("sleepTimerDisabled");
+      expect(mockSettingsCallback).toHaveBeenCalledWith("disabled");
     });
 
     it("resets trigger time when state changes", async () => {
@@ -156,23 +164,20 @@ describe("sleep-timer store", () => {
       expect(settings?.sleepTimer).toBe(2700);
     });
 
-    it("emits sleepTimerChanged when timer is active", async () => {
+    it("calls settings callback with 'duration' when timer is active", async () => {
       // Set an active trigger time
       useSleepTimer.setState({ sleepTimerTriggerTime: Date.now() + 60000 });
-      const emitSpy = jest.spyOn(EventBus, "emit");
 
       await setSleepTimer(testSession, 2700);
 
-      expect(emitSpy).toHaveBeenCalledWith("sleepTimerChanged");
+      expect(mockSettingsCallback).toHaveBeenCalledWith("duration");
     });
 
-    it("does not emit sleepTimerChanged when timer is not active", async () => {
+    it("does not call settings callback when timer is not active", async () => {
       // No trigger time set
-      const emitSpy = jest.spyOn(EventBus, "emit");
-
       await setSleepTimer(testSession, 2700);
 
-      expect(emitSpy).not.toHaveBeenCalled();
+      expect(mockSettingsCallback).not.toHaveBeenCalled();
     });
   });
 

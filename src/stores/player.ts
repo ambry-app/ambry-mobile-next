@@ -32,9 +32,13 @@ import {
   initializePlaythroughTracking,
   recordStartEvent,
 } from "@/services/event-recording-service";
-import { finishPlaythrough } from "@/services/playthrough-lifecycle";
+import * as Coordinator from "@/services/playback-coordinator";
+import {
+  finishPlaythrough,
+  setUnloadPlayerCallback,
+} from "@/services/playthrough-lifecycle";
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
-import { documentDirectoryFilePath, EventBus } from "@/utils";
+import { documentDirectoryFilePath } from "@/utils";
 
 import { Session, useSession } from "./session";
 
@@ -524,7 +528,7 @@ export async function checkForResumePrompt(
 }
 
 export function expandPlayer() {
-  EventBus.emit("expandPlayer");
+  Coordinator.expandPlayer();
 }
 
 export function setPlayerRenderState(
@@ -539,7 +543,7 @@ export function setPlayerRenderState(
  * Uses a timeout matching the animation duration defined in CustomTabBarWithPlayer.
  */
 export function expandPlayerAndWait(): Promise<void> {
-  EventBus.emit("expandPlayer");
+  Coordinator.expandPlayer();
   return new Promise((resolve) => {
     setTimeout(resolve, PLAYER_EXPAND_ANIMATION_DURATION);
   });
@@ -549,7 +553,7 @@ export async function play() {
   const { position } = await TrackPlayer.getProgress();
   console.debug("[Player] Playing from position", position);
   await TrackPlayer.play();
-  EventBus.emit("playbackStarted", { remote: false });
+  Coordinator.onPlay();
 }
 
 export async function pause() {
@@ -557,7 +561,7 @@ export async function pause() {
   console.debug("[Player] Pausing at position", position);
   await TrackPlayer.pause();
   await seekImmediateNoLog(-1, true);
-  EventBus.emit("playbackPaused", { remote: false });
+  Coordinator.onPause();
 }
 
 /**
@@ -606,9 +610,9 @@ export async function setPlaybackRate(session: Session, playbackRate: number) {
 
   await TrackPlayer.setRate(playbackRate);
 
-  // Emit event for event recording service
+  // Notify coordinator for event recording
   const { position } = await TrackPlayer.getProgress();
-  EventBus.emit("playbackRateChanged", {
+  Coordinator.onRateChanged({
     previousRate,
     newRate: playbackRate,
     position,
@@ -648,12 +652,11 @@ function onPlaybackQueueEnded() {
   setProgress(duration, duration);
 }
 
-function onSeekApplied(progress: { position: number; duration: number }) {
-  console.debug("[Player] seekApplied", progress);
-  setProgress(progress.position, progress.duration);
-}
-
-function setProgress(position: number, duration: number) {
+/**
+ * Update player position and duration state.
+ * Exported so the coordinator can call it for seek updates.
+ */
+export function setProgress(position: number, duration: number) {
   usePlayer.setState({ position, duration });
   maybeUpdateChapterState();
 }
@@ -1049,7 +1052,7 @@ async function seek(
 
     await TrackPlayer.seekTo(seekPosition);
     const seekEventTimestamp = new Date();
-    EventBus.emit("seekApplied", {
+    Coordinator.onSeekApplied({
       position: seekPosition,
       duration,
       userInitiated: true,
@@ -1090,7 +1093,7 @@ async function seek(
       seekEventTo,
     );
 
-    EventBus.emit("seekCompleted", {
+    Coordinator.onSeekCompleted({
       fromPosition: seekEventFrom,
       toPosition: seekEventTo,
       timestamp: seekEventTimestamp,
@@ -1130,7 +1133,7 @@ async function seekImmediateNoLog(target: number, isRelative = false) {
   );
 
   await TrackPlayer.seekTo(seekPosition);
-  EventBus.emit("seekApplied", {
+  Coordinator.onSeekApplied({
     position: seekPosition,
     duration,
     userInitiated: false,
@@ -1189,8 +1192,6 @@ export function usePlayerSubscriptions(appState: AppStateStatus) {
           onPlaybackQueueEnded,
         ),
       );
-
-      EventBus.on("seekApplied", onSeekApplied);
     }
 
     return () => {
@@ -1199,7 +1200,6 @@ export function usePlayerSubscriptions(appState: AppStateStatus) {
       if (subscriptions.length !== 0)
         console.debug("[Player] Unsubscribing from player events");
       subscriptions.forEach((sub) => sub.remove());
-      EventBus.off("seekApplied", onSeekApplied);
     };
   }, [appState, playerLoaded]);
 }
@@ -1217,3 +1217,6 @@ useSession.subscribe((state, prevState) => {
     });
   }
 });
+
+// Register callback for playthrough-lifecycle to unload player (breaks circular dependency)
+setUnloadPlayerCallback(tryUnloadPlayer);

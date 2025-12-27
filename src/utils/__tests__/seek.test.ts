@@ -5,21 +5,28 @@
  * Uses Jest fake timers to test the timing logic.
  */
 
+/* eslint-disable import/first */
+// Mock the coordinator to verify it's called correctly
+const mockOnSeekApplied = jest.fn();
+const mockOnSeekCompleted = jest.fn();
+
+jest.mock("@/services/playback-coordinator", () => ({
+  onSeekApplied: (...args: unknown[]) => mockOnSeekApplied(...args),
+  onSeekCompleted: (...args: unknown[]) => mockOnSeekCompleted(...args),
+}));
+
 import {
   SEEK_ACCUMULATION_WINDOW,
   SEEK_EVENT_ACCUMULATION_WINDOW,
 } from "@/constants";
 import { SeekSource } from "@/stores/player";
-import { EventBus } from "@/utils/event-bus";
 import { seek, seekImmediateNoLog } from "@/utils/seek";
 import {
   mockTrackPlayerGetProgress,
   mockTrackPlayerGetRate,
   mockTrackPlayerSeekTo,
 } from "@test/jest-setup";
-
-// Spy on EventBus.emit to verify events
-const eventBusSpy = jest.spyOn(EventBus, "emit");
+/* eslint-enable import/first */
 
 describe("seek", () => {
   beforeEach(() => {
@@ -27,7 +34,8 @@ describe("seek", () => {
     mockTrackPlayerGetProgress.mockReset();
     mockTrackPlayerGetRate.mockReset();
     mockTrackPlayerSeekTo.mockReset();
-    eventBusSpy.mockClear();
+    mockOnSeekApplied.mockReset();
+    mockOnSeekCompleted.mockReset();
 
     // Default mock values
     mockTrackPlayerGetProgress.mockResolvedValue({
@@ -124,13 +132,13 @@ describe("seek", () => {
       expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(0); // Clamped to 0
     });
 
-    it("emits seekApplied event after short delay", async () => {
+    it("calls Coordinator.onSeekApplied after short delay", async () => {
       await seek(10);
 
       jest.advanceTimersByTime(SEEK_ACCUMULATION_WINDOW);
       await Promise.resolve();
 
-      expect(eventBusSpy).toHaveBeenCalledWith("seekApplied", {
+      expect(mockOnSeekApplied).toHaveBeenCalledWith({
         position: 110,
         duration: 3600,
         userInitiated: true,
@@ -138,7 +146,7 @@ describe("seek", () => {
       });
     });
 
-    it("emits seekCompleted event after long delay", async () => {
+    it("calls Coordinator.onSeekCompleted after long delay", async () => {
       await seek(10);
 
       // First, the short timer fires
@@ -151,8 +159,7 @@ describe("seek", () => {
       );
       await Promise.resolve();
 
-      expect(eventBusSpy).toHaveBeenCalledWith(
-        "seekCompleted",
+      expect(mockOnSeekCompleted).toHaveBeenCalledWith(
         expect.objectContaining({
           fromPosition: 100,
           toPosition: 110,
@@ -229,10 +236,10 @@ describe("seek", () => {
       expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(0);
     });
 
-    it("emits seekApplied with userInitiated false", async () => {
+    it("calls Coordinator.onSeekApplied with userInitiated false", async () => {
       await seekImmediateNoLog(10);
 
-      expect(eventBusSpy).toHaveBeenCalledWith("seekApplied", {
+      expect(mockOnSeekApplied).toHaveBeenCalledWith({
         position: 110,
         duration: 3600,
         userInitiated: false,
@@ -240,17 +247,14 @@ describe("seek", () => {
       });
     });
 
-    it("does NOT emit seekCompleted event", async () => {
+    it("does NOT call Coordinator.onSeekCompleted", async () => {
       await seekImmediateNoLog(10);
 
-      // Advance time to ensure no delayed events
+      // Advance time to ensure no delayed calls
       jest.advanceTimersByTime(10000);
       await Promise.resolve();
 
-      expect(eventBusSpy).not.toHaveBeenCalledWith(
-        "seekCompleted",
-        expect.anything(),
-      );
+      expect(mockOnSeekCompleted).not.toHaveBeenCalled();
     });
   });
 });

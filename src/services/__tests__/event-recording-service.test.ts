@@ -1,15 +1,19 @@
 import {
   __resetForTesting,
   getCurrentPlaythroughId,
+  handlePlaybackPaused,
+  handlePlaybackQueueEnded,
+  handlePlaybackRateChanged,
+  handlePlaybackStarted,
+  handleSeekCompleted,
+  initialize,
   initializePlaythroughTracking,
   recordAbandonEvent,
   recordFinishEvent,
   recordStartEvent,
-  startMonitoring,
 } from "@/services/event-recording-service";
 import { useDevice } from "@/stores/device";
 import { useSession } from "@/stores/session";
-import { EventBus } from "@/utils";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createMedia,
@@ -61,24 +65,13 @@ describe("event-recording-service", () => {
     __resetForTesting();
   });
 
-  describe("startMonitoring", () => {
+  describe("initialize", () => {
     it("only initializes once", async () => {
-      await startMonitoring();
-      await startMonitoring();
+      await initialize();
+      await initialize();
 
       // No errors should occur
       expect(true).toBe(true);
-    });
-
-    it("sets up event listeners", async () => {
-      await startMonitoring();
-
-      // Verify listeners are registered by checking EventBus has listeners
-      expect(EventBus.listenerCount("playbackStarted")).toBeGreaterThan(0);
-      expect(EventBus.listenerCount("playbackPaused")).toBeGreaterThan(0);
-      expect(EventBus.listenerCount("playbackQueueEnded")).toBeGreaterThan(0);
-      expect(EventBus.listenerCount("seekCompleted")).toBeGreaterThan(0);
-      expect(EventBus.listenerCount("playbackRateChanged")).toBeGreaterThan(0);
     });
   });
 
@@ -176,18 +169,16 @@ describe("event-recording-service", () => {
   });
 
   describe("playback event handling", () => {
-    it("records play event on playbackStarted", async () => {
+    it("records play event on handlePlaybackStarted", async () => {
       const db = getDb();
       const media = await createMedia(db);
 
-      await startMonitoring();
+      await initialize();
       await initializePlaythroughTracking(session, media.id, 0, 1);
 
       const playthroughId = getCurrentPlaythroughId()!;
 
-      EventBus.emit("playbackStarted");
-      // Wait for async handler to complete
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await handlePlaybackStarted();
 
       const events = await db.query.playbackEvents.findMany({
         where: (e, { eq }) => eq(e.playthroughId, playthroughId),
@@ -198,22 +189,20 @@ describe("event-recording-service", () => {
       expect(playEvents.length).toBeGreaterThanOrEqual(1);
     });
 
-    it("records pause event on playbackPaused", async () => {
+    it("records pause event on handlePlaybackPaused", async () => {
       const db = getDb();
       const media = await createMedia(db);
 
-      await startMonitoring();
+      await initialize();
       await initializePlaythroughTracking(session, media.id, 0, 1);
 
       const playthroughId = getCurrentPlaythroughId()!;
 
       // Start playback first (required for pause event to be recorded)
-      EventBus.emit("playbackStarted");
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await handlePlaybackStarted();
 
       // Then pause
-      EventBus.emit("playbackPaused");
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await handlePlaybackPaused();
 
       const events = await db.query.playbackEvents.findMany({
         where: (e, { eq }) => eq(e.playthroughId, playthroughId),
@@ -223,23 +212,22 @@ describe("event-recording-service", () => {
       expect(pauseEvents.length).toBeGreaterThanOrEqual(1);
     });
 
-    it("records seek event on seekCompleted", async () => {
+    it("records seek event on handleSeekCompleted", async () => {
       const db = getDb();
       const media = await createMedia(db);
 
-      await startMonitoring();
+      await initialize();
       await initializePlaythroughTracking(session, media.id, 0, 1);
 
       const playthroughId = getCurrentPlaythroughId()!;
 
-      // Emit seek event (must be > 2 seconds to be recorded)
+      // Call seek handler directly (must be > 2 seconds to be recorded)
       const seekTimestamp = new Date();
-      EventBus.emit("seekCompleted", {
+      await handleSeekCompleted({
         fromPosition: 0,
         toPosition: 60,
         timestamp: seekTimestamp,
       });
-      await Promise.resolve();
 
       const events = await db.query.playbackEvents.findMany({
         where: (e, { eq }) => eq(e.playthroughId, playthroughId),
@@ -255,18 +243,17 @@ describe("event-recording-service", () => {
       const db = getDb();
       const media = await createMedia(db);
 
-      await startMonitoring();
+      await initialize();
       await initializePlaythroughTracking(session, media.id, 0, 1);
 
       const playthroughId = getCurrentPlaythroughId()!;
 
-      // Emit trivial seek
-      EventBus.emit("seekCompleted", {
+      // Call seek handler with trivial seek
+      await handleSeekCompleted({
         fromPosition: 0,
         toPosition: 1,
         timestamp: new Date(),
       });
-      await Promise.resolve();
 
       const events = await db.query.playbackEvents.findMany({
         where: (e, { eq }) => eq(e.playthroughId, playthroughId),
@@ -280,17 +267,16 @@ describe("event-recording-service", () => {
       const db = getDb();
       const media = await createMedia(db);
 
-      await startMonitoring();
+      await initialize();
       await initializePlaythroughTracking(session, media.id, 0, 1);
 
       const playthroughId = getCurrentPlaythroughId()!;
 
-      EventBus.emit("playbackRateChanged", {
+      await handlePlaybackRateChanged({
         previousRate: 1,
         newRate: 1.5,
         position: 100,
       });
-      await Promise.resolve();
 
       const events = await db.query.playbackEvents.findMany({
         where: (e, { eq }) => eq(e.playthroughId, playthroughId),
@@ -311,14 +297,12 @@ describe("event-recording-service", () => {
         duration: 3600,
       });
 
-      await startMonitoring();
+      await initialize();
       await initializePlaythroughTracking(session, media.id, 0, 1);
 
       const playthroughId = getCurrentPlaythroughId()!;
 
-      EventBus.emit("playbackQueueEnded");
-      // Wait for async handler to complete
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await handlePlaybackQueueEnded();
 
       // Check that finish event was recorded
       const events = await db.query.playbackEvents.findMany({
@@ -337,7 +321,7 @@ describe("event-recording-service", () => {
   });
 
   describe("error handling", () => {
-    it("handles errors in playbackStarted gracefully", async () => {
+    it("handles errors in handlePlaybackStarted gracefully", async () => {
       const db = getDb();
       const media = await createMedia(db);
 
@@ -345,18 +329,17 @@ describe("event-recording-service", () => {
         new Error("TrackPlayer error"),
       );
 
-      await startMonitoring();
+      await initialize();
       await initializePlaythroughTracking(session, media.id, 0, 1);
 
       // Should not throw
-      EventBus.emit("playbackStarted");
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await handlePlaybackStarted();
 
       // Test passes if no error thrown
       expect(true).toBe(true);
     });
 
-    it("handles errors in playbackPaused gracefully", async () => {
+    it("handles errors in handlePlaybackPaused gracefully", async () => {
       const db = getDb();
       const media = await createMedia(db);
 
@@ -364,17 +347,16 @@ describe("event-recording-service", () => {
         new Error("TrackPlayer error"),
       );
 
-      await startMonitoring();
+      await initialize();
       await initializePlaythroughTracking(session, media.id, 0, 1);
 
       // Should not throw
-      EventBus.emit("playbackPaused");
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await handlePlaybackPaused();
 
       expect(true).toBe(true);
     });
 
-    it("handles errors in playbackQueueEnded gracefully", async () => {
+    it("handles errors in handlePlaybackQueueEnded gracefully", async () => {
       const db = getDb();
       const media = await createMedia(db);
 
@@ -382,21 +364,20 @@ describe("event-recording-service", () => {
         new Error("TrackPlayer error"),
       );
 
-      await startMonitoring();
+      await initialize();
       await initializePlaythroughTracking(session, media.id, 0, 1);
 
       // Should not throw
-      EventBus.emit("playbackQueueEnded");
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await handlePlaybackQueueEnded();
 
       expect(true).toBe(true);
     });
 
-    it("handles errors in seekCompleted gracefully", async () => {
+    it("handles errors in handleSeekCompleted gracefully", async () => {
       const db = getDb();
       const media = await createMedia(db);
 
-      await startMonitoring();
+      await initialize();
       await initializePlaythroughTracking(session, media.id, 0, 1);
 
       // Mock the database insert to fail
@@ -405,13 +386,12 @@ describe("event-recording-service", () => {
         throw new Error("Database error");
       });
 
-      // Should not throw - emit a non-trivial seek to trigger recordSeekEvent
-      EventBus.emit("seekCompleted", {
+      // Should not throw - call handler with non-trivial seek
+      await handleSeekCompleted({
         fromPosition: 0,
         toPosition: 60,
         timestamp: new Date(),
       });
-      await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Restore
       db.insert = originalInsert;
@@ -419,11 +399,11 @@ describe("event-recording-service", () => {
       expect(true).toBe(true);
     });
 
-    it("handles errors in playbackRateChanged gracefully", async () => {
+    it("handles errors in handlePlaybackRateChanged gracefully", async () => {
       const db = getDb();
       const media = await createMedia(db);
 
-      await startMonitoring();
+      await initialize();
       await initializePlaythroughTracking(session, media.id, 0, 1);
 
       // Mock the database to fail
@@ -433,12 +413,11 @@ describe("event-recording-service", () => {
       });
 
       // Should not throw
-      EventBus.emit("playbackRateChanged", {
+      await handlePlaybackRateChanged({
         previousRate: 1,
         newRate: 1.5,
         position: 100,
       });
-      await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Restore
       db.insert = originalInsert;
@@ -479,7 +458,7 @@ describe("event-recording-service", () => {
       jest.useRealTimers();
     });
 
-    it("starts heartbeat on playbackStarted and updates state cache", async () => {
+    it("starts heartbeat on handlePlaybackStarted and updates state cache", async () => {
       const db = getDb();
       const media = await createMedia(db);
 
@@ -489,13 +468,13 @@ describe("event-recording-service", () => {
       });
       mockTrackPlayerGetRate.mockResolvedValue(1);
 
-      await startMonitoring();
+      await initialize();
       await initializePlaythroughTracking(session, media.id, 0, 1);
 
       const playthroughId = getCurrentPlaythroughId()!;
 
-      // Trigger playbackStarted to start heartbeat
-      EventBus.emit("playbackStarted");
+      // Trigger handlePlaybackStarted to start heartbeat
+      await handlePlaybackStarted();
       await jest.advanceTimersByTimeAsync(100);
 
       // Update position for heartbeat
@@ -526,11 +505,11 @@ describe("event-recording-service", () => {
       });
       mockTrackPlayerGetRate.mockResolvedValue(1);
 
-      await startMonitoring();
+      await initialize();
       await initializePlaythroughTracking(session, media.id, 0, 1);
 
-      // Trigger playbackStarted to start heartbeat
-      EventBus.emit("playbackStarted");
+      // Trigger handlePlaybackStarted to start heartbeat
+      await handlePlaybackStarted();
       await jest.advanceTimersByTimeAsync(100);
 
       // Make TrackPlayer.getProgress fail for heartbeat

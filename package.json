@@ -71,7 +71,6 @@
     "@sentry/react-native": "^7.4.0",
     "core-js": "^3.43.0",
     "drizzle-orm": "^0.45.1",
-    "eventemitter3": "^5.0.1",
     "expo": "~54.0.30",
     "expo-background-task": "~1.0.10",
     "expo-blur": "~15.0.8",

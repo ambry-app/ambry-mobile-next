@@ -4,9 +4,8 @@ import {
   SEEK_ACCUMULATION_WINDOW,
   SEEK_EVENT_ACCUMULATION_WINDOW,
 } from "@/constants";
+import * as Coordinator from "@/services/playback-coordinator";
 import { SeekSource } from "@/stores/player";
-
-import { EventBus } from "./event-bus";
 
 // Seeking functions for use by the TrackPlayer service. These do not interact
 // with the zustand store in any way, and are only meant for use by the
@@ -80,7 +79,7 @@ export async function seek(interval: number) {
 
     await TrackPlayer.seekTo(newPosition);
     seekEventTimestamp = new Date();
-    EventBus.emit("seekApplied", {
+    Coordinator.onSeekApplied({
       position: newPosition,
       duration,
       userInitiated: true,
@@ -111,7 +110,7 @@ export async function seek(interval: number) {
       seekEventTo,
     );
 
-    EventBus.emit("seekCompleted", {
+    Coordinator.onSeekCompleted({
       fromPosition: seekEventFrom,
       toPosition: seekEventTo,
       timestamp: seekEventTimestamp,
@@ -143,7 +142,7 @@ export async function seekImmediateNoLog(interval: number) {
   );
 
   await TrackPlayer.seekTo(seekPosition);
-  EventBus.emit("seekApplied", {
+  Coordinator.onSeekApplied({
     position: seekPosition,
     duration,
     userInitiated: false,

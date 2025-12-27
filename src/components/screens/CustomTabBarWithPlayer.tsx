@@ -35,11 +35,11 @@ import {
 import { getMedia } from "@/db/library";
 import useBackHandler from "@/hooks/use-back-handler";
 import { useLibraryData } from "@/hooks/use-library-data";
+import * as Coordinator from "@/services/playback-coordinator";
 import { setPlayerRenderState, usePlayer } from "@/stores/player";
 import { useScreen } from "@/stores/screen";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
-import { EventBus } from "@/utils";
 
 import { TabBarTabs } from "./tab-bar";
 import {
@@ -236,12 +236,9 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
   }, [expansion, setRenderCollapsed]);
 
   useEffect(() => {
-    const handler = () => {
-      expand();
-    };
-    EventBus.on("expandPlayer", handler);
+    Coordinator.setExpandPlayerCallback(expand);
     return () => {
-      EventBus.off("expandPlayer", handler);
+      Coordinator.setExpandPlayerCallback(null);
     };
   }, [expand]);
 

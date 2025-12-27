@@ -6,9 +6,20 @@ import {
   setSleepTimerEnabled,
   setSleepTimerTime,
 } from "@/db/settings";
-import { EventBus } from "@/utils";
 
 import { Session } from "./session";
+
+// Callback for notifying coordinator of settings changes
+// Registered by playback-coordinator during init to break circular dependency
+let onSettingsChanged:
+  | ((event: "enabled" | "disabled" | "duration") => void)
+  | null = null;
+
+export function setSleepTimerSettingsCallback(
+  callback: ((event: "enabled" | "disabled" | "duration") => void) | null,
+) {
+  onSettingsChanged = callback;
+}
 
 export interface SleepTimerState {
   initialized: boolean;
@@ -61,11 +72,7 @@ export async function setSleepTimerState(session: Session, enabled: boolean) {
 
   await setSleepTimerEnabled(session.email, enabled);
 
-  if (enabled) {
-    EventBus.emit("sleepTimerEnabled");
-  } else {
-    EventBus.emit("sleepTimerDisabled");
-  }
+  onSettingsChanged?.(enabled ? "enabled" : "disabled");
 }
 
 /**
@@ -76,10 +83,10 @@ export async function setSleepTimer(session: Session, seconds: number) {
 
   await setSleepTimerTime(session.email, seconds);
 
-  // If timer is currently active, notify service to reset with new duration
+  // If timer is currently active, notify coordinator to reset with new duration
   const { sleepTimerTriggerTime } = useSleepTimer.getState();
   if (sleepTimerTriggerTime !== null) {
-    EventBus.emit("sleepTimerChanged");
+    onSettingsChanged?.("duration");
   }
 }
 

@@ -5,12 +5,13 @@
  * Only mock external native modules (TrackPlayer).
  */
 
+// Mock the coordinator to verify it's called correctly
 import {
   SEEK_ACCUMULATION_WINDOW,
   SEEK_EVENT_ACCUMULATION_WINDOW,
 } from "@/constants";
 import * as schema from "@/db/schema";
-import { stopMonitoring } from "@/services/event-recording-service";
+import { __resetForTesting } from "@/services/event-recording-service";
 import { initialDeviceState, useDevice } from "@/stores/device";
 import {
   cancelResumePrompt,
@@ -34,7 +35,6 @@ import {
   usePlayer,
 } from "@/stores/player";
 import { useSession } from "@/stores/session";
-import { EventBus } from "@/utils/event-bus";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createBookAuthor,
@@ -59,11 +59,24 @@ import {
   mockTrackPlayerUpdateOptions,
 } from "@test/jest-setup";
 
+const mockOnPlay = jest.fn();
+const mockOnPause = jest.fn();
+const mockOnRateChanged = jest.fn();
+const mockOnSeekApplied = jest.fn();
+const mockOnSeekCompleted = jest.fn();
+const mockExpandPlayer = jest.fn();
+
+jest.mock("@/services/playback-coordinator", () => ({
+  onPlay: (...args: unknown[]) => mockOnPlay(...args),
+  onPause: (...args: unknown[]) => mockOnPause(...args),
+  onRateChanged: (...args: unknown[]) => mockOnRateChanged(...args),
+  onSeekApplied: (...args: unknown[]) => mockOnSeekApplied(...args),
+  onSeekCompleted: (...args: unknown[]) => mockOnSeekCompleted(...args),
+  expandPlayer: () => mockExpandPlayer(),
+}));
+
 // Set up test database
 const { getDb } = setupTestDatabase();
-
-// Spy on EventBus.emit to verify events
-const eventBusSpy = jest.spyOn(EventBus, "emit");
 
 // Initial states for resetting between tests
 const initialPlayerState = {
@@ -103,7 +116,7 @@ describe("player store", () => {
     useDevice.setState(initialDeviceState);
 
     // Reset event recording service module state
-    stopMonitoring();
+    __resetForTesting();
 
     // Reset mocks
     mockTrackPlayerGetProgress.mockReset();
@@ -117,7 +130,12 @@ describe("player store", () => {
     mockTrackPlayerGetTrack.mockReset();
     mockTrackPlayerSetupPlayer.mockReset();
     mockTrackPlayerUpdateOptions.mockReset();
-    eventBusSpy.mockClear();
+    mockOnPlay.mockReset();
+    mockOnPause.mockReset();
+    mockOnRateChanged.mockReset();
+    mockOnSeekApplied.mockReset();
+    mockOnSeekCompleted.mockReset();
+    mockExpandPlayer.mockReset();
 
     // Default mock values
     mockTrackPlayerGetTrack.mockResolvedValue(null); // No track loaded by default
@@ -154,12 +172,10 @@ describe("player store", () => {
         expect(mockTrackPlayerPlay).toHaveBeenCalled();
       });
 
-      it("emits playbackStarted event with remote: false", async () => {
+      it("calls Coordinator.onPlay", async () => {
         await play();
 
-        expect(eventBusSpy).toHaveBeenCalledWith("playbackStarted", {
-          remote: false,
-        });
+        expect(mockOnPlay).toHaveBeenCalled();
       });
 
       it("gets current position before playing", async () => {
@@ -176,12 +192,10 @@ describe("player store", () => {
         expect(mockTrackPlayerPause).toHaveBeenCalled();
       });
 
-      it("emits playbackPaused event with remote: false", async () => {
+      it("calls Coordinator.onPause", async () => {
         await pause();
 
-        expect(eventBusSpy).toHaveBeenCalledWith("playbackPaused", {
-          remote: false,
-        });
+        expect(mockOnPause).toHaveBeenCalled();
       });
 
       it("applies a small backward seek to ensure progress is saved", async () => {
@@ -189,8 +203,8 @@ describe("player store", () => {
         // the current position is captured correctly
         await pause();
 
-        // Should emit seekApplied
-        expect(eventBusSpy).toHaveBeenCalledWith("seekApplied", {
+        // Should call Coordinator.onSeekApplied
+        expect(mockOnSeekApplied).toHaveBeenCalledWith({
           position: expect.any(Number),
           duration: 3600,
           userInitiated: false,
@@ -200,10 +214,10 @@ describe("player store", () => {
     });
 
     describe("expandPlayer()", () => {
-      it("emits expandPlayer event", () => {
+      it("calls Coordinator.expandPlayer", () => {
         expandPlayer();
 
-        expect(eventBusSpy).toHaveBeenCalledWith("expandPlayer");
+        expect(mockExpandPlayer).toHaveBeenCalled();
       });
     });
 
@@ -247,12 +261,12 @@ describe("player store", () => {
         expect(mockTrackPlayerSetRate).toHaveBeenCalledWith(2.0);
       });
 
-      it("emits playbackRateChanged event with previous and new rate", async () => {
+      it("calls Coordinator.onRateChanged with previous and new rate", async () => {
         usePlayer.setState({ playbackRate: 1.0 });
 
         await setPlaybackRate(DEFAULT_TEST_SESSION, 1.5);
 
-        expect(eventBusSpy).toHaveBeenCalledWith("playbackRateChanged", {
+        expect(mockOnRateChanged).toHaveBeenCalledWith({
           previousRate: 1.0,
           newRate: 1.5,
           position: 100, // from mockTrackPlayerGetProgress
@@ -303,13 +317,13 @@ describe("player store", () => {
         await jest.advanceTimersByTimeAsync(5000);
       });
 
-      it("emits seekApplied event with correct source", async () => {
+      it("calls Coordinator.onSeekApplied with correct source", async () => {
         seekTo(500, SeekSource.SCRUBBER);
         await Promise.resolve();
 
         await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
-        expect(eventBusSpy).toHaveBeenCalledWith("seekApplied", {
+        expect(mockOnSeekApplied).toHaveBeenCalledWith({
           position: 500,
           duration: 3600,
           userInitiated: true,
@@ -317,7 +331,7 @@ describe("player store", () => {
         });
       });
 
-      it("emits seekCompleted event after long delay", async () => {
+      it("calls Coordinator.onSeekCompleted after long delay", async () => {
         seekTo(500, SeekSource.SCRUBBER);
         await Promise.resolve();
 
@@ -329,8 +343,7 @@ describe("player store", () => {
           SEEK_EVENT_ACCUMULATION_WINDOW - SEEK_ACCUMULATION_WINDOW,
         );
 
-        expect(eventBusSpy).toHaveBeenCalledWith(
-          "seekCompleted",
+        expect(mockOnSeekCompleted).toHaveBeenCalledWith(
           expect.objectContaining({
             fromPosition: 100,
             toPosition: 500,
@@ -404,13 +417,13 @@ describe("player store", () => {
         expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(115); // 100 + 15
       });
 
-      it("emits seekApplied event with button source", async () => {
+      it("calls Coordinator.onSeekApplied with button source", async () => {
         seekRelative(30, SeekSource.BUTTON);
         await Promise.resolve();
 
         await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
-        expect(eventBusSpy).toHaveBeenCalledWith("seekApplied", {
+        expect(mockOnSeekApplied).toHaveBeenCalledWith({
           position: 130,
           duration: 3600,
           userInitiated: true,
@@ -474,7 +487,7 @@ describe("player store", () => {
         expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(3600); // Uses duration
       });
 
-      it("emits seekApplied with CHAPTER source", async () => {
+      it("calls Coordinator.onSeekApplied with CHAPTER source", async () => {
         usePlayer.setState({
           duration: 3600,
           chapters,
@@ -486,7 +499,7 @@ describe("player store", () => {
 
         await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
-        expect(eventBusSpy).toHaveBeenCalledWith("seekApplied", {
+        expect(mockOnSeekApplied).toHaveBeenCalledWith({
           position: 600,
           duration: 3600,
           userInitiated: true,
@@ -562,7 +575,7 @@ describe("player store", () => {
         expect(mockTrackPlayerSeekTo).not.toHaveBeenCalled();
       });
 
-      it("emits seekApplied with CHAPTER source", async () => {
+      it("calls Coordinator.onSeekApplied with CHAPTER source", async () => {
         mockTrackPlayerGetProgress.mockResolvedValue({
           position: 700,
           duration: 3600,
@@ -581,7 +594,7 @@ describe("player store", () => {
 
         await jest.advanceTimersByTimeAsync(SEEK_ACCUMULATION_WINDOW);
 
-        expect(eventBusSpy).toHaveBeenCalledWith("seekApplied", {
+        expect(mockOnSeekApplied).toHaveBeenCalledWith({
           position: 600,
           duration: 3600,
           userInitiated: true,

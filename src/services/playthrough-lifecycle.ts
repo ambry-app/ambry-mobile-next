@@ -14,7 +14,6 @@
 
 import { updatePlaythroughStatus } from "@/db/playthroughs";
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
-import { tryUnloadPlayer } from "@/stores/player";
 import { Session } from "@/stores/session";
 
 import {
@@ -23,6 +22,15 @@ import {
   recordAbandonEvent,
   recordFinishEvent,
 } from "./event-recording-service";
+
+// Callback for unloading player, registered by player.ts to break circular dependency
+let unloadPlayerCallback: (() => Promise<void>) | null = null;
+
+export function setUnloadPlayerCallback(
+  callback: (() => Promise<void>) | null,
+) {
+  unloadPlayerCallback = callback;
+}
 
 export type FinishOptions = {
   /** Skip unloading the player (e.g., when loading new media immediately after) */
@@ -65,7 +73,7 @@ export async function finishPlaythrough(
 
   // Unload player if this playthrough was loaded (unless caller wants to handle it)
   if (isLoadedInPlayer && !options?.skipUnload) {
-    await tryUnloadPlayer();
+    await unloadPlayerCallback?.();
   }
 }
 
@@ -104,6 +112,6 @@ export async function abandonPlaythrough(
 
   // Unload player if this playthrough was loaded
   if (isLoadedInPlayer) {
-    await tryUnloadPlayer();
+    await unloadPlayerCallback?.();
   }
 }

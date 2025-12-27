@@ -13,8 +13,12 @@ import { syncPlaythroughs } from "@/db/sync";
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
 import { getDeviceIdSync, initializeDevice } from "@/stores/device";
 import { Session, useSession } from "@/stores/session";
-import { EventBus } from "@/utils";
 import { randomUUID } from "@/utils/crypto";
+
+import type {
+  RateChangedPayload,
+  SeekCompletedPayload,
+} from "./playback-types";
 
 let isInitialized = false;
 let currentMediaId: string | null = null;
@@ -30,35 +34,15 @@ let currentPlaybackRate: number = 1;
 /**
  * Initialize the event recording service.
  * Called from playback-service.ts during service setup.
+ * Initializes the device store so getDeviceIdSync() works in event handlers.
  */
-
-export async function startMonitoring() {
+export async function initialize() {
   if (isInitialized) return;
   isInitialized = true;
   console.debug("[EventRecording] Initializing");
 
   // Initialize device store so getDeviceIdSync() works in event handlers
   await initializeDevice();
-
-  EventBus.on("playbackStarted", handlePlaybackStarted);
-  EventBus.on("playbackPaused", handlePlaybackPaused);
-  EventBus.on("playbackQueueEnded", handlePlaybackQueueEnded);
-  EventBus.on("seekCompleted", handleSeekCompleted);
-  EventBus.on("playbackRateChanged", handlePlaybackRateChanged);
-}
-
-/**
- * Stop monitoring playback events.
- */
-export function stopMonitoring() {
-  console.debug("[EventRecording] Stopping");
-  stopHeartbeat();
-  isInitialized = false;
-  EventBus.off("playbackStarted", handlePlaybackStarted);
-  EventBus.off("playbackPaused", handlePlaybackPaused);
-  EventBus.off("playbackQueueEnded", handlePlaybackQueueEnded);
-  EventBus.off("seekCompleted", handleSeekCompleted);
-  EventBus.off("playbackRateChanged", handlePlaybackRateChanged);
 }
 
 /**
@@ -207,10 +191,10 @@ export async function initializePlaythroughTracking(
 }
 
 // =============================================================================
-// Event Handlers
+// Event Handlers (exported for coordinator to call directly)
 // =============================================================================
 
-async function handlePlaybackStarted() {
+export async function handlePlaybackStarted() {
   // Capture at the start - may change during async operations
   const playthroughId = currentPlaythroughId;
 
@@ -228,7 +212,7 @@ async function handlePlaybackStarted() {
   }
 }
 
-async function handlePlaybackPaused() {
+export async function handlePlaybackPaused() {
   // Capture these at the start - they may change during async operations
   const playthroughId = currentPlaythroughId;
   const playbackRate = currentPlaybackRate;
@@ -262,7 +246,7 @@ function triggerSyncOnPause() {
   });
 }
 
-async function handlePlaybackQueueEnded() {
+export async function handlePlaybackQueueEnded() {
   // Capture these at the start - they may change during async operations
   const playthroughId = currentPlaythroughId;
   const playbackRate = currentPlaybackRate;
@@ -299,19 +283,13 @@ async function handlePlaybackQueueEnded() {
   }
 }
 
-interface SeekCompletedEvent {
-  fromPosition: number;
-  toPosition: number;
-  timestamp: Date;
-}
-
 /**
  * Handle debounced seek completion.
  * Records the seek event to the database.
  * Uses the timestamp from when the seek was actually applied, not when this
  * debounced event fired.
  */
-async function handleSeekCompleted(event: SeekCompletedEvent) {
+export async function handleSeekCompleted(event: SeekCompletedPayload) {
   // Capture at the start - may change during async operations
   const playthroughId = currentPlaythroughId;
   const playbackRate = currentPlaybackRate;
@@ -338,13 +316,7 @@ async function handleSeekCompleted(event: SeekCompletedEvent) {
   }
 }
 
-interface RateChangedEvent {
-  previousRate: number;
-  newRate: number;
-  position: number;
-}
-
-async function handlePlaybackRateChanged(event: RateChangedEvent) {
+export async function handlePlaybackRateChanged(event: RateChangedPayload) {
   // Capture at the start - may change during async operations
   const playthroughId = currentPlaythroughId;
 
@@ -480,7 +452,6 @@ async function recordPlayEvent(
   await updateStateCache(playthroughId, position, playbackRate, now);
 
   console.debug("[EventRecording] Recorded play event at position", position);
-  EventBus.emit("playbackEventRecorded");
 }
 
 async function recordPauseEvent(
@@ -506,7 +477,6 @@ async function recordPauseEvent(
   await updateStateCache(playthroughId, position, playbackRate, now);
 
   console.debug("[EventRecording] Recorded pause event at position", position);
-  EventBus.emit("playbackEventRecorded");
 }
 
 async function recordSeekEvent(
@@ -539,7 +509,6 @@ async function recordSeekEvent(
     "to",
     toPosition.toFixed(1),
   );
-  EventBus.emit("playbackEventRecorded");
 }
 
 async function recordRateChangeEvent(
@@ -572,15 +541,14 @@ async function recordRateChangeEvent(
     "to",
     newRate,
   );
-  EventBus.emit("playbackEventRecorded");
 }
 
 /**
  * Reset service state for testing.
- * Clears all module state and removes event listeners.
+ * Clears all module state.
  */
 export function __resetForTesting() {
-  stopMonitoring();
+  stopHeartbeat();
   currentMediaId = null;
   currentPlaythroughId = null;
   currentPlaybackRate = 1;

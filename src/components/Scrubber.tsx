@@ -19,9 +19,10 @@ import TrackPlayer, {
 import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 import { useShallow } from "zustand/shallow";
 
+import * as Coordinator from "@/services/playback-coordinator";
+import type { SeekAppliedPayload } from "@/services/playback-types";
 import { SeekSource, seekTo, usePlayer } from "@/stores/player";
 import { Colors } from "@/styles";
-import { EventBus } from "@/utils";
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
@@ -330,43 +331,41 @@ export const Scrubber = memo(function Scrubber() {
     lastTimestamp.value = frameInfo.timestamp;
   });
 
-  // Listen to seekApplied events to animate user-initiated seeks
-  useEffect(() => {
-    const handleSeekApplied = (payload: {
-      position: number;
-      userInitiated: boolean;
-      source: string;
-    }) => {
-      // Animate for user seeks (button/chapter/remote) and pause rewind, but not scrubber
-      if (
-        (payload.userInitiated || payload.source === SeekSource.PAUSE) &&
-        payload.source !== SeekSource.SCRUBBER &&
-        !isScrubbing
-      ) {
-        scheduleOnUI(() => {
-          "worklet";
-          isAnimatingUserSeek.value = true;
-          translateX.value = withTiming(
-            timeToTranslateX(payload.position),
-            {
-              duration: 400,
-              easing: Easing.out(Easing.exp),
-            },
-            (finished) => {
-              if (finished) {
-                isAnimatingUserSeek.value = false;
-              }
-            },
-          );
-        });
-      }
-    };
+  // Register callback to animate to new position when seek is applied
+  const handleSeekApplied = useCallback(
+    (payload: SeekAppliedPayload) => {
+      // Don't animate while scrubbing (user is controlling the position)
+      if (isScrubbing) return;
 
-    EventBus.on("seekApplied", handleSeekApplied);
+      // Don't animate for pause-related seeks (they're tiny adjustments)
+      if (payload.source === SeekSource.PAUSE) return;
+
+      scheduleOnUI(() => {
+        "worklet";
+        isAnimatingUserSeek.value = true;
+        translateX.value = withTiming(
+          timeToTranslateX(payload.position),
+          {
+            duration: 400,
+            easing: Easing.out(Easing.exp),
+          },
+          (finished) => {
+            if (finished) {
+              isAnimatingUserSeek.value = false;
+            }
+          },
+        );
+      });
+    },
+    [isScrubbing, translateX, isAnimatingUserSeek],
+  );
+
+  useEffect(() => {
+    Coordinator.setScrubberSeekCallback(handleSeekApplied);
     return () => {
-      EventBus.off("seekApplied", handleSeekApplied);
+      Coordinator.setScrubberSeekCallback(null);
     };
-  }, [isScrubbing, translateX, isAnimatingUserSeek]);
+  }, [handleSeekApplied]);
 
   // Periodic drift correction - check every 2 seconds without causing re-renders
   // Only runs while playing and not scrubbing

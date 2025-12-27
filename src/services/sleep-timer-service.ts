@@ -2,13 +2,27 @@ import TrackPlayer, { isPlaying } from "react-native-track-player";
 
 import { SLEEP_TIMER_FADE_OUT_TIME } from "@/constants";
 import { setTriggerTime, useSleepTimer } from "@/stores/sleep-timer";
-import { EventBus } from "@/utils";
 
 const SLEEP_TIMER_CHECK_INTERVAL = 1000;
 let sleepTimerCheckInterval: NodeJS.Timeout | null = null;
+let onSleepTimerPause: (() => Promise<void>) | null = null;
 
 /**
- * Start monitoring sleep timer (checks every second)
+ * Set the callback for when sleep timer triggers a pause.
+ * Called once by the coordinator during initialization.
+ *
+ * NOTE: Only one callback can be registered.
+ */
+export function setOnPauseCallback(callback: () => Promise<void>) {
+  if (onSleepTimerPause !== null) {
+    console.warn("[SleepTimer] Pause callback already registered");
+  }
+  onSleepTimerPause = callback;
+}
+
+/**
+ * Start monitoring sleep timer (checks every second).
+ * The coordinator calls reset/maybeReset/cancel directly - no EventBus listeners needed.
  */
 export function startMonitoring() {
   if (sleepTimerCheckInterval) return;
@@ -18,41 +32,6 @@ export function startMonitoring() {
   sleepTimerCheckInterval = setInterval(() => {
     checkTimer();
   }, SLEEP_TIMER_CHECK_INTERVAL);
-
-  EventBus.on("seekApplied", (payload) => {
-    if (payload.source === "pause") {
-      return;
-    }
-    maybeReset();
-  });
-
-  EventBus.on("playbackStarted", () => {
-    reset();
-  });
-
-  EventBus.on("playbackPaused", () => {
-    cancel();
-  });
-
-  EventBus.on("playbackQueueEnded", () => {
-    cancel();
-  });
-
-  EventBus.on("remoteDuck", () => {
-    reset();
-  });
-
-  EventBus.on("sleepTimerEnabled", () => {
-    maybeReset();
-  });
-
-  EventBus.on("sleepTimerDisabled", () => {
-    cancel();
-  });
-
-  EventBus.on("sleepTimerChanged", () => {
-    maybeReset();
-  });
 }
 
 /**
@@ -75,7 +54,9 @@ async function checkTimer() {
     await TrackPlayer.pause();
     await TrackPlayer.setVolume(1.0);
     setTriggerTime(null);
-    EventBus.emit("playbackPaused", { remote: false });
+    // Call the injected callback to record the pause event
+    // NOTE: We don't call cancel() here because that would create a loop
+    await onSleepTimerPause?.();
   } else if (timeRemaining <= SLEEP_TIMER_FADE_OUT_TIME) {
     // Fade volume in last 30 seconds
     const volume = timeRemaining / SLEEP_TIMER_FADE_OUT_TIME;
@@ -130,19 +111,12 @@ export async function cancel() {
 
 /**
  * Reset service state for testing.
- * Clears intervals and removes event listeners.
+ * Clears intervals and resets callbacks.
  */
 export function __resetForTesting() {
   if (sleepTimerCheckInterval) {
     clearInterval(sleepTimerCheckInterval);
     sleepTimerCheckInterval = null;
   }
-  EventBus.removeAllListeners("seekApplied");
-  EventBus.removeAllListeners("playbackStarted");
-  EventBus.removeAllListeners("playbackPaused");
-  EventBus.removeAllListeners("playbackQueueEnded");
-  EventBus.removeAllListeners("remoteDuck");
-  EventBus.removeAllListeners("sleepTimerEnabled");
-  EventBus.removeAllListeners("sleepTimerDisabled");
-  EventBus.removeAllListeners("sleepTimerChanged");
+  onSleepTimerPause = null;
 }

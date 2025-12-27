@@ -1,11 +1,30 @@
 /* eslint-disable import/first */
-// Mock the other services to prevent their initialization from running
-jest.mock("@/services/sleep-timer-service", () => ({
-  startMonitoring: jest.fn(),
+// Mock the coordinator to verify it's called correctly
+const mockOnPlay = jest.fn();
+const mockOnPause = jest.fn();
+const mockOnQueueEnded = jest.fn();
+const mockOnRemoteDuck = jest.fn();
+const mockInitialize = jest.fn();
+const mockSetPlayerProgressUpdater = jest.fn();
+
+jest.mock("@/services/playback-coordinator", () => ({
+  onPlay: (...args: unknown[]) => mockOnPlay(...args),
+  onPause: (...args: unknown[]) => mockOnPause(...args),
+  onQueueEnded: (...args: unknown[]) => mockOnQueueEnded(...args),
+  onRemoteDuck: (...args: unknown[]) => mockOnRemoteDuck(...args),
+  initialize: (...args: unknown[]) => mockInitialize(...args),
+  setPlayerProgressUpdater: (...args: unknown[]) =>
+    mockSetPlayerProgressUpdater(...args),
 }));
 
+// Mock event-recording-service
 jest.mock("@/services/event-recording-service", () => ({
-  startMonitoring: jest.fn().mockResolvedValue(undefined),
+  initialize: jest.fn().mockResolvedValue(undefined),
+}));
+
+// Mock the player store
+jest.mock("@/stores/player", () => ({
+  setProgress: jest.fn(),
 }));
 
 // Mock seek utils
@@ -18,8 +37,6 @@ jest.mock("@/utils/seek", () => ({
 
 import * as EventRecording from "@/services/event-recording-service";
 import { PlaybackService } from "@/services/playback-service";
-import * as SleepTimer from "@/services/sleep-timer-service";
-import { EventBus } from "@/utils";
 import {
   mockTrackPlayerAddEventListener,
   mockTrackPlayerPause,
@@ -46,6 +63,12 @@ describe("playback-service", () => {
     mockTrackPlayerPause.mockReset();
     mockSeek.mockReset();
     mockSeekImmediateNoLog.mockReset();
+    mockOnPlay.mockReset();
+    mockOnPause.mockReset();
+    mockOnQueueEnded.mockReset();
+    mockOnRemoteDuck.mockReset();
+    mockInitialize.mockReset();
+    mockSetPlayerProgressUpdater.mockReset();
     jest.clearAllMocks();
   });
 
@@ -69,45 +92,42 @@ describe("playback-service", () => {
       expect(registeredEvents).toContain("remote-play");
     });
 
-    it("starts SleepTimer monitoring", async () => {
+    it("initializes EventRecording", async () => {
       await PlaybackService();
 
-      expect(SleepTimer.startMonitoring).toHaveBeenCalled();
+      expect(EventRecording.initialize).toHaveBeenCalled();
     });
 
-    it("starts EventRecording monitoring", async () => {
+    it("initializes the Coordinator", async () => {
       await PlaybackService();
 
-      expect(EventRecording.startMonitoring).toHaveBeenCalled();
+      expect(mockSetPlayerProgressUpdater).toHaveBeenCalled();
+      expect(mockInitialize).toHaveBeenCalled();
     });
   });
 
   describe("event handlers", () => {
-    it("PlaybackQueueEnded emits playbackQueueEnded event", async () => {
+    it("PlaybackQueueEnded calls Coordinator.onQueueEnded", async () => {
       await PlaybackService();
 
       const handler = getEventHandler("playback-queue-ended");
       expect(handler).toBeDefined();
 
-      const emitSpy = jest.spyOn(EventBus, "emit");
       handler!();
 
-      expect(emitSpy).toHaveBeenCalledWith("playbackQueueEnded");
-      emitSpy.mockRestore();
+      expect(mockOnQueueEnded).toHaveBeenCalled();
     });
 
-    it("RemoteDuck emits remoteDuck event with args", async () => {
+    it("RemoteDuck calls Coordinator.onRemoteDuck", async () => {
       await PlaybackService();
 
       const handler = getEventHandler("remote-duck");
       expect(handler).toBeDefined();
 
-      const emitSpy = jest.spyOn(EventBus, "emit");
       const args = { paused: true, permanent: false };
       handler!(args);
 
-      expect(emitSpy).toHaveBeenCalledWith("remoteDuck", args);
-      emitSpy.mockRestore();
+      expect(mockOnRemoteDuck).toHaveBeenCalled();
     });
 
     it("RemoteJumpBackward calls seek with negative interval", async () => {
@@ -132,33 +152,29 @@ describe("playback-service", () => {
       expect(mockSeek).toHaveBeenCalledWith(30);
     });
 
-    it("RemotePause pauses playback, seeks back, and emits event", async () => {
+    it("RemotePause pauses playback, seeks back, and calls Coordinator.onPause", async () => {
       await PlaybackService();
 
       const handler = getEventHandler("remote-pause");
       expect(handler).toBeDefined();
 
-      const emitSpy = jest.spyOn(EventBus, "emit");
       await handler!();
 
       expect(mockTrackPlayerPause).toHaveBeenCalled();
       expect(mockSeekImmediateNoLog).toHaveBeenCalledWith(-1);
-      expect(emitSpy).toHaveBeenCalledWith("playbackPaused", { remote: true });
-      emitSpy.mockRestore();
+      expect(mockOnPause).toHaveBeenCalled();
     });
 
-    it("RemotePlay starts playback and emits event", async () => {
+    it("RemotePlay starts playback and calls Coordinator.onPlay", async () => {
       await PlaybackService();
 
       const handler = getEventHandler("remote-play");
       expect(handler).toBeDefined();
 
-      const emitSpy = jest.spyOn(EventBus, "emit");
       await handler!();
 
       expect(mockTrackPlayerPlay).toHaveBeenCalled();
-      expect(emitSpy).toHaveBeenCalledWith("playbackStarted", { remote: true });
-      emitSpy.mockRestore();
+      expect(mockOnPlay).toHaveBeenCalled();
     });
   });
 });

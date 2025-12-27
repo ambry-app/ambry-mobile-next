@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
 
@@ -8,31 +7,17 @@ import {
 } from "@/db/playthroughs";
 import { PlaybackEventSelect } from "@/db/schema";
 import { useLibraryData } from "@/hooks/use-library-data";
-import { getCurrentPlaythroughId } from "@/services/event-recording-service";
 import { Colors } from "@/styles";
-import { EventBus } from "@/utils";
 
 export default function PlaythroughDebugRoute() {
   const { id: playthroughId } = useLocalSearchParams<{ id: string }>();
-  const [localVersion, setLocalVersion] = useState(0);
 
-  // Subscribe to event recording completions only if viewing the currently active playthrough
-  useEffect(() => {
-    const isLivePlaythrough = playthroughId === getCurrentPlaythroughId();
-    if (!isLivePlaythrough) return;
-
-    const bump = () => setLocalVersion((v) => v + 1);
-
-    EventBus.on("playbackEventRecorded", bump);
-
-    return () => {
-      EventBus.off("playbackEventRecorded", bump);
-    };
-  }, [playthroughId]);
-
+  // Note: auto-refresh on new events was removed when EventBus was removed.
+  // This debug screen now only shows data at page load time.
+  // Pull-to-refresh or navigation can be used to see updates.
   const data = useLibraryData(
     () => getPlaythroughForDebug(playthroughId),
-    [playthroughId, localVersion],
+    [playthroughId],
   );
 
   if (!data) {
