@@ -27,7 +27,10 @@ export default function TabsWrapperLayout() {
   return (
     <>
       <Stack screenOptions={screenOptions}>
-        <Stack.Screen name="(home)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="(home)"
+          options={{ headerShown: false, title: "Back" }}
+        />
         <Stack.Screen name="media/[id]" />
         <Stack.Screen name="book/[id]" />
         <Stack.Screen name="person/[id]" />
