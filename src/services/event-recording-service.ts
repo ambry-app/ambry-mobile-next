@@ -132,6 +132,23 @@ export async function recordAbandonEvent(playthroughId: string) {
   console.debug("[EventRecording] Recorded abandon event");
 }
 
+/**
+ * Record a "resume" lifecycle event when a user resumes a finished/abandoned playthrough.
+ */
+export async function recordResumeEvent(playthroughId: string) {
+  const now = new Date();
+
+  await getDb().insert(schema.playbackEvents).values({
+    id: randomUUID(),
+    playthroughId,
+    deviceId: getDeviceIdSync(),
+    type: "resume",
+    timestamp: now,
+  });
+
+  console.debug("[EventRecording] Recorded resume event");
+}
+
 // =============================================================================
 // Playthrough Initialization (called directly from player.ts)
 // =============================================================================

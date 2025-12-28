@@ -520,6 +520,7 @@ export async function syncPlaythroughs(session: Session) {
     rate_change: PlaybackEventType.RateChange,
     finish: PlaybackEventType.Finish,
     abandon: PlaybackEventType.Abandon,
+    resume: PlaybackEventType.Resume,
   };
 
   // Prepare input for syncProgress mutation
@@ -641,7 +642,8 @@ export async function syncPlaythroughs(session: Session) {
           | "seek"
           | "rate_change"
           | "finish"
-          | "abandon",
+          | "abandon"
+          | "resume",
         timestamp: new Date(event.timestamp),
         position: event.position,
         playbackRate: event.playbackRate,

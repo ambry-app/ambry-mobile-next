@@ -406,7 +406,8 @@ export type PlaybackEventType =
   | "seek"
   | "rate_change"
   | "finish"
-  | "abandon";
+  | "abandon"
+  | "resume";
 
 // Represents a user's journey through a book (from start to finish/abandon)
 export const playthroughs = sqliteTable(
@@ -475,6 +476,7 @@ export const playbackEvents = sqliteTable(
         "rate_change",
         "finish",
         "abandon",
+        "resume",
       ],
     }).notNull(),
     timestamp: integer("timestamp", { mode: "timestamp" }).notNull(),

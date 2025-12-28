@@ -61,7 +61,8 @@ async function checkTimer() {
     // (see SLEEP_TIMER_PAUSE_REWIND_SECONDS in constants.ts for explanation)
     const { position, duration } = await TrackPlayer.getProgress();
     const playbackRate = await TrackPlayer.getRate();
-    let seekPosition = position - SLEEP_TIMER_PAUSE_REWIND_SECONDS * playbackRate;
+    let seekPosition =
+      position - SLEEP_TIMER_PAUSE_REWIND_SECONDS * playbackRate;
     seekPosition = Math.max(0, Math.min(seekPosition, duration));
     await TrackPlayer.seekTo(seekPosition);
 

@@ -44,6 +44,7 @@ import {
   pauseAndRecordEvent,
   recordAbandonEvent,
   recordFinishEvent,
+  recordResumeEvent,
   recordStartEvent,
 } from "./event-recording-service";
 import * as Coordinator from "./playback-coordinator";
@@ -125,8 +126,9 @@ export async function resumePlaythroughAndPlay(
 ) {
   await pauseCurrentIfPlaying();
 
-  // Mark as in_progress in database
+  // Mark as in_progress in database and record resume event
   await resumePlaythroughInDb(session, playthroughId);
+  await recordResumeEvent(playthroughId);
   bumpPlaythroughDataVersion();
 
   // Load the now-active playthrough
