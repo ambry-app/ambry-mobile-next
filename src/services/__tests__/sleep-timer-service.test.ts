@@ -1,4 +1,7 @@
-import { SLEEP_TIMER_FADE_OUT_TIME } from "@/constants";
+import {
+  SLEEP_TIMER_FADE_OUT_TIME,
+  SLEEP_TIMER_PAUSE_REWIND_SECONDS,
+} from "@/constants";
 import {
   __resetForTesting,
   cancel,
@@ -129,6 +132,27 @@ describe("sleep-timer-service", () => {
       expect(mockTrackPlayerPause).toHaveBeenCalled();
       expect(mockTrackPlayerSetVolume).toHaveBeenCalledWith(1.0);
       expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
+    });
+
+    it("rewinds by SLEEP_TIMER_PAUSE_REWIND_SECONDS when timer expires", async () => {
+      const now = Date.now();
+      useSleepTimer.setState({
+        sleepTimerEnabled: true,
+        sleepTimerTriggerTime: now - 1000,
+      });
+      mockTrackPlayerGetProgress.mockResolvedValue({
+        position: 100,
+        duration: 3600,
+      });
+      mockTrackPlayerGetRate.mockResolvedValue(1.5);
+
+      startMonitoring();
+      await jest.advanceTimersByTimeAsync(SLEEP_TIMER_CHECK_INTERVAL);
+
+      // At 1.5x speed, rewinds 15 seconds of audio time (10 * 1.5)
+      expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(
+        100 - SLEEP_TIMER_PAUSE_REWIND_SECONDS * 1.5,
+      );
     });
 
     it("fades volume when within fade out window", async () => {

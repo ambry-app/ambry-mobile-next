@@ -1,6 +1,9 @@
 import TrackPlayer, { isPlaying } from "react-native-track-player";
 
-import { PAUSE_REWIND_SECONDS, SLEEP_TIMER_FADE_OUT_TIME } from "@/constants";
+import {
+  SLEEP_TIMER_FADE_OUT_TIME,
+  SLEEP_TIMER_PAUSE_REWIND_SECONDS,
+} from "@/constants";
 import { setTriggerTime, useSleepTimer } from "@/stores/sleep-timer";
 
 const SLEEP_TIMER_CHECK_INTERVAL = 1000;
@@ -54,11 +57,11 @@ async function checkTimer() {
     await TrackPlayer.pause();
     await TrackPlayer.setVolume(1.0);
 
-    // Rewind slightly so the user has context when they resume
-    // (see PAUSE_REWIND_SECONDS in constants.ts for explanation)
+    // Rewind so the user has context when they resume the next day
+    // (see SLEEP_TIMER_PAUSE_REWIND_SECONDS in constants.ts for explanation)
     const { position, duration } = await TrackPlayer.getProgress();
     const playbackRate = await TrackPlayer.getRate();
-    let seekPosition = position - PAUSE_REWIND_SECONDS * playbackRate;
+    let seekPosition = position - SLEEP_TIMER_PAUSE_REWIND_SECONDS * playbackRate;
     seekPosition = Math.max(0, Math.min(seekPosition, duration));
     await TrackPlayer.seekTo(seekPosition);
 

@@ -34,3 +34,15 @@ export const FINISH_PROMPT_THRESHOLD = 0.95;
  * 1.5 seconds of audio time (1 second of real time).
  */
 export const PAUSE_REWIND_SECONDS = 1;
+
+/**
+ * How many seconds to rewind when the sleep timer pauses playback.
+ *
+ * When falling asleep while listening, you likely miss more of the narration
+ * than when manually pausing. A longer rewind gives more context when you
+ * resume the next day.
+ *
+ * Note: This is multiplied by playback rate, so at 1.5x speed it rewinds
+ * 15 seconds of audio time (10 seconds of real time).
+ */
+export const SLEEP_TIMER_PAUSE_REWIND_SECONDS = 10;
