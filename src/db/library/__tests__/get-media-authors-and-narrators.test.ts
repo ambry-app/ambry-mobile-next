@@ -24,7 +24,6 @@ function makeMediaHeaderInfo(mediaId: string, bookId: string): MediaHeaderInfo {
     abridged: false,
     thumbnails: null,
     duration: "3600",
-    mp4Path: null,
     description: null,
     published: null,
     publishedFormat: "full",

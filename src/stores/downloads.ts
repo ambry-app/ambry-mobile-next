@@ -12,6 +12,7 @@ import {
   getDownload,
   updateDownload,
 } from "@/db/downloads";
+import { getMediaDownloadInfo } from "@/db/library";
 import { DownloadedThumbnails, Thumbnails } from "@/db/schema";
 import { saveCurrentProgress } from "@/services/event-recording-service";
 import { documentDirectoryFilePath } from "@/utils";
@@ -122,12 +123,15 @@ function setDownloadResumable(
   });
 }
 
-export async function startDownload(
-  session: Session,
-  mediaId: string,
-  uri: string,
-  thumbnails: Thumbnails | null,
-) {
+export async function startDownload(session: Session, mediaId: string) {
+  // Query for mp4Path and thumbnails
+  const mediaInfo = await getMediaDownloadInfo(session, mediaId);
+  if (!mediaInfo?.mp4Path) {
+    console.warn("[Downloads] No mp4Path found for media:", mediaId);
+    return;
+  }
+
+  const { mp4Path, thumbnails } = mediaInfo;
   const destinationFilePath = Paths.document.uri + `${mediaId}.mp4`;
 
   console.debug("[Downloads] Downloading to", destinationFilePath);
@@ -159,7 +163,7 @@ export async function startDownload(
   };
 
   const downloadResumable = LegacyFileSystem.createDownloadResumable(
-    `${session.url}/${uri}`,
+    `${session.url}/${mp4Path}`,
     destinationFilePath,
     { headers: { Authorization: `Bearer ${session.token}` } },
     progressCallback,

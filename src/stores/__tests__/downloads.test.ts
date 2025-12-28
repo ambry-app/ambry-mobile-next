@@ -117,7 +117,10 @@ describe("downloads store", () => {
   describe("startDownload", () => {
     it("creates download record and starts file download", async () => {
       const db = getDb();
-      const media = await createMedia(db, { id: "media-dl" });
+      const media = await createMedia(db, {
+        id: "media-dl",
+        mp4Path: "audio/media-dl/stream.mp4",
+      });
 
       // Mock successful download
       mockDownloadResumable.downloadAsync.mockResolvedValue({
@@ -125,12 +128,7 @@ describe("downloads store", () => {
         status: 200,
       });
 
-      await startDownload(
-        testSession,
-        media.id,
-        "audio/media-dl/stream.mp4",
-        null,
-      );
+      await startDownload(testSession, media.id);
 
       // Verify download was created in store
       const state = useDownloads.getState();
@@ -152,7 +150,10 @@ describe("downloads store", () => {
 
     it("updates progress when progress callback is invoked", async () => {
       const db = getDb();
-      const media = await createMedia(db, { id: "media-progress" });
+      const media = await createMedia(db, {
+        id: "media-progress",
+        mp4Path: "audio/media-progress/stream.mp4",
+      });
 
       // Capture the progress callback
       let capturedProgressCallback:
@@ -174,12 +175,7 @@ describe("downloads store", () => {
         status: 200,
       });
 
-      const downloadPromise = startDownload(
-        testSession,
-        media.id,
-        "audio/media-progress/stream.mp4",
-        null,
-      );
+      const downloadPromise = startDownload(testSession, media.id);
 
       // Wait for download to start
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -210,19 +206,17 @@ describe("downloads store", () => {
 
     it("sets status to error on download failure", async () => {
       const db = getDb();
-      const media = await createMedia(db, { id: "media-fail" });
+      const media = await createMedia(db, {
+        id: "media-fail",
+        mp4Path: "audio/media-fail/stream.mp4",
+      });
 
       // Mock failed download
       mockDownloadResumable.downloadAsync.mockRejectedValue(
         new Error("Network error"),
       );
 
-      await startDownload(
-        testSession,
-        media.id,
-        "audio/media-fail/stream.mp4",
-        null,
-      );
+      await startDownload(testSession, media.id);
 
       const state = useDownloads.getState();
       expect(state.downloads["media-fail"]).toMatchObject({
@@ -233,7 +227,19 @@ describe("downloads store", () => {
 
     it("downloads thumbnails when provided", async () => {
       const db = getDb();
-      const media = await createMedia(db, { id: "media-thumb" });
+      const thumbnails = {
+        extraSmall: "images/xs.webp",
+        small: "images/sm.webp",
+        medium: "images/md.webp",
+        large: "images/lg.webp",
+        extraLarge: "images/xl.webp",
+        thumbhash: "abc123",
+      };
+      const media = await createMedia(db, {
+        id: "media-thumb",
+        mp4Path: "audio/media-thumb/stream.mp4",
+        thumbnails,
+      });
 
       mockDownloadResumable.downloadAsync.mockResolvedValue({
         uri: "file:///test-document-directory/media-thumb.mp4",
@@ -243,21 +249,7 @@ describe("downloads store", () => {
         status: 200,
       });
 
-      const thumbnails = {
-        extraSmall: "images/xs.webp",
-        small: "images/sm.webp",
-        medium: "images/md.webp",
-        large: "images/lg.webp",
-        extraLarge: "images/xl.webp",
-        thumbhash: "abc123",
-      };
-
-      await startDownload(
-        testSession,
-        media.id,
-        "audio/media-thumb/stream.mp4",
-        thumbnails,
-      );
+      await startDownload(testSession, media.id);
 
       // Verify all thumbnails were downloaded
       expect(LegacyFileSystem.downloadAsync).toHaveBeenCalledTimes(5);
@@ -276,7 +268,10 @@ describe("downloads store", () => {
 
     it("reloads player if download is for currently loaded media", async () => {
       const db = getDb();
-      const media = await createMedia(db, { id: "media-current" });
+      const media = await createMedia(db, {
+        id: "media-current",
+        mp4Path: "audio/media-current/stream.mp4",
+      });
 
       // Set player to have this media loaded
       mockUsePlayer.getState.mockReturnValue({
@@ -288,19 +283,17 @@ describe("downloads store", () => {
         status: 200,
       });
 
-      await startDownload(
-        testSession,
-        media.id,
-        "audio/media-current/stream.mp4",
-        null,
-      );
+      await startDownload(testSession, media.id);
 
       expect(mockLoadMedia).toHaveBeenCalledWith(testSession, "media-current");
     });
 
     it("does not reload player if download is for different media", async () => {
       const db = getDb();
-      const media = await createMedia(db, { id: "media-other" });
+      const media = await createMedia(db, {
+        id: "media-other",
+        mp4Path: "audio/media-other/stream.mp4",
+      });
 
       // Player has different media loaded
       mockUsePlayer.getState.mockReturnValue({
@@ -312,21 +305,32 @@ describe("downloads store", () => {
         status: 200,
       });
 
-      await startDownload(
-        testSession,
-        media.id,
-        "audio/media-other/stream.mp4",
-        null,
-      );
+      await startDownload(testSession, media.id);
 
       expect(mockLoadMedia).not.toHaveBeenCalled();
+    });
+
+    it("does nothing if media has no mp4Path", async () => {
+      const db = getDb();
+      const media = await createMedia(db, {
+        id: "media-no-mp4",
+        mp4Path: null,
+      });
+
+      await startDownload(testSession, media.id);
+
+      expect(LegacyFileSystem.createDownloadResumable).not.toHaveBeenCalled();
+      expect(useDownloads.getState().downloads["media-no-mp4"]).toBeUndefined();
     });
   });
 
   describe("cancelDownload", () => {
     it("cancels active download and removes from store", async () => {
       const db = getDb();
-      const media = await createMedia(db, { id: "media-cancel" });
+      const media = await createMedia(db, {
+        id: "media-cancel",
+        mp4Path: "audio/media-cancel/stream.mp4",
+      });
 
       // Create a controllable promise for the download
       let resolveDownload: () => void;
@@ -339,12 +343,7 @@ describe("downloads store", () => {
       );
 
       // Start download but don't await it
-      const startPromise = startDownload(
-        testSession,
-        media.id,
-        "audio/media-cancel/stream.mp4",
-        null,
-      );
+      const startPromise = startDownload(testSession, media.id);
 
       // Wait a tick for download to start
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -391,7 +390,10 @@ describe("downloads store", () => {
 
     it("handles error when cancelAsync throws", async () => {
       const db = getDb();
-      const media = await createMedia(db, { id: "media-cancel-err" });
+      const media = await createMedia(db, {
+        id: "media-cancel-err",
+        mp4Path: "audio/media-cancel-err/stream.mp4",
+      });
 
       // Create a controllable promise for the download
       let resolveDownload: () => void;
@@ -407,12 +409,7 @@ describe("downloads store", () => {
       );
 
       // Start download but don't await it
-      const startPromise = startDownload(
-        testSession,
-        media.id,
-        "audio/media-cancel-err/stream.mp4",
-        null,
-      );
+      const startPromise = startDownload(testSession, media.id);
 
       // Wait a tick for download to start
       await new Promise((resolve) => setTimeout(resolve, 10));

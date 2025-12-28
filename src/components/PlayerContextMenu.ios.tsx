@@ -7,6 +7,7 @@ import { router } from "expo-router";
 
 import { getActivePlaythrough } from "@/db/playthroughs";
 import * as Transitions from "@/services/playthrough-transitions";
+import { startDownload, useDownloads } from "@/stores/downloads";
 import { tryUnloadPlayer } from "@/stores/player";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
@@ -39,6 +40,9 @@ export function PlayerContextMenu({
 }: PlayerContextMenuProps) {
   const [playthroughId, setPlaythroughId] = useState<string | null>(null);
   const [isInProgress, setIsInProgress] = useState(false);
+  const downloadStatus = useDownloads(
+    (state) => state.downloads[mediaId]?.status,
+  );
 
   // Fetch playthrough state
   useEffect(() => {
@@ -87,6 +91,11 @@ export function PlayerContextMenu({
     if (!playthroughId) return;
     await Transitions.abandonPlaythrough(session, playthroughId);
   }, [session, playthroughId]);
+
+  const handleDownload = useCallback(() => {
+    startDownload(session, mediaId);
+    router.navigate("/downloads");
+  }, [session, mediaId]);
 
   // Render author menu items
   const renderAuthorItems = () => {
@@ -178,6 +187,13 @@ export function PlayerContextMenu({
 
           {/* Go to narrator(s) */}
           {renderNarratorItems()}
+
+          {/* Download (only if not already downloaded or downloading) */}
+          {!downloadStatus && (
+            <Button systemImage="arrow.down.circle" onPress={handleDownload}>
+              Download
+            </Button>
+          )}
 
           {/* Unload player */}
           <Button systemImage="xmark" onPress={handleUnloadPlayer}>

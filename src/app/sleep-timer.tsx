@@ -93,8 +93,8 @@ export default function SleepTimerRoute() {
 
         <View style={styles.sleepTimerButtonRow}>
           <SleepTimerSecondsButton
-            seconds={60}
-            active={displaySleepTimerSeconds === 60}
+            seconds={300}
+            active={displaySleepTimerSeconds === 300}
             setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
           />
           <SleepTimerSecondsButton

@@ -32,7 +32,6 @@ async function getMedia(session: Session, mediaId: string) {
       abridged: schema.media.abridged,
       thumbnails: schema.media.thumbnails,
       duration: schema.media.duration,
-      mp4Path: schema.media.mp4Path,
       description: schema.media.description,
       published: schema.media.published,
       publishedFormat: schema.media.publishedFormat,

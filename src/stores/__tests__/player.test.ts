@@ -661,6 +661,12 @@ describe("player store", () => {
           .mockRejectedValueOnce(new Error("no track"))
           .mockResolvedValue(null);
 
+        // Mock getProgress to return the expected position after seek
+        mockTrackPlayerGetProgress.mockResolvedValue({
+          position: 500,
+          duration: 3600,
+        });
+
         // Initialize device for event recording
         useDevice.setState({
           initialized: true,
@@ -973,6 +979,12 @@ describe("player store", () => {
           },
         });
 
+        // Mock getProgress to return the expected position after seek
+        mockTrackPlayerGetProgress.mockResolvedValue({
+          position: 500,
+          duration: 3600,
+        });
+
         await loadMedia(DEFAULT_TEST_SESSION, "media-2");
 
         // Should seek to the saved position
@@ -996,6 +1008,12 @@ describe("player store", () => {
           mpdPath: "/mpd/media-3",
         });
         await createBookAuthor(db, { bookId: media.bookId });
+
+        // Mock getProgress to return position 0 for new playthrough
+        mockTrackPlayerGetProgress.mockResolvedValue({
+          position: 0,
+          duration: 3600,
+        });
 
         await loadMedia(DEFAULT_TEST_SESSION, "media-3");
 
@@ -1175,6 +1193,12 @@ describe("player store", () => {
           },
         });
 
+        // Mock getProgress to return the expected position after seek
+        mockTrackPlayerGetProgress.mockResolvedValue({
+          position: 3500,
+          duration: 3600,
+        });
+
         const promise = handleResumePlaythrough(DEFAULT_TEST_SESSION);
         await jest.runAllTimersAsync();
         await promise;
@@ -1240,6 +1264,12 @@ describe("player store", () => {
             osName: "iOS",
             osVersion: "17.0",
           },
+        });
+
+        // Mock getProgress to return position 0 for fresh start
+        mockTrackPlayerGetProgress.mockResolvedValue({
+          position: 0,
+          duration: 3600,
         });
 
         const promise = handleStartFresh(DEFAULT_TEST_SESSION);

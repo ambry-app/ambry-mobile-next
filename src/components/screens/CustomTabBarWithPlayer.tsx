@@ -48,6 +48,8 @@ import {
   PlayerSettingButtons,
 } from "./tab-bar-with-player";
 
+const MINI_PROGRESS_BAR_HEIGHT = 2;
+
 // Memoized mini progress bar - subscribes to position/duration/seekPosition
 const MiniProgressBar = memo(function MiniProgressBar({
   expansion,
@@ -85,7 +87,7 @@ const MiniProgressBar = memo(function MiniProgressBar({
           bottom: 0,
           left: 0,
           right: 0,
-          height: 2,
+          height: MINI_PROGRESS_BAR_HEIGHT,
           backgroundColor: Colors.zinc[700],
           zIndex: 10,
         },
@@ -94,7 +96,7 @@ const MiniProgressBar = memo(function MiniProgressBar({
     >
       <View
         style={{
-          height: 2,
+          height: MINI_PROGRESS_BAR_HEIGHT,
           width: `${progressPercent}%`,
           backgroundColor: Colors.lime[400],
         }}
@@ -130,7 +132,9 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
     );
   const media = useLibraryData(() => getMedia(session, mediaId), [mediaId]);
 
-  const expansion = useSharedValue(1.0);
+  // Initialize expansion based on current store state to stay in sync on mount/resume
+  // (useSharedValue only captures the initial value on first render)
+  const expansion = useSharedValue(shouldRenderExpanded ? 1.0 : 0.0);
   const { screenHeight, screenWidth, shortScreen } = useScreen(
     (state) => state,
   );
@@ -330,7 +334,11 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
       // Tab bar
       tabBarTranslateY: interpolate(e, [0, 1], [0, tabBarHeight]),
       // Player container
-      playerHeight: interpolate(e, [0, 1], [PLAYER_HEIGHT, screenHeight]),
+      playerHeight: interpolate(
+        e,
+        [0, 1],
+        [PLAYER_HEIGHT + MINI_PROGRESS_BAR_HEIGHT, screenHeight],
+      ),
       playerBottom: interpolate(e, [0, 1], [tabBarHeight, 0]),
       playerPaddingTop: interpolate(e, [0, 1], [0, insets.top]),
       // Opacities
@@ -345,8 +353,31 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
         [0, imageGutterWidth],
         Extrapolation.CLAMP,
       ),
-      imageSize: interpolate(e, [0, 1], [PLAYER_HEIGHT, largeImageSize]),
+      imageLayoutSize: interpolate(e, [0, 1], [PLAYER_HEIGHT, largeImageSize]),
+      // Padding inside the image container when collapsed
       imagePadding: interpolate(e, [0, 1], [8, 0]),
+      // Scale transform for image - account for padding when collapsed
+      // Visual size when collapsed: PLAYER_HEIGHT - 16 (8px padding on each side)
+      imageScale: interpolate(
+        e,
+        [0, 1],
+        [(PLAYER_HEIGHT - 16) / largeImageSize, 1],
+      ),
+      // Translate to keep top-left aligned when scaling from center
+      imageTranslate: interpolate(
+        e,
+        [0, 1],
+        [
+          (-largeImageSize * (1 - (PLAYER_HEIGHT - 16) / largeImageSize)) / 2,
+          0,
+        ],
+      ),
+      // Border radius needs to be larger at full size so it looks correct when scaled
+      imageBorderRadius: interpolate(
+        e,
+        [0, 1],
+        [(6 * largeImageSize) / (PLAYER_HEIGHT - 16), 6],
+      ),
       // Mini controls (fade out early)
       miniControlsWidth: interpolate(
         e,
@@ -408,10 +439,25 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
     width: animatedValues.value.leftGutterWidth,
   }));
 
-  const imageStyle = useAnimatedStyle(() => ({
-    height: animatedValues.value.imageSize,
-    width: animatedValues.value.imageSize,
+  // Outer container for layout purposes
+  const imageLayoutStyle = useAnimatedStyle(() => ({
+    height: animatedValues.value.imageLayoutSize,
+    width: animatedValues.value.imageLayoutSize,
     padding: animatedValues.value.imagePadding,
+  }));
+
+  // Inner image wrapper with scale transform - always renders at full size
+  // Translate first to offset the scaling origin, then scale
+  const imageScaleStyle = useAnimatedStyle(() => ({
+    width: largeImageSize,
+    height: largeImageSize,
+    borderRadius: animatedValues.value.imageBorderRadius,
+    overflow: "hidden",
+    transform: [
+      { translateX: animatedValues.value.imageTranslate },
+      { translateY: animatedValues.value.imageTranslate },
+      { scale: animatedValues.value.imageScale },
+    ],
   }));
 
   const miniControlsStyle = useAnimatedStyle(() => ({
@@ -536,7 +582,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                       justifyContent: "space-between",
                       overflow: "hidden",
                       paddingHorizontal: 16,
-                      backgroundColor: debugBackground("emerald"),
+                      backgroundColor: debugBackground("teal"),
                     },
                     topActionBarStyle,
                   ]}
@@ -603,7 +649,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                       overflow: "hidden",
                       backgroundColor: debugBackground("green"),
                     },
-                    imageStyle,
+                    imageLayoutStyle,
                   ]}
                 >
                   <Pressable
@@ -613,16 +659,19 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                       }
                     }}
                   >
-                    <ThumbnailImage
-                      downloadedThumbnails={media.download?.thumbnails}
-                      thumbnails={media.thumbnails}
-                      size="extraLarge"
-                      style={{
-                        width: "100%",
-                        aspectRatio: 1,
-                        borderRadius: 6,
-                      }}
-                    />
+                    {/* Inner wrapper always at full size with scale transform
+                        This ensures expo-image renders at full resolution */}
+                    <Animated.View style={imageScaleStyle}>
+                      <ThumbnailImage
+                        downloadedThumbnails={media.download?.thumbnails}
+                        thumbnails={media.thumbnails}
+                        size="extraLarge"
+                        style={{
+                          width: "100%",
+                          aspectRatio: 1,
+                        }}
+                      />
+                    </Animated.View>
                   </Pressable>
                 </Animated.View>
 

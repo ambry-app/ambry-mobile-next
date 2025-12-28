@@ -10,6 +10,8 @@ export type PlaythroughStatus = "in_progress" | "finished" | "abandoned";
 
 export type PlaythroughContextMenuProps = {
   status: PlaythroughStatus;
+  onContinue?: () => void;
+  onResume?: () => void;
   onMarkFinished: () => void;
   onAbandon: () => void;
   onDelete: () => void;
@@ -32,6 +34,8 @@ const destructiveColors = {
 
 export function PlaythroughContextMenu({
   status,
+  onContinue,
+  onResume,
   onMarkFinished,
   onAbandon,
   onDelete,
@@ -40,8 +44,16 @@ export function PlaythroughContextMenu({
   const menuItems: ReactElement<ButtonProps>[] = [];
 
   // Status-specific actions
-  if (status === "in_progress") {
+  if (status === "in_progress" && onContinue) {
     menuItems.push(
+      <Button
+        key="continue"
+        leadingIcon="filled.PlayArrow"
+        elementColors={menuColors}
+        onPress={onContinue}
+      >
+        Continue
+      </Button>,
       <Button
         key="mark-finished"
         leadingIcon="filled.CheckCircle"
@@ -57,6 +69,19 @@ export function PlaythroughContextMenu({
         onPress={onAbandon}
       >
         Abandon
+      </Button>,
+    );
+  }
+
+  if ((status === "abandoned" || status === "finished") && onResume) {
+    menuItems.push(
+      <Button
+        key="resume"
+        leadingIcon="filled.PlayArrow"
+        elementColors={menuColors}
+        onPress={onResume}
+      >
+        Resume
       </Button>,
     );
   }

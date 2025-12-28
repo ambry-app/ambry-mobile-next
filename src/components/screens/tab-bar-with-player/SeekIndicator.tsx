@@ -96,7 +96,7 @@ export function SeekIndicator() {
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    top: -32,
+    top: -16,
   },
   text: {
     textAlign: "center",

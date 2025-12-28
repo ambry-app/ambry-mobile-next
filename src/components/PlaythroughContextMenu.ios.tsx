@@ -9,6 +9,8 @@ export type PlaythroughStatus = "in_progress" | "finished" | "abandoned";
 
 export type PlaythroughContextMenuProps = {
   status: PlaythroughStatus;
+  onContinue?: () => void;
+  onResume?: () => void;
   onMarkFinished: () => void;
   onAbandon: () => void;
   onDelete: () => void;
@@ -16,6 +18,8 @@ export type PlaythroughContextMenuProps = {
 
 export function PlaythroughContextMenu({
   status,
+  onContinue,
+  onResume,
   onMarkFinished,
   onAbandon,
   onDelete,
@@ -34,8 +38,11 @@ export function PlaythroughContextMenu({
         </ContextMenu.Trigger>
         <ContextMenu.Items>
           {/* Status-specific actions */}
-          {status === "in_progress" && (
+          {status === "in_progress" && onContinue && (
             <>
+              <Button systemImage="play.fill" onPress={onContinue}>
+                Continue
+              </Button>
               <Button systemImage="flag.fill" onPress={onMarkFinished}>
                 Mark as finished
               </Button>
@@ -47,6 +54,12 @@ export function PlaythroughContextMenu({
                 Abandon
               </Button>
             </>
+          )}
+
+          {(status === "abandoned" || status === "finished") && onResume && (
+            <Button systemImage="play.fill" onPress={onResume}>
+              Resume
+            </Button>
           )}
 
           {/* Delete is always available */}

@@ -130,10 +130,9 @@ export function ActionBar({ media, session }: ActionBarProps) {
   }, [session, activePlaythroughId]);
 
   const handleDownload = useCallback(() => {
-    if (!media.mp4Path) return;
-    startDownload(session, media.id, media.mp4Path, media.thumbnails);
+    startDownload(session, media.id);
     router.navigate("/downloads");
-  }, [session, media.id, media.mp4Path, media.thumbnails]);
+  }, [session, media.id]);
 
   const handleDeleteDownload = useCallback(async () => {
     await removeDownload(session, media.id);
@@ -268,8 +267,7 @@ function DownloadButton({ media, session }: DownloadButtonProps) {
       style={styles.button}
       color={Colors.zinc[100]}
       onPress={() => {
-        if (!media.mp4Path) return;
-        startDownload(session, media.id, media.mp4Path, media.thumbnails);
+        startDownload(session, media.id);
         router.navigate("/downloads");
       }}
     />

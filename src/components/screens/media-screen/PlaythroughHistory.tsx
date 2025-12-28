@@ -1,12 +1,5 @@
 import { useCallback, useState } from "react";
-import {
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
@@ -287,13 +280,6 @@ function PlaythroughRow({
     );
   }, [session, playthrough.id]);
 
-  // Determine action button based on status
-  const showActionButton = playthrough.status !== "finished";
-  const actionLabel =
-    playthrough.status === "in_progress" ? "Continue" : "Resume";
-  const actionHandler =
-    playthrough.status === "in_progress" ? handleContinue : handleResume;
-
   const handleDebugTap = () => {
     router.push(`/playthrough-debug/${playthrough.id}`);
   };
@@ -317,13 +303,17 @@ function PlaythroughRow({
         </View>
         <Text style={styles.dateLabel}>{dateLabel}</Text>
       </View>
-      {showActionButton && (
-        <TouchableOpacity onPress={actionHandler} style={styles.actionButton}>
-          <Text style={styles.actionButtonText}>{actionLabel}</Text>
-        </TouchableOpacity>
-      )}
       <PlaythroughContextMenu
         status={playthrough.status}
+        onContinue={
+          playthrough.status === "in_progress" ? handleContinue : undefined
+        }
+        onResume={
+          playthrough.status === "abandoned" ||
+          playthrough.status === "finished"
+            ? handleResume
+            : undefined
+        }
         onMarkFinished={handleMarkFinished}
         onAbandon={handleAbandon}
         onDelete={handleDelete}
@@ -385,18 +375,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.zinc[500],
     marginTop: 2,
-  },
-  actionButton: {
-    backgroundColor: Colors.zinc[700],
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  actionButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.zinc[100],
   },
   expandIndicator: {
     flexDirection: "row",

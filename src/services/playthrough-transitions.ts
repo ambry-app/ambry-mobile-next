@@ -382,6 +382,58 @@ export async function loadMostRecentIntoPlayer(
 // =============================================================================
 
 /**
+ * Wait for TrackPlayer to report a position close to the expected position.
+ * This is needed because seekTo() can return before the seek actually completes,
+ * especially for streaming content.
+ *
+ * @param expectedPosition - The position we seeked to
+ * @param timeoutMs - Maximum time to wait (default 2000ms)
+ * @param toleranceSeconds - How close is "close enough" (default 5 seconds)
+ * @returns The actual position reported by TrackPlayer
+ */
+async function waitForSeekToComplete(
+  expectedPosition: number,
+  timeoutMs: number = 2000,
+  toleranceSeconds: number = 5,
+): Promise<number> {
+  const startTime = Date.now();
+  const pollIntervalMs = 50;
+
+  while (Date.now() - startTime < timeoutMs) {
+    const { position } = await TrackPlayer.getProgress();
+
+    // If seeking to 0, just accept any position (including 0)
+    if (expectedPosition === 0) {
+      return position;
+    }
+
+    // Check if position is close enough to expected
+    if (Math.abs(position - expectedPosition) < toleranceSeconds) {
+      return position;
+    }
+
+    // Also accept if position is non-zero and we're seeking to non-zero
+    // (handles cases where exact position might differ slightly)
+    if (position > 0) {
+      return position;
+    }
+
+    // Wait before next poll
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+
+  // Timeout - return whatever position we have
+  const { position } = await TrackPlayer.getProgress();
+  console.warn(
+    "[Transitions] waitForSeekToComplete timed out. Expected:",
+    expectedPosition.toFixed(2),
+    "Got:",
+    position.toFixed(2),
+  );
+  return position;
+}
+
+/**
  * Pause current playback if playing and record the pause event.
  * No-op if nothing is playing.
  */
@@ -502,18 +554,23 @@ async function loadPlaythroughIntoPlayer(
   await TrackPlayer.seekTo(position);
   await TrackPlayer.setRate(playbackRate);
 
+  // Wait for TrackPlayer to report the correct position after seek
+  // This is important because seekTo() can return before the seek completes,
+  // and downstream code (event recording, UI) needs the real position
+  const actualPosition = await waitForSeekToComplete(position);
+
   // Initialize playthrough tracking for event recording
   await initializePlaythroughTracking(
     session,
     playthrough.media.id,
-    position,
+    actualPosition,
     playbackRate,
   );
 
   return {
     mediaId: playthrough.media.id,
     duration: parseFloat(playthrough.media.duration || "0"),
-    position,
+    position: actualPosition,
     playbackRate,
     chapters: playthrough.media.chapters,
     streaming,

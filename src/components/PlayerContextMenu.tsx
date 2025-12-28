@@ -12,6 +12,7 @@ import { router } from "expo-router";
 
 import { getActivePlaythrough } from "@/db/playthroughs";
 import * as Transitions from "@/services/playthrough-transitions";
+import { startDownload, useDownloads } from "@/stores/downloads";
 import { tryUnloadPlayer } from "@/stores/player";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
@@ -59,6 +60,9 @@ export function PlayerContextMenu({
 }: PlayerContextMenuProps) {
   const [playthroughId, setPlaythroughId] = useState<string | null>(null);
   const [isInProgress, setIsInProgress] = useState(false);
+  const downloadStatus = useDownloads(
+    (state) => state.downloads[mediaId]?.status,
+  );
 
   // Fetch playthrough state
   useEffect(() => {
@@ -107,6 +111,11 @@ export function PlayerContextMenu({
     if (!playthroughId) return;
     await Transitions.abandonPlaythrough(session, playthroughId);
   }, [session, playthroughId]);
+
+  const handleDownload = useCallback(() => {
+    startDownload(session, mediaId);
+    router.navigate("/downloads");
+  }, [session, mediaId]);
 
   // Build menu items array
   const menuItems: ReactElement<ButtonProps>[] = [];
@@ -192,6 +201,20 @@ export function PlayerContextMenu({
           </Button>
         ))}
       </Submenu>,
+    );
+  }
+
+  // Download (only if not already downloaded or downloading)
+  if (!downloadStatus) {
+    menuItems.push(
+      <Button
+        key="download"
+        leadingIcon="filled.KeyboardArrowDown"
+        elementColors={menuColors}
+        onPress={handleDownload}
+      >
+        Download
+      </Button>,
     );
   }
 
