@@ -10,7 +10,10 @@ import {
 import { useSleepTimer } from "@/stores/sleep-timer";
 import {
   mockIsPlaying,
+  mockTrackPlayerGetProgress,
+  mockTrackPlayerGetRate,
   mockTrackPlayerPause,
+  mockTrackPlayerSeekTo,
   mockTrackPlayerSetVolume,
 } from "@test/jest-setup";
 
@@ -32,7 +35,17 @@ describe("sleep-timer-service", () => {
     // Reset mocks
     mockTrackPlayerPause.mockReset();
     mockTrackPlayerSetVolume.mockReset();
+    mockTrackPlayerGetProgress.mockReset();
+    mockTrackPlayerGetRate.mockReset();
+    mockTrackPlayerSeekTo.mockReset();
     mockIsPlaying.mockReset();
+
+    // Default mock implementations for pause rewind
+    mockTrackPlayerGetProgress.mockResolvedValue({
+      position: 100,
+      duration: 3600,
+    });
+    mockTrackPlayerGetRate.mockResolvedValue(1.0);
   });
 
   afterEach(() => {

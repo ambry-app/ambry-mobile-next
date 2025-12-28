@@ -6,10 +6,7 @@ import { frame } from "@expo/ui/swift-ui/modifiers";
 import { router } from "expo-router";
 
 import { getActivePlaythrough } from "@/db/playthroughs";
-import {
-  abandonPlaythrough,
-  finishPlaythrough,
-} from "@/services/playthrough-lifecycle";
+import * as Transitions from "@/services/playthrough-transitions";
 import { tryUnloadPlayer } from "@/stores/player";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
@@ -83,12 +80,12 @@ export function PlayerContextMenu({
 
   const handleMarkFinished = useCallback(async () => {
     if (!playthroughId) return;
-    await finishPlaythrough(session, playthroughId);
+    await Transitions.finishPlaythrough(session, playthroughId);
   }, [session, playthroughId]);
 
   const handleAbandon = useCallback(async () => {
     if (!playthroughId) return;
-    await abandonPlaythrough(session, playthroughId);
+    await Transitions.abandonPlaythrough(session, playthroughId);
   }, [session, playthroughId]);
 
   // Render author menu items

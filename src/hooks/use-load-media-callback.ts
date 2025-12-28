@@ -1,12 +1,11 @@
 import { useCallback } from "react";
 
+import * as Transitions from "@/services/playthrough-transitions";
 import {
   checkForFinishPrompt,
   checkForResumePrompt,
   expandPlayerAndWait,
-  loadMedia,
   pauseIfPlaying,
-  play,
   prepareToLoadMedia,
 } from "@/stores/player";
 import { Session } from "@/stores/session";
@@ -16,6 +15,8 @@ export default function useLoadMediaCallback(
   mediaId: string,
 ) {
   const loadMediaCallback = useCallback(async () => {
+    // Pause early for better UX - stops audio immediately on tap
+    // and ensures position is saved before checking prompts
     await pauseIfPlaying();
 
     // Check if current playthrough is almost complete and should prompt to mark as finished
@@ -34,11 +35,11 @@ export default function useLoadMediaCallback(
       return;
     }
 
-    // No prompt needed, proceed with normal loading
+    // No prompt needed - transitions service handles load and play
+    // (pause already done above, loadAndPlayMedia is idempotent on pause)
     prepareToLoadMedia();
     await expandPlayerAndWait();
-    await loadMedia(session, mediaId);
-    await play();
+    await Transitions.loadAndPlayMedia(session, mediaId);
   }, [mediaId, session]);
 
   return loadMediaCallback;

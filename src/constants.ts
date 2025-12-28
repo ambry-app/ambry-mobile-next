@@ -22,3 +22,15 @@ export const PLAYER_EXPAND_ANIMATION_DURATION = 400;
 
 /* Threshold for prompting user to mark playthrough as finished (95%) */
 export const FINISH_PROMPT_THRESHOLD = 0.95;
+
+/**
+ * How many seconds to rewind when pausing playback.
+ *
+ * When you pause and later resume, it's helpful to hear a bit of context about
+ * where you left off. Without this, resuming exactly from the pause point can
+ * feel jarring and you lose the flow of the narration.
+ *
+ * Note: This is multiplied by playback rate, so at 1.5x speed it rewinds
+ * 1.5 seconds of audio time (1 second of real time).
+ */
+export const PAUSE_REWIND_SECONDS = 1;

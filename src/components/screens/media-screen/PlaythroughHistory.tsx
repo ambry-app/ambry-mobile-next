@@ -19,18 +19,15 @@ import {
 } from "@/db/playthroughs";
 import { useLibraryData } from "@/hooks/use-library-data";
 import useLoadMediaCallback from "@/hooks/use-load-media-callback";
-import {
-  abandonPlaythrough,
-  finishPlaythrough,
-} from "@/services/playthrough-lifecycle";
+import * as Transitions from "@/services/playthrough-transitions";
 import {
   bumpPlaythroughDataVersion,
   useDataVersion,
 } from "@/stores/data-version";
 import { useDebug } from "@/stores/debug";
 import {
-  pauseIfPlaying,
-  resumeAndLoadPlaythrough,
+  expandPlayerAndWait,
+  prepareToLoadMedia,
   usePlayer,
 } from "@/stores/player";
 import { Session } from "@/stores/session";
@@ -254,8 +251,10 @@ function PlaythroughRow({
 
   // Handler for resuming an abandoned or finished playthrough
   const handleResume = useCallback(async () => {
-    await pauseIfPlaying();
-    await resumeAndLoadPlaythrough(
+    prepareToLoadMedia();
+    await expandPlayerAndWait();
+    // Transitions service handles pause, resume, load, and play
+    await Transitions.resumePlaythroughAndPlay(
       session,
       playthrough.id,
       playthrough.mediaId,
@@ -263,11 +262,11 @@ function PlaythroughRow({
   }, [session, playthrough.id, playthrough.mediaId]);
 
   const handleMarkFinished = useCallback(async () => {
-    await finishPlaythrough(session, playthrough.id);
+    await Transitions.finishPlaythrough(session, playthrough.id);
   }, [session, playthrough.id]);
 
   const handleAbandon = useCallback(async () => {
-    await abandonPlaythrough(session, playthrough.id);
+    await Transitions.abandonPlaythrough(session, playthrough.id);
   }, [session, playthrough.id]);
 
   const handleDelete = useCallback(() => {

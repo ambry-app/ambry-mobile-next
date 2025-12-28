@@ -198,9 +198,9 @@ describe("player store", () => {
         expect(mockOnPause).toHaveBeenCalled();
       });
 
-      it("applies a small backward seek to ensure progress is saved", async () => {
-        // The pause function does a seekImmediateNoLog(-1, true) to ensure
-        // the current position is captured correctly
+      it("rewinds slightly for context when user resumes later", async () => {
+        // The pause function rewinds by PAUSE_REWIND_SECONDS so users have
+        // context when they resume (see constants.ts for explanation)
         await pause();
 
         // Should call Coordinator.onSeekApplied

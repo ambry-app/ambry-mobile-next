@@ -3,8 +3,9 @@ import { ReactElement } from "react";
 import { StyleSheet, View } from "react-native";
 import { Button, ButtonProps, ContextMenu } from "@expo/ui/jetpack-compose";
 
-import { IconButton } from "./IconButton";
 import { Colors } from "@/styles";
+
+import { IconButton } from "./IconButton";
 
 export type PlaythroughState = "none" | "in_progress" | "finished";
 export type DownloadState =

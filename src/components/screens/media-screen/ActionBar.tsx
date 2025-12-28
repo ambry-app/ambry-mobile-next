@@ -17,10 +17,7 @@ import {
 } from "@/db/playthroughs";
 import useLoadMediaCallback from "@/hooks/use-load-media-callback";
 import { useShelvedMedia } from "@/hooks/use-shelved-media";
-import {
-  abandonPlaythrough,
-  finishPlaythrough,
-} from "@/services/playthrough-lifecycle";
+import * as Transitions from "@/services/playthrough-transitions";
 import { useDataVersion } from "@/stores/data-version";
 import {
   cancelDownload,
@@ -120,14 +117,14 @@ export function ActionBar({ media, session }: ActionBarProps) {
 
   const handleAbandon = useCallback(async () => {
     if (!activePlaythroughId) return;
-    await abandonPlaythrough(session, activePlaythroughId);
+    await Transitions.abandonPlaythrough(session, activePlaythroughId);
     setPlaythroughState("none");
     setActivePlaythroughId(null);
   }, [session, activePlaythroughId]);
 
   const handleMarkFinished = useCallback(async () => {
     if (!activePlaythroughId) return;
-    await finishPlaythrough(session, activePlaythroughId);
+    await Transitions.finishPlaythrough(session, activePlaythroughId);
     setPlaythroughState("finished");
     setActivePlaythroughId(null);
   }, [session, activePlaythroughId]);

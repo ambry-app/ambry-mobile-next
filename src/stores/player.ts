@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { AppStateStatus, EmitterSubscription, Platform } from "react-native";
+import { AppStateStatus, EmitterSubscription } from "react-native";
 import TrackPlayer, {
   AndroidAudioContentType,
   Capability,
@@ -7,38 +7,24 @@ import TrackPlayer, {
   IOSCategory,
   IOSCategoryMode,
   isPlaying,
-  PitchAlgorithm,
-  TrackType,
 } from "react-native-track-player";
 import { create } from "zustand";
 
 import {
   FINISH_PROMPT_THRESHOLD,
+  PAUSE_REWIND_SECONDS,
   PLAYER_EXPAND_ANIMATION_DURATION,
   SEEK_ACCUMULATION_WINDOW,
   SEEK_EVENT_ACCUMULATION_WINDOW,
 } from "@/constants";
 import {
-  ActivePlaythrough,
-  createPlaythrough,
   getActivePlaythrough,
   getFinishedOrAbandonedPlaythrough,
-  getMostRecentInProgressPlaythrough,
-  resumePlaythrough,
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
-import {
-  getCurrentPlaythroughId,
-  initializePlaythroughTracking,
-  recordStartEvent,
-} from "@/services/event-recording-service";
+import { getCurrentPlaythroughId } from "@/services/event-recording-service";
 import * as Coordinator from "@/services/playback-coordinator";
-import {
-  finishPlaythrough,
-  setUnloadPlayerCallback,
-} from "@/services/playthrough-lifecycle";
-import { bumpPlaythroughDataVersion } from "@/stores/data-version";
-import { documentDirectoryFilePath } from "@/utils";
+import * as Transitions from "@/services/playthrough-transitions";
 
 import { Session, useSession } from "./session";
 
@@ -137,15 +123,6 @@ export interface PlayerState {
   previousChapterStartTime: number;
 }
 
-interface TrackLoadResult {
-  mediaId: string;
-  duration: number;
-  position: number;
-  playbackRate: number;
-  streaming: boolean;
-  chapters: schema.Chapter[];
-}
-
 const initialState = {
   mediaId: null,
   streaming: undefined,
@@ -200,7 +177,7 @@ export async function initializePlayer(session: Session) {
       usePlayer.setState({ initialized: true });
 
       // Try to load most recent media
-      const track = await loadMostRecentMediaIntoTrackPlayer(session);
+      const track = await Transitions.loadMostRecentIntoPlayer(session);
       if (track) {
         usePlayer.setState({
           mediaId: track.mediaId,
@@ -240,36 +217,14 @@ export function prepareToLoadMedia() {
   usePlayer.setState({ loadingNewMedia: true });
 }
 
-export async function loadMedia(session: Session, mediaId: string) {
-  const track = await loadMediaIntoTrackPlayer(session, mediaId);
-
-  usePlayer.setState({
-    loadingNewMedia: false,
-    mediaId: track.mediaId,
-    duration: track.duration,
-    position: track.position,
-    playbackRate: track.playbackRate,
-    streaming: track.streaming,
-    ...initialChapterState(track.chapters, track.position, track.duration),
-  });
-}
-
 /**
- * Load an active playthrough into TrackPlayer and update player state.
- * Shared helper used by handleResumePlaythrough and handleStartFresh.
+ * Load media into TrackPlayer (low-level, no pause, no play).
+ * Used by downloads.ts when reloading after download completes.
+ * For normal "play this media" use cases, use Transitions.loadAndPlayMedia instead.
  */
-async function loadActivePlaythroughAndUpdateState(
-  session: Session,
-  mediaId: string,
-): Promise<void> {
-  const playthrough = await getActivePlaythrough(session, mediaId);
-  if (!playthrough) {
-    console.error("[Player] No active playthrough found for media:", mediaId);
-    usePlayer.setState({ loadingNewMedia: false });
-    return;
-  }
+export async function loadMedia(session: Session, mediaId: string) {
+  const track = await Transitions.loadMediaIntoPlayer(session, mediaId);
 
-  const track = await loadPlaythroughIntoTrackPlayer(session, playthrough);
   usePlayer.setState({
     loadingNewMedia: false,
     mediaId: track.mediaId,
@@ -295,10 +250,8 @@ export async function resumeAndLoadPlaythrough(
   usePlayer.setState({ loadingNewMedia: true });
   await expandPlayerAndWait();
 
-  await resumePlaythrough(session, playthroughId);
-  bumpPlaythroughDataVersion();
-  await loadActivePlaythroughAndUpdateState(session, mediaId);
-  await play();
+  // Transitions service handles pause, load, play, and state updates
+  await Transitions.resumePlaythroughAndPlay(session, playthroughId, mediaId);
 }
 
 /**
@@ -329,11 +282,8 @@ export async function handleStartFresh(session: Session) {
   usePlayer.setState({ pendingResumePrompt: null, loadingNewMedia: true });
   await expandPlayerAndWait();
 
-  const playthroughId = await createPlaythrough(session, prompt.mediaId);
-  await recordStartEvent(playthroughId);
-  bumpPlaythroughDataVersion();
-  await loadActivePlaythroughAndUpdateState(session, prompt.mediaId);
-  await play();
+  // Transitions service handles pause, create, load, play, and state updates
+  await Transitions.startFreshAndPlay(session, prompt.mediaId);
 }
 
 /**
@@ -414,7 +364,7 @@ export async function handleMarkFinished(session: Session) {
   usePlayer.setState({ pendingFinishPrompt: null, loadingNewMedia: true });
 
   // Finish the current playthrough (skip unload since we're loading new media)
-  await finishPlaythrough(session, prompt.currentPlaythroughId, {
+  await Transitions.finishPlaythrough(session, prompt.currentPlaythroughId, {
     skipUnload: true,
   });
 
@@ -465,9 +415,8 @@ async function proceedWithLoadingNewMedia(
     return;
   }
 
-  // No resume prompt needed, proceed with loading
-  await loadMedia(session, newMediaId);
-  await play();
+  // No resume prompt needed - transitions service handles pause, load, play
+  await Transitions.loadAndPlayMedia(session, newMediaId);
 }
 
 /**
@@ -560,7 +509,7 @@ export async function pause() {
   const { position } = await TrackPlayer.getProgress();
   console.debug("[Player] Pausing at position", position);
   await TrackPlayer.pause();
-  await seekImmediateNoLog(-1, true);
+  await seekImmediateNoLog(-PAUSE_REWIND_SECONDS, true);
   Coordinator.onPause();
 }
 
@@ -663,7 +612,7 @@ export function setProgress(position: number, duration: number) {
 
 async function setupTrackPlayer(
   session: Session,
-): Promise<TrackLoadResult | true> {
+): Promise<Transitions.TrackLoadResult | true> {
   try {
     // just checking to see if it's already initialized
     const track = await TrackPlayer.getTrack(0);
@@ -720,180 +669,6 @@ async function setupTrackPlayer(
 
   console.debug("[Player] TrackPlayer setup succeeded");
   return true;
-}
-
-/**
- * Loads a playthrough into TrackPlayer.
- */
-async function loadPlaythroughIntoTrackPlayer(
-  session: Session,
-  playthrough: ActivePlaythrough,
-): Promise<TrackLoadResult> {
-  console.debug("[Player] Loading playthrough into player...");
-
-  const position = playthrough.stateCache?.currentPosition ?? 0;
-  const playbackRate = playthrough.stateCache?.currentRate ?? 1;
-
-  let streaming: boolean;
-
-  await TrackPlayer.reset();
-  if (playthrough.media.download?.status === "ready") {
-    // the media is downloaded, load the local file
-    streaming = false;
-    await TrackPlayer.add({
-      url: documentDirectoryFilePath(playthrough.media.download.filePath),
-      pitchAlgorithm: PitchAlgorithm.Voice,
-      duration: playthrough.media.duration
-        ? parseFloat(playthrough.media.duration)
-        : undefined,
-      title: playthrough.media.book.title,
-      artist: playthrough.media.book.bookAuthors
-        .map((bookAuthor) => bookAuthor.author.name)
-        .join(", "),
-      artwork: playthrough.media.download.thumbnails
-        ? documentDirectoryFilePath(
-            playthrough.media.download.thumbnails.extraLarge,
-          )
-        : undefined,
-      description: playthrough.media.id,
-    });
-  } else {
-    // the media is not downloaded, load the stream
-    streaming = true;
-    await TrackPlayer.add({
-      url:
-        Platform.OS === "ios"
-          ? `${session.url}${playthrough.media.hlsPath}`
-          : `${session.url}${playthrough.media.mpdPath}`,
-      type: TrackType.Dash,
-      pitchAlgorithm: PitchAlgorithm.Voice,
-      duration: playthrough.media.duration
-        ? parseFloat(playthrough.media.duration)
-        : undefined,
-      title: playthrough.media.book.title,
-      artist: playthrough.media.book.bookAuthors
-        .map((bookAuthor) => bookAuthor.author.name)
-        .join(", "),
-      artwork: playthrough.media.thumbnails
-        ? `${session.url}/${playthrough.media.thumbnails.extraLarge}`
-        : undefined,
-      description: playthrough.media.id,
-      headers: { Authorization: `Bearer ${session.token}` },
-    });
-  }
-
-  await TrackPlayer.seekTo(position);
-  await TrackPlayer.setRate(playbackRate);
-
-  // Initialize playthrough tracking for event recording
-  await initializePlaythroughTracking(
-    session,
-    playthrough.media.id,
-    position,
-    playbackRate,
-  );
-
-  return {
-    mediaId: playthrough.media.id,
-    duration: parseFloat(playthrough.media.duration || "0"),
-    position,
-    playbackRate,
-    chapters: playthrough.media.chapters,
-    streaming,
-  };
-}
-
-async function loadMediaIntoTrackPlayer(
-  session: Session,
-  mediaId: string,
-): Promise<TrackLoadResult> {
-  console.debug("[Player] Loading media into player", mediaId);
-
-  // Check for active (in_progress) playthrough
-  let playthrough = await getActivePlaythrough(session, mediaId);
-
-  if (playthrough) {
-    console.debug(
-      "[Player] Found active playthrough:",
-      playthrough.id,
-      "position:",
-      playthrough.stateCache?.currentPosition ?? 0,
-    );
-    return loadPlaythroughIntoTrackPlayer(session, playthrough);
-  }
-
-  // No active playthrough - create a new one
-  // Note: finished/abandoned playthroughs are handled by checkForResumePrompt
-  // before this function is called
-  console.debug("[Player] No active playthrough found; creating new one");
-
-  const playthroughId = await createPlaythrough(session, mediaId);
-  await recordStartEvent(playthroughId);
-  bumpPlaythroughDataVersion();
-
-  playthrough = await getActivePlaythrough(session, mediaId);
-
-  if (!playthrough) {
-    throw new Error("Failed to create playthrough");
-  }
-
-  return loadPlaythroughIntoTrackPlayer(session, playthrough);
-}
-
-async function loadMostRecentMediaIntoTrackPlayer(
-  session: Session,
-): Promise<TrackLoadResult | null> {
-  const track = await TrackPlayer.getTrack(0);
-
-  if (track) {
-    // Track already loaded (e.g., from headless context or previous session)
-    // Still need to initialize playthrough tracking
-    const streaming = track.url.startsWith("http");
-    const mediaId = track.description!;
-    const progress = await TrackPlayer.getProgress();
-    const position = progress.position;
-    const duration = progress.duration;
-    const playbackRate = await TrackPlayer.getRate();
-
-    // Get playthrough for chapters
-    const playthrough = await getActivePlaythrough(session, mediaId);
-
-    // Initialize playthrough tracking for event recording
-    await initializePlaythroughTracking(
-      session,
-      mediaId,
-      position,
-      playbackRate,
-    );
-
-    return {
-      mediaId,
-      position,
-      duration,
-      playbackRate,
-      streaming,
-      chapters: playthrough?.media.chapters || [],
-    };
-  }
-
-  // Find most recent in-progress playthrough (returns full data to avoid redundant queries)
-  const mostRecentPlaythrough =
-    await getMostRecentInProgressPlaythrough(session);
-
-  if (!mostRecentPlaythrough) {
-    console.debug("[Player] No in-progress playthrough found");
-    return null;
-  }
-
-  console.debug(
-    "[Player] Loading most recent playthrough:",
-    mostRecentPlaythrough.id,
-    "mediaId:",
-    mostRecentPlaythrough.media.id,
-  );
-
-  // Load directly using the full playthrough data (no additional query needed)
-  return loadPlaythroughIntoTrackPlayer(session, mostRecentPlaythrough);
 }
 
 function initialChapterState(
@@ -1218,5 +993,5 @@ useSession.subscribe((state, prevState) => {
   }
 });
 
-// Register callback for playthrough-lifecycle to unload player (breaks circular dependency)
-setUnloadPlayerCallback(tryUnloadPlayer);
+// Register callback for playthrough-transitions to unload player (breaks circular dependency)
+Transitions.setUnloadPlayerCallback(tryUnloadPlayer);

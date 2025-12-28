@@ -1,6 +1,6 @@
 import TrackPlayer, { isPlaying } from "react-native-track-player";
 
-import { SLEEP_TIMER_FADE_OUT_TIME } from "@/constants";
+import { PAUSE_REWIND_SECONDS, SLEEP_TIMER_FADE_OUT_TIME } from "@/constants";
 import { setTriggerTime, useSleepTimer } from "@/stores/sleep-timer";
 
 const SLEEP_TIMER_CHECK_INTERVAL = 1000;
@@ -53,6 +53,15 @@ async function checkTimer() {
     console.debug("[Sleep Timer] Triggering - pausing playback");
     await TrackPlayer.pause();
     await TrackPlayer.setVolume(1.0);
+
+    // Rewind slightly so the user has context when they resume
+    // (see PAUSE_REWIND_SECONDS in constants.ts for explanation)
+    const { position, duration } = await TrackPlayer.getProgress();
+    const playbackRate = await TrackPlayer.getRate();
+    let seekPosition = position - PAUSE_REWIND_SECONDS * playbackRate;
+    seekPosition = Math.max(0, Math.min(seekPosition, duration));
+    await TrackPlayer.seekTo(seekPosition);
+
     setTriggerTime(null);
     // Call the injected callback to record the pause event
     // NOTE: We don't call cancel() here because that would create a loop

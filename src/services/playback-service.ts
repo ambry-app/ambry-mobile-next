@@ -1,5 +1,6 @@
 import TrackPlayer, { Event } from "react-native-track-player";
 
+import { PAUSE_REWIND_SECONDS } from "@/constants";
 import * as EventRecording from "@/services/event-recording-service";
 import * as Coordinator from "@/services/playback-coordinator";
 import { setProgress } from "@/stores/player";
@@ -102,7 +103,7 @@ export const PlaybackService = async function () {
     console.debug("[TrackPlayer Service] RemotePause");
 
     await TrackPlayer.pause();
-    await seekImmediateNoLog(-1);
+    await seekImmediateNoLog(-PAUSE_REWIND_SECONDS);
     Coordinator.onPause();
   });
 
