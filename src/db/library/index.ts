@@ -10,6 +10,7 @@ export * from "./get-media-by-narrator-page";
 export * from "./get-media-by-narrators";
 export * from "./get-media-header-info";
 export * from "./get-media-page";
+export * from "./get-media-title";
 export * from "./get-narrator-header-info";
 export * from "./get-other-books-by-authors";
 export * from "./get-other-media-by-narrators";

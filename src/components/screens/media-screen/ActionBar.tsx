@@ -144,8 +144,7 @@ export function ActionBar({ media, session }: ActionBarProps) {
   }, [session, media.id]);
 
   const handleShare = useCallback(async () => {
-    const mediaURL =
-      session.url + "/audiobooks/" + atob(media.id).split(":")[1];
+    const mediaURL = `${session.url}/audiobooks/${media.id}`;
     Share.share({ message: mediaURL });
   }, [session.url, media.id]);
 
