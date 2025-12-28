@@ -25,11 +25,14 @@ import TrackPlayer, {
 
 import { PAUSE_REWIND_SECONDS } from "@/constants";
 import {
-  ActivePlaythrough,
+  type ActivePlaythrough,
+  clearActivePlaythroughIdForDevice,
   createPlaythrough,
   getActivePlaythrough,
-  getMostRecentInProgressPlaythrough,
+  getActivePlaythroughIdForDevice,
+  getPlaythroughById,
   resumePlaythrough as resumePlaythroughInDb,
+  setActivePlaythroughIdForDevice,
   updatePlaythroughStatus,
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
@@ -54,6 +57,7 @@ import * as Coordinator from "./playback-coordinator";
 // =============================================================================
 
 export interface TrackLoadResult {
+  playthroughId: string;
   mediaId: string;
   duration: number;
   position: number;
@@ -102,6 +106,9 @@ export async function loadAndPlayMedia(session: Session, mediaId: string) {
   const result = await loadMediaIntoPlayer(session, mediaId);
   updatePlayerStoreFromLoadResult(result);
 
+  // Track this as the active playthrough for this device
+  await setActivePlaythroughIdForDevice(session, result.playthroughId);
+
   await playAndNotify();
   bumpPlaythroughDataVersion();
 }
@@ -145,6 +152,9 @@ export async function resumePlaythroughAndPlay(
   const result = await loadPlaythroughIntoPlayer(session, playthrough);
   updatePlayerStoreFromLoadResult(result);
 
+  // Track this as the active playthrough for this device
+  await setActivePlaythroughIdForDevice(session, playthroughId);
+
   await playAndNotify();
 }
 
@@ -184,6 +194,9 @@ export async function startFreshAndPlay(session: Session, mediaId: string) {
   const result = await loadPlaythroughIntoPlayer(session, playthrough);
   updatePlayerStoreFromLoadResult(result);
 
+  // Track this as the active playthrough for this device
+  await setActivePlaythroughIdForDevice(session, playthroughId);
+
   await playAndNotify();
 }
 
@@ -217,6 +230,9 @@ export async function finishPlaythrough(
   await updatePlaythroughStatus(session, playthroughId, "finished", {
     finishedAt: new Date(),
   });
+
+  // Clear the active playthrough for this device since it's finished
+  await clearActivePlaythroughIdForDevice(session);
 
   // Notify UI that playthrough data changed
   bumpPlaythroughDataVersion();
@@ -257,6 +273,9 @@ export async function abandonPlaythrough(
     abandonedAt: new Date(),
   });
 
+  // Clear the active playthrough for this device since it's abandoned
+  await clearActivePlaythroughIdForDevice(session);
+
   // Notify UI that playthrough data changed
   bumpPlaythroughDataVersion();
 
@@ -264,6 +283,18 @@ export async function abandonPlaythrough(
   if (isLoadedInPlayer) {
     await unloadPlayerCallback?.();
   }
+}
+
+/**
+ * Explicitly unload the player and clear the active playthrough for this device.
+ *
+ * This is for user-initiated "unload player" actions (e.g., from context menu).
+ * Unlike logout/session expiry (which preserves the active playthrough ID for
+ * next login), this clears it so the player stays unloaded on next app boot.
+ */
+export async function unloadPlayer(session: Session): Promise<void> {
+  await clearActivePlaythroughIdForDevice(session);
+  await unloadPlayerCallback?.();
 }
 
 // =============================================================================
@@ -317,10 +348,14 @@ export async function loadMediaIntoPlayer(
 }
 
 /**
- * Load the most recent in-progress playthrough into TrackPlayer.
+ * Load the stored active playthrough into TrackPlayer.
  *
  * Used during app initialization to restore the last playing media.
- * Returns null if no in-progress playthrough exists.
+ * Returns null if no active playthrough is stored for this device.
+ *
+ * Note: This function does NOT fall back to "most recently listened" if no
+ * playthrough is stored. If the stored playthrough is invalid (deleted, finished,
+ * abandoned), it clears the stored ID and returns null.
  */
 export async function loadMostRecentIntoPlayer(
   session: Session,
@@ -337,7 +372,7 @@ export async function loadMostRecentIntoPlayer(
     const duration = progress.duration;
     const playbackRate = await TrackPlayer.getRate();
 
-    // Get playthrough for chapters
+    // Get playthrough for chapters and ID
     const playthrough = await getActivePlaythrough(session, mediaId);
 
     // Initialize playthrough tracking for event recording
@@ -349,6 +384,7 @@ export async function loadMostRecentIntoPlayer(
     );
 
     return {
+      playthroughId: playthrough?.id || "",
       mediaId,
       position,
       duration,
@@ -358,23 +394,60 @@ export async function loadMostRecentIntoPlayer(
     };
   }
 
-  // Find most recent in-progress playthrough
-  const mostRecentPlaythrough =
-    await getMostRecentInProgressPlaythrough(session);
+  // Check for stored active playthrough ID for this device
+  const storedPlaythroughId = await getActivePlaythroughIdForDevice(session);
 
-  if (!mostRecentPlaythrough) {
-    console.debug("[Transitions] No in-progress playthrough found");
+  if (!storedPlaythroughId) {
+    console.debug("[Transitions] No active playthrough stored for this device");
+    return null;
+  }
+
+  // Verify the stored playthrough exists and is in_progress
+  const playthrough = await getPlaythroughById(session, storedPlaythroughId);
+
+  if (!playthrough) {
+    console.debug(
+      "[Transitions] Stored playthrough not found, clearing:",
+      storedPlaythroughId,
+    );
+    await clearActivePlaythroughIdForDevice(session);
+    return null;
+  }
+
+  if (playthrough.status !== "in_progress") {
+    console.debug(
+      "[Transitions] Stored playthrough is not in_progress (status:",
+      playthrough.status,
+      "), clearing:",
+      storedPlaythroughId,
+    );
+    await clearActivePlaythroughIdForDevice(session);
+    return null;
+  }
+
+  // Get full playthrough data with media info
+  const fullPlaythrough = await getActivePlaythrough(
+    session,
+    playthrough.mediaId,
+  );
+
+  if (!fullPlaythrough) {
+    console.debug(
+      "[Transitions] Could not load full playthrough data, clearing:",
+      storedPlaythroughId,
+    );
+    await clearActivePlaythroughIdForDevice(session);
     return null;
   }
 
   console.debug(
-    "[Transitions] Loading most recent playthrough:",
-    mostRecentPlaythrough.id,
+    "[Transitions] Loading stored active playthrough:",
+    fullPlaythrough.id,
     "mediaId:",
-    mostRecentPlaythrough.media.id,
+    fullPlaythrough.media.id,
   );
 
-  return loadPlaythroughIntoPlayer(session, mostRecentPlaythrough);
+  return loadPlaythroughIntoPlayer(session, fullPlaythrough);
 }
 
 // =============================================================================
@@ -568,6 +641,7 @@ async function loadPlaythroughIntoPlayer(
   );
 
   return {
+    playthroughId: playthrough.id,
     mediaId: playthrough.media.id,
     duration: parseFloat(playthrough.media.duration || "0"),
     position: actualPosition,

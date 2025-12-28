@@ -8,7 +8,6 @@ import { router } from "expo-router";
 import { getActivePlaythrough } from "@/db/playthroughs";
 import * as Transitions from "@/services/playthrough-transitions";
 import { startDownload, useDownloads } from "@/stores/downloads";
-import { tryUnloadPlayer } from "@/stores/player";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 
@@ -79,8 +78,8 @@ export function PlayerContextMenu({
   );
 
   const handleUnloadPlayer = useCallback(async () => {
-    await tryUnloadPlayer();
-  }, []);
+    await Transitions.unloadPlayer(session);
+  }, [session]);
 
   const handleMarkFinished = useCallback(async () => {
     if (!playthroughId) return;

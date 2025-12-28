@@ -1,0 +1,1 @@
+ALTER TABLE `server_profiles` ADD `active_playthrough_id` text;

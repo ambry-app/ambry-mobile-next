@@ -543,3 +543,70 @@ export async function upsertPlaybackEvent(event: schema.PlaybackEventInsert) {
       .onConflictDoNothing();
   }
 }
+
+// =============================================================================
+// Active Playthrough (Device-Specific)
+// =============================================================================
+
+/**
+ * Get the active playthrough ID stored for this device.
+ * This is used on app boot to determine which playthrough to load into the player.
+ */
+export async function getActivePlaythroughIdForDevice(
+  session: Session,
+): Promise<string | null> {
+  const profile = await getDb().query.serverProfiles.findFirst({
+    where: and(
+      eq(schema.serverProfiles.url, session.url),
+      eq(schema.serverProfiles.userEmail, session.email),
+    ),
+    columns: {
+      activePlaythroughId: true,
+    },
+  });
+
+  return profile?.activePlaythroughId ?? null;
+}
+
+/**
+ * Set the active playthrough ID for this device.
+ * Called when loading a playthrough into the player.
+ */
+export async function setActivePlaythroughIdForDevice(
+  session: Session,
+  playthroughId: string,
+): Promise<void> {
+  await getDb()
+    .insert(schema.serverProfiles)
+    .values({
+      url: session.url,
+      userEmail: session.email,
+      activePlaythroughId: playthroughId,
+    })
+    .onConflictDoUpdate({
+      target: [schema.serverProfiles.url, schema.serverProfiles.userEmail],
+      set: {
+        activePlaythroughId: playthroughId,
+      },
+    });
+}
+
+/**
+ * Clear the active playthrough ID for this device.
+ * Called when finishing, abandoning, or explicitly unloading the player.
+ */
+export async function clearActivePlaythroughIdForDevice(
+  session: Session,
+): Promise<void> {
+  await getDb()
+    .update(schema.serverProfiles)
+    .set({
+      activePlaythroughId: null,
+    })
+    .where(
+      and(
+        eq(schema.serverProfiles.url, session.url),
+        eq(schema.serverProfiles.userEmail, session.email),
+      ),
+    );
+}

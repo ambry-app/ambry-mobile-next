@@ -623,6 +623,7 @@ async function setupTrackPlayer(
       const playbackRate = await TrackPlayer.getRate();
       const playthrough = await getActivePlaythrough(session, mediaId);
       return {
+        playthroughId: playthrough?.id || "",
         mediaId,
         position,
         duration,

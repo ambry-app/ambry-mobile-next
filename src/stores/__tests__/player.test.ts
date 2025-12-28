@@ -42,6 +42,7 @@ import {
   createMedia,
   createPlaythrough,
   createPlaythroughStateCache,
+  createServerProfile,
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
 import {
@@ -633,7 +634,7 @@ describe("player store", () => {
         expect(usePlayer.getState().initialized).toBe(true);
       });
 
-      it("loads most recent in-progress playthrough on fresh init", async () => {
+      it("loads stored active playthrough on fresh init", async () => {
         const db = getDb();
 
         // Set up media with required book author
@@ -654,6 +655,11 @@ describe("player store", () => {
           playthroughId: playthrough.id,
           currentPosition: 500,
           currentRate: 1.25,
+        });
+
+        // Set the active playthrough ID for this device
+        await createServerProfile(db, {
+          activePlaythroughId: playthrough.id,
         });
 
         // First call: reject (triggers setupPlayer), subsequent calls: return null

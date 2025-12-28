@@ -557,6 +557,8 @@ export const serverProfiles = sqliteTable(
     userEmail: text("user_email").notNull(),
     // timestamp of last playthrough sync (bidirectional - send unsynced + receive server updates)
     lastSyncTime: integer("last_sync_time", { mode: "timestamp" }),
+    // the playthrough that was last loaded into the player on this device
+    activePlaythroughId: text("active_playthrough_id"),
   },
   (table) => [primaryKey({ columns: [table.url, table.userEmail] })],
 );
