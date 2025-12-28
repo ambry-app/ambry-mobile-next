@@ -726,7 +726,7 @@ describe("player store", () => {
         await createBookAuthor(db, { bookId: media.bookId });
 
         // Create playthrough for chapters
-        await createPlaythrough(db, {
+        const playthrough = await createPlaythrough(db, {
           mediaId: "media-init-2",
           status: "in_progress",
         });
@@ -734,7 +734,7 @@ describe("player store", () => {
         // TrackPlayer already has a track loaded
         mockTrackPlayerGetTrack.mockResolvedValue({
           url: "https://example.com/stream.m3u8",
-          description: "media-init-2", // mediaId stored in description
+          description: playthrough.id, // playthroughId stored in description
         });
         mockTrackPlayerGetProgress.mockResolvedValue({
           position: 200,
@@ -941,10 +941,11 @@ describe("player store", () => {
         expect(state.streaming).toBe(false); // Downloaded, not streaming
 
         // Verify TrackPlayer.add was called with local file path
+        // description contains the playthroughId (a UUID), not the mediaId
         expect(mockTrackPlayerAdd).toHaveBeenCalledWith(
           expect.objectContaining({
             url: expect.stringContaining("/downloads/media-downloaded.mp4"),
-            description: "media-downloaded",
+            description: expect.any(String),
           }),
         );
       });

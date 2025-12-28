@@ -20,6 +20,7 @@ import {
 import {
   getActivePlaythrough,
   getFinishedOrAbandonedPlaythrough,
+  getPlaythroughById,
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
 import { getCurrentPlaythroughId } from "@/services/event-recording-service";
@@ -169,11 +170,16 @@ export async function initializePlayer(session: Session) {
   try {
     const response = await setupTrackPlayer(session);
 
-    if (response === true) {
-      // TrackPlayer set up but no track loaded yet
+    if (response === true || response === null) {
+      // TrackPlayer set up but no track loaded yet (true),
+      // or track loaded but playthrough not found (null)
+      if (response === null) {
+        // Reset TrackPlayer since the loaded track is invalid
+        await TrackPlayer.reset();
+      }
       usePlayer.setState({ initialized: true });
 
-      // Try to load most recent media
+      // Try to load the stored active playthrough
       const track = await Transitions.loadMostRecentIntoPlayer(session);
       if (track) {
         usePlayer.setState({
@@ -609,27 +615,39 @@ export function setProgress(position: number, duration: number) {
 
 async function setupTrackPlayer(
   session: Session,
-): Promise<Transitions.TrackLoadResult | true> {
+): Promise<Transitions.TrackLoadResult | true | null> {
   try {
     // just checking to see if it's already initialized
     const track = await TrackPlayer.getTrack(0);
 
     if (track) {
+      // The description field contains the playthroughId
+      const playthroughId = track.description!;
       const streaming = track.url.startsWith("http");
-      const mediaId = track.description!;
       const progress = await TrackPlayer.getProgress();
       const position = progress.position;
       const duration = progress.duration;
       const playbackRate = await TrackPlayer.getRate();
-      const playthrough = await getActivePlaythrough(session, mediaId);
+
+      // Get playthrough with full media info
+      const playthrough = await getPlaythroughById(session, playthroughId);
+
+      if (!playthrough) {
+        console.warn(
+          "[Player] Track loaded but playthrough not found:",
+          playthroughId,
+        );
+        return null;
+      }
+
       return {
-        playthroughId: playthrough?.id || "",
-        mediaId,
+        playthroughId,
+        mediaId: playthrough.media.id,
         position,
         duration,
         playbackRate,
         streaming,
-        chapters: playthrough?.media.chapters || [],
+        chapters: playthrough.media.chapters,
       };
     }
   } catch (error) {

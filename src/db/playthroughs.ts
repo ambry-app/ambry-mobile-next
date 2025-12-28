@@ -73,6 +73,35 @@ export async function getPlaythroughById(
     ),
     with: {
       stateCache: true,
+      media: {
+        columns: {
+          id: true,
+          thumbnails: true,
+          mpdPath: true,
+          hlsPath: true,
+          duration: true,
+          chapters: true,
+        },
+        with: {
+          download: {
+            columns: { status: true, filePath: true, thumbnails: true },
+          },
+          book: {
+            columns: { id: true, title: true },
+            with: {
+              bookAuthors: {
+                columns: { id: true },
+                with: {
+                  author: {
+                    columns: { id: true, name: true },
+                    with: { person: { columns: { id: true } } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     },
   });
 }

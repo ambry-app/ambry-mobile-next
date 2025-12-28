@@ -364,33 +364,41 @@ export async function loadMostRecentIntoPlayer(
 
   if (track) {
     // Track already loaded (e.g., from headless context or previous session)
-    // Still need to initialize playthrough tracking
+    // The description field contains the playthroughId
+    const playthroughId = track.description!;
     const streaming = track.url.startsWith("http");
-    const mediaId = track.description!;
     const progress = await TrackPlayer.getProgress();
     const position = progress.position;
     const duration = progress.duration;
     const playbackRate = await TrackPlayer.getRate();
 
-    // Get playthrough for chapters and ID
-    const playthrough = await getActivePlaythrough(session, mediaId);
+    // Get playthrough with full media info
+    const playthrough = await getPlaythroughById(session, playthroughId);
+
+    if (!playthrough) {
+      console.warn(
+        "[Transitions] Track loaded but playthrough not found:",
+        playthroughId,
+      );
+      return null;
+    }
 
     // Initialize playthrough tracking for event recording
     await initializePlaythroughTracking(
       session,
-      mediaId,
+      playthrough.media.id,
       position,
       playbackRate,
     );
 
     return {
-      playthroughId: playthrough?.id || "",
-      mediaId,
+      playthroughId,
+      mediaId: playthrough.media.id,
       position,
       duration,
       playbackRate,
       streaming,
-      chapters: playthrough?.media.chapters || [],
+      chapters: playthrough.media.chapters,
     };
   }
 
@@ -425,29 +433,14 @@ export async function loadMostRecentIntoPlayer(
     return null;
   }
 
-  // Get full playthrough data with media info
-  const fullPlaythrough = await getActivePlaythrough(
-    session,
-    playthrough.mediaId,
-  );
-
-  if (!fullPlaythrough) {
-    console.debug(
-      "[Transitions] Could not load full playthrough data, clearing:",
-      storedPlaythroughId,
-    );
-    await clearActivePlaythroughIdForDevice(session);
-    return null;
-  }
-
   console.debug(
     "[Transitions] Loading stored active playthrough:",
-    fullPlaythrough.id,
+    playthrough.id,
     "mediaId:",
-    fullPlaythrough.media.id,
+    playthrough.media.id,
   );
 
-  return loadPlaythroughIntoPlayer(session, fullPlaythrough);
+  return loadPlaythroughIntoPlayer(session, playthrough);
 }
 
 // =============================================================================
@@ -597,7 +590,7 @@ async function loadPlaythroughIntoPlayer(
             playthrough.media.download.thumbnails.extraLarge,
           )
         : undefined,
-      description: playthrough.media.id,
+      description: playthrough.id,
     });
   } else {
     // the media is not downloaded, load the stream
@@ -619,7 +612,7 @@ async function loadPlaythroughIntoPlayer(
       artwork: playthrough.media.thumbnails
         ? `${session.url}/${playthrough.media.thumbnails.extraLarge}`
         : undefined,
-      description: playthrough.media.id,
+      description: playthrough.id,
       headers: { Authorization: `Bearer ${session.token}` },
     });
   }
