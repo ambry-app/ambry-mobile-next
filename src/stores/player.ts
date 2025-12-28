@@ -83,8 +83,6 @@ export interface PlayerState {
   duration: number;
   /** Current TrackPlayer playback rate */
   playbackRate: number;
-  /** Current progress percent (0-100), updated less frequently than position */
-  progressPercent: number;
 
   /** Whether mini player content should render (true when collapsed or animating) */
   shouldRenderMini: boolean;
@@ -132,7 +130,6 @@ const initialState = {
   position: 0,
   duration: 0,
   playbackRate: 1,
-  progressPercent: 0,
   shouldRenderMini: false,
   shouldRenderExpanded: true,
   userIsSeeking: false,
@@ -917,9 +914,8 @@ async function seekImmediateNoLog(target: number, isRelative = false) {
   usePlayer.setState({ seekIsApplying: false });
 }
 
-// Intervals for progress polling
+// Interval for progress polling
 const POSITION_POLL_INTERVAL = 1000; // 1 second for position/duration
-const PROGRESS_PERCENT_INTERVAL = 5000; // 5 seconds for progressPercent
 
 export function usePlayerSubscriptions(appState: AppStateStatus) {
   const playerLoaded = usePlayer((state) => !!state.mediaId);
@@ -927,24 +923,16 @@ export function usePlayerSubscriptions(appState: AppStateStatus) {
   useEffect(() => {
     const subscriptions: EmitterSubscription[] = [];
     let positionIntervalId: NodeJS.Timeout | null = null;
-    let progressPercentIntervalId: NodeJS.Timeout | null = null;
 
     const pollPosition = async () => {
       const progress = await TrackPlayer.getProgress();
       setProgress(progress.position, progress.duration);
     };
 
-    const updateProgressPercent = () => {
-      const { position, duration } = usePlayer.getState();
-      const progressPercent = duration > 0 ? (position / duration) * 100 : 0;
-      usePlayer.setState({ progressPercent });
-    };
-
     const init = async () => {
       console.debug("[Player] Getting initial progress");
       const progress = await TrackPlayer.getProgress();
       setProgress(progress.position, progress.duration);
-      updateProgressPercent();
     };
 
     if (appState === "active" && playerLoaded) {
@@ -952,14 +940,8 @@ export function usePlayerSubscriptions(appState: AppStateStatus) {
 
       console.debug("[Player] Subscribing to player events");
 
-      // Fast interval: poll position/duration every 1 second
+      // Poll position/duration every 1 second
       positionIntervalId = setInterval(pollPosition, POSITION_POLL_INTERVAL);
-
-      // Slow interval: update progressPercent every 5 seconds
-      progressPercentIntervalId = setInterval(
-        updateProgressPercent,
-        PROGRESS_PERCENT_INTERVAL,
-      );
 
       subscriptions.push(
         TrackPlayer.addEventListener(
@@ -971,7 +953,6 @@ export function usePlayerSubscriptions(appState: AppStateStatus) {
 
     return () => {
       if (positionIntervalId) clearInterval(positionIntervalId);
-      if (progressPercentIntervalId) clearInterval(progressPercentIntervalId);
       if (subscriptions.length !== 0)
         console.debug("[Player] Unsubscribing from player events");
       subscriptions.forEach((sub) => sub.remove());

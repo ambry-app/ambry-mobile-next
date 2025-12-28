@@ -48,13 +48,23 @@ import {
   PlayerSettingButtons,
 } from "./tab-bar-with-player";
 
-// Memoized mini progress bar - subscribes to progressPercent (updates every 5s)
+// Memoized mini progress bar - subscribes to position/duration/seekPosition
 const MiniProgressBar = memo(function MiniProgressBar({
   expansion,
 }: {
   expansion: SharedValue<number>;
 }) {
-  const progressPercent = usePlayer((state) => state.progressPercent);
+  const { position, duration, seekPosition } = usePlayer(
+    useShallow(({ position, duration, seekPosition }) => ({
+      position,
+      duration,
+      seekPosition,
+    })),
+  );
+
+  // Use seekPosition if available (during seek accumulation), otherwise use position
+  const displayPosition = seekPosition ?? position;
+  const progressPercent = duration > 0 ? (displayPosition / duration) * 100 : 0;
 
   const animatedStyle = useAnimatedStyle(() => {
     return {

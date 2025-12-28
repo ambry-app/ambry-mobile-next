@@ -8,59 +8,38 @@ import { secondsDisplay } from "@/utils";
 
 import { ProgressBar } from "./ProgressBar";
 
-// Subscribes only to progressPercent (updates every 5s)
-const PlayerProgressBarFill = memo(function PlayerProgressBarFill() {
-  const progressPercent = usePlayer((state) => state.progressPercent);
-  return <ProgressBar percent={progressPercent} />;
-});
-
-// Subscribes to position/duration/playbackRate (updates every 1s)
-// Also subscribes to seekPosition to show pending seeks immediately
-const TimeDisplays = memo(function TimeDisplays() {
-  const { position, duration, playbackRate, progressPercent, seekPosition } =
-    usePlayer(
-      useShallow(
-        ({
-          position,
-          duration,
-          playbackRate,
-          progressPercent,
-          seekPosition,
-        }) => ({
-          position,
-          duration,
-          playbackRate,
-          progressPercent,
-          seekPosition,
-        }),
-      ),
-    );
+// Subscribes to position/duration/playbackRate/seekPosition (updates every 1s, or immediately on seek)
+export const PlayerProgressBar = memo(function PlayerProgressBar() {
+  const { position, duration, playbackRate, seekPosition } = usePlayer(
+    useShallow(({ position, duration, playbackRate, seekPosition }) => ({
+      position,
+      duration,
+      playbackRate,
+      seekPosition,
+    })),
+  );
 
   // Use seekPosition if available (during seek accumulation), otherwise use position
   const displayPosition = seekPosition ?? position;
+  const progressPercent = duration > 0 ? (displayPosition / duration) * 100 : 0;
 
-  return (
-    <View style={styles.timeDisplayRow}>
-      <Text style={styles.timeDisplayText}>
-        {secondsDisplay(displayPosition)}
-      </Text>
-      <Text style={styles.timeDisplayText}>
-        -
-        {secondsDisplay(Math.max(duration - displayPosition, 0) / playbackRate)}
-      </Text>
-      <Text style={[styles.timeDisplayText, styles.percentText]}>
-        {progressPercent.toFixed(1)}%
-      </Text>
-    </View>
-  );
-});
-
-// Parent component that renders both - doesn't subscribe to position itself
-export const PlayerProgressBar = memo(function PlayerProgressBar() {
   return (
     <View>
-      <PlayerProgressBarFill />
-      <TimeDisplays />
+      <ProgressBar percent={progressPercent} />
+      <View style={styles.timeDisplayRow}>
+        <Text style={styles.timeDisplayText}>
+          {secondsDisplay(displayPosition)}
+        </Text>
+        <Text style={styles.timeDisplayText}>
+          -
+          {secondsDisplay(
+            Math.max(duration - displayPosition, 0) / playbackRate,
+          )}
+        </Text>
+        <Text style={[styles.timeDisplayText, styles.percentText]}>
+          {progressPercent.toFixed(1)}%
+        </Text>
+      </View>
     </View>
   );
 });
