@@ -58,13 +58,22 @@ export interface PendingFinishPrompt {
   newMediaId: string;
 }
 
+/**
+ * Represents the currently loaded playthrough in the player.
+ * Both mediaId and playthroughId are always set together (or both null when unloaded).
+ */
+export interface LoadedPlaythrough {
+  mediaId: string;
+  playthroughId: string;
+}
+
 export interface PlayerState {
   /* initialization state */
 
   initialized: boolean;
   initializationError: unknown | null;
-  playthroughId: string | null;
-  mediaId: string | null;
+  /** The currently loaded playthrough, or null if no media is loaded */
+  loadedPlaythrough: LoadedPlaythrough | null;
   streaming: boolean | undefined;
   loadingNewMedia: boolean;
 
@@ -123,8 +132,7 @@ export interface PlayerState {
 }
 
 const initialState = {
-  playthroughId: null,
-  mediaId: null,
+  loadedPlaythrough: null,
   streaming: undefined,
   loadingNewMedia: false,
   pendingResumePrompt: null,
@@ -184,8 +192,10 @@ export async function initializePlayer(session: Session) {
       const track = await Transitions.loadActivePlaythroughIntoPlayer(session);
       if (track) {
         usePlayer.setState({
-          playthroughId: track.playthroughId,
-          mediaId: track.mediaId,
+          loadedPlaythrough: {
+            mediaId: track.mediaId,
+            playthroughId: track.playthroughId,
+          },
           duration: track.duration,
           position: track.position,
           playbackRate: track.playbackRate,
@@ -201,8 +211,10 @@ export async function initializePlayer(session: Session) {
       // TrackPlayer already had a track (shouldn't happen on fresh init, but handle it)
       usePlayer.setState({
         initialized: true,
-        playthroughId: response.playthroughId,
-        mediaId: response.mediaId,
+        loadedPlaythrough: {
+          mediaId: response.mediaId,
+          playthroughId: response.playthroughId,
+        },
         duration: response.duration,
         position: response.position,
         playbackRate: response.playbackRate,
@@ -233,8 +245,10 @@ export async function loadMedia(session: Session, mediaId: string) {
 
   usePlayer.setState({
     loadingNewMedia: false,
-    playthroughId: track.playthroughId,
-    mediaId: track.mediaId,
+    loadedPlaythrough: {
+      mediaId: track.mediaId,
+      playthroughId: track.playthroughId,
+    },
     duration: track.duration,
     position: track.position,
     playbackRate: track.playbackRate,
@@ -312,10 +326,12 @@ export async function checkForFinishPrompt(
   session: Session,
   newMediaId: string,
 ): Promise<boolean> {
-  const { playthroughId, mediaId, position, duration } = usePlayer.getState();
+  const { loadedPlaythrough, position, duration } = usePlayer.getState();
 
   // No current media loaded - nothing to prompt about
-  if (!playthroughId || !mediaId) return false;
+  if (!loadedPlaythrough) return false;
+
+  const { mediaId, playthroughId } = loadedPlaythrough;
 
   // Same media being loaded - no prompt needed
   if (mediaId === newMediaId) return false;
@@ -936,7 +952,7 @@ async function seekImmediateNoLog(target: number, isRelative = false) {
 const POSITION_POLL_INTERVAL = 1000; // 1 second for position/duration
 
 export function usePlayerSubscriptions(appState: AppStateStatus) {
-  const playerLoaded = usePlayer((state) => !!state.mediaId);
+  const playerLoaded = usePlayer((state) => !!state.loadedPlaythrough);
 
   useEffect(() => {
     const subscriptions: EmitterSubscription[] = [];

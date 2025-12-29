@@ -41,13 +41,11 @@ export function ActionBar({ media, session }: ActionBarProps) {
     "saved",
   );
 
-  // Get player state - both mediaId and playthroughId explicitly
-  const playerMediaId = usePlayer((state) => state.mediaId);
-  const playerPlaythroughId = usePlayer((state) => state.playthroughId);
+  // Get loaded playthrough from player store
+  const loadedPlaythrough = usePlayer((state) => state.loadedPlaythrough);
 
-  // This media is loaded if BOTH mediaId matches AND there's a playthroughId
-  const isCurrentlyLoaded =
-    playerMediaId === media.id && playerPlaythroughId !== null;
+  // This media is loaded if the player has this media loaded
+  const isCurrentlyLoaded = loadedPlaythrough?.mediaId === media.id;
 
   // Subscribe to playthrough data version to refresh when playthroughs change
   const playthroughVersion = useDataVersion(
@@ -120,7 +118,7 @@ export function ActionBar({ media, session }: ActionBarProps) {
     ? "in_progress"
     : dbPlaythroughState;
   const activePlaythroughId: string | null = isCurrentlyLoaded
-    ? playerPlaythroughId
+    ? loadedPlaythrough.playthroughId
     : dbPlaythroughId;
 
   // Context menu handlers
@@ -211,13 +209,11 @@ type PlayButtonProps = {
 };
 
 function PlayButton({ session, media }: PlayButtonProps) {
-  const playerMediaId = usePlayer((state) => state.mediaId);
-  const playerPlaythroughId = usePlayer((state) => state.playthroughId);
+  const loadedPlaythrough = usePlayer((state) => state.loadedPlaythrough);
   const loadMedia = useLoadMediaCallback(session, media.id);
 
-  // This media is loaded if BOTH mediaId matches AND there's a playthroughId
-  const isCurrentlyLoaded =
-    playerMediaId === media.id && playerPlaythroughId !== null;
+  // This media is loaded if the player has this media loaded
+  const isCurrentlyLoaded = loadedPlaythrough?.mediaId === media.id;
 
   // If this media is currently loaded, show real-time play/pause button
   if (isCurrentlyLoaded) {

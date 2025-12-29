@@ -21,7 +21,7 @@ import { resetStoreBeforeEach } from "@test/store-test-utils";
 // Mock the player module to avoid pulling in react-native-track-player
 jest.mock("../player", () => ({
   usePlayer: {
-    getState: jest.fn(() => ({ mediaId: null })),
+    getState: jest.fn(() => ({ loadedPlaythrough: null })),
   },
   loadMedia: jest.fn(),
 }));
@@ -47,9 +47,9 @@ describe("downloads store", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Reset player mock to default state
-    mockUsePlayer.getState.mockReturnValue({ mediaId: null } as ReturnType<
-      typeof usePlayer.getState
-    >);
+    mockUsePlayer.getState.mockReturnValue({
+      loadedPlaythrough: null,
+    } as ReturnType<typeof usePlayer.getState>);
   });
 
   describe("initializeDownloads", () => {
@@ -275,7 +275,10 @@ describe("downloads store", () => {
 
       // Set player to have this media loaded
       mockUsePlayer.getState.mockReturnValue({
-        mediaId: "media-current",
+        loadedPlaythrough: {
+          mediaId: "media-current",
+          playthroughId: "pt-1",
+        },
       } as ReturnType<typeof usePlayer.getState>);
 
       mockDownloadResumable.downloadAsync.mockResolvedValue({
@@ -297,7 +300,10 @@ describe("downloads store", () => {
 
       // Player has different media loaded
       mockUsePlayer.getState.mockReturnValue({
-        mediaId: "different-media",
+        loadedPlaythrough: {
+          mediaId: "different-media",
+          playthroughId: "pt-2",
+        },
       } as ReturnType<typeof usePlayer.getState>);
 
       mockDownloadResumable.downloadAsync.mockResolvedValue({
@@ -495,7 +501,10 @@ describe("downloads store", () => {
       });
 
       mockUsePlayer.getState.mockReturnValue({
-        mediaId: "media-loaded",
+        loadedPlaythrough: {
+          mediaId: "media-loaded",
+          playthroughId: "pt-3",
+        },
       } as ReturnType<typeof usePlayer.getState>);
 
       await initializeDownloads(testSession);

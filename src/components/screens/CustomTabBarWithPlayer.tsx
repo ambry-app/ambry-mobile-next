@@ -36,7 +36,11 @@ import { getMedia } from "@/db/library";
 import useBackHandler from "@/hooks/use-back-handler";
 import { useLibraryData } from "@/hooks/use-library-data";
 import * as Coordinator from "@/services/playback-coordinator";
-import { setPlayerRenderState, usePlayer } from "@/stores/player";
+import {
+  type LoadedPlaythrough,
+  setPlayerRenderState,
+  usePlayer,
+} from "@/stores/player";
 import { useScreen } from "@/stores/screen";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
@@ -107,12 +111,12 @@ const MiniProgressBar = memo(function MiniProgressBar({
 
 type CustomTabBarWithPlayerProps = {
   session: Session;
-  mediaId: string;
-  playthroughId: string;
+  loadedPlaythrough: LoadedPlaythrough;
 };
 
 export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
-  const { session, mediaId, playthroughId } = props;
+  const { session, loadedPlaythrough } = props;
+  const { mediaId } = loadedPlaythrough;
   const insets = useSafeAreaInsets();
 
   const { streaming, loadingNewMedia, shouldRenderMini, shouldRenderExpanded } =
@@ -619,8 +623,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
 
                   <PlayerContextMenu
                     session={session}
-                    mediaId={mediaId}
-                    playthroughId={playthroughId}
+                    loadedPlaythrough={loadedPlaythrough}
                     bookTitle={media.book.title}
                     authors={media.book.authors}
                     narrators={media.narrators}

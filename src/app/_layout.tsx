@@ -109,7 +109,7 @@ function DrizzleStudio() {
 
 function RootStack() {
   const isLoggedIn = useSession((state) => !!state.session);
-  const playerLoaded = usePlayer((state) => !!state.mediaId);
+  const playerLoaded = usePlayer((state) => !!state.loadedPlaythrough);
 
   const appState = useAppState();
   useForegroundSync(appState);

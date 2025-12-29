@@ -181,7 +181,7 @@ export async function startDownload(session: Session, mediaId: string) {
       });
       addOrUpdateDownload(download);
       // reload player if the download is for the currently loaded media
-      if (usePlayer.getState().mediaId === mediaId) {
+      if (usePlayer.getState().loadedPlaythrough?.mediaId === mediaId) {
         const { playing } = await isPlaying();
         await saveCurrentProgress();
         await loadMedia(session, mediaId);
@@ -235,7 +235,7 @@ export async function removeDownload(session: Session, mediaId: string) {
   removeDownloadFromStore(mediaId);
 
   // reload player if the download is for the currently loaded media
-  if (usePlayer.getState().mediaId === mediaId) {
+  if (usePlayer.getState().loadedPlaythrough?.mediaId === mediaId) {
     const { playing } = await isPlaying();
     await saveCurrentProgress();
     await loadMedia(session, mediaId);

@@ -7,6 +7,7 @@ import { router } from "expo-router";
 
 import * as Transitions from "@/services/playthrough-transitions";
 import { startDownload, useDownloads } from "@/stores/downloads";
+import { type LoadedPlaythrough } from "@/stores/player";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 
@@ -19,8 +20,7 @@ type AuthorOrNarrator = {
 
 export type PlayerContextMenuProps = {
   session: Session;
-  mediaId: string;
-  playthroughId: string;
+  loadedPlaythrough: LoadedPlaythrough;
   bookTitle: string;
   authors: AuthorOrNarrator[];
   narrators: AuthorOrNarrator[];
@@ -31,13 +31,13 @@ const NARRATOR_THRESHOLD = 5;
 
 export function PlayerContextMenu({
   session,
-  mediaId,
-  playthroughId,
+  loadedPlaythrough,
   bookTitle,
   authors,
   narrators,
   onCollapse,
 }: PlayerContextMenuProps) {
+  const { mediaId, playthroughId } = loadedPlaythrough;
   const downloadStatus = useDownloads(
     (state) => state.downloads[mediaId]?.status,
   );

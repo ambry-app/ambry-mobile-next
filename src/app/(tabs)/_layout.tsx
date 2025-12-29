@@ -17,13 +17,9 @@ const screenOptions: NativeStackNavigationOptions =
 
 export default function TabsWrapperLayout() {
   const session = useSession((state) => state.session);
-  const mediaId = usePlayer((state) => state.mediaId);
-  const playthroughId = usePlayer((state) => state.playthroughId);
+  const loadedPlaythrough = usePlayer((state) => state.loadedPlaythrough);
   const pendingResumePrompt = usePlayer((state) => state.pendingResumePrompt);
   const pendingFinishPrompt = usePlayer((state) => state.pendingFinishPrompt);
-
-  // mediaId and playthroughId are always both set or both null
-  const playerVisible = !!mediaId && !!playthroughId;
 
   if (!session) return null;
 
@@ -41,11 +37,10 @@ export default function TabsWrapperLayout() {
         <Stack.Screen name="narrator/[id]" />
         <Stack.Screen name="series/[id]" />
       </Stack>
-      {playerVisible ? (
+      {loadedPlaythrough ? (
         <CustomTabBarWithPlayer
           session={session}
-          mediaId={mediaId}
-          playthroughId={playthroughId}
+          loadedPlaythrough={loadedPlaythrough}
         />
       ) : (
         <CustomTabBar />

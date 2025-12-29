@@ -541,8 +541,10 @@ function updatePlayerStoreFromLoadResult(result: TrackLoadResult) {
 
   usePlayer.setState({
     loadingNewMedia: false,
-    playthroughId: result.playthroughId,
-    mediaId: result.mediaId,
+    loadedPlaythrough: {
+      mediaId: result.mediaId,
+      playthroughId: result.playthroughId,
+    },
     duration: result.duration,
     position: result.position,
     playbackRate: result.playbackRate,

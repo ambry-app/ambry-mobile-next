@@ -49,7 +49,7 @@ export function PlaythroughHistory({
   );
 
   // Get current player state for "Now Playing" detection
-  const playerMediaId = usePlayer((state) => state.mediaId);
+  const loadedMediaId = usePlayer((state) => state.loadedPlaythrough?.mediaId);
 
   const primaryPlaythrough = playthroughs?.[0];
   if (!primaryPlaythrough) return null;
@@ -60,7 +60,7 @@ export function PlaythroughHistory({
   // Check if the primary in-progress playthrough is currently loaded in player
   const primaryIsNowPlaying =
     primaryPlaythrough.status === "in_progress" &&
-    primaryPlaythrough.mediaId === playerMediaId;
+    primaryPlaythrough.mediaId === loadedMediaId;
 
   return (
     <View style={styles.container}>

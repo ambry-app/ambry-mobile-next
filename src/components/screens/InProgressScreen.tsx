@@ -14,14 +14,20 @@ type InProgressScreenProps = {
 };
 
 export function InProgressScreen({ session }: InProgressScreenProps) {
-  const mediaId = usePlayer((state) => state.mediaId);
+  const loadedMediaId = usePlayer((state) => state.loadedPlaythrough?.mediaId);
   const getPage = (pageSize: number, cursor: Date | undefined) =>
-    getPlaythroughsPage(session, pageSize, "in_progress", mediaId, cursor);
+    getPlaythroughsPage(
+      session,
+      pageSize,
+      "in_progress",
+      loadedMediaId,
+      cursor,
+    );
   // lastListenedAt is used for sorting in_progress playthroughs
   const getCursor = (item: { lastListenedAt: Date | null }) =>
     item.lastListenedAt!;
   const page = usePaginatedLibraryData(PAGE_SIZE, getPage, getCursor, [
-    mediaId,
+    loadedMediaId,
   ]);
   const { items: playthroughs, hasMore, loadMore } = page;
   const { refreshing, onRefresh } = usePullToRefresh(session);

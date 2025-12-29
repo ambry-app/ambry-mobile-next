@@ -25,7 +25,7 @@ type RecentInProgressProps = {
 };
 
 export function RecentInProgress({ session }: RecentInProgressProps) {
-  const mediaId = usePlayer((state) => state.mediaId);
+  const loadedMediaId = usePlayer((state) => state.loadedPlaythrough?.mediaId);
   const screenWidth = useScreen((state) => state.screenWidth);
   const playthroughVersion = useDataVersion(
     (state) => state.playthroughDataVersion,
@@ -36,9 +36,9 @@ export function RecentInProgress({ session }: RecentInProgressProps) {
         session,
         HORIZONTAL_LIST_LIMIT,
         "in_progress",
-        mediaId,
+        loadedMediaId,
       ),
-    [mediaId, playthroughVersion],
+    [loadedMediaId, playthroughVersion],
   );
 
   if (!playthroughs) return null;

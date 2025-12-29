@@ -13,18 +13,20 @@ type NowPlayingProps = {
 };
 
 export function NowPlaying({ session }: NowPlayingProps) {
-  const { mediaId, shouldRenderMini } = usePlayer(
-    useShallow(({ mediaId, shouldRenderMini }) => ({
-      mediaId,
+  const { loadedPlaythrough, shouldRenderMini } = usePlayer(
+    useShallow(({ loadedPlaythrough, shouldRenderMini }) => ({
+      loadedPlaythrough,
       shouldRenderMini,
     })),
   );
 
   // Don't render when player is fully expanded (we're hidden behind it anyway)
   // shouldRenderMini is false when fully expanded, true when collapsed or animating
-  if (!mediaId || !shouldRenderMini) return null;
+  if (!loadedPlaythrough || !shouldRenderMini) return null;
 
-  return <NowPlayingDetails session={session} mediaId={mediaId} />;
+  return (
+    <NowPlayingDetails session={session} mediaId={loadedPlaythrough.mediaId} />
+  );
 }
 
 type NowPlayingDetailsProps = {

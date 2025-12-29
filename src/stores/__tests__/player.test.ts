@@ -83,7 +83,7 @@ const { getDb } = setupTestDatabase();
 const initialPlayerState = {
   initialized: false,
   initializationError: null,
-  mediaId: null,
+  loadedPlaythrough: null,
   streaming: undefined,
   loadingNewMedia: false,
   pendingResumePrompt: null,
@@ -690,7 +690,7 @@ describe("player store", () => {
 
         const state = usePlayer.getState();
         expect(state.initialized).toBe(true);
-        expect(state.mediaId).toBe("media-init-1");
+        expect(state.loadedPlaythrough?.mediaId).toBe("media-init-1");
         expect(state.position).toBe(500);
         expect(state.playbackRate).toBe(1.25);
       });
@@ -706,7 +706,7 @@ describe("player store", () => {
 
         const state = usePlayer.getState();
         expect(state.initialized).toBe(true);
-        expect(state.mediaId).toBeNull();
+        expect(state.loadedPlaythrough).toBeNull();
       });
 
       it("recovers existing track if TrackPlayer already has media loaded", async () => {
@@ -746,7 +746,7 @@ describe("player store", () => {
 
         const state = usePlayer.getState();
         expect(state.initialized).toBe(true);
-        expect(state.mediaId).toBe("media-init-2");
+        expect(state.loadedPlaythrough?.mediaId).toBe("media-init-2");
         expect(state.position).toBe(200);
         expect(state.duration).toBe(3600);
         expect(state.playbackRate).toBe(1.5);
@@ -797,7 +797,10 @@ describe("player store", () => {
       it("resets player state to initial values", async () => {
         // Set some non-initial state
         usePlayer.setState({
-          mediaId: "some-media",
+          loadedPlaythrough: {
+            mediaId: "some-media",
+            playthroughId: "some-playthrough",
+          },
           position: 500,
           duration: 3600,
           playbackRate: 1.5,
@@ -806,7 +809,7 @@ describe("player store", () => {
         await tryUnloadPlayer();
 
         const state = usePlayer.getState();
-        expect(state.mediaId).toBeNull();
+        expect(state.loadedPlaythrough).toBeNull();
         expect(state.position).toBe(0);
         expect(state.duration).toBe(0);
         expect(state.playbackRate).toBe(1);
@@ -830,7 +833,10 @@ describe("player store", () => {
 
       it("resets player state to initial values", async () => {
         usePlayer.setState({
-          mediaId: "some-media",
+          loadedPlaythrough: {
+            mediaId: "some-media",
+            playthroughId: "some-playthrough",
+          },
           position: 500,
           duration: 3600,
         });
@@ -838,7 +844,7 @@ describe("player store", () => {
         await forceUnloadPlayer();
 
         const state = usePlayer.getState();
-        expect(state.mediaId).toBeNull();
+        expect(state.loadedPlaythrough).toBeNull();
         expect(state.position).toBe(0);
         expect(state.duration).toBe(0);
       });
@@ -889,7 +895,7 @@ describe("player store", () => {
         await loadMedia(DEFAULT_TEST_SESSION, "media-1");
 
         const state = usePlayer.getState();
-        expect(state.mediaId).toBe("media-1");
+        expect(state.loadedPlaythrough?.mediaId).toBe("media-1");
         expect(state.streaming).toBe(true); // No download, so streaming
         expect(state.loadingNewMedia).toBe(false);
       });
@@ -937,7 +943,7 @@ describe("player store", () => {
         await loadMedia(DEFAULT_TEST_SESSION, "media-downloaded");
 
         const state = usePlayer.getState();
-        expect(state.mediaId).toBe("media-downloaded");
+        expect(state.loadedPlaythrough?.mediaId).toBe("media-downloaded");
         expect(state.streaming).toBe(false); // Downloaded, not streaming
 
         // Verify TrackPlayer.add was called with local file path
@@ -999,7 +1005,7 @@ describe("player store", () => {
         expect(mockTrackPlayerSetRate).toHaveBeenCalledWith(1.5);
 
         const state = usePlayer.getState();
-        expect(state.mediaId).toBe("media-2");
+        expect(state.loadedPlaythrough?.mediaId).toBe("media-2");
         expect(state.position).toBe(500);
         expect(state.playbackRate).toBe(1.5);
       });
@@ -1025,7 +1031,7 @@ describe("player store", () => {
         await loadMedia(DEFAULT_TEST_SESSION, "media-3");
 
         const state = usePlayer.getState();
-        expect(state.mediaId).toBe("media-3");
+        expect(state.loadedPlaythrough?.mediaId).toBe("media-3");
         expect(state.position).toBe(0);
         expect(state.loadingNewMedia).toBe(false);
       });
@@ -1212,7 +1218,7 @@ describe("player store", () => {
 
         const state = usePlayer.getState();
         expect(state.pendingResumePrompt).toBeNull();
-        expect(state.mediaId).toBe("media-5");
+        expect(state.loadedPlaythrough?.mediaId).toBe("media-5");
         expect(state.position).toBe(3500);
         expect(state.loadingNewMedia).toBe(false);
       });
@@ -1285,7 +1291,7 @@ describe("player store", () => {
 
         const state = usePlayer.getState();
         expect(state.pendingResumePrompt).toBeNull();
-        expect(state.mediaId).toBe("media-6");
+        expect(state.loadedPlaythrough?.mediaId).toBe("media-6");
         expect(state.position).toBe(0); // Fresh start, position 0
         expect(state.loadingNewMedia).toBe(false);
       });
@@ -1313,7 +1319,10 @@ describe("player store", () => {
       useSession.setState({ session: DEFAULT_TEST_SESSION });
       usePlayer.setState({
         initialized: true,
-        mediaId: "some-media",
+        loadedPlaythrough: {
+          mediaId: "some-media",
+          playthroughId: "some-playthrough",
+        },
         position: 500,
       });
 
@@ -1325,7 +1334,7 @@ describe("player store", () => {
       await Promise.resolve();
 
       expect(mockTrackPlayerReset).toHaveBeenCalled();
-      expect(usePlayer.getState().mediaId).toBeNull();
+      expect(usePlayer.getState().loadedPlaythrough).toBeNull();
     });
   });
 });
