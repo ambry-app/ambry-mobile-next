@@ -1,4 +1,3 @@
-import { isPlaying } from "react-native-track-player";
 import { Paths } from "expo-file-system";
 // Legacy imports required for download functionality with progress tracking
 // (the new API doesn't support progress callbacks yet)
@@ -14,10 +13,9 @@ import {
 } from "@/db/downloads";
 import { getMediaDownloadInfo } from "@/db/library";
 import { DownloadedThumbnails, Thumbnails } from "@/db/schema";
-import { saveCurrentProgress } from "@/services/event-recording-service";
 import { documentDirectoryFilePath } from "@/utils";
 
-import { loadMedia, play, usePlayer } from "./player";
+import { reloadCurrentPlaythroughIfMedia } from "./player";
 import { Session } from "./session";
 
 export type DownloadStatus = "pending" | "error" | "ready";
@@ -181,12 +179,7 @@ export async function startDownload(session: Session, mediaId: string) {
       });
       addOrUpdateDownload(download);
       // reload player if the download is for the currently loaded media
-      if (usePlayer.getState().loadedPlaythrough?.mediaId === mediaId) {
-        const { playing } = await isPlaying();
-        await saveCurrentProgress();
-        await loadMedia(session, mediaId);
-        if (playing) await play();
-      }
+      await reloadCurrentPlaythroughIfMedia(session, mediaId);
     } else {
       console.debug("[Downloads] Download was canceled");
     }
@@ -235,12 +228,7 @@ export async function removeDownload(session: Session, mediaId: string) {
   removeDownloadFromStore(mediaId);
 
   // reload player if the download is for the currently loaded media
-  if (usePlayer.getState().loadedPlaythrough?.mediaId === mediaId) {
-    const { playing } = await isPlaying();
-    await saveCurrentProgress();
-    await loadMedia(session, mediaId);
-    if (playing) await play();
-  }
+  await reloadCurrentPlaythroughIfMedia(session, mediaId);
 }
 
 async function downloadThumbnails(

@@ -23,6 +23,7 @@ import {
   getPlaythroughById,
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
+import { saveCurrentProgress } from "@/services/event-recording-service";
 import * as Coordinator from "@/services/playback-coordinator";
 import * as Transitions from "@/services/playthrough-transitions";
 
@@ -255,6 +256,61 @@ export async function loadMedia(session: Session, mediaId: string) {
     streaming: track.streaming,
     ...initialChapterState(track.chapters, track.position, track.duration),
   });
+}
+
+/**
+ * Reload the currently loaded playthrough if it matches the given mediaId.
+ *
+ * Used when we need to switch between streaming and downloaded audio
+ * (e.g., after a download completes or is deleted).
+ *
+ * This explicitly reloads the current playthrough by ID rather than
+ * using getInProgressPlaythrough to infer it from mediaId.
+ *
+ * Handles saving progress before reload and resuming playback if it was playing.
+ */
+export async function reloadCurrentPlaythroughIfMedia(
+  session: Session,
+  mediaId: string,
+): Promise<void> {
+  const { loadedPlaythrough } = usePlayer.getState();
+
+  if (!loadedPlaythrough || loadedPlaythrough.mediaId !== mediaId) {
+    return;
+  }
+
+  console.debug(
+    "[Player] Reloading current playthrough for media:",
+    mediaId,
+    "playthroughId:",
+    loadedPlaythrough.playthroughId,
+  );
+
+  // Save progress and check if playing before reload
+  const { playing } = await isPlaying();
+  await saveCurrentProgress();
+
+  const track = await Transitions.reloadPlaythroughById(
+    session,
+    loadedPlaythrough.playthroughId,
+  );
+
+  usePlayer.setState({
+    loadedPlaythrough: {
+      mediaId: track.mediaId,
+      playthroughId: track.playthroughId,
+    },
+    duration: track.duration,
+    position: track.position,
+    playbackRate: track.playbackRate,
+    streaming: track.streaming,
+    ...initialChapterState(track.chapters, track.position, track.duration),
+  });
+
+  // Resume playback if it was playing before reload
+  if (playing) {
+    await play();
+  }
 }
 
 /**

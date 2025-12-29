@@ -7,7 +7,7 @@ import {
   startDownload,
   useDownloads,
 } from "@/stores/downloads";
-import { loadMedia, usePlayer } from "@/stores/player";
+import { reloadCurrentPlaythroughIfMedia } from "@/stores/player";
 import { Session } from "@/stores/session";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
@@ -20,14 +20,11 @@ import { resetStoreBeforeEach } from "@test/store-test-utils";
 
 // Mock the player module to avoid pulling in react-native-track-player
 jest.mock("../player", () => ({
-  usePlayer: {
-    getState: jest.fn(() => ({ loadedPlaythrough: null })),
-  },
-  loadMedia: jest.fn(),
+  reloadCurrentPlaythroughIfMedia: jest.fn(),
 }));
 
-const mockUsePlayer = usePlayer as jest.Mocked<typeof usePlayer>;
-const mockLoadMedia = loadMedia as jest.Mock;
+const mockReloadCurrentPlaythroughIfMedia =
+  reloadCurrentPlaythroughIfMedia as jest.Mock;
 
 describe("downloads store", () => {
   const { getDb } = setupTestDatabase();
@@ -46,10 +43,8 @@ describe("downloads store", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Reset player mock to default state
-    mockUsePlayer.getState.mockReturnValue({
-      loadedPlaythrough: null,
-    } as ReturnType<typeof usePlayer.getState>);
+    // Default mock - reloadCurrentPlaythroughIfMedia now returns void
+    mockReloadCurrentPlaythroughIfMedia.mockResolvedValue(undefined);
   });
 
   describe("initializeDownloads", () => {
@@ -266,20 +261,12 @@ describe("downloads store", () => {
       });
     });
 
-    it("reloads player if download is for currently loaded media", async () => {
+    it("calls reloadCurrentPlaythroughIfMedia after download completes", async () => {
       const db = getDb();
       const media = await createMedia(db, {
         id: "media-current",
         mp4Path: "audio/media-current/stream.mp4",
       });
-
-      // Set player to have this media loaded
-      mockUsePlayer.getState.mockReturnValue({
-        loadedPlaythrough: {
-          mediaId: "media-current",
-          playthroughId: "pt-1",
-        },
-      } as ReturnType<typeof usePlayer.getState>);
 
       mockDownloadResumable.downloadAsync.mockResolvedValue({
         uri: "file:///test-document-directory/media-current.mp4",
@@ -288,32 +275,11 @@ describe("downloads store", () => {
 
       await startDownload(testSession, media.id);
 
-      expect(mockLoadMedia).toHaveBeenCalledWith(testSession, "media-current");
-    });
-
-    it("does not reload player if download is for different media", async () => {
-      const db = getDb();
-      const media = await createMedia(db, {
-        id: "media-other",
-        mp4Path: "audio/media-other/stream.mp4",
-      });
-
-      // Player has different media loaded
-      mockUsePlayer.getState.mockReturnValue({
-        loadedPlaythrough: {
-          mediaId: "different-media",
-          playthroughId: "pt-2",
-        },
-      } as ReturnType<typeof usePlayer.getState>);
-
-      mockDownloadResumable.downloadAsync.mockResolvedValue({
-        uri: "file:///test-document-directory/media-other.mp4",
-        status: 200,
-      });
-
-      await startDownload(testSession, media.id);
-
-      expect(mockLoadMedia).not.toHaveBeenCalled();
+      // reloadCurrentPlaythroughIfMedia handles checking if media matches and reloading
+      expect(mockReloadCurrentPlaythroughIfMedia).toHaveBeenCalledWith(
+        testSession,
+        "media-current",
+      );
     });
 
     it("does nothing if media has no mp4Path", async () => {
@@ -491,7 +457,7 @@ describe("downloads store", () => {
       expect(LegacyFileSystem.deleteAsync).toHaveBeenCalledTimes(6);
     });
 
-    it("reloads player if removing download for currently loaded media", async () => {
+    it("calls reloadCurrentPlaythroughIfMedia after removing download", async () => {
       const db = getDb();
       const media = await createMedia(db, { id: "media-loaded" });
       await createDownloadFactory(db, {
@@ -500,17 +466,14 @@ describe("downloads store", () => {
         status: "ready",
       });
 
-      mockUsePlayer.getState.mockReturnValue({
-        loadedPlaythrough: {
-          mediaId: "media-loaded",
-          playthroughId: "pt-3",
-        },
-      } as ReturnType<typeof usePlayer.getState>);
-
       await initializeDownloads(testSession);
       await removeDownload(testSession, "media-loaded");
 
-      expect(mockLoadMedia).toHaveBeenCalledWith(testSession, "media-loaded");
+      // reloadCurrentPlaythroughIfMedia handles checking if media matches and reloading
+      expect(mockReloadCurrentPlaythroughIfMedia).toHaveBeenCalledWith(
+        testSession,
+        "media-loaded",
+      );
     });
 
     it("handles missing download gracefully", async () => {

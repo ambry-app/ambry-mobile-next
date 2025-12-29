@@ -348,6 +348,30 @@ export async function loadMediaIntoPlayer(
 }
 
 /**
+ * Reload a specific playthrough by ID.
+ *
+ * This is used when we need to reload the currently loaded playthrough,
+ * such as when switching between streaming and downloaded audio.
+ *
+ * Unlike loadMediaIntoPlayer which may create a new playthrough, this
+ * explicitly loads a known playthrough ID.
+ */
+export async function reloadPlaythroughById(
+  session: Session,
+  playthroughId: string,
+): Promise<TrackLoadResult> {
+  console.debug("[Transitions] Reloading playthrough by ID:", playthroughId);
+
+  const playthrough = await getPlaythroughById(session, playthroughId);
+
+  if (!playthrough) {
+    throw new Error(`Playthrough not found: ${playthroughId}`);
+  }
+
+  return loadPlaythroughIntoPlayer(session, playthrough);
+}
+
+/**
  * Load the stored active playthrough into TrackPlayer.
  *
  * Used during app initialization to restore the last playing media.
