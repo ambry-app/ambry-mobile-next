@@ -1,6 +1,5 @@
 import {
   __resetForTesting,
-  getCurrentPlaythroughId,
   handlePlaybackPaused,
   handlePlaybackQueueEnded,
   handlePlaybackRateChanged,
@@ -76,7 +75,7 @@ describe("event-recording-service", () => {
   });
 
   describe("initializePlaythroughTracking", () => {
-    it("sets up tracking for a playthrough", async () => {
+    it("sets up tracking for a playthrough and records events correctly", async () => {
       const db = getDb();
       const media = await createMedia(db);
       const playthrough = await createPlaythrough(db, {
@@ -84,10 +83,19 @@ describe("event-recording-service", () => {
         status: "in_progress",
       });
 
+      await initialize();
       initializePlaythroughTracking(playthrough.id, 0, 1);
 
-      // Should have set the playthrough ID
-      expect(getCurrentPlaythroughId()).toBe(playthrough.id);
+      // Trigger a play event to verify tracking is set up
+      await handlePlaybackStarted();
+
+      const events = await db.query.playbackEvents.findMany({
+        where: (e, { eq }) => eq(e.playthroughId, playthrough.id),
+      });
+
+      // Should have recorded a play event for this playthrough
+      const playEvents = events.filter((e) => e.type === "play");
+      expect(playEvents.length).toBeGreaterThanOrEqual(1);
     });
 
     it("reuses in-memory playthrough for same ID (JS context persistence)", async () => {
@@ -98,15 +106,25 @@ describe("event-recording-service", () => {
         status: "in_progress",
       });
 
+      await initialize();
+
       // First initialization
       initializePlaythroughTracking(playthrough.id, 0, 1);
-      const firstPlaythroughId = getCurrentPlaythroughId();
 
       // Second initialization for same playthrough (simulating app resume)
+      // Should not throw and should continue to record to the same playthrough
       initializePlaythroughTracking(playthrough.id, 100, 1.5);
 
-      // Should keep the same playthrough
-      expect(getCurrentPlaythroughId()).toBe(firstPlaythroughId);
+      // Trigger a play event to verify tracking still works
+      await handlePlaybackStarted();
+
+      const events = await db.query.playbackEvents.findMany({
+        where: (e, { eq }) => eq(e.playthroughId, playthrough.id),
+      });
+
+      // Should have recorded a play event for this playthrough
+      const playEvents = events.filter((e) => e.type === "play");
+      expect(playEvents.length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -521,25 +539,6 @@ describe("event-recording-service", () => {
       await jest.advanceTimersByTimeAsync(30000);
 
       expect(true).toBe(true);
-    });
-  });
-
-  describe("getCurrentPlaythroughId", () => {
-    it("returns null when no playthrough is set", () => {
-      expect(getCurrentPlaythroughId()).toBeNull();
-    });
-
-    it("returns the current playthrough ID after initialization", async () => {
-      const db = getDb();
-      const media = await createMedia(db);
-      const playthrough = await createPlaythrough(db, {
-        mediaId: media.id,
-        status: "in_progress",
-      });
-
-      initializePlaythroughTracking(playthrough.id, 0, 1);
-
-      expect(getCurrentPlaythroughId()).toBe(playthrough.id);
     });
   });
 });

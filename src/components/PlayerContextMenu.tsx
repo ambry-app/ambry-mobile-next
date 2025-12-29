@@ -10,9 +10,13 @@ import {
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 
-import * as Transitions from "@/services/playthrough-transitions";
 import { startDownload, useDownloads } from "@/stores/downloads";
-import { type LoadedPlaythrough } from "@/stores/player";
+import {
+  abandonPlaythrough,
+  finishPlaythrough,
+  type LoadedPlaythrough,
+  unloadPlayer,
+} from "@/stores/player";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 
@@ -82,15 +86,15 @@ export function PlayerContextMenu({
   );
 
   const handleUnloadPlayer = useCallback(async () => {
-    await Transitions.unloadPlayer(session);
+    await unloadPlayer(session);
   }, [session]);
 
   const handleMarkFinished = useCallback(async () => {
-    await Transitions.finishPlaythrough(session, playthroughId);
+    await finishPlaythrough(session, playthroughId);
   }, [session, playthroughId]);
 
   const handleAbandon = useCallback(async () => {
-    await Transitions.abandonPlaythrough(session, playthroughId);
+    await abandonPlaythrough(session, playthroughId);
   }, [session, playthroughId]);
 
   const handleDownload = useCallback(() => {

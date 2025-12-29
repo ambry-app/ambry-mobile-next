@@ -17,6 +17,7 @@ let updatePlayerProgress:
   | ((position: number, duration: number) => void)
   | null = null;
 let initialized = false;
+let pendingExpandPlayer = false;
 
 /**
  * Initialize the coordinator.
@@ -74,10 +75,21 @@ export function setPlayerProgressUpdater(
  * Register callback for expanding the player UI.
  * Called by CustomTabBarWithPlayer when it mounts.
  *
+ * If expandPlayer() was called before the callback was registered (e.g., app
+ * launched from notification click before UI mounted), the callback will be
+ * invoked immediately to handle the pending expand request.
+ *
  * NOTE: Pass null to unregister (typically in useEffect cleanup).
  */
 export function setExpandPlayerCallback(callback: ExpandPlayerCallback | null) {
   expandPlayerCallback = callback;
+
+  // If there was a pending expand request, fulfill it now
+  if (callback && pendingExpandPlayer) {
+    console.debug("[Coordinator] Fulfilling pending expand request");
+    pendingExpandPlayer = false;
+    callback();
+  }
 }
 
 /**
@@ -151,7 +163,16 @@ export async function onRateChanged(payload: RateChangedPayload) {
 // ---------------------------------------------------------------------------
 
 export function expandPlayer() {
-  expandPlayerCallback?.();
+  if (expandPlayerCallback) {
+    expandPlayerCallback();
+  } else {
+    // Callback not registered yet (e.g., app launching from notification click).
+    // Set pending flag so it expands when callback is registered.
+    console.debug(
+      "[Coordinator] No expand callback registered, setting pending",
+    );
+    pendingExpandPlayer = true;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -166,4 +187,5 @@ export function __resetForTesting() {
   scrubberSeekCallback = null;
   updatePlayerProgress = null;
   initialized = false;
+  pendingExpandPlayer = false;
 }

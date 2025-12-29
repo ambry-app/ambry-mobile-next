@@ -17,7 +17,6 @@ import {
 } from "@/db/playthroughs";
 import useLoadMediaCallback from "@/hooks/use-load-media-callback";
 import { useShelvedMedia } from "@/hooks/use-shelved-media";
-import * as Transitions from "@/services/playthrough-transitions";
 import { useDataVersion } from "@/stores/data-version";
 import {
   cancelDownload,
@@ -25,7 +24,11 @@ import {
   startDownload,
   useDownloads,
 } from "@/stores/downloads";
-import { usePlayer } from "@/stores/player";
+import {
+  abandonPlaythrough,
+  finishPlaythrough,
+  usePlayer,
+} from "@/stores/player";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 
@@ -132,13 +135,13 @@ export function ActionBar({ media, session }: ActionBarProps) {
 
   const handleAbandon = useCallback(async () => {
     if (!activePlaythroughId) return;
-    await Transitions.abandonPlaythrough(session, activePlaythroughId);
+    await abandonPlaythrough(session, activePlaythroughId);
     // State will update via playthroughDataVersion change triggering useEffect
   }, [session, activePlaythroughId]);
 
   const handleMarkFinished = useCallback(async () => {
     if (!activePlaythroughId) return;
-    await Transitions.finishPlaythrough(session, activePlaythroughId);
+    await finishPlaythrough(session, activePlaythroughId);
     // State will update via playthroughDataVersion change triggering useEffect
   }, [session, activePlaythroughId]);
 

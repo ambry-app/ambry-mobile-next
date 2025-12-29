@@ -237,9 +237,48 @@ export function prepareToLoadMedia() {
 }
 
 /**
+ * Load media and start playing with full state management.
+ *
+ * Handles:
+ * - Setting loading state
+ * - Expanding player
+ * - Calling transitions to load and play
+ * - Updating player state with result
+ * - Error handling
+ *
+ * Use this when the user taps play on a media item (after prompt checks).
+ */
+export async function loadAndPlayMedia(session: Session, mediaId: string) {
+  console.debug("[Player] Loading and playing media:", mediaId);
+
+  usePlayer.setState({ loadingNewMedia: true });
+  await expandPlayerAndWait();
+
+  try {
+    const result = await Transitions.loadAndPlayMedia(session, mediaId);
+
+    usePlayer.setState({
+      loadingNewMedia: false,
+      loadedPlaythrough: {
+        mediaId: result.mediaId,
+        playthroughId: result.playthroughId,
+      },
+      duration: result.duration,
+      position: result.position,
+      playbackRate: result.playbackRate,
+      streaming: result.streaming,
+      ...initialChapterState(result.chapters, result.position, result.duration),
+    });
+  } catch (error) {
+    console.error("[Player] Failed to load and play media:", error);
+    usePlayer.setState({ loadingNewMedia: false });
+  }
+}
+
+/**
  * Load media into TrackPlayer (low-level, no pause, no play).
  * Used by downloads.ts when reloading after download completes.
- * For normal "play this media" use cases, use Transitions.loadAndPlayMedia instead.
+ * For normal "play this media" use cases, use loadAndPlayMedia instead.
  */
 export async function loadMedia(session: Session, mediaId: string) {
   const track = await Transitions.loadMediaIntoPlayer(session, mediaId);
@@ -326,8 +365,28 @@ export async function resumeAndLoadPlaythrough(
   usePlayer.setState({ loadingNewMedia: true });
   await expandPlayerAndWait();
 
-  // Transitions service handles pause, load, play, and state updates
-  await Transitions.resumePlaythroughAndPlay(session, playthroughId);
+  try {
+    const result = await Transitions.resumePlaythroughAndPlay(
+      session,
+      playthroughId,
+    );
+
+    usePlayer.setState({
+      loadingNewMedia: false,
+      loadedPlaythrough: {
+        mediaId: result.mediaId,
+        playthroughId: result.playthroughId,
+      },
+      duration: result.duration,
+      position: result.position,
+      playbackRate: result.playbackRate,
+      streaming: result.streaming,
+      ...initialChapterState(result.chapters, result.position, result.duration),
+    });
+  } catch (error) {
+    console.error("[Player] Failed to resume playthrough:", error);
+    usePlayer.setState({ loadingNewMedia: false });
+  }
 }
 
 /**
@@ -358,8 +417,25 @@ export async function handleStartFresh(session: Session) {
   usePlayer.setState({ pendingResumePrompt: null, loadingNewMedia: true });
   await expandPlayerAndWait();
 
-  // Transitions service handles pause, create, load, play, and state updates
-  await Transitions.startFreshAndPlay(session, prompt.mediaId);
+  try {
+    const result = await Transitions.startFreshAndPlay(session, prompt.mediaId);
+
+    usePlayer.setState({
+      loadingNewMedia: false,
+      loadedPlaythrough: {
+        mediaId: result.mediaId,
+        playthroughId: result.playthroughId,
+      },
+      duration: result.duration,
+      position: result.position,
+      playbackRate: result.playbackRate,
+      streaming: result.streaming,
+      ...initialChapterState(result.chapters, result.position, result.duration),
+    });
+  } catch (error) {
+    console.error("[Player] Failed to start fresh playthrough:", error);
+    usePlayer.setState({ loadingNewMedia: false });
+  }
 }
 
 /**
@@ -367,6 +443,60 @@ export async function handleStartFresh(session: Session) {
  */
 export function cancelResumePrompt() {
   usePlayer.setState({ pendingResumePrompt: null, loadingNewMedia: false });
+}
+
+// =============================================================================
+// Playthrough Status Changes (finish, abandon, unload)
+// =============================================================================
+
+/**
+ * Mark a playthrough as finished and unload it from the player if loaded.
+ *
+ * Options:
+ * - skipUnload: Don't unload the player (e.g., when loading new media immediately after)
+ */
+export async function finishPlaythrough(
+  session: Session,
+  playthroughId: string,
+  options?: { skipUnload?: boolean },
+) {
+  const { loadedPlaythrough } = usePlayer.getState();
+  const isLoaded = loadedPlaythrough?.playthroughId === playthroughId;
+
+  await Transitions.finishPlaythrough(session, playthroughId, isLoaded);
+
+  if (isLoaded && !options?.skipUnload) {
+    await tryUnloadPlayer();
+  }
+}
+
+/**
+ * Mark a playthrough as abandoned and unload it from the player if loaded.
+ */
+export async function abandonPlaythrough(
+  session: Session,
+  playthroughId: string,
+) {
+  const { loadedPlaythrough } = usePlayer.getState();
+  const isLoaded = loadedPlaythrough?.playthroughId === playthroughId;
+
+  await Transitions.abandonPlaythrough(session, playthroughId, isLoaded);
+
+  if (isLoaded) {
+    await tryUnloadPlayer();
+  }
+}
+
+/**
+ * Explicitly unload the player and clear the active playthrough.
+ *
+ * This is for user-initiated "unload player" actions (e.g., from context menu).
+ * Unlike logout/session expiry (which preserves the active playthrough ID for
+ * next login), this clears it so the player stays unloaded on next app boot.
+ */
+export async function unloadPlayer(session: Session) {
+  await Transitions.clearActivePlaythrough(session);
+  await tryUnloadPlayer();
 }
 
 // =============================================================================
@@ -438,7 +568,7 @@ export async function handleMarkFinished(session: Session) {
   usePlayer.setState({ pendingFinishPrompt: null, loadingNewMedia: true });
 
   // Finish the current playthrough (skip unload since we're loading new media)
-  await Transitions.finishPlaythrough(session, prompt.currentPlaythroughId, {
+  await finishPlaythrough(session, prompt.currentPlaythroughId, {
     skipUnload: true,
   });
 
@@ -475,6 +605,7 @@ export function cancelFinishPrompt() {
 
 /**
  * Internal helper to proceed with loading new media after finish prompt is resolved.
+ * Assumes loadingNewMedia is already true (set by caller).
  */
 async function proceedWithLoadingNewMedia(
   session: Session,
@@ -489,8 +620,26 @@ async function proceedWithLoadingNewMedia(
     return;
   }
 
-  // No resume prompt needed - transitions service handles pause, load, play
-  await Transitions.loadAndPlayMedia(session, newMediaId);
+  // No resume prompt needed - load and play, then update state
+  try {
+    const result = await Transitions.loadAndPlayMedia(session, newMediaId);
+
+    usePlayer.setState({
+      loadingNewMedia: false,
+      loadedPlaythrough: {
+        mediaId: result.mediaId,
+        playthroughId: result.playthroughId,
+      },
+      duration: result.duration,
+      position: result.position,
+      playbackRate: result.playbackRate,
+      streaming: result.streaming,
+      ...initialChapterState(result.chapters, result.position, result.duration),
+    });
+  } catch (error) {
+    console.error("[Player] Failed to load and play media:", error);
+    usePlayer.setState({ loadingNewMedia: false });
+  }
 }
 
 /**
@@ -1063,6 +1212,3 @@ useSession.subscribe((state, prevState) => {
     });
   }
 });
-
-// Register callback for playthrough-transitions to unload player (breaks circular dependency)
-Transitions.setUnloadPlayerCallback(tryUnloadPlayer);

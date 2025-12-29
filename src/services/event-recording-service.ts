@@ -60,13 +60,6 @@ function setCurrentPlaythrough(
   );
 }
 
-/**
- * Get the current playthrough ID (if any).
- */
-export function getCurrentPlaythroughId(): string | null {
-  return currentPlaythroughId;
-}
-
 // =============================================================================
 // Lifecycle Event Recording (exported for UI use)
 // =============================================================================

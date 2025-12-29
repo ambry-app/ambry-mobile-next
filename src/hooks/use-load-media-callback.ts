@@ -1,12 +1,10 @@
 import { useCallback } from "react";
 
-import * as Transitions from "@/services/playthrough-transitions";
 import {
   checkForFinishPrompt,
   checkForResumePrompt,
-  expandPlayerAndWait,
+  loadAndPlayMedia,
   pauseIfPlaying,
-  prepareToLoadMedia,
 } from "@/stores/player";
 import { Session } from "@/stores/session";
 
@@ -35,11 +33,8 @@ export default function useLoadMediaCallback(
       return;
     }
 
-    // No prompt needed - transitions service handles load and play
-    // (pause already done above, loadAndPlayMedia is idempotent on pause)
-    prepareToLoadMedia();
-    await expandPlayerAndWait();
-    await Transitions.loadAndPlayMedia(session, mediaId);
+    // No prompt needed - player handles load, play, and state updates
+    await loadAndPlayMedia(session, mediaId);
   }, [mediaId, session]);
 
   return loadMediaCallback;
