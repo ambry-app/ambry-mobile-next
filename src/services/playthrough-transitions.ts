@@ -28,8 +28,8 @@ import {
   type ActivePlaythrough,
   clearActivePlaythroughIdForDevice,
   createPlaythrough,
-  getActivePlaythrough,
   getActivePlaythroughIdForDevice,
+  getInProgressPlaythrough,
   getPlaythroughById,
   resumePlaythrough as resumePlaythroughInDb,
   setActivePlaythroughIdForDevice,
@@ -129,7 +129,6 @@ export async function loadAndPlayMedia(session: Session, mediaId: string) {
 export async function resumePlaythroughAndPlay(
   session: Session,
   playthroughId: string,
-  mediaId: string,
 ) {
   await pauseCurrentIfPlaying();
 
@@ -138,12 +137,12 @@ export async function resumePlaythroughAndPlay(
   await recordResumeEvent(playthroughId);
   bumpPlaythroughDataVersion();
 
-  // Load the now-active playthrough
-  const playthrough = await getActivePlaythrough(session, mediaId);
+  // Get the now-active playthrough by ID
+  const playthrough = await getPlaythroughById(session, playthroughId);
   if (!playthrough) {
     console.error(
-      "[Transitions] No active playthrough found after resume for media:",
-      mediaId,
+      "[Transitions] Playthrough not found after resume:",
+      playthroughId,
     );
     usePlayer.setState({ loadingNewMedia: false });
     return;
@@ -180,12 +179,12 @@ export async function startFreshAndPlay(session: Session, mediaId: string) {
   await recordStartEvent(playthroughId);
   bumpPlaythroughDataVersion();
 
-  // Load the new playthrough
-  const playthrough = await getActivePlaythrough(session, mediaId);
+  // Get the new playthrough by ID
+  const playthrough = await getPlaythroughById(session, playthroughId);
   if (!playthrough) {
     console.error(
-      "[Transitions] No active playthrough found after create for media:",
-      mediaId,
+      "[Transitions] Playthrough not found after create:",
+      playthroughId,
     );
     usePlayer.setState({ loadingNewMedia: false });
     return;
@@ -317,7 +316,7 @@ export async function loadMediaIntoPlayer(
   console.debug("[Transitions] Loading media into player", mediaId);
 
   // Check for active (in_progress) playthrough
-  let playthrough = await getActivePlaythrough(session, mediaId);
+  let playthrough = await getInProgressPlaythrough(session, mediaId);
 
   if (playthrough) {
     console.debug(
@@ -338,13 +337,14 @@ export async function loadMediaIntoPlayer(
   await recordStartEvent(playthroughId);
   bumpPlaythroughDataVersion();
 
-  playthrough = await getActivePlaythrough(session, mediaId);
+  // Get the new playthrough by ID
+  const newPlaythrough = await getPlaythroughById(session, playthroughId);
 
-  if (!playthrough) {
+  if (!newPlaythrough) {
     throw new Error("Failed to create playthrough");
   }
 
-  return loadPlaythroughIntoPlayer(session, playthrough);
+  return loadPlaythroughIntoPlayer(session, newPlaythrough);
 }
 
 /**
@@ -357,7 +357,7 @@ export async function loadMediaIntoPlayer(
  * playthrough is stored. If the stored playthrough is invalid (deleted, finished,
  * abandoned), it clears the stored ID and returns null.
  */
-export async function loadMostRecentIntoPlayer(
+export async function loadActivePlaythroughIntoPlayer(
   session: Session,
 ): Promise<TrackLoadResult | null> {
   const track = await TrackPlayer.getTrack(0);
@@ -384,12 +384,7 @@ export async function loadMostRecentIntoPlayer(
     }
 
     // Initialize playthrough tracking for event recording
-    await initializePlaythroughTracking(
-      session,
-      playthrough.media.id,
-      position,
-      playbackRate,
-    );
+    initializePlaythroughTracking(playthroughId, position, playbackRate);
 
     return {
       playthroughId,
@@ -546,6 +541,7 @@ function updatePlayerStoreFromLoadResult(result: TrackLoadResult) {
 
   usePlayer.setState({
     loadingNewMedia: false,
+    playthroughId: result.playthroughId,
     mediaId: result.mediaId,
     duration: result.duration,
     position: result.position,
@@ -626,12 +622,7 @@ async function loadPlaythroughIntoPlayer(
   const actualPosition = await waitForSeekToComplete(position);
 
   // Initialize playthrough tracking for event recording
-  await initializePlaythroughTracking(
-    session,
-    playthrough.media.id,
-    actualPosition,
-    playbackRate,
-  );
+  initializePlaythroughTracking(playthrough.id, actualPosition, playbackRate);
 
   return {
     playthroughId: playthrough.id,

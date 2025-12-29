@@ -26,12 +26,12 @@ describe("playthroughs module", () => {
     resetIdCounter();
   });
 
-  describe("getActivePlaythrough", () => {
+  describe("getInProgressPlaythrough", () => {
     it("returns undefined when no playthrough exists", async () => {
       const db = getDb();
       const media = await createMedia(db);
 
-      const result = await playthroughs.getActivePlaythrough(
+      const result = await playthroughs.getInProgressPlaythrough(
         testSession,
         media.id,
       );
@@ -53,7 +53,7 @@ describe("playthroughs module", () => {
         currentRate: 1.5,
       });
 
-      const result = await playthroughs.getActivePlaythrough(
+      const result = await playthroughs.getInProgressPlaythrough(
         testSession,
         media.id,
       );
@@ -74,7 +74,7 @@ describe("playthroughs module", () => {
         deletedAt: new Date(),
       });
 
-      const result = await playthroughs.getActivePlaythrough(
+      const result = await playthroughs.getInProgressPlaythrough(
         testSession,
         media.id,
       );
@@ -90,7 +90,7 @@ describe("playthroughs module", () => {
         status: "finished",
       });
 
-      const result = await playthroughs.getActivePlaythrough(
+      const result = await playthroughs.getInProgressPlaythrough(
         testSession,
         media.id,
       );
@@ -117,7 +117,7 @@ describe("playthroughs module", () => {
         updatedAt: new Date("2024-01-02"),
       });
 
-      const result = await playthroughs.getActivePlaythrough(
+      const result = await playthroughs.getInProgressPlaythrough(
         testSession,
         media.id,
       );
@@ -445,47 +445,6 @@ describe("playthroughs module", () => {
 
       expect(cache?.currentPosition).toBe(200);
       expect(cache?.currentRate).toBe(2.0);
-    });
-  });
-
-  describe("getMostRecentInProgressPlaythrough", () => {
-    it("returns most recent in_progress playthrough by lastEventAt", async () => {
-      const db = getDb();
-      const media1 = await createMedia(db);
-      const media2 = await createMedia(db);
-
-      // Create playthroughs with state caches - ordering is by lastEventAt now
-      const ptOld = await createPlaythrough(db, {
-        id: "pt-old",
-        mediaId: media1.id,
-        status: "in_progress",
-      });
-      await createPlaythroughStateCache(db, {
-        playthroughId: ptOld.id,
-        lastEventAt: new Date("2024-01-01"),
-      });
-
-      const ptNew = await createPlaythrough(db, {
-        id: "pt-new",
-        mediaId: media2.id,
-        status: "in_progress",
-      });
-      await createPlaythroughStateCache(db, {
-        playthroughId: ptNew.id,
-        lastEventAt: new Date("2024-06-01"),
-      });
-
-      const result =
-        await playthroughs.getMostRecentInProgressPlaythrough(testSession);
-
-      expect(result?.id).toBe("pt-new");
-    });
-
-    it("returns null when no in_progress playthroughs", async () => {
-      const result =
-        await playthroughs.getMostRecentInProgressPlaythrough(testSession);
-
-      expect(result).toBeNull();
     });
   });
 

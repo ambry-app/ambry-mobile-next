@@ -18,12 +18,11 @@ import {
   SEEK_EVENT_ACCUMULATION_WINDOW,
 } from "@/constants";
 import {
-  getActivePlaythrough,
   getFinishedOrAbandonedPlaythrough,
+  getInProgressPlaythrough,
   getPlaythroughById,
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
-import { getCurrentPlaythroughId } from "@/services/event-recording-service";
 import * as Coordinator from "@/services/playback-coordinator";
 import * as Transitions from "@/services/playthrough-transitions";
 
@@ -64,6 +63,7 @@ export interface PlayerState {
 
   initialized: boolean;
   initializationError: unknown | null;
+  playthroughId: string | null;
   mediaId: string | null;
   streaming: boolean | undefined;
   loadingNewMedia: boolean;
@@ -123,6 +123,7 @@ export interface PlayerState {
 }
 
 const initialState = {
+  playthroughId: null,
   mediaId: null,
   streaming: undefined,
   loadingNewMedia: false,
@@ -180,9 +181,10 @@ export async function initializePlayer(session: Session) {
       usePlayer.setState({ initialized: true });
 
       // Try to load the stored active playthrough
-      const track = await Transitions.loadMostRecentIntoPlayer(session);
+      const track = await Transitions.loadActivePlaythroughIntoPlayer(session);
       if (track) {
         usePlayer.setState({
+          playthroughId: track.playthroughId,
           mediaId: track.mediaId,
           duration: track.duration,
           position: track.position,
@@ -199,6 +201,7 @@ export async function initializePlayer(session: Session) {
       // TrackPlayer already had a track (shouldn't happen on fresh init, but handle it)
       usePlayer.setState({
         initialized: true,
+        playthroughId: response.playthroughId,
         mediaId: response.mediaId,
         duration: response.duration,
         position: response.position,
@@ -230,6 +233,7 @@ export async function loadMedia(session: Session, mediaId: string) {
 
   usePlayer.setState({
     loadingNewMedia: false,
+    playthroughId: track.playthroughId,
     mediaId: track.mediaId,
     duration: track.duration,
     position: track.position,
@@ -246,7 +250,6 @@ export async function loadMedia(session: Session, mediaId: string) {
 export async function resumeAndLoadPlaythrough(
   session: Session,
   playthroughId: string,
-  mediaId: string,
 ) {
   console.debug("[Player] Resuming playthrough:", playthroughId);
 
@@ -254,7 +257,7 @@ export async function resumeAndLoadPlaythrough(
   await expandPlayerAndWait();
 
   // Transitions service handles pause, load, play, and state updates
-  await Transitions.resumePlaythroughAndPlay(session, playthroughId, mediaId);
+  await Transitions.resumePlaythroughAndPlay(session, playthroughId);
 }
 
 /**
@@ -266,7 +269,7 @@ export async function handleResumePlaythrough(session: Session) {
   if (!prompt) return;
 
   usePlayer.setState({ pendingResumePrompt: null });
-  await resumeAndLoadPlaythrough(session, prompt.playthroughId, prompt.mediaId);
+  await resumeAndLoadPlaythrough(session, prompt.playthroughId);
 }
 
 /**
@@ -309,25 +312,21 @@ export async function checkForFinishPrompt(
   session: Session,
   newMediaId: string,
 ): Promise<boolean> {
-  const { mediaId, position, duration } = usePlayer.getState();
+  const { playthroughId, mediaId, position, duration } = usePlayer.getState();
 
   // No current media loaded - nothing to prompt about
-  if (!mediaId) return false;
+  if (!playthroughId || !mediaId) return false;
 
   // Same media being loaded - no prompt needed
   if (mediaId === newMediaId) return false;
-
-  // Get the current playthrough ID
-  const currentPlaythroughId = getCurrentPlaythroughId();
-  if (!currentPlaythroughId) return false;
 
   // Check if position is > 95% of duration
   if (duration <= 0) return false;
   const percentComplete = position / duration;
   if (percentComplete <= FINISH_PROMPT_THRESHOLD) return false;
 
-  // Get the current media info for the dialog
-  const currentPlaythrough = await getActivePlaythrough(session, mediaId);
+  // Get the current playthrough info for the dialog (we need the book title)
+  const currentPlaythrough = await getPlaythroughById(session, playthroughId);
   if (!currentPlaythrough) return false;
 
   console.debug(
@@ -338,7 +337,7 @@ export async function checkForFinishPrompt(
 
   usePlayer.setState({
     pendingFinishPrompt: {
-      currentPlaythroughId,
+      currentPlaythroughId: playthroughId,
       currentMediaId: mediaId,
       currentMediaTitle: currentPlaythrough.media.book.title,
       currentPosition: position,
@@ -432,7 +431,7 @@ export async function checkForResumePrompt(
   mediaId: string,
 ): Promise<boolean> {
   // Check for active (in_progress) playthrough - no prompt needed
-  const activePlaythrough = await getActivePlaythrough(session, mediaId);
+  const activePlaythrough = await getInProgressPlaythrough(session, mediaId);
   if (activePlaythrough) {
     return false;
   }

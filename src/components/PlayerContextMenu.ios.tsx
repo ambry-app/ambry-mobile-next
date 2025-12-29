@@ -1,11 +1,10 @@
 // iOS version - uses SwiftUI
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { StyleSheet } from "react-native";
 import { Button, ContextMenu, Host } from "@expo/ui/swift-ui";
 import { frame } from "@expo/ui/swift-ui/modifiers";
 import { router } from "expo-router";
 
-import { getActivePlaythrough } from "@/db/playthroughs";
 import * as Transitions from "@/services/playthrough-transitions";
 import { startDownload, useDownloads } from "@/stores/downloads";
 import { Session } from "@/stores/session";
@@ -21,6 +20,7 @@ type AuthorOrNarrator = {
 export type PlayerContextMenuProps = {
   session: Session;
   mediaId: string;
+  playthroughId: string;
   bookTitle: string;
   authors: AuthorOrNarrator[];
   narrators: AuthorOrNarrator[];
@@ -32,31 +32,15 @@ const NARRATOR_THRESHOLD = 5;
 export function PlayerContextMenu({
   session,
   mediaId,
+  playthroughId,
   bookTitle,
   authors,
   narrators,
   onCollapse,
 }: PlayerContextMenuProps) {
-  const [playthroughId, setPlaythroughId] = useState<string | null>(null);
-  const [isInProgress, setIsInProgress] = useState(false);
   const downloadStatus = useDownloads(
     (state) => state.downloads[mediaId]?.status,
   );
-
-  // Fetch playthrough state
-  useEffect(() => {
-    async function fetchPlaythrough() {
-      const active = await getActivePlaythrough(session, mediaId);
-      if (active) {
-        setPlaythroughId(active.id);
-        setIsInProgress(true);
-      } else {
-        setPlaythroughId(null);
-        setIsInProgress(false);
-      }
-    }
-    fetchPlaythrough();
-  }, [session, mediaId]);
 
   const handleGoToBook = useCallback(() => {
     onCollapse();
@@ -82,12 +66,10 @@ export function PlayerContextMenu({
   }, [session]);
 
   const handleMarkFinished = useCallback(async () => {
-    if (!playthroughId) return;
     await Transitions.finishPlaythrough(session, playthroughId);
   }, [session, playthroughId]);
 
   const handleAbandon = useCallback(async () => {
-    if (!playthroughId) return;
     await Transitions.abandonPlaythrough(session, playthroughId);
   }, [session, playthroughId]);
 
@@ -199,21 +181,19 @@ export function PlayerContextMenu({
             Unload player
           </Button>
 
-          {/* Mark finished (only if in progress) */}
-          {isInProgress && (
-            <>
-              <Button systemImage="flag.fill" onPress={handleMarkFinished}>
-                Mark as finished
-              </Button>
-              <Button
-                systemImage="xmark.circle"
-                role="destructive"
-                onPress={handleAbandon}
-              >
-                Abandon
-              </Button>
-            </>
-          )}
+          {/* Mark finished */}
+          <Button systemImage="flag.fill" onPress={handleMarkFinished}>
+            Mark as finished
+          </Button>
+
+          {/* Abandon */}
+          <Button
+            systemImage="xmark.circle"
+            role="destructive"
+            onPress={handleAbandon}
+          >
+            Abandon
+          </Button>
         </ContextMenu.Items>
       </ContextMenu>
     </Host>

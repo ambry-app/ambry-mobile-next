@@ -1,5 +1,5 @@
 // Android version (default) - uses Jetpack Compose
-import { ReactElement, useCallback, useEffect, useState } from "react";
+import { ReactElement, useCallback } from "react";
 import { StyleSheet, View } from "react-native";
 import {
   Button,
@@ -10,7 +10,6 @@ import {
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 
-import { getActivePlaythrough } from "@/db/playthroughs";
 import * as Transitions from "@/services/playthrough-transitions";
 import { startDownload, useDownloads } from "@/stores/downloads";
 import { Session } from "@/stores/session";
@@ -26,6 +25,7 @@ type AuthorOrNarrator = {
 export type PlayerContextMenuProps = {
   session: Session;
   mediaId: string;
+  playthroughId: string;
   bookTitle: string;
   authors: AuthorOrNarrator[];
   narrators: AuthorOrNarrator[];
@@ -52,31 +52,15 @@ const destructiveColors = {
 export function PlayerContextMenu({
   session,
   mediaId,
+  playthroughId,
   bookTitle,
   authors,
   narrators,
   onCollapse,
 }: PlayerContextMenuProps) {
-  const [playthroughId, setPlaythroughId] = useState<string | null>(null);
-  const [isInProgress, setIsInProgress] = useState(false);
   const downloadStatus = useDownloads(
     (state) => state.downloads[mediaId]?.status,
   );
-
-  // Fetch playthrough state
-  useEffect(() => {
-    async function fetchPlaythrough() {
-      const active = await getActivePlaythrough(session, mediaId);
-      if (active) {
-        setPlaythroughId(active.id);
-        setIsInProgress(true);
-      } else {
-        setPlaythroughId(null);
-        setIsInProgress(false);
-      }
-    }
-    fetchPlaythrough();
-  }, [session, mediaId]);
 
   const handleGoToBook = useCallback(() => {
     onCollapse();
@@ -102,12 +86,10 @@ export function PlayerContextMenu({
   }, [session]);
 
   const handleMarkFinished = useCallback(async () => {
-    if (!playthroughId) return;
     await Transitions.finishPlaythrough(session, playthroughId);
   }, [session, playthroughId]);
 
   const handleAbandon = useCallback(async () => {
-    if (!playthroughId) return;
     await Transitions.abandonPlaythrough(session, playthroughId);
   }, [session, playthroughId]);
 
@@ -229,33 +211,29 @@ export function PlayerContextMenu({
     </Button>,
   );
 
-  // Mark finished (only if in progress)
-  if (isInProgress) {
-    menuItems.push(
-      <Button
-        key="mark-finished"
-        leadingIcon="filled.CheckCircle"
-        elementColors={menuColors}
-        onPress={handleMarkFinished}
-      >
-        Mark as finished
-      </Button>,
-    );
-  }
+  // Mark finished
+  menuItems.push(
+    <Button
+      key="mark-finished"
+      leadingIcon="filled.CheckCircle"
+      elementColors={menuColors}
+      onPress={handleMarkFinished}
+    >
+      Mark as finished
+    </Button>,
+  );
 
-  // Abandon (only if in progress)
-  if (isInProgress) {
-    menuItems.push(
-      <Button
-        key="abandon"
-        leadingIcon="filled.Close"
-        elementColors={destructiveColors}
-        onPress={handleAbandon}
-      >
-        Abandon
-      </Button>,
-    );
-  }
+  // Abandon
+  menuItems.push(
+    <Button
+      key="abandon"
+      leadingIcon="filled.Close"
+      elementColors={destructiveColors}
+      onPress={handleAbandon}
+    >
+      Abandon
+    </Button>,
+  );
 
   return (
     <View style={styles.container}>

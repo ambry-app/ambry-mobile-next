@@ -76,48 +76,34 @@ describe("event-recording-service", () => {
   });
 
   describe("initializePlaythroughTracking", () => {
-    it("creates a new playthrough when none exists", async () => {
+    it("sets up tracking for a playthrough", async () => {
       const db = getDb();
       const media = await createMedia(db);
-
-      await initializePlaythroughTracking(session, media.id, 0, 1);
-
-      // Should have created a playthrough
-      const playthroughId = getCurrentPlaythroughId();
-      expect(playthroughId).not.toBeNull();
-
-      // Verify playthrough exists in database
-      const playthrough = await db.query.playthroughs.findFirst({
-        where: (p, { eq }) => eq(p.id, playthroughId!),
-      });
-      expect(playthrough).toBeDefined();
-      expect(playthrough?.mediaId).toBe(media.id);
-    });
-
-    it("reuses existing active playthrough", async () => {
-      const db = getDb();
-      const media = await createMedia(db);
-      const existingPlaythrough = await createPlaythrough(db, {
+      const playthrough = await createPlaythrough(db, {
         mediaId: media.id,
         status: "in_progress",
       });
 
-      await initializePlaythroughTracking(session, media.id, 0, 1);
+      initializePlaythroughTracking(playthrough.id, 0, 1);
 
-      // Should use the existing playthrough
-      expect(getCurrentPlaythroughId()).toBe(existingPlaythrough.id);
+      // Should have set the playthrough ID
+      expect(getCurrentPlaythroughId()).toBe(playthrough.id);
     });
 
-    it("reuses in-memory playthrough for same media (JS context persistence)", async () => {
+    it("reuses in-memory playthrough for same ID (JS context persistence)", async () => {
       const db = getDb();
       const media = await createMedia(db);
+      const playthrough = await createPlaythrough(db, {
+        mediaId: media.id,
+        status: "in_progress",
+      });
 
       // First initialization
-      await initializePlaythroughTracking(session, media.id, 0, 1);
+      initializePlaythroughTracking(playthrough.id, 0, 1);
       const firstPlaythroughId = getCurrentPlaythroughId();
 
-      // Second initialization for same media (simulating app resume)
-      await initializePlaythroughTracking(session, media.id, 100, 1.5);
+      // Second initialization for same playthrough (simulating app resume)
+      initializePlaythroughTracking(playthrough.id, 100, 1.5);
 
       // Should keep the same playthrough
       expect(getCurrentPlaythroughId()).toBe(firstPlaythroughId);
@@ -172,19 +158,20 @@ describe("event-recording-service", () => {
     it("records play event on handlePlaybackStarted", async () => {
       const db = getDb();
       const media = await createMedia(db);
+      const playthrough = await createPlaythrough(db, {
+        mediaId: media.id,
+        status: "in_progress",
+      });
 
       await initialize();
-      await initializePlaythroughTracking(session, media.id, 0, 1);
-
-      const playthroughId = getCurrentPlaythroughId()!;
+      initializePlaythroughTracking(playthrough.id, 0, 1);
 
       await handlePlaybackStarted();
 
       const events = await db.query.playbackEvents.findMany({
-        where: (e, { eq }) => eq(e.playthroughId, playthroughId),
+        where: (e, { eq }) => eq(e.playthroughId, playthrough.id),
       });
 
-      // Should have start event (from initialization) + play event
       const playEvents = events.filter((e) => e.type === "play");
       expect(playEvents.length).toBeGreaterThanOrEqual(1);
     });
@@ -192,11 +179,13 @@ describe("event-recording-service", () => {
     it("records pause event on handlePlaybackPaused", async () => {
       const db = getDb();
       const media = await createMedia(db);
+      const playthrough = await createPlaythrough(db, {
+        mediaId: media.id,
+        status: "in_progress",
+      });
 
       await initialize();
-      await initializePlaythroughTracking(session, media.id, 0, 1);
-
-      const playthroughId = getCurrentPlaythroughId()!;
+      initializePlaythroughTracking(playthrough.id, 0, 1);
 
       // Start playback first (required for pause event to be recorded)
       await handlePlaybackStarted();
@@ -205,7 +194,7 @@ describe("event-recording-service", () => {
       await handlePlaybackPaused();
 
       const events = await db.query.playbackEvents.findMany({
-        where: (e, { eq }) => eq(e.playthroughId, playthroughId),
+        where: (e, { eq }) => eq(e.playthroughId, playthrough.id),
       });
 
       const pauseEvents = events.filter((e) => e.type === "pause");
@@ -215,11 +204,13 @@ describe("event-recording-service", () => {
     it("records seek event on handleSeekCompleted", async () => {
       const db = getDb();
       const media = await createMedia(db);
+      const playthrough = await createPlaythrough(db, {
+        mediaId: media.id,
+        status: "in_progress",
+      });
 
       await initialize();
-      await initializePlaythroughTracking(session, media.id, 0, 1);
-
-      const playthroughId = getCurrentPlaythroughId()!;
+      initializePlaythroughTracking(playthrough.id, 0, 1);
 
       // Call seek handler directly (must be > 2 seconds to be recorded)
       const seekTimestamp = new Date();
@@ -230,7 +221,7 @@ describe("event-recording-service", () => {
       });
 
       const events = await db.query.playbackEvents.findMany({
-        where: (e, { eq }) => eq(e.playthroughId, playthroughId),
+        where: (e, { eq }) => eq(e.playthroughId, playthrough.id),
       });
 
       const seekEvents = events.filter((e) => e.type === "seek");
@@ -242,11 +233,13 @@ describe("event-recording-service", () => {
     it("ignores trivial seeks (< 2 seconds)", async () => {
       const db = getDb();
       const media = await createMedia(db);
+      const playthrough = await createPlaythrough(db, {
+        mediaId: media.id,
+        status: "in_progress",
+      });
 
       await initialize();
-      await initializePlaythroughTracking(session, media.id, 0, 1);
-
-      const playthroughId = getCurrentPlaythroughId()!;
+      initializePlaythroughTracking(playthrough.id, 0, 1);
 
       // Call seek handler with trivial seek
       await handleSeekCompleted({
@@ -256,7 +249,7 @@ describe("event-recording-service", () => {
       });
 
       const events = await db.query.playbackEvents.findMany({
-        where: (e, { eq }) => eq(e.playthroughId, playthroughId),
+        where: (e, { eq }) => eq(e.playthroughId, playthrough.id),
       });
 
       const seekEvents = events.filter((e) => e.type === "seek");
@@ -266,11 +259,13 @@ describe("event-recording-service", () => {
     it("records rate change event", async () => {
       const db = getDb();
       const media = await createMedia(db);
+      const playthrough = await createPlaythrough(db, {
+        mediaId: media.id,
+        status: "in_progress",
+      });
 
       await initialize();
-      await initializePlaythroughTracking(session, media.id, 0, 1);
-
-      const playthroughId = getCurrentPlaythroughId()!;
+      initializePlaythroughTracking(playthrough.id, 0, 1);
 
       await handlePlaybackRateChanged({
         previousRate: 1,
@@ -279,7 +274,7 @@ describe("event-recording-service", () => {
       });
 
       const events = await db.query.playbackEvents.findMany({
-        where: (e, { eq }) => eq(e.playthroughId, playthroughId),
+        where: (e, { eq }) => eq(e.playthroughId, playthrough.id),
       });
 
       const rateEvents = events.filter((e) => e.type === "rate_change");
@@ -291,6 +286,10 @@ describe("event-recording-service", () => {
     it("handles playbackQueueEnded and marks playthrough finished", async () => {
       const db = getDb();
       const media = await createMedia(db);
+      const playthrough = await createPlaythrough(db, {
+        mediaId: media.id,
+        status: "in_progress",
+      });
 
       mockTrackPlayerGetProgress.mockResolvedValue({
         position: 3600,
@@ -298,25 +297,23 @@ describe("event-recording-service", () => {
       });
 
       await initialize();
-      await initializePlaythroughTracking(session, media.id, 0, 1);
-
-      const playthroughId = getCurrentPlaythroughId()!;
+      initializePlaythroughTracking(playthrough.id, 0, 1);
 
       await handlePlaybackQueueEnded();
 
       // Check that finish event was recorded
       const events = await db.query.playbackEvents.findMany({
-        where: (e, { eq }) => eq(e.playthroughId, playthroughId),
+        where: (e, { eq }) => eq(e.playthroughId, playthrough.id),
       });
 
       const finishEvents = events.filter((e) => e.type === "finish");
       expect(finishEvents.length).toBeGreaterThanOrEqual(1);
 
       // Check that playthrough status was updated
-      const playthrough = await db.query.playthroughs.findFirst({
-        where: (p, { eq }) => eq(p.id, playthroughId),
+      const updatedPlaythrough = await db.query.playthroughs.findFirst({
+        where: (p, { eq }) => eq(p.id, playthrough.id),
       });
-      expect(playthrough?.status).toBe("finished");
+      expect(updatedPlaythrough?.status).toBe("finished");
     });
   });
 
@@ -324,13 +321,17 @@ describe("event-recording-service", () => {
     it("handles errors in handlePlaybackStarted gracefully", async () => {
       const db = getDb();
       const media = await createMedia(db);
+      const playthrough = await createPlaythrough(db, {
+        mediaId: media.id,
+        status: "in_progress",
+      });
 
       mockTrackPlayerGetProgress.mockRejectedValue(
         new Error("TrackPlayer error"),
       );
 
       await initialize();
-      await initializePlaythroughTracking(session, media.id, 0, 1);
+      initializePlaythroughTracking(playthrough.id, 0, 1);
 
       // Should not throw
       await handlePlaybackStarted();
@@ -342,13 +343,17 @@ describe("event-recording-service", () => {
     it("handles errors in handlePlaybackPaused gracefully", async () => {
       const db = getDb();
       const media = await createMedia(db);
+      const playthrough = await createPlaythrough(db, {
+        mediaId: media.id,
+        status: "in_progress",
+      });
 
       mockTrackPlayerGetProgress.mockRejectedValue(
         new Error("TrackPlayer error"),
       );
 
       await initialize();
-      await initializePlaythroughTracking(session, media.id, 0, 1);
+      initializePlaythroughTracking(playthrough.id, 0, 1);
 
       // Should not throw
       await handlePlaybackPaused();
@@ -359,13 +364,17 @@ describe("event-recording-service", () => {
     it("handles errors in handlePlaybackQueueEnded gracefully", async () => {
       const db = getDb();
       const media = await createMedia(db);
+      const playthrough = await createPlaythrough(db, {
+        mediaId: media.id,
+        status: "in_progress",
+      });
 
       mockTrackPlayerGetProgress.mockRejectedValue(
         new Error("TrackPlayer error"),
       );
 
       await initialize();
-      await initializePlaythroughTracking(session, media.id, 0, 1);
+      initializePlaythroughTracking(playthrough.id, 0, 1);
 
       // Should not throw
       await handlePlaybackQueueEnded();
@@ -376,9 +385,13 @@ describe("event-recording-service", () => {
     it("handles errors in handleSeekCompleted gracefully", async () => {
       const db = getDb();
       const media = await createMedia(db);
+      const playthrough = await createPlaythrough(db, {
+        mediaId: media.id,
+        status: "in_progress",
+      });
 
       await initialize();
-      await initializePlaythroughTracking(session, media.id, 0, 1);
+      initializePlaythroughTracking(playthrough.id, 0, 1);
 
       // Mock the database insert to fail
       const originalInsert = db.insert;
@@ -402,9 +415,13 @@ describe("event-recording-service", () => {
     it("handles errors in handlePlaybackRateChanged gracefully", async () => {
       const db = getDb();
       const media = await createMedia(db);
+      const playthrough = await createPlaythrough(db, {
+        mediaId: media.id,
+        status: "in_progress",
+      });
 
       await initialize();
-      await initializePlaythroughTracking(session, media.id, 0, 1);
+      initializePlaythroughTracking(playthrough.id, 0, 1);
 
       // Mock the database to fail
       const originalInsert = db.insert;
@@ -424,29 +441,6 @@ describe("event-recording-service", () => {
 
       expect(true).toBe(true);
     });
-
-    it("handles errors in initializePlaythroughTracking gracefully", async () => {
-      // Set up session but make database operations fail
-      const db = getDb();
-      const originalQuery = db.query;
-      Object.defineProperty(db, "query", {
-        get: () => {
-          throw new Error("Database error");
-        },
-        configurable: true,
-      });
-
-      // Should not throw
-      await expect(
-        initializePlaythroughTracking(session, "non-existent-media", 0, 1),
-      ).resolves.not.toThrow();
-
-      // Restore
-      Object.defineProperty(db, "query", {
-        value: originalQuery,
-        configurable: true,
-      });
-    });
   });
 
   describe("heartbeat functionality", () => {
@@ -461,6 +455,10 @@ describe("event-recording-service", () => {
     it("starts heartbeat on handlePlaybackStarted and updates state cache", async () => {
       const db = getDb();
       const media = await createMedia(db);
+      const playthrough = await createPlaythrough(db, {
+        mediaId: media.id,
+        status: "in_progress",
+      });
 
       mockTrackPlayerGetProgress.mockResolvedValue({
         position: 100,
@@ -469,9 +467,7 @@ describe("event-recording-service", () => {
       mockTrackPlayerGetRate.mockResolvedValue(1);
 
       await initialize();
-      await initializePlaythroughTracking(session, media.id, 0, 1);
-
-      const playthroughId = getCurrentPlaythroughId()!;
+      initializePlaythroughTracking(playthrough.id, 0, 1);
 
       // Trigger handlePlaybackStarted to start heartbeat
       await handlePlaybackStarted();
@@ -488,7 +484,7 @@ describe("event-recording-service", () => {
 
       // Check that state cache was updated
       const afterHeartbeat = await db.query.playthroughStateCache.findFirst({
-        where: (p, { eq }) => eq(p.playthroughId, playthroughId),
+        where: (p, { eq }) => eq(p.playthroughId, playthrough.id),
       });
 
       // Position should have been updated by heartbeat
@@ -498,6 +494,10 @@ describe("event-recording-service", () => {
     it("handles errors in heartbeat gracefully", async () => {
       const db = getDb();
       const media = await createMedia(db);
+      const playthrough = await createPlaythrough(db, {
+        mediaId: media.id,
+        status: "in_progress",
+      });
 
       mockTrackPlayerGetProgress.mockResolvedValue({
         position: 100,
@@ -506,7 +506,7 @@ describe("event-recording-service", () => {
       mockTrackPlayerGetRate.mockResolvedValue(1);
 
       await initialize();
-      await initializePlaythroughTracking(session, media.id, 0, 1);
+      initializePlaythroughTracking(playthrough.id, 0, 1);
 
       // Trigger handlePlaybackStarted to start heartbeat
       await handlePlaybackStarted();
@@ -532,10 +532,14 @@ describe("event-recording-service", () => {
     it("returns the current playthrough ID after initialization", async () => {
       const db = getDb();
       const media = await createMedia(db);
+      const playthrough = await createPlaythrough(db, {
+        mediaId: media.id,
+        status: "in_progress",
+      });
 
-      await initializePlaythroughTracking(session, media.id, 0, 1);
+      initializePlaythroughTracking(playthrough.id, 0, 1);
 
-      expect(getCurrentPlaythroughId()).not.toBeNull();
+      expect(getCurrentPlaythroughId()).toBe(playthrough.id);
     });
   });
 });

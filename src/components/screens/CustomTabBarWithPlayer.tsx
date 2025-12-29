@@ -108,10 +108,11 @@ const MiniProgressBar = memo(function MiniProgressBar({
 type CustomTabBarWithPlayerProps = {
   session: Session;
   mediaId: string;
+  playthroughId: string;
 };
 
 export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
-  const { session, mediaId } = props;
+  const { session, mediaId, playthroughId } = props;
   const insets = useSafeAreaInsets();
 
   const { streaming, loadingNewMedia, shouldRenderMini, shouldRenderExpanded } =
@@ -619,6 +620,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                   <PlayerContextMenu
                     session={session}
                     mediaId={mediaId}
+                    playthroughId={playthroughId}
                     bookTitle={media.book.title}
                     authors={media.book.authors}
                     narrators={media.narrators}

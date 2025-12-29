@@ -12,8 +12,8 @@ import {
 } from "@/components";
 import { MediaHeaderInfo } from "@/db/library";
 import {
-  getActivePlaythrough,
   getFinishedOrAbandonedPlaythrough,
+  getInProgressPlaythrough,
 } from "@/db/playthroughs";
 import useLoadMediaCallback from "@/hooks/use-load-media-callback";
 import { useShelvedMedia } from "@/hooks/use-shelved-media";
@@ -41,21 +41,23 @@ export function ActionBar({ media, session }: ActionBarProps) {
     "saved",
   );
 
-  // Check if this media is currently loaded in player
+  // Get player state - both mediaId and playthroughId explicitly
   const playerMediaId = usePlayer((state) => state.mediaId);
-  const isCurrentlyLoaded = playerMediaId === media.id;
+  const playerPlaythroughId = usePlayer((state) => state.playthroughId);
+
+  // This media is loaded if BOTH mediaId matches AND there's a playthroughId
+  const isCurrentlyLoaded =
+    playerMediaId === media.id && playerPlaythroughId !== null;
 
   // Subscribe to playthrough data version to refresh when playthroughs change
   const playthroughVersion = useDataVersion(
     (state) => state.playthroughDataVersion,
   );
 
-  // Playthrough state tracking
-  const [playthroughState, setPlaythroughState] =
+  // Playthrough state tracking for when media is NOT loaded in player
+  const [dbPlaythroughState, setDbPlaythroughState] =
     useState<PlaythroughState>("none");
-  const [activePlaythroughId, setActivePlaythroughId] = useState<string | null>(
-    null,
-  );
+  const [dbPlaythroughId, setDbPlaythroughId] = useState<string | null>(null);
 
   // Download state from store
   const downloadStatus = useDownloads(
@@ -79,13 +81,20 @@ export function ActionBar({ media, session }: ActionBarProps) {
 
   const loadMedia = useLoadMediaCallback(session, media.id);
 
-  // Fetch playthrough state on mount, when media changes, or when playthrough data changes
+  // Fetch playthrough state from DB only when media is NOT loaded in player
   useEffect(() => {
+    // If media is currently loaded in player, we use player store state directly
+    if (isCurrentlyLoaded) {
+      setDbPlaythroughState("none");
+      setDbPlaythroughId(null);
+      return;
+    }
+
     async function fetchPlaythroughState() {
-      const active = await getActivePlaythrough(session, media.id);
+      const active = await getInProgressPlaythrough(session, media.id);
       if (active) {
-        setPlaythroughState("in_progress");
-        setActivePlaythroughId(active.id);
+        setDbPlaythroughState("in_progress");
+        setDbPlaythroughId(active.id);
         return;
       }
 
@@ -94,17 +103,25 @@ export function ActionBar({ media, session }: ActionBarProps) {
         media.id,
       );
       if (finished?.status === "finished") {
-        setPlaythroughState("finished");
-        setActivePlaythroughId(null);
+        setDbPlaythroughState("finished");
+        setDbPlaythroughId(null);
         return;
       }
 
-      setPlaythroughState("none");
-      setActivePlaythroughId(null);
+      setDbPlaythroughState("none");
+      setDbPlaythroughId(null);
     }
 
     fetchPlaythroughState();
-  }, [session, media.id, playthroughVersion]);
+  }, [session, media.id, playthroughVersion, isCurrentlyLoaded]);
+
+  // Derive final state: use player store when loaded, DB state otherwise
+  const playthroughState: PlaythroughState = isCurrentlyLoaded
+    ? "in_progress"
+    : dbPlaythroughState;
+  const activePlaythroughId: string | null = isCurrentlyLoaded
+    ? playerPlaythroughId
+    : dbPlaythroughId;
 
   // Context menu handlers
   const handlePlay = useCallback(() => {
@@ -118,15 +135,13 @@ export function ActionBar({ media, session }: ActionBarProps) {
   const handleAbandon = useCallback(async () => {
     if (!activePlaythroughId) return;
     await Transitions.abandonPlaythrough(session, activePlaythroughId);
-    setPlaythroughState("none");
-    setActivePlaythroughId(null);
+    // State will update via playthroughDataVersion change triggering useEffect
   }, [session, activePlaythroughId]);
 
   const handleMarkFinished = useCallback(async () => {
     if (!activePlaythroughId) return;
     await Transitions.finishPlaythrough(session, activePlaythroughId);
-    setPlaythroughState("finished");
-    setActivePlaythroughId(null);
+    // State will update via playthroughDataVersion change triggering useEffect
   }, [session, activePlaythroughId]);
 
   const handleDownload = useCallback(() => {
@@ -197,8 +212,12 @@ type PlayButtonProps = {
 
 function PlayButton({ session, media }: PlayButtonProps) {
   const playerMediaId = usePlayer((state) => state.mediaId);
-  const isCurrentlyLoaded = playerMediaId === media.id;
+  const playerPlaythroughId = usePlayer((state) => state.playthroughId);
   const loadMedia = useLoadMediaCallback(session, media.id);
+
+  // This media is loaded if BOTH mediaId matches AND there's a playthroughId
+  const isCurrentlyLoaded =
+    playerMediaId === media.id && playerPlaythroughId !== null;
 
   // If this media is currently loaded, show real-time play/pause button
   if (isCurrentlyLoaded) {

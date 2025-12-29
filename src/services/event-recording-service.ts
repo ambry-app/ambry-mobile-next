@@ -2,17 +2,12 @@ import TrackPlayer, { isPlaying } from "react-native-track-player";
 
 import { PROGRESS_SAVE_INTERVAL } from "@/constants";
 import { getDb } from "@/db/db";
-import {
-  createPlaythrough,
-  getActivePlaythrough,
-  updatePlaythroughStatus,
-  updateStateCache,
-} from "@/db/playthroughs";
+import { updatePlaythroughStatus, updateStateCache } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
 import { syncPlaythroughs } from "@/db/sync";
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
 import { getDeviceIdSync, initializeDevice } from "@/stores/device";
-import { Session, useSession } from "@/stores/session";
+import { useSession } from "@/stores/session";
 import { randomUUID } from "@/utils/crypto";
 
 import type {
@@ -21,7 +16,6 @@ import type {
 } from "./playback-types";
 
 let isInitialized = false;
-let currentMediaId: string | null = null;
 let currentPlaythroughId: string | null = null;
 let heartbeatInterval: NodeJS.Timeout | null = null;
 
@@ -50,19 +44,15 @@ export async function initialize() {
  * Called when loading media into the player.
  */
 function setCurrentPlaythrough(
-  mediaId: string,
   playthroughId: string,
   initialPosition: number = 0,
   initialRate: number = 1,
 ) {
-  currentMediaId = mediaId;
   currentPlaythroughId = playthroughId;
   currentPlaybackRate = initialRate;
   console.debug(
     "[EventRecording] Set playthrough:",
     playthroughId,
-    "for media:",
-    mediaId,
     "position:",
     initialPosition,
     "rate:",
@@ -150,27 +140,28 @@ export async function recordResumeEvent(playthroughId: string) {
 }
 
 // =============================================================================
-// Playthrough Initialization (called directly from player.ts)
+// Playthrough Initialization (called from playthrough-transitions.ts)
 // =============================================================================
 
 /**
- * Initialize playthrough tracking for a media item.
- * Called directly from player.ts when media is loaded.
- * Gets or creates an active playthrough and sets up event recording.
+ * Initialize playthrough tracking for event recording.
+ * Called after a playthrough has been loaded into TrackPlayer.
  *
- * NOTE: If we already have a playthrough for this exact media (e.g., JS context
- * persisted across app "kill"), we skip the DB query and just update position/rate.
- * This is the same pattern used for sleep timer - trust in-memory state when valid.
+ * This function receives the playthroughId directly - it does NOT query the
+ * database to find/create a playthrough. That responsibility belongs to the
+ * caller (playthrough-transitions.ts).
+ *
+ * NOTE: If we already have this exact playthrough (e.g., JS context persisted
+ * across app "kill"), we skip reinitialization and just update position/rate.
  */
-export async function initializePlaythroughTracking(
-  session: Session,
-  mediaId: string,
+export function initializePlaythroughTracking(
+  playthroughId: string,
   position: number,
   playbackRate: number,
 ) {
-  // If we already have a playthrough for this exact media, just update position/rate
+  // If we already have this exact playthrough, just update position/rate
   // This handles the case where JS context persisted across app "kill"
-  if (currentMediaId === mediaId && currentPlaythroughId !== null) {
+  if (currentPlaythroughId === playthroughId) {
     console.debug(
       "[EventRecording] Reusing existing playthrough:",
       currentPlaythroughId,
@@ -179,32 +170,7 @@ export async function initializePlaythroughTracking(
     return;
   }
 
-  try {
-    // Get or create playthrough for event recording
-    let playthrough = await getActivePlaythrough(session, mediaId);
-
-    if (!playthrough) {
-      console.debug(
-        "[EventRecording] No active playthrough found; creating new one",
-      );
-      const playthroughId = await createPlaythrough(session, mediaId);
-      await recordStartEvent(playthroughId);
-      bumpPlaythroughDataVersion();
-      playthrough = await getActivePlaythrough(session, mediaId);
-    } else {
-      console.debug(
-        "[EventRecording] Found active playthrough:",
-        playthrough.id,
-      );
-    }
-
-    // Set up event recording for this playthrough
-    if (playthrough) {
-      setCurrentPlaythrough(mediaId, playthrough.id, position, playbackRate);
-    }
-  } catch (error) {
-    console.warn("[EventRecording] Error initializing playthrough:", error);
-  }
+  setCurrentPlaythrough(playthroughId, position, playbackRate);
 }
 
 // =============================================================================
@@ -566,7 +532,6 @@ async function recordRateChangeEvent(
  */
 export function __resetForTesting() {
   stopHeartbeat();
-  currentMediaId = null;
   currentPlaythroughId = null;
   currentPlaybackRate = 1;
   isInitialized = false;

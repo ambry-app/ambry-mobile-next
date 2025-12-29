@@ -247,12 +247,8 @@ function PlaythroughRow({
     prepareToLoadMedia();
     await expandPlayerAndWait();
     // Transitions service handles pause, resume, load, and play
-    await Transitions.resumePlaythroughAndPlay(
-      session,
-      playthrough.id,
-      playthrough.mediaId,
-    );
-  }, [session, playthrough.id, playthrough.mediaId]);
+    await Transitions.resumePlaythroughAndPlay(session, playthrough.id);
+  }, [session, playthrough.id]);
 
   const handleMarkFinished = useCallback(async () => {
     await Transitions.finishPlaythrough(session, playthrough.id);
