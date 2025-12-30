@@ -10,7 +10,7 @@
  * - Triggering sync
  *
  * Called from:
- * - playthrough-transitions.ts (user-initiated finish/abandon)
+ * - player.ts (user-initiated finish/abandon)
  * - event-recording-service.ts (auto-finish on queue ended)
  *
  * NOTE: This service does NOT handle pausing or recording pause events.
@@ -26,10 +26,7 @@ import { syncPlaythroughs } from "@/db/sync";
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
 import { Session, useSession } from "@/stores/session";
 
-import {
-  recordAbandonEvent,
-  recordFinishEvent,
-} from "./event-recording-service";
+import { recordAbandonEvent, recordFinishEvent } from "./event-recording";
 
 // =============================================================================
 // Public API

@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
-import { getDb } from "@/db/db";
+import { Database, getDb } from "@/db/db";
 import * as schema from "@/db/schema";
 import { Session } from "@/stores/session";
 import { randomUUID } from "@/utils/crypto";
@@ -307,18 +307,22 @@ export async function computeStateFromEvents(
 /**
  * Update the state cache for a playthrough.
  * Only updates if the event is newer than the current cached state.
+ *
+ * @param db - Optional database/transaction context. Defaults to getDb().
+ *             Pass a transaction context when calling within a transaction.
  */
 export async function updateStateCache(
   playthroughId: string,
   position: number,
   rate: number,
   eventAt?: Date,
+  db: Database = getDb(),
 ) {
   const now = new Date();
   const lastEventAt = eventAt ?? now;
 
   // Check if there's an existing cache entry with a newer timestamp
-  const existing = await getDb().query.playthroughStateCache.findFirst({
+  const existing = await db.query.playthroughStateCache.findFirst({
     where: eq(schema.playthroughStateCache.playthroughId, playthroughId),
   });
 
@@ -327,7 +331,7 @@ export async function updateStateCache(
     return; // Skip - existing cache is more recent
   }
 
-  await getDb()
+  await db
     .insert(schema.playthroughStateCache)
     .values({
       playthroughId,

@@ -17,9 +17,10 @@ jest.mock("@/services/playback-coordinator", () => ({
     mockSetPlayerProgressUpdater(...args),
 }));
 
-// Mock event-recording-service
-jest.mock("@/services/event-recording-service", () => ({
-  initialize: jest.fn().mockResolvedValue(undefined),
+// Mock device store
+const mockInitializeDevice = jest.fn().mockResolvedValue(undefined);
+jest.mock("@/stores/device", () => ({
+  initializeDevice: (...args: unknown[]) => mockInitializeDevice(...args),
 }));
 
 // Mock the player store
@@ -35,7 +36,6 @@ jest.mock("@/utils/seek", () => ({
   seekImmediateNoLog: (...args: unknown[]) => mockSeekImmediateNoLog(...args),
 }));
 
-import * as EventRecording from "@/services/event-recording-service";
 import { PlaybackService } from "@/services/playback-service";
 import {
   mockTrackPlayerAddEventListener,
@@ -69,6 +69,7 @@ describe("playback-service", () => {
     mockOnRemoteDuck.mockReset();
     mockInitialize.mockReset();
     mockSetPlayerProgressUpdater.mockReset();
+    mockInitializeDevice.mockReset();
     jest.clearAllMocks();
   });
 
@@ -92,10 +93,10 @@ describe("playback-service", () => {
       expect(registeredEvents).toContain("remote-play");
     });
 
-    it("initializes EventRecording", async () => {
+    it("initializes device store", async () => {
       await PlaybackService();
 
-      expect(EventRecording.initialize).toHaveBeenCalled();
+      expect(mockInitializeDevice).toHaveBeenCalled();
     });
 
     it("initializes the Coordinator", async () => {

@@ -1,8 +1,8 @@
 import { PAUSE_REWIND_SECONDS } from "@/constants";
-import * as EventRecording from "@/services/event-recording-service";
 import * as Coordinator from "@/services/playback-coordinator";
 import * as Player from "@/services/trackplayer-wrapper";
 import { Event } from "@/services/trackplayer-wrapper";
+import { initializeDevice } from "@/stores/device";
 import { setProgress } from "@/stores/player";
 import { seek, seekImmediateNoLog } from "@/utils/seek";
 
@@ -147,7 +147,8 @@ export const PlaybackService = async function () {
   // });
 
   // Initialize services
-  await EventRecording.initialize();
+  // Device store must be initialized for getDeviceIdSync() to work in event recording
+  await initializeDevice();
   Coordinator.setPlayerProgressUpdater(setProgress);
   Coordinator.initialize();
 };

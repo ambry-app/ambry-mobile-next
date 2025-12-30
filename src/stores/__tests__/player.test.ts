@@ -11,7 +11,7 @@ import {
   SEEK_EVENT_ACCUMULATION_WINDOW,
 } from "@/constants";
 import * as schema from "@/db/schema";
-import { __resetForTesting } from "@/services/event-recording-service";
+import { __resetForTesting } from "@/services/playback-coordinator";
 import { initialDeviceState, useDevice } from "@/stores/device";
 import {
   cancelResumePrompt,
@@ -67,6 +67,9 @@ const mockOnSeekApplied = jest.fn();
 const mockOnSeekCompleted = jest.fn();
 const mockExpandPlayer = jest.fn();
 
+const mockResetForTesting = jest.fn();
+const mockSetCurrentPlaythrough = jest.fn();
+
 jest.mock("@/services/playback-coordinator", () => ({
   onPlay: (...args: unknown[]) => mockOnPlay(...args),
   onPause: (...args: unknown[]) => mockOnPause(...args),
@@ -74,6 +77,9 @@ jest.mock("@/services/playback-coordinator", () => ({
   onSeekApplied: (...args: unknown[]) => mockOnSeekApplied(...args),
   onSeekCompleted: (...args: unknown[]) => mockOnSeekCompleted(...args),
   expandPlayer: () => mockExpandPlayer(),
+  setCurrentPlaythrough: (...args: unknown[]) =>
+    mockSetCurrentPlaythrough(...args),
+  __resetForTesting: () => mockResetForTesting(),
 }));
 
 // Set up test database
@@ -137,6 +143,7 @@ describe("player store", () => {
     mockOnSeekApplied.mockReset();
     mockOnSeekCompleted.mockReset();
     mockExpandPlayer.mockReset();
+    mockSetCurrentPlaythrough.mockReset();
 
     // Default mock values
     mockTrackPlayerGetTrack.mockResolvedValue(null); // No track loaded by default

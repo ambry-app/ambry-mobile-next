@@ -1,19 +1,19 @@
 /**
- * Centralized playthrough transition management.
+ * Playthrough Loading Service
  *
- * This service handles all playthrough transitions:
- * - Loading and playing media (with automatic pause of current)
- * - Resuming previous playthroughs
- * - Starting fresh playthroughs
- * - Finishing playthroughs (marking complete)
- * - Abandoning playthroughs
+ * Explicit functions for loading playthroughs into TrackPlayer.
+ * These functions do NO decision logic (caller decides which to call):
+ * - startNewPlaythrough: creates and loads a new playthrough
+ * - continuePlaythrough: loads an existing in_progress playthrough
+ * - resumePlaythrough: changes status and loads a finished/abandoned playthrough
  *
- * All transitions that involve switching media handle pause internally,
- * so callers don't need to remember to pause first.
+ * The caller is responsible for deciding which function to call.
+ * This removes hidden queries and makes the code flow explicit.
  *
- * UI components should use these functions for playthrough transitions.
- * The player store (player.ts) handles low-level playback controls
- * (play, pause, seek) and UI state (prompts, expansion).
+ * Also includes:
+ * - loadActivePlaythroughIntoPlayer: for app initialization
+ * - reloadPlaythroughById: for reloading after download completes
+ * - clearActivePlaythrough: for user-initiated unload
  */
 
 import { Platform } from "react-native";
@@ -24,7 +24,6 @@ import {
   clearActivePlaythroughIdForDevice,
   createPlaythrough,
   getActivePlaythroughIdForDevice,
-  getInProgressPlaythrough,
   getPlaythroughById,
   resumePlaythrough as resumePlaythroughInDb,
   setActivePlaythroughIdForDevice,
@@ -34,14 +33,8 @@ import { bumpPlaythroughDataVersion } from "@/stores/data-version";
 import { Session } from "@/stores/session";
 import { documentDirectoryFilePath } from "@/utils";
 
-import {
-  initializePlaythroughTracking,
-  pauseAndRecordEvent,
-  recordResumeEvent,
-  recordStartEvent,
-} from "./event-recording-service";
+import { recordResumeEvent, recordStartEvent } from "./event-recording";
 import * as Coordinator from "./playback-coordinator";
-import * as Lifecycle from "./playthrough-lifecycle";
 import * as Player from "./trackplayer-wrapper";
 import { PitchAlgorithm, TrackType } from "./trackplayer-wrapper";
 
@@ -60,108 +53,31 @@ export interface TrackLoadResult {
 }
 
 // =============================================================================
-// High-Level Transitions
+// Explicit User-Action Functions
 // =============================================================================
 
 /**
- * Load media and start playing.
+ * Start a brand new playthrough for media.
  *
- * Handles the complete transition:
- * 1. Pauses current playback (if any) and records pause event
- * 2. Gets or creates an active playthrough for the media
- * 3. Loads the playthrough into TrackPlayer
- * 4. Starts playing and records play event
- * 5. Bumps data version to notify UI
+ * Creates a new playthrough, records "start" event, loads into TrackPlayer,
+ * sets as active, and starts playing.
  *
- * Returns the TrackLoadResult for the caller to update player state.
+ * Use when: User taps play on media that has no existing playthrough,
+ * or user chooses "Start Fresh" to create a new playthrough.
  *
- * Use this when the user taps play on a media item (after prompt checks).
+ * Returns TrackLoadResult for caller to update player state.
  */
-export async function loadAndPlayMedia(
+export async function startNewPlaythrough(
   session: Session,
   mediaId: string,
 ): Promise<TrackLoadResult> {
   await pauseCurrentIfPlaying();
 
-  const result = await loadMediaIntoPlayer(session, mediaId);
-
-  // Track this as the active playthrough for this device
-  await setActivePlaythroughIdForDevice(session, result.playthroughId);
-
-  await playAndNotify();
-  bumpPlaythroughDataVersion();
-
-  return result;
-}
-
-/**
- * Resume a previous playthrough and start playing.
- *
- * Handles the complete transition:
- * 1. Pauses current playback (if any) and records pause event
- * 2. Marks the playthrough as in_progress in the database
- * 3. Loads the playthrough into TrackPlayer
- * 4. Starts playing and records play event
- * 5. Bumps data version to notify UI
- *
- * Returns the TrackLoadResult for the caller to update player state.
- *
- * Use this when the user chooses to resume a finished/abandoned playthrough.
- */
-export async function resumePlaythroughAndPlay(
-  session: Session,
-  playthroughId: string,
-): Promise<TrackLoadResult> {
-  await pauseCurrentIfPlaying();
-
-  // Mark as in_progress in database and record resume event
-  await resumePlaythroughInDb(session, playthroughId);
-  await recordResumeEvent(playthroughId);
-  bumpPlaythroughDataVersion();
-
-  // Get the now-active playthrough by ID
-  const playthrough = await getPlaythroughById(session, playthroughId);
-  if (!playthrough) {
-    throw new Error(`Playthrough not found after resume: ${playthroughId}`);
-  }
-
-  const result = await loadPlaythroughIntoPlayer(session, playthrough);
-
-  // Track this as the active playthrough for this device
-  await setActivePlaythroughIdForDevice(session, playthroughId);
-
-  await playAndNotify();
-
-  return result;
-}
-
-/**
- * Create a new playthrough and start playing from the beginning.
- *
- * Handles the complete transition:
- * 1. Pauses current playback (if any) and records pause event
- * 2. Creates a new playthrough in the database
- * 3. Records start event
- * 4. Loads the playthrough into TrackPlayer
- * 5. Starts playing and records play event
- * 6. Bumps data version to notify UI
- *
- * Returns the TrackLoadResult for the caller to update player state.
- *
- * Use this when the user chooses "Start Fresh" on a media item.
- */
-export async function startFreshAndPlay(
-  session: Session,
-  mediaId: string,
-): Promise<TrackLoadResult> {
-  await pauseCurrentIfPlaying();
-
-  // Create new playthrough
+  // Create new playthrough and record start event
   const playthroughId = await createPlaythrough(session, mediaId);
   await recordStartEvent(playthroughId);
-  bumpPlaythroughDataVersion();
 
-  // Get the new playthrough by ID
+  // Get the new playthrough with full media info
   const playthrough = await getPlaythroughById(session, playthroughId);
   if (!playthrough) {
     throw new Error(`Playthrough not found after create: ${playthroughId}`);
@@ -173,155 +89,92 @@ export async function startFreshAndPlay(
   await setActivePlaythroughIdForDevice(session, playthroughId);
 
   await playAndNotify();
+  bumpPlaythroughDataVersion();
 
   return result;
 }
 
 /**
- * Mark a playthrough as finished.
+ * Continue an existing in_progress playthrough.
  *
- * Handles pause and delegates to lifecycle service:
- * 1. If this playthrough is loaded in player and playing, pauses and records pause event
- * 2. Delegates to lifecycle service for finish bookkeeping
+ * Just loads and plays - no status change needed since playthrough is
+ * already in_progress.
  *
- * Caller is responsible for unloading the player if needed.
+ * Use when: User taps play on media that has an in_progress playthrough.
+ *
+ * Returns TrackLoadResult for caller to update player state.
  */
-export async function finishPlaythrough(
-  session: Session,
-  playthroughId: string,
-  isLoaded: boolean,
-): Promise<void> {
-  // If this playthrough is loaded, pause if playing and record the event
-  // (pauseAndRecordEvent checks isPlaying internally, skips if already paused)
-  if (isLoaded) {
-    await pauseAndRecordEvent();
-  }
-
-  // Delegate to lifecycle service for finish bookkeeping
-  await Lifecycle.finishPlaythrough(session, playthroughId);
-}
-
-/**
- * Mark a playthrough as abandoned.
- *
- * Handles pause and delegates to lifecycle service:
- * 1. If this playthrough is loaded in player and playing, pauses and records pause event
- * 2. Delegates to lifecycle service for abandon bookkeeping
- *
- * Caller is responsible for unloading the player if needed.
- */
-export async function abandonPlaythrough(
-  session: Session,
-  playthroughId: string,
-  isLoaded: boolean,
-): Promise<void> {
-  // If this playthrough is loaded, pause if playing and record the event
-  // (pauseAndRecordEvent checks isPlaying internally, skips if already paused)
-  if (isLoaded) {
-    await pauseAndRecordEvent();
-  }
-
-  // Delegate to lifecycle service for abandon bookkeeping
-  await Lifecycle.abandonPlaythrough(session, playthroughId);
-}
-
-/**
- * Clear the active playthrough for this device.
- *
- * This is for user-initiated "unload player" actions (e.g., from context menu).
- * Unlike logout/session expiry (which preserves the active playthrough ID for
- * next login), this clears it so the player stays unloaded on next app boot.
- *
- * Caller is responsible for actually unloading the player.
- */
-export async function clearActivePlaythrough(session: Session): Promise<void> {
-  await clearActivePlaythroughIdForDevice(session);
-}
-
-// =============================================================================
-// Low-Level Loading (for special cases like downloads.ts and initialization)
-// =============================================================================
-
-/**
- * Load media into TrackPlayer without pausing current or starting playback.
- *
- * This is a low-level function for special cases:
- * - Reloading current media after download completes (downloads.ts)
- * - Initial load on app boot (player.ts initializePlayer)
- *
- * For normal "play this media" use cases, use loadAndPlayMedia instead.
- */
-export async function loadMediaIntoPlayer(
-  session: Session,
-  mediaId: string,
-): Promise<TrackLoadResult> {
-  console.debug("[Transitions] Loading media into player", mediaId);
-
-  // Check for active (in_progress) playthrough
-  let playthrough = await getInProgressPlaythrough(session, mediaId);
-
-  if (playthrough) {
-    console.debug(
-      "[Transitions] Found active playthrough:",
-      playthrough.id,
-      "position:",
-      playthrough.stateCache?.currentPosition ?? 0,
-    );
-    return loadPlaythroughIntoPlayer(session, playthrough);
-  }
-
-  // No active playthrough - create a new one
-  // Note: finished/abandoned playthroughs are handled by checkForResumePrompt
-  // before this function is called
-  console.debug("[Transitions] No active playthrough found; creating new one");
-
-  const playthroughId = await createPlaythrough(session, mediaId);
-  await recordStartEvent(playthroughId);
-  bumpPlaythroughDataVersion();
-
-  // Get the new playthrough by ID
-  const newPlaythrough = await getPlaythroughById(session, playthroughId);
-
-  if (!newPlaythrough) {
-    throw new Error("Failed to create playthrough");
-  }
-
-  return loadPlaythroughIntoPlayer(session, newPlaythrough);
-}
-
-/**
- * Reload a specific playthrough by ID.
- *
- * This is used when we need to reload the currently loaded playthrough,
- * such as when switching between streaming and downloaded audio.
- *
- * Unlike loadMediaIntoPlayer which may create a new playthrough, this
- * explicitly loads a known playthrough ID.
- */
-export async function reloadPlaythroughById(
+export async function continuePlaythrough(
   session: Session,
   playthroughId: string,
 ): Promise<TrackLoadResult> {
-  console.debug("[Transitions] Reloading playthrough by ID:", playthroughId);
+  await pauseCurrentIfPlaying();
 
+  // Get the playthrough with full media info
   const playthrough = await getPlaythroughById(session, playthroughId);
-
   if (!playthrough) {
     throw new Error(`Playthrough not found: ${playthroughId}`);
   }
 
-  return loadPlaythroughIntoPlayer(session, playthrough);
+  const result = await loadPlaythroughIntoPlayer(session, playthrough);
+
+  // Track this as the active playthrough for this device
+  await setActivePlaythroughIdForDevice(session, playthroughId);
+
+  await playAndNotify();
+
+  return result;
 }
 
 /**
- * Load the stored active playthrough into Player.
+ * Resume a finished or abandoned playthrough.
+ *
+ * Marks as in_progress, records "resume" event, loads, and plays.
+ *
+ * Use when: User chooses to resume from ResumePlaythroughDialog.
+ *
+ * Returns TrackLoadResult for caller to update player state.
+ */
+export async function resumePlaythrough(
+  session: Session,
+  playthroughId: string,
+): Promise<TrackLoadResult> {
+  await pauseCurrentIfPlaying();
+
+  // Mark as in_progress in database and record resume event
+  await resumePlaythroughInDb(session, playthroughId);
+  await recordResumeEvent(playthroughId);
+
+  // Get the now-active playthrough with full media info
+  const playthrough = await getPlaythroughById(session, playthroughId);
+  if (!playthrough) {
+    throw new Error(`Playthrough not found after resume: ${playthroughId}`);
+  }
+
+  const result = await loadPlaythroughIntoPlayer(session, playthrough);
+
+  // Track this as the active playthrough for this device
+  await setActivePlaythroughIdForDevice(session, playthroughId);
+
+  await playAndNotify();
+  bumpPlaythroughDataVersion();
+
+  return result;
+}
+
+// =============================================================================
+// Special-Case Loading Functions
+// =============================================================================
+
+/**
+ * Load the stored active playthrough into TrackPlayer.
  *
  * Used during app initialization to restore the last playing media.
  * Returns null if no active playthrough is stored for this device.
  *
- * Note: This function does NOT fall back to "most recently listened" if no
- * playthrough is stored. If the stored playthrough is invalid (deleted, finished,
- * abandoned), it clears the stored ID and returns null.
+ * Note: This function does NOT start playback, only loads.
+ * Note: If the stored playthrough is invalid (deleted, finished, abandoned),
+ * it clears the stored ID and returns null.
  */
 export async function loadActivePlaythroughIntoPlayer(
   session: Session,
@@ -343,14 +196,14 @@ export async function loadActivePlaythroughIntoPlayer(
 
     if (!playthrough) {
       console.warn(
-        "[Transitions] Track loaded but playthrough not found:",
+        "[Loader] Track loaded but playthrough not found:",
         playthroughId,
       );
       return null;
     }
 
     // Initialize playthrough tracking for event recording
-    initializePlaythroughTracking(playthroughId, position, playbackRate);
+    Coordinator.setCurrentPlaythrough(playthroughId, position, playbackRate);
 
     return {
       playthroughId,
@@ -367,7 +220,7 @@ export async function loadActivePlaythroughIntoPlayer(
   const storedPlaythroughId = await getActivePlaythroughIdForDevice(session);
 
   if (!storedPlaythroughId) {
-    console.debug("[Transitions] No active playthrough stored for this device");
+    console.debug("[Loader] No active playthrough stored for this device");
     return null;
   }
 
@@ -376,7 +229,7 @@ export async function loadActivePlaythroughIntoPlayer(
 
   if (!playthrough) {
     console.debug(
-      "[Transitions] Stored playthrough not found, clearing:",
+      "[Loader] Stored playthrough not found, clearing:",
       storedPlaythroughId,
     );
     await clearActivePlaythroughIdForDevice(session);
@@ -385,7 +238,7 @@ export async function loadActivePlaythroughIntoPlayer(
 
   if (playthrough.status !== "in_progress") {
     console.debug(
-      "[Transitions] Stored playthrough is not in_progress (status:",
+      "[Loader] Stored playthrough is not in_progress (status:",
       playthrough.status,
       "), clearing:",
       storedPlaythroughId,
@@ -395,13 +248,49 @@ export async function loadActivePlaythroughIntoPlayer(
   }
 
   console.debug(
-    "[Transitions] Loading stored active playthrough:",
+    "[Loader] Loading stored active playthrough:",
     playthrough.id,
     "mediaId:",
     playthrough.media.id,
   );
 
   return loadPlaythroughIntoPlayer(session, playthrough);
+}
+
+/**
+ * Reload a specific playthrough by ID.
+ *
+ * Used when we need to reload the currently loaded playthrough,
+ * such as when switching between streaming and downloaded audio.
+ *
+ * Note: This function does NOT start playback, only loads.
+ */
+export async function reloadPlaythroughById(
+  session: Session,
+  playthroughId: string,
+): Promise<TrackLoadResult> {
+  console.debug("[Loader] Reloading playthrough by ID:", playthroughId);
+
+  const playthrough = await getPlaythroughById(session, playthroughId);
+
+  if (!playthrough) {
+    throw new Error(`Playthrough not found: ${playthroughId}`);
+  }
+
+  return loadPlaythroughIntoPlayer(session, playthrough);
+}
+
+/**
+ * Clear the active playthrough for this device.
+ *
+ * Used for user-initiated "unload player" actions (e.g., from context menu).
+ * Unlike logout/session expiry (which preserves the active playthrough ID for
+ * next login), this clears it so the player stays unloaded on next app boot.
+ *
+ * Caller is responsible for actually unloading the player.
+ */
+export async function clearActivePlaythrough(session: Session): Promise<void> {
+  await clearActivePlaythroughIdForDevice(session);
 }
 
 // =============================================================================
@@ -452,7 +341,7 @@ async function waitForSeekToComplete(
   // Timeout - return whatever position we have
   const { position } = await Player.getProgress();
   console.warn(
-    "[Transitions] waitForSeekToComplete timed out. Expected:",
+    "[Loader] waitForSeekToComplete timed out. Expected:",
     expectedPosition.toFixed(2),
     "Got:",
     position.toFixed(2),
@@ -468,7 +357,7 @@ async function pauseCurrentIfPlaying() {
   const { playing } = await Player.isPlaying();
   if (!playing) return;
 
-  console.debug("[Transitions] Pausing current playback before transition");
+  console.debug("[Loader] Pausing current playback before transition");
   await Player.pause();
 
   // Rewind slightly so the user has context when they resume
@@ -492,13 +381,13 @@ async function playAndNotify() {
 }
 
 /**
- * Load a playthrough into Player.
+ * Load a playthrough into TrackPlayer.
  */
 async function loadPlaythroughIntoPlayer(
   session: Session,
   playthrough: ActivePlaythrough,
 ): Promise<TrackLoadResult> {
-  console.debug("[Transitions] Loading playthrough into player...");
+  console.debug("[Loader] Loading playthrough into player...");
 
   const position = playthrough.stateCache?.currentPosition ?? 0;
   const playbackRate = playthrough.stateCache?.currentRate ?? 1;
@@ -560,7 +449,11 @@ async function loadPlaythroughIntoPlayer(
   const actualPosition = await waitForSeekToComplete(position);
 
   // Initialize playthrough tracking for event recording
-  initializePlaythroughTracking(playthrough.id, actualPosition, playbackRate);
+  Coordinator.setCurrentPlaythrough(
+    playthrough.id,
+    actualPosition,
+    playbackRate,
+  );
 
   return {
     playthroughId: playthrough.id,

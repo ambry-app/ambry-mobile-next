@@ -15,9 +15,10 @@ import {
   getPlaythroughById,
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
-import { saveCurrentProgress } from "@/services/event-recording-service";
 import * as Coordinator from "@/services/playback-coordinator";
-import * as Transitions from "@/services/playthrough-transitions";
+import * as Lifecycle from "@/services/playthrough-lifecycle";
+import * as Loader from "@/services/playthrough-loader";
+import * as Heartbeat from "@/services/position-heartbeat";
 import * as Player from "@/services/trackplayer-wrapper";
 import {
   AndroidAudioContentType,
@@ -190,7 +191,7 @@ export async function initializePlayer(session: Session) {
       usePlayer.setState({ initialized: true });
 
       // Try to load the stored active playthrough
-      const track = await Transitions.loadActivePlaythroughIntoPlayer(session);
+      const track = await Loader.loadActivePlaythroughIntoPlayer(session);
       if (track) {
         usePlayer.setState({
           loadedPlaythrough: {
@@ -242,7 +243,7 @@ export function prepareToLoadMedia() {
  * Handles:
  * - Setting loading state
  * - Expanding player
- * - Calling transitions to load and play
+ * - Querying playthrough state and calling appropriate loader
  * - Updating player state with result
  * - Error handling
  *
@@ -255,7 +256,13 @@ export async function loadAndPlayMedia(session: Session, mediaId: string) {
   await expandPlayerAndWait();
 
   try {
-    const result = await Transitions.loadAndPlayMedia(session, mediaId);
+    // Check for in_progress playthrough
+    const inProgress = await getInProgressPlaythrough(session, mediaId);
+
+    // Call the appropriate explicit loader function
+    const result = inProgress
+      ? await Loader.continuePlaythrough(session, inProgress.id)
+      : await Loader.startNewPlaythrough(session, mediaId);
 
     usePlayer.setState({
       loadingNewMedia: false,
@@ -279,9 +286,19 @@ export async function loadAndPlayMedia(session: Session, mediaId: string) {
  * Load media into TrackPlayer (low-level, no pause, no play).
  * Used by downloads.ts when reloading after download completes.
  * For normal "play this media" use cases, use loadAndPlayMedia instead.
+ *
+ * Note: This is a convenience wrapper that queries playthrough state
+ * and calls the appropriate loader. It does not start playback.
  */
 export async function loadMedia(session: Session, mediaId: string) {
-  const track = await Transitions.loadMediaIntoPlayer(session, mediaId);
+  // Check for in_progress playthrough
+  const inProgress = await getInProgressPlaythrough(session, mediaId);
+
+  // Call the appropriate explicit loader function
+  // Note: These will start playing, but the caller can pause if needed
+  const track = inProgress
+    ? await Loader.continuePlaythrough(session, inProgress.id)
+    : await Loader.startNewPlaythrough(session, mediaId);
 
   usePlayer.setState({
     loadingNewMedia: false,
@@ -327,9 +344,9 @@ export async function reloadCurrentPlaythroughIfMedia(
 
   // Save progress and check if playing before reload
   const { playing } = await Player.isPlaying();
-  await saveCurrentProgress();
+  await Heartbeat.saveNow();
 
-  const track = await Transitions.reloadPlaythroughById(
+  const track = await Loader.reloadPlaythroughById(
     session,
     loadedPlaythrough.playthroughId,
   );
@@ -366,10 +383,7 @@ export async function resumeAndLoadPlaythrough(
   await expandPlayerAndWait();
 
   try {
-    const result = await Transitions.resumePlaythroughAndPlay(
-      session,
-      playthroughId,
-    );
+    const result = await Loader.resumePlaythrough(session, playthroughId);
 
     usePlayer.setState({
       loadingNewMedia: false,
@@ -418,7 +432,7 @@ export async function handleStartFresh(session: Session) {
   await expandPlayerAndWait();
 
   try {
-    const result = await Transitions.startFreshAndPlay(session, prompt.mediaId);
+    const result = await Loader.startNewPlaythrough(session, prompt.mediaId);
 
     usePlayer.setState({
       loadingNewMedia: false,
@@ -463,7 +477,16 @@ export async function finishPlaythrough(
   const { loadedPlaythrough } = usePlayer.getState();
   const isLoaded = loadedPlaythrough?.playthroughId === playthroughId;
 
-  await Transitions.finishPlaythrough(session, playthroughId, isLoaded);
+  // If this playthrough is loaded, pause if playing and record the event
+  if (isLoaded) {
+    const paused = await Coordinator.pauseAndRecordEvent();
+    if (paused) {
+      Heartbeat.stop();
+    }
+  }
+
+  // Delegate to lifecycle service for finish bookkeeping
+  await Lifecycle.finishPlaythrough(session, playthroughId);
 
   if (isLoaded && !options?.skipUnload) {
     await tryUnloadPlayer();
@@ -480,7 +503,16 @@ export async function abandonPlaythrough(
   const { loadedPlaythrough } = usePlayer.getState();
   const isLoaded = loadedPlaythrough?.playthroughId === playthroughId;
 
-  await Transitions.abandonPlaythrough(session, playthroughId, isLoaded);
+  // If this playthrough is loaded, pause if playing and record the event
+  if (isLoaded) {
+    const paused = await Coordinator.pauseAndRecordEvent();
+    if (paused) {
+      Heartbeat.stop();
+    }
+  }
+
+  // Delegate to lifecycle service for abandon bookkeeping
+  await Lifecycle.abandonPlaythrough(session, playthroughId);
 
   if (isLoaded) {
     await tryUnloadPlayer();
@@ -495,7 +527,7 @@ export async function abandonPlaythrough(
  * next login), this clears it so the player stays unloaded on next app boot.
  */
 export async function unloadPlayer(session: Session) {
-  await Transitions.clearActivePlaythrough(session);
+  await Loader.clearActivePlaythrough(session);
   await tryUnloadPlayer();
 }
 
@@ -622,7 +654,13 @@ async function proceedWithLoadingNewMedia(
 
   // No resume prompt needed - load and play, then update state
   try {
-    const result = await Transitions.loadAndPlayMedia(session, newMediaId);
+    // Check for in_progress playthrough
+    const inProgress = await getInProgressPlaythrough(session, newMediaId);
+
+    // Call the appropriate explicit loader function
+    const result = inProgress
+      ? await Loader.continuePlaythrough(session, inProgress.id)
+      : await Loader.startNewPlaythrough(session, newMediaId);
 
     usePlayer.setState({
       loadingNewMedia: false,
@@ -835,7 +873,7 @@ export function setProgress(position: number, duration: number) {
 
 async function setupTrackPlayer(
   session: Session,
-): Promise<Transitions.TrackLoadResult | true | null> {
+): Promise<Loader.TrackLoadResult | true | null> {
   try {
     // just checking to see if it's already initialized
     const track = await Player.getTrack(0);
