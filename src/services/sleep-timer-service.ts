@@ -1,9 +1,8 @@
-import TrackPlayer, { isPlaying } from "react-native-track-player";
-
 import {
   SLEEP_TIMER_FADE_OUT_TIME,
   SLEEP_TIMER_PAUSE_REWIND_SECONDS,
 } from "@/constants";
+import * as Player from "@/services/trackplayer-wrapper";
 import { setTriggerTime, useSleepTimer } from "@/stores/sleep-timer";
 
 const SLEEP_TIMER_CHECK_INTERVAL = 1000;
@@ -44,7 +43,7 @@ async function checkTimer() {
   const { sleepTimerEnabled, sleepTimerTriggerTime } = useSleepTimer.getState();
 
   if (!sleepTimerEnabled || sleepTimerTriggerTime === null) {
-    await TrackPlayer.setVolume(1.0);
+    await Player.setVolume(1.0);
     return;
   }
 
@@ -54,17 +53,17 @@ async function checkTimer() {
   if (timeRemaining <= 0) {
     // Time's up - pause and reset
     console.debug("[Sleep Timer] Triggering - pausing playback");
-    await TrackPlayer.pause();
-    await TrackPlayer.setVolume(1.0);
+    await Player.pause();
+    await Player.setVolume(1.0);
 
     // Rewind so the user has context when they resume the next day
     // (see SLEEP_TIMER_PAUSE_REWIND_SECONDS in constants.ts for explanation)
-    const { position, duration } = await TrackPlayer.getProgress();
-    const playbackRate = await TrackPlayer.getRate();
+    const { position, duration } = await Player.getProgress();
+    const playbackRate = await Player.getRate();
     let seekPosition =
       position - SLEEP_TIMER_PAUSE_REWIND_SECONDS * playbackRate;
     seekPosition = Math.max(0, Math.min(seekPosition, duration));
-    await TrackPlayer.seekTo(seekPosition);
+    await Player.seekTo(seekPosition);
 
     setTriggerTime(null);
     // Call the injected callback to record the pause event
@@ -74,10 +73,10 @@ async function checkTimer() {
     // Fade volume in last 30 seconds
     const volume = timeRemaining / SLEEP_TIMER_FADE_OUT_TIME;
     console.debug("[Sleep Timer] Fading volume:", volume.toFixed(2));
-    await TrackPlayer.setVolume(volume);
+    await Player.setVolume(volume);
   } else {
     // Normal playback
-    await TrackPlayer.setVolume(1.0);
+    await Player.setVolume(1.0);
   }
 }
 
@@ -89,7 +88,7 @@ export async function maybeReset() {
 
   if (!sleepTimerEnabled) return;
 
-  const { playing } = await isPlaying();
+  const { playing } = await Player.isPlaying();
 
   if (!playing) return;
 
@@ -110,7 +109,7 @@ export async function reset() {
     new Date(triggerTime),
   );
   setTriggerTime(triggerTime);
-  await TrackPlayer.setVolume(1.0);
+  await Player.setVolume(1.0);
 }
 
 /**
@@ -119,7 +118,7 @@ export async function reset() {
 export async function cancel() {
   console.debug("[Sleep Timer] Canceling timer");
   setTriggerTime(null);
-  await TrackPlayer.setVolume(1.0);
+  await Player.setVolume(1.0);
 }
 
 /**

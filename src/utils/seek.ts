@@ -1,10 +1,9 @@
-import TrackPlayer from "react-native-track-player";
-
 import {
   SEEK_ACCUMULATION_WINDOW,
   SEEK_EVENT_ACCUMULATION_WINDOW,
 } from "@/constants";
 import * as Coordinator from "@/services/playback-coordinator";
+import * as Player from "@/services/trackplayer-wrapper";
 import { SeekSource } from "@/stores/player";
 
 /**
@@ -39,12 +38,11 @@ export async function seek(interval: number) {
   if (isSeeking) return;
 
   if (!seekTimer || !seekEventTimer) {
-    const { position, duration: trackDuration } =
-      await TrackPlayer.getProgress();
+    const { position, duration: trackDuration } = await Player.getProgress();
 
     // First tap for short timer
     if (!seekTimer) {
-      playbackRate = await TrackPlayer.getRate();
+      playbackRate = await Player.getRate();
       seekBasePosition = position;
       seekAccumulator = 0;
       duration = trackDuration;
@@ -90,7 +88,7 @@ export async function seek(interval: number) {
       newPosition,
     );
 
-    await TrackPlayer.seekTo(newPosition);
+    await Player.seekTo(newPosition);
     seekEventTimestamp = new Date();
     Coordinator.onSeekApplied({
       position: newPosition,
@@ -140,8 +138,8 @@ export async function seekImmediateNoLog(interval: number) {
 
   isSeeking = true;
 
-  const { position, duration } = await TrackPlayer.getProgress();
-  const playbackRate = await TrackPlayer.getRate();
+  const { position, duration } = await Player.getProgress();
+  const playbackRate = await Player.getRate();
 
   let seekPosition = position + interval * playbackRate;
   seekPosition = Math.max(0, Math.min(seekPosition, duration));
@@ -154,7 +152,7 @@ export async function seekImmediateNoLog(interval: number) {
     "without logging",
   );
 
-  await TrackPlayer.seekTo(seekPosition);
+  await Player.seekTo(seekPosition);
   Coordinator.onSeekApplied({
     position: seekPosition,
     duration,

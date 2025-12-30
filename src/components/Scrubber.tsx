@@ -12,15 +12,13 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Line, Path, Rect } from "react-native-svg";
-import TrackPlayer, {
-  State,
-  usePlaybackState,
-} from "react-native-track-player";
 import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 import { useShallow } from "zustand/shallow";
 
 import * as Coordinator from "@/services/playback-coordinator";
 import type { SeekAppliedPayload } from "@/services/playback-types";
+import * as Player from "@/services/trackplayer-wrapper";
+import { State, usePlaybackState } from "@/services/trackplayer-wrapper";
 import { SeekSource, seekTo, usePlayer } from "@/stores/player";
 import { Colors } from "@/styles";
 
@@ -377,7 +375,7 @@ export const Scrubber = memo(function Scrubber() {
       if (isAnimatingUserSeek.value) return;
 
       try {
-        const { position } = await TrackPlayer.getProgress();
+        const { position } = await Player.getProgress();
         const animatedPos = translateXToTime(translateX.value);
         const drift = Math.abs(animatedPos - position);
 

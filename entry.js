@@ -1,10 +1,10 @@
 // `@expo/metro-runtime` MUST be the first import to ensure Fast Refresh works
 // on web.
-import TrackPlayer from "react-native-track-player";
 import { App } from "expo-router/build/qualified-entry";
 import { renderRootComponent } from "expo-router/build/renderRootComponent";
 
 import { PlaybackService } from "@/services/playback-service";
+import { registerPlaybackService } from "@/services/trackplayer-wrapper";
 
 import "@expo/metro-runtime";
 
@@ -12,4 +12,4 @@ import "@expo/metro-runtime";
 // should be added here.
 renderRootComponent(App);
 
-TrackPlayer.registerPlaybackService(() => PlaybackService);
+registerPlaybackService(() => PlaybackService);

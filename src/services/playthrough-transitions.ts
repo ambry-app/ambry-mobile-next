@@ -17,11 +17,6 @@
  */
 
 import { Platform } from "react-native";
-import TrackPlayer, {
-  isPlaying,
-  PitchAlgorithm,
-  TrackType,
-} from "react-native-track-player";
 
 import { PAUSE_REWIND_SECONDS } from "@/constants";
 import {
@@ -49,6 +44,8 @@ import {
   recordStartEvent,
 } from "./event-recording-service";
 import * as Coordinator from "./playback-coordinator";
+import * as Player from "./trackplayer-wrapper";
+import { PitchAlgorithm, TrackType } from "./trackplayer-wrapper";
 
 // =============================================================================
 // Types
@@ -347,7 +344,7 @@ export async function reloadPlaythroughById(
 }
 
 /**
- * Load the stored active playthrough into TrackPlayer.
+ * Load the stored active playthrough into Player.
  *
  * Used during app initialization to restore the last playing media.
  * Returns null if no active playthrough is stored for this device.
@@ -359,17 +356,17 @@ export async function reloadPlaythroughById(
 export async function loadActivePlaythroughIntoPlayer(
   session: Session,
 ): Promise<TrackLoadResult | null> {
-  const track = await TrackPlayer.getTrack(0);
+  const track = await Player.getTrack(0);
 
   if (track) {
     // Track already loaded (e.g., from headless context or previous session)
     // The description field contains the playthroughId
     const playthroughId = track.description!;
     const streaming = track.url.startsWith("http");
-    const progress = await TrackPlayer.getProgress();
+    const progress = await Player.getProgress();
     const position = progress.position;
     const duration = progress.duration;
-    const playbackRate = await TrackPlayer.getRate();
+    const playbackRate = await Player.getRate();
 
     // Get playthrough with full media info
     const playthrough = await getPlaythroughById(session, playthroughId);
@@ -460,7 +457,7 @@ async function waitForSeekToComplete(
   const pollIntervalMs = 50;
 
   while (Date.now() - startTime < timeoutMs) {
-    const { position } = await TrackPlayer.getProgress();
+    const { position } = await Player.getProgress();
 
     // If seeking to 0, just accept any position (including 0)
     if (expectedPosition === 0) {
@@ -483,7 +480,7 @@ async function waitForSeekToComplete(
   }
 
   // Timeout - return whatever position we have
-  const { position } = await TrackPlayer.getProgress();
+  const { position } = await Player.getProgress();
   console.warn(
     "[Transitions] waitForSeekToComplete timed out. Expected:",
     expectedPosition.toFixed(2),
@@ -498,19 +495,19 @@ async function waitForSeekToComplete(
  * No-op if nothing is playing.
  */
 async function pauseCurrentIfPlaying() {
-  const { playing } = await isPlaying();
+  const { playing } = await Player.isPlaying();
   if (!playing) return;
 
   console.debug("[Transitions] Pausing current playback before transition");
-  await TrackPlayer.pause();
+  await Player.pause();
 
   // Rewind slightly so the user has context when they resume
   // (see PAUSE_REWIND_SECONDS in constants.ts for explanation)
-  const { position, duration } = await TrackPlayer.getProgress();
-  const playbackRate = await TrackPlayer.getRate();
+  const { position, duration } = await Player.getProgress();
+  const playbackRate = await Player.getRate();
   let seekPosition = position - PAUSE_REWIND_SECONDS * playbackRate;
   seekPosition = Math.max(0, Math.min(seekPosition, duration));
-  await TrackPlayer.seekTo(seekPosition);
+  await Player.seekTo(seekPosition);
 
   // Notify coordinator to record pause event
   Coordinator.onPause();
@@ -520,12 +517,12 @@ async function pauseCurrentIfPlaying() {
  * Start playback and notify coordinator.
  */
 async function playAndNotify() {
-  await TrackPlayer.play();
+  await Player.play();
   Coordinator.onPlay();
 }
 
 /**
- * Load a playthrough into TrackPlayer.
+ * Load a playthrough into Player.
  */
 async function loadPlaythroughIntoPlayer(
   session: Session,
@@ -538,11 +535,11 @@ async function loadPlaythroughIntoPlayer(
 
   let streaming: boolean;
 
-  await TrackPlayer.reset();
+  await Player.reset();
   if (playthrough.media.download?.status === "ready") {
     // the media is downloaded, load the local file
     streaming = false;
-    await TrackPlayer.add({
+    await Player.add({
       url: documentDirectoryFilePath(playthrough.media.download.filePath),
       pitchAlgorithm: PitchAlgorithm.Voice,
       duration: playthrough.media.duration
@@ -562,7 +559,7 @@ async function loadPlaythroughIntoPlayer(
   } else {
     // the media is not downloaded, load the stream
     streaming = true;
-    await TrackPlayer.add({
+    await Player.add({
       url:
         Platform.OS === "ios"
           ? `${session.url}${playthrough.media.hlsPath}`
@@ -584,8 +581,8 @@ async function loadPlaythroughIntoPlayer(
     });
   }
 
-  await TrackPlayer.seekTo(position);
-  await TrackPlayer.setRate(playbackRate);
+  await Player.seekTo(position);
+  await Player.setRate(playbackRate);
 
   // Wait for TrackPlayer to report the correct position after seek
   // This is important because seekTo() can return before the seek completes,

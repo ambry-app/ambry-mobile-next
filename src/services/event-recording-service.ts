@@ -1,10 +1,9 @@
-import TrackPlayer, { isPlaying } from "react-native-track-player";
-
 import { PROGRESS_SAVE_INTERVAL } from "@/constants";
 import { getDb } from "@/db/db";
 import { updatePlaythroughStatus, updateStateCache } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
 import { syncPlaythroughs } from "@/db/sync";
+import * as Player from "@/services/trackplayer-wrapper";
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
 import { getDeviceIdSync, initializeDevice } from "@/stores/device";
 import { useSession } from "@/stores/session";
@@ -177,8 +176,8 @@ export async function handlePlaybackStarted() {
   if (!playthroughId) return;
 
   try {
-    const { position } = await TrackPlayer.getProgress();
-    const rate = await TrackPlayer.getRate();
+    const { position } = await Player.getProgress();
+    const rate = await Player.getRate();
     currentPlaybackRate = rate;
 
     await recordPlayEvent(playthroughId, position, rate);
@@ -198,7 +197,7 @@ export async function handlePlaybackPaused() {
   stopHeartbeat();
 
   try {
-    const { position } = await TrackPlayer.getProgress();
+    const { position } = await Player.getProgress();
     await recordPauseEvent(playthroughId, position, playbackRate);
 
     // Trigger sync in background after pause (non-blocking)
@@ -235,7 +234,7 @@ export async function handlePlaybackQueueEnded() {
   stopHeartbeat();
 
   try {
-    const { duration } = await TrackPlayer.getProgress();
+    const { duration } = await Player.getProgress();
 
     // Record pause at end position
     await recordPauseEvent(playthroughId, duration, playbackRate);
@@ -337,7 +336,7 @@ async function heartbeatSave() {
   if (!currentPlaythroughId) return;
 
   try {
-    const { position } = await TrackPlayer.getProgress();
+    const { position } = await Player.getProgress();
 
     // Update state cache without creating events (background save)
     await updateStateCache(currentPlaythroughId, position, currentPlaybackRate);
@@ -377,7 +376,7 @@ export async function pauseAndRecordEvent() {
   if (!playthroughId) return;
 
   // Check if actually playing - if not, nothing to do
-  const { playing } = await isPlaying();
+  const { playing } = await Player.isPlaying();
   if (!playing) {
     console.debug(
       "[EventRecording] pauseAndRecordEvent: not playing, skipping",
@@ -389,10 +388,10 @@ export async function pauseAndRecordEvent() {
 
   try {
     // Pause the player
-    await TrackPlayer.pause();
+    await Player.pause();
 
     // Record the pause event and wait for it to complete
-    const { position } = await TrackPlayer.getProgress();
+    const { position } = await Player.getProgress();
     await recordPauseEvent(playthroughId, position, playbackRate);
 
     console.debug("[EventRecording] pauseAndRecordEvent completed");

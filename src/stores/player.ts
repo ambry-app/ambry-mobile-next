@@ -1,13 +1,5 @@
 import { useEffect } from "react";
 import { AppStateStatus, EmitterSubscription } from "react-native";
-import TrackPlayer, {
-  AndroidAudioContentType,
-  Capability,
-  Event,
-  IOSCategory,
-  IOSCategoryMode,
-  isPlaying,
-} from "react-native-track-player";
 import { create } from "zustand";
 
 import {
@@ -26,6 +18,14 @@ import * as schema from "@/db/schema";
 import { saveCurrentProgress } from "@/services/event-recording-service";
 import * as Coordinator from "@/services/playback-coordinator";
 import * as Transitions from "@/services/playthrough-transitions";
+import * as Player from "@/services/trackplayer-wrapper";
+import {
+  AndroidAudioContentType,
+  Capability,
+  Event,
+  IOSCategory,
+  IOSCategoryMode,
+} from "@/services/trackplayer-wrapper";
 
 import { Session, useSession } from "./session";
 
@@ -185,7 +185,7 @@ export async function initializePlayer(session: Session) {
       // or track loaded but playthrough not found (null)
       if (response === null) {
         // Reset TrackPlayer since the loaded track is invalid
-        await TrackPlayer.reset();
+        await Player.reset();
       }
       usePlayer.setState({ initialized: true });
 
@@ -326,7 +326,7 @@ export async function reloadCurrentPlaythroughIfMedia(
   );
 
   // Save progress and check if playing before reload
-  const { playing } = await isPlaying();
+  const { playing } = await Player.isPlaying();
   await saveCurrentProgress();
 
   const track = await Transitions.reloadPlaythroughById(
@@ -722,16 +722,16 @@ export function expandPlayerAndWait(): Promise<void> {
 }
 
 export async function play() {
-  const { position } = await TrackPlayer.getProgress();
+  const { position } = await Player.getProgress();
   console.debug("[Player] Playing from position", position);
-  await TrackPlayer.play();
+  await Player.play();
   Coordinator.onPlay();
 }
 
 export async function pause() {
-  const { position } = await TrackPlayer.getProgress();
+  const { position } = await Player.getProgress();
   console.debug("[Player] Pausing at position", position);
-  await TrackPlayer.pause();
+  await Player.pause();
   await seekImmediateNoLog(-PAUSE_REWIND_SECONDS, true);
   Coordinator.onPause();
 }
@@ -742,7 +742,7 @@ export async function pause() {
  * and side effects when nothing is actually playing.
  */
 export async function pauseIfPlaying() {
-  const { playing } = await isPlaying();
+  const { playing } = await Player.isPlaying();
   if (playing) {
     await pause();
   }
@@ -780,10 +780,10 @@ export async function setPlaybackRate(session: Session, playbackRate: number) {
   const previousRate = usePlayer.getState().playbackRate;
   usePlayer.setState({ playbackRate });
 
-  await TrackPlayer.setRate(playbackRate);
+  await Player.setRate(playbackRate);
 
   // Notify coordinator for event recording
-  const { position } = await TrackPlayer.getProgress();
+  const { position } = await Player.getProgress();
   Coordinator.onRateChanged({
     previousRate,
     newRate: playbackRate,
@@ -798,7 +798,7 @@ export async function tryUnloadPlayer() {
     if (seekEventTimer) clearTimeout(seekEventTimer);
 
     await pauseIfPlaying();
-    await TrackPlayer.reset();
+    await Player.reset();
     usePlayer.setState({ ...initialState });
   } catch (error) {
     console.warn("[Player] tryUnloadPlayer error", error);
@@ -812,7 +812,7 @@ export async function forceUnloadPlayer() {
   // TODO: will we miss important seek events?
   if (seekEventTimer) clearTimeout(seekEventTimer);
 
-  await TrackPlayer.reset();
+  await Player.reset();
   usePlayer.setState({ ...initialState });
 
   return Promise.resolve();
@@ -838,16 +838,16 @@ async function setupTrackPlayer(
 ): Promise<Transitions.TrackLoadResult | true | null> {
   try {
     // just checking to see if it's already initialized
-    const track = await TrackPlayer.getTrack(0);
+    const track = await Player.getTrack(0);
 
     if (track) {
       // The description field contains the playthroughId
       const playthroughId = track.description!;
       const streaming = track.url.startsWith("http");
-      const progress = await TrackPlayer.getProgress();
+      const progress = await Player.getProgress();
       const position = progress.position;
       const duration = progress.duration;
-      const playbackRate = await TrackPlayer.getRate();
+      const playbackRate = await Player.getRate();
 
       // Get playthrough with full media info
       const playthrough = await getPlaythroughById(session, playthroughId);
@@ -875,14 +875,14 @@ async function setupTrackPlayer(
     // it's ok, we'll set it up now
   }
 
-  await TrackPlayer.setupPlayer({
+  await Player.setupPlayer({
     androidAudioContentType: AndroidAudioContentType.Speech,
     iosCategory: IOSCategory.Playback,
     iosCategoryMode: IOSCategoryMode.SpokenAudio,
     autoHandleInterruptions: true,
   });
 
-  await TrackPlayer.updateOptions({
+  await Player.updateOptions({
     android: {
       alwaysPauseOnInterruption: true,
     },
@@ -967,7 +967,7 @@ async function seek(
   if (seekIsApplying) return;
 
   if (!seekTimer || !seekEventTimer) {
-    const { position } = await TrackPlayer.getProgress();
+    const { position } = await Player.getProgress();
 
     // First tap for short timer
     if (!seekTimer) {
@@ -1061,7 +1061,7 @@ async function seek(
 
     usePlayer.setState({ seekIsApplying: true });
 
-    await TrackPlayer.seekTo(seekPosition);
+    await Player.seekTo(seekPosition);
     const seekEventTimestamp = new Date();
     Coordinator.onSeekApplied({
       position: seekPosition,
@@ -1124,7 +1124,7 @@ async function seekImmediateNoLog(target: number, isRelative = false) {
 
   usePlayer.setState({ seekIsApplying: true });
 
-  const { position, duration } = await TrackPlayer.getProgress();
+  const { position, duration } = await Player.getProgress();
   let seekPosition;
 
   if (isRelative) {
@@ -1143,7 +1143,7 @@ async function seekImmediateNoLog(target: number, isRelative = false) {
     "without logging",
   );
 
-  await TrackPlayer.seekTo(seekPosition);
+  await Player.seekTo(seekPosition);
   Coordinator.onSeekApplied({
     position: seekPosition,
     duration,
@@ -1164,13 +1164,13 @@ export function usePlayerSubscriptions(appState: AppStateStatus) {
     let positionIntervalId: NodeJS.Timeout | null = null;
 
     const pollPosition = async () => {
-      const progress = await TrackPlayer.getProgress();
+      const progress = await Player.getProgress();
       setProgress(progress.position, progress.duration);
     };
 
     const init = async () => {
       console.debug("[Player] Getting initial progress");
-      const progress = await TrackPlayer.getProgress();
+      const progress = await Player.getProgress();
       setProgress(progress.position, progress.duration);
     };
 
@@ -1183,10 +1183,7 @@ export function usePlayerSubscriptions(appState: AppStateStatus) {
       positionIntervalId = setInterval(pollPosition, POSITION_POLL_INTERVAL);
 
       subscriptions.push(
-        TrackPlayer.addEventListener(
-          Event.PlaybackQueueEnded,
-          onPlaybackQueueEnded,
-        ),
+        Player.addEventListener(Event.PlaybackQueueEnded, onPlaybackQueueEnded),
       );
     }
 
