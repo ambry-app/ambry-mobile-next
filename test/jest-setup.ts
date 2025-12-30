@@ -72,32 +72,36 @@ export const mockTrackPlayerUpdateOptions = jest.fn();
 export const mockTrackPlayerAddEventListener = jest.fn();
 export const mockIsPlaying = jest.fn().mockResolvedValue({ playing: false });
 
-jest.mock("react-native-track-player", () => ({
-  __esModule: true,
-  default: {
-    // Progress/state queries
-    getProgress: () => mockTrackPlayerGetProgress(),
-    getRate: () => mockTrackPlayerGetRate(),
-    getTrack: (index: number) => mockTrackPlayerGetTrack(index),
-    // Playback control
-    play: () => mockTrackPlayerPlay(),
-    pause: () => mockTrackPlayerPause(),
-    seekTo: (pos: number) => mockTrackPlayerSeekTo(pos),
-    setRate: (rate: number) => mockTrackPlayerSetRate(rate),
-    setVolume: (volume: number) => mockTrackPlayerSetVolume(volume),
-    // Track management
-    reset: () => mockTrackPlayerReset(),
-    add: (track: unknown) => mockTrackPlayerAdd(track),
-    // Setup
-    setupPlayer: (options: unknown) => mockTrackPlayerSetupPlayer(options),
-    updateOptions: (options: unknown) => mockTrackPlayerUpdateOptions(options),
-    // Events
-    addEventListener: (event: string, handler: unknown) =>
-      mockTrackPlayerAddEventListener(event, handler),
-  },
-  // Helper functions (named exports)
+// =============================================================================
+// TrackPlayer Wrapper Mock
+// =============================================================================
+// Mock the wrapper module to use the same mock functions as the native module.
+// This is needed because most code now imports from the wrapper instead of
+// react-native-track-player directly.
+
+jest.mock("@/services/trackplayer-wrapper", () => ({
+  // Playback Control
+  play: () => mockTrackPlayerPlay(),
+  pause: () => mockTrackPlayerPause(),
+  seekTo: (pos: number) => mockTrackPlayerSeekTo(pos),
+  setRate: (rate: number) => mockTrackPlayerSetRate(rate),
+  setVolume: (volume: number) => mockTrackPlayerSetVolume(volume),
+  // Queue Management
+  reset: () => mockTrackPlayerReset(),
+  add: (track: unknown) => mockTrackPlayerAdd(track),
+  getTrack: (index: number) => mockTrackPlayerGetTrack(index),
+  // State Queries
+  getProgress: () => mockTrackPlayerGetProgress(),
+  getRate: () => mockTrackPlayerGetRate(),
   isPlaying: () => mockIsPlaying(),
-  // Enums and constants
+  // Event Listeners
+  addEventListener: (event: string, handler: unknown) =>
+    mockTrackPlayerAddEventListener(event, handler),
+  // Setup
+  setupPlayer: (options: unknown) => mockTrackPlayerSetupPlayer(options),
+  updateOptions: (options: unknown) => mockTrackPlayerUpdateOptions(options),
+  registerPlaybackService: jest.fn(),
+  // Re-exported enums
   Event: {
     PlaybackProgressUpdated: "playback-progress-updated",
     PlaybackQueueEnded: "playback-queue-ended",
@@ -142,6 +146,9 @@ jest.mock("react-native-track-player", () => ({
     HLS: "hls",
     Default: "default",
   },
+  // React hooks
+  useIsPlaying: jest.fn(() => ({ playing: false, bufferingDuringPlay: false })),
+  usePlaybackState: jest.fn(() => ({ state: "none" })),
 }));
 
 // =============================================================================

@@ -28,7 +28,6 @@ import {
   getPlaythroughById,
   resumePlaythrough as resumePlaythroughInDb,
   setActivePlaythroughIdForDevice,
-  updatePlaythroughStatus,
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
@@ -38,12 +37,11 @@ import { documentDirectoryFilePath } from "@/utils";
 import {
   initializePlaythroughTracking,
   pauseAndRecordEvent,
-  recordAbandonEvent,
-  recordFinishEvent,
   recordResumeEvent,
   recordStartEvent,
 } from "./event-recording-service";
 import * as Coordinator from "./playback-coordinator";
+import * as Lifecycle from "./playthrough-lifecycle";
 import * as Player from "./trackplayer-wrapper";
 import { PitchAlgorithm, TrackType } from "./trackplayer-wrapper";
 
@@ -182,12 +180,9 @@ export async function startFreshAndPlay(
 /**
  * Mark a playthrough as finished.
  *
- * Handles DB and event coordination:
+ * Handles pause and delegates to lifecycle service:
  * 1. If this playthrough is loaded in player and playing, pauses and records pause event
- * 2. Records "finish" lifecycle event
- * 3. Updates playthrough status in database
- * 4. Clears active playthrough for device
- * 5. Bumps data version to notify UI
+ * 2. Delegates to lifecycle service for finish bookkeeping
  *
  * Caller is responsible for unloading the player if needed.
  */
@@ -202,30 +197,16 @@ export async function finishPlaythrough(
     await pauseAndRecordEvent();
   }
 
-  // Record the finish lifecycle event
-  await recordFinishEvent(playthroughId);
-
-  // Update status in database
-  await updatePlaythroughStatus(session, playthroughId, "finished", {
-    finishedAt: new Date(),
-  });
-
-  // Clear the active playthrough for this device since it's finished
-  await clearActivePlaythroughIdForDevice(session);
-
-  // Notify UI that playthrough data changed
-  bumpPlaythroughDataVersion();
+  // Delegate to lifecycle service for finish bookkeeping
+  await Lifecycle.finishPlaythrough(session, playthroughId);
 }
 
 /**
  * Mark a playthrough as abandoned.
  *
- * Handles DB and event coordination:
+ * Handles pause and delegates to lifecycle service:
  * 1. If this playthrough is loaded in player and playing, pauses and records pause event
- * 2. Records "abandon" lifecycle event
- * 3. Updates playthrough status in database
- * 4. Clears active playthrough for device
- * 5. Bumps data version to notify UI
+ * 2. Delegates to lifecycle service for abandon bookkeeping
  *
  * Caller is responsible for unloading the player if needed.
  */
@@ -240,19 +221,8 @@ export async function abandonPlaythrough(
     await pauseAndRecordEvent();
   }
 
-  // Record the abandon lifecycle event
-  await recordAbandonEvent(playthroughId);
-
-  // Update status in database
-  await updatePlaythroughStatus(session, playthroughId, "abandoned", {
-    abandonedAt: new Date(),
-  });
-
-  // Clear the active playthrough for this device since it's abandoned
-  await clearActivePlaythroughIdForDevice(session);
-
-  // Notify UI that playthrough data changed
-  bumpPlaythroughDataVersion();
+  // Delegate to lifecycle service for abandon bookkeeping
+  await Lifecycle.abandonPlaythrough(session, playthroughId);
 }
 
 /**

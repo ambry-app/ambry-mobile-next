@@ -1,10 +1,9 @@
 import { PROGRESS_SAVE_INTERVAL } from "@/constants";
 import { getDb } from "@/db/db";
-import { updatePlaythroughStatus, updateStateCache } from "@/db/playthroughs";
+import { updateStateCache } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
 import { syncPlaythroughs } from "@/db/sync";
 import * as Player from "@/services/trackplayer-wrapper";
-import { bumpPlaythroughDataVersion } from "@/stores/data-version";
 import { getDeviceIdSync, initializeDevice } from "@/stores/device";
 import { useSession } from "@/stores/session";
 import { randomUUID } from "@/utils/crypto";
@@ -13,6 +12,7 @@ import type {
   RateChangedPayload,
   SeekCompletedPayload,
 } from "./playback-types";
+import * as Lifecycle from "./playthrough-lifecycle";
 
 let isInitialized = false;
 let currentPlaythroughId: string | null = null;
@@ -228,31 +228,18 @@ export async function handlePlaybackQueueEnded() {
 
   if (!playthroughId) return;
 
-  const session = useSession.getState().session;
-  if (!session) return;
-
   stopHeartbeat();
 
   try {
     const { duration } = await Player.getProgress();
 
-    // Record pause at end position
+    // Record pause at end position (audio already stopped, just recording the event)
     await recordPauseEvent(playthroughId, duration, playbackRate);
 
-    // Mark playthrough as finished
-    console.debug("[EventRecording] Playback ended, marking as finished");
-    await recordFinishEvent(playthroughId);
-    await updatePlaythroughStatus(session, playthroughId, "finished", {
-      finishedAt: new Date(),
-    });
-
-    // Notify UI that playthrough data changed
-    bumpPlaythroughDataVersion();
-
-    // Trigger sync in background (non-blocking)
-    syncPlaythroughs(session).catch((error) => {
-      console.warn("[EventRecording] Background sync on finish failed:", error);
-    });
+    // Delegate to lifecycle service for finish bookkeeping
+    // (records finish event, updates DB, clears active playthrough, bumps version, syncs)
+    console.debug("[EventRecording] Playback ended, delegating to lifecycle");
+    await Lifecycle.finishPlaythrough(null, playthroughId);
   } catch (error) {
     console.warn("[EventRecording] Error handling queue ended:", error);
   }
