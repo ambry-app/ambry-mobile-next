@@ -20,7 +20,6 @@ import {
   startDownload,
   useDownloads,
 } from "@/stores/downloads";
-import { setPendingResumePrompt } from "@/stores/player-prompts";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 
@@ -100,7 +99,10 @@ export function MediaContextMenu({ media, session }: MediaContextMenuProps) {
         leadingIcon="filled.PlayArrow"
         elementColors={menuColors}
         onPress={() => {
-          setPendingResumePrompt(playbackState);
+          router.navigate({
+            pathname: "/resume-prompt",
+            params: { playthroughId: playbackState.playthrough.id },
+          });
         }}
       >
         Play

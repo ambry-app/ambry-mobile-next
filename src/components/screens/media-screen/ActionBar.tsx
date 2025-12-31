@@ -19,7 +19,6 @@ import {
   startFreshPlaythrough,
 } from "@/services/playback-controls";
 import { startDownload, useDownloads } from "@/stores/downloads";
-import { setPendingResumePrompt } from "@/stores/player-prompts";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 
@@ -182,7 +181,10 @@ function LoadMediaButton({
 
       case "finished":
       case "abandoned":
-        setPendingResumePrompt(playbackState);
+        router.navigate({
+          pathname: "/resume-prompt",
+          params: { playthroughId: playbackState.playthrough.id },
+        });
         break;
 
       case "none":

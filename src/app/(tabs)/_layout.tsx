@@ -2,9 +2,7 @@ import { Platform } from "react-native";
 import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { Stack } from "expo-router";
 
-import { FinishPlaythroughDialog, ResumePlaythroughDialog } from "@/components";
 import { CustomTabBar, CustomTabBarWithPlayer } from "@/components/screens";
-import { usePlayerPrompts } from "@/stores/player-prompts";
 import { usePlayerUIState } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
 
@@ -20,12 +18,6 @@ export default function TabsWrapperLayout() {
   const session = useSession((state) => state.session);
   const loadedPlaythrough = usePlayerUIState(
     (state) => state.loadedPlaythrough,
-  );
-  const pendingResumePrompt = usePlayerPrompts(
-    (state) => state.pendingResumePrompt,
-  );
-  const pendingFinishPrompt = usePlayerPrompts(
-    (state) => state.pendingFinishPrompt,
   );
 
   if (!session) return null;
@@ -51,18 +43,6 @@ export default function TabsWrapperLayout() {
         />
       ) : (
         <CustomTabBar />
-      )}
-      {pendingFinishPrompt && (
-        <FinishPlaythroughDialog
-          session={session}
-          prompt={pendingFinishPrompt}
-        />
-      )}
-      {pendingResumePrompt && (
-        <ResumePlaythroughDialog
-          session={session}
-          prompt={pendingResumePrompt}
-        />
       )}
     </>
   );
