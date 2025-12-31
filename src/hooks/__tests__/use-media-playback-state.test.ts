@@ -51,7 +51,8 @@ const playerInitialState = {
 };
 
 const dataVersionInitialState = {
-  libraryDataVersion: 0,
+  initialized: false,
+  libraryDataVersion: null,
   playthroughDataVersion: 0,
   shelfDataVersion: 0,
 };
@@ -183,7 +184,11 @@ describe("useMediaPlaybackState", () => {
     );
 
     // Should immediately return loaded state without waiting
-    expect(result.current).toEqual({ type: "loaded", isPlaying: false });
+    expect(result.current).toEqual({
+      type: "loaded",
+      isPlaying: false,
+      playthrough: { id: playthrough.id },
+    });
   });
 
   it("returns loaded with isPlaying true when playing", async () => {
@@ -209,7 +214,11 @@ describe("useMediaPlaybackState", () => {
       useMediaPlaybackState(DEFAULT_TEST_SESSION, media.id),
     );
 
-    expect(result.current).toEqual({ type: "loaded", isPlaying: true });
+    expect(result.current).toEqual({
+      type: "loaded",
+      isPlaying: true,
+      playthrough: { id: playthrough.id },
+    });
   });
 
   it("prioritizes in_progress over finished/abandoned playthroughs", async () => {
@@ -251,7 +260,7 @@ describe("useMediaPlaybackState", () => {
     const db = getDb();
     const media = await createMedia(db);
 
-    const { result, rerender } = renderHook(() =>
+    const { result } = renderHook(() =>
       useMediaPlaybackState(DEFAULT_TEST_SESSION, media.id),
     );
 
@@ -273,7 +282,6 @@ describe("useMediaPlaybackState", () => {
     act(() => {
       useDataVersion.setState({ playthroughDataVersion: 1 });
     });
-    rerender();
 
     // Should now show in_progress
     await waitFor(() => {
@@ -300,7 +308,7 @@ describe("useMediaPlaybackState", () => {
       },
     });
 
-    const { result, rerender } = renderHook(() =>
+    const { result } = renderHook(() =>
       useMediaPlaybackState(DEFAULT_TEST_SESSION, media.id),
     );
 
@@ -310,7 +318,6 @@ describe("useMediaPlaybackState", () => {
     act(() => {
       usePlayer.setState({ loadedPlaythrough: null });
     });
-    rerender();
 
     // Should query DB and return in_progress
     await waitFor(() => {

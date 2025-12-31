@@ -248,6 +248,9 @@ export function prepareToLoadMedia() {
  * - Error handling
  *
  * Use this when the user taps play on a media item (after prompt checks).
+ *
+ * Note: This queries the DB to determine which loader to call. If you already
+ * know the playthrough state, use continueExistingPlaythrough or startFreshPlaythrough.
  */
 export async function loadAndPlayMedia(session: Session, mediaId: string) {
   console.debug("[Player] Loading and playing media:", mediaId);
@@ -264,22 +267,71 @@ export async function loadAndPlayMedia(session: Session, mediaId: string) {
       ? await Loader.continuePlaythrough(session, inProgress.id)
       : await Loader.startNewPlaythrough(session, mediaId);
 
-    usePlayer.setState({
-      loadingNewMedia: false,
-      loadedPlaythrough: {
-        mediaId: result.mediaId,
-        playthroughId: result.playthroughId,
-      },
-      duration: result.duration,
-      position: result.position,
-      playbackRate: result.playbackRate,
-      streaming: result.streaming,
-      ...initialChapterState(result.chapters, result.position, result.duration),
-    });
+    applyTrackLoadResult(result);
   } catch (error) {
     console.error("[Player] Failed to load and play media:", error);
     usePlayer.setState({ loadingNewMedia: false });
   }
+}
+
+/**
+ * Continue an existing in-progress playthrough.
+ * Use this when you already know there's an in_progress playthrough (no DB query needed).
+ */
+export async function continueExistingPlaythrough(
+  session: Session,
+  playthroughId: string,
+) {
+  console.debug("[Player] Continuing existing playthrough:", playthroughId);
+
+  usePlayer.setState({ loadingNewMedia: true });
+  await expandPlayerAndWait();
+
+  try {
+    const result = await Loader.continuePlaythrough(session, playthroughId);
+    applyTrackLoadResult(result);
+  } catch (error) {
+    console.error("[Player] Failed to continue playthrough:", error);
+    usePlayer.setState({ loadingNewMedia: false });
+  }
+}
+
+/**
+ * Start a fresh playthrough for media with no existing playthrough.
+ * Use this when you already know there's no playthrough (no DB query needed).
+ */
+export async function startFreshPlaythrough(session: Session, mediaId: string) {
+  console.debug("[Player] Starting fresh playthrough for media:", mediaId);
+
+  usePlayer.setState({ loadingNewMedia: true });
+  await expandPlayerAndWait();
+
+  try {
+    const result = await Loader.startNewPlaythrough(session, mediaId);
+    applyTrackLoadResult(result);
+  } catch (error) {
+    console.error("[Player] Failed to start playthrough:", error);
+    usePlayer.setState({ loadingNewMedia: false });
+  }
+}
+
+/**
+ * Apply a track load result to the player state.
+ * Internal helper used by the various load functions.
+ */
+function applyTrackLoadResult(result: Loader.TrackLoadResult) {
+  usePlayer.setState({
+    loadingNewMedia: false,
+    loadedPlaythrough: {
+      mediaId: result.mediaId,
+      playthroughId: result.playthroughId,
+    },
+    duration: result.duration,
+    position: result.position,
+    playbackRate: result.playbackRate,
+    streaming: result.streaming,
+    ...initialChapterState(result.chapters, result.position, result.duration),
+  });
 }
 
 /**
@@ -450,6 +502,42 @@ export async function handleStartFresh(session: Session) {
     console.error("[Player] Failed to start fresh playthrough:", error);
     usePlayer.setState({ loadingNewMedia: false });
   }
+}
+
+/**
+ * Playback state for finished or abandoned media.
+ * This is a subset of MediaPlaybackState - defined here to avoid circular imports.
+ */
+type FinishedOrAbandonedState = {
+  type: "finished" | "abandoned";
+  playthrough: {
+    id: string;
+    mediaId: string;
+    finishedAt: Date | null;
+    abandonedAt: Date | null;
+    stateCache: { currentPosition: number } | null;
+    media: { duration: string | null } | null;
+  };
+};
+
+/**
+ * Set the pending resume prompt from a finished or abandoned playback state.
+ * Extracts all necessary data from the playthrough to show the resume dialog.
+ */
+export function setPendingResumePrompt(state: FinishedOrAbandonedState) {
+  const pt = state.playthrough;
+  usePlayer.setState({
+    pendingResumePrompt: {
+      mediaId: pt.mediaId,
+      playthroughId: pt.id,
+      playthroughStatus: state.type,
+      position: pt.stateCache?.currentPosition ?? 0,
+      duration: parseFloat(pt.media?.duration || "0"),
+      statusDate:
+        (state.type === "finished" ? pt.finishedAt : pt.abandonedAt) ??
+        new Date(),
+    },
+  });
 }
 
 /**

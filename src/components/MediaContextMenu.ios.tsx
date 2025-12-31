@@ -1,49 +1,45 @@
 // iOS version - uses SwiftUI
-import { StyleSheet } from "react-native";
+import { Share, StyleSheet } from "react-native";
 import { Button, ContextMenu, Host } from "@expo/ui/swift-ui";
 import { frame } from "@expo/ui/swift-ui/modifiers";
+import { router } from "expo-router";
+import { useShallow } from "zustand/shallow";
 
+import { MediaHeaderInfo } from "@/db/library/get-media-header-info";
+import { useMediaPlaybackState } from "@/hooks/use-media-playback-state";
+import { useShelvedMedia } from "@/hooks/use-shelved-media";
+import {
+  cancelDownload,
+  removeDownload,
+  startDownload,
+  useDownloads,
+} from "@/stores/downloads";
+import {
+  abandonPlaythrough,
+  continueExistingPlaythrough,
+  finishPlaythrough,
+  setPendingResumePrompt,
+  startFreshPlaythrough,
+} from "@/stores/player";
+import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 
-export type PlaythroughState = "none" | "in_progress" | "finished";
-export type DownloadState =
-  | "none"
-  | "pending"
-  | "downloading"
-  | "ready"
-  | "error";
-
 export type MediaContextMenuProps = {
-  playthroughState: PlaythroughState;
-  downloadState: DownloadState;
-  isOnShelf: boolean;
-  isCurrentlyLoaded: boolean;
-  onPlay: () => void;
-  onResume: () => void;
-  onAbandon: () => void;
-  onMarkFinished: () => void;
-  onDownload: () => void;
-  onDeleteDownload: () => void;
-  onCancelDownload: () => void;
-  onToggleShelf: () => void;
-  onShare: () => void;
+  media: MediaHeaderInfo;
+  session: Session;
 };
 
-export function MediaContextMenu({
-  playthroughState,
-  downloadState,
-  isOnShelf,
-  isCurrentlyLoaded,
-  onPlay,
-  onResume,
-  onAbandon,
-  onMarkFinished,
-  onDownload,
-  onDeleteDownload,
-  onCancelDownload,
-  onToggleShelf,
-  onShare,
-}: MediaContextMenuProps) {
+export function MediaContextMenu({ media, session }: MediaContextMenuProps) {
+  const playbackState = useMediaPlaybackState(session, media.id);
+  const downloadStatus = useDownloads(
+    useShallow((state) => state.downloads[media.id]?.status),
+  );
+  const { isOnShelf, toggleOnShelf } = useShelvedMedia(
+    session,
+    media.id,
+    "saved",
+  );
+
   return (
     <Host style={styles.host}>
       <ContextMenu activationMethod="singlePress">
@@ -57,77 +53,138 @@ export function MediaContextMenu({
           />
         </ContextMenu.Trigger>
         <ContextMenu.Items>
-          {/* Playthrough actions */}
-          {playthroughState === "none" && (
-            <Button systemImage="play.fill" onPress={onPlay}>
+          {/* Play/Resume action */}
+
+          {playbackState.type === "none" && (
+            <Button
+              systemImage="play.fill"
+              onPress={() => {
+                startFreshPlaythrough(session, media.id);
+              }}
+            >
               Play
             </Button>
           )}
-          {playthroughState === "in_progress" && (
+
+          {playbackState.type === "in_progress" && (
+            <Button
+              systemImage="play.fill"
+              onPress={() => {
+                continueExistingPlaythrough(
+                  session,
+                  playbackState.playthrough.id,
+                );
+              }}
+            >
+              Resume
+            </Button>
+          )}
+
+          {(playbackState.type === "finished" ||
+            playbackState.type === "abandoned") && (
+            <Button
+              systemImage="play.fill"
+              onPress={() => {
+                setPendingResumePrompt(playbackState);
+              }}
+            >
+              Play
+            </Button>
+          )}
+
+          {/* Playthrough actions */}
+
+          {(playbackState.type === "in_progress" ||
+            playbackState.type === "loaded") && (
             <>
-              {!isCurrentlyLoaded && (
-                <Button systemImage="play.fill" onPress={onResume}>
-                  Resume
-                </Button>
-              )}
-              <Button systemImage="flag.fill" onPress={onMarkFinished}>
+              <Button
+                systemImage="flag.fill"
+                onPress={() => {
+                  finishPlaythrough(session, playbackState.playthrough.id);
+                }}
+              >
                 Mark as finished
               </Button>
               <Button
                 systemImage="xmark.circle"
                 role="destructive"
-                onPress={onAbandon}
+                onPress={() => {
+                  abandonPlaythrough(session, playbackState.playthrough.id);
+                }}
               >
                 Abandon
               </Button>
             </>
           )}
-          {playthroughState === "finished" && (
-            <Button systemImage="arrow.counterclockwise" onPress={onPlay}>
-              Play again
-            </Button>
-          )}
 
-          {/* Download actions */}
-          {downloadState === "none" && (
-            <Button systemImage="arrow.down.circle" onPress={onDownload}>
+          {/* Download action*/}
+
+          {downloadStatus === undefined && (
+            <Button
+              systemImage="arrow.down.circle"
+              onPress={() => {
+                startDownload(session, media.id);
+                router.navigate("/downloads");
+              }}
+            >
               Download
             </Button>
           )}
-          {(downloadState === "pending" || downloadState === "downloading") && (
+
+          {downloadStatus === "pending" && (
             <Button
               systemImage="xmark.circle"
               role="destructive"
-              onPress={onCancelDownload}
+              onPress={() => {
+                cancelDownload(session, media.id);
+              }}
             >
               Cancel download
             </Button>
           )}
-          {downloadState === "ready" && (
+
+          {downloadStatus === "ready" && (
             <Button
               systemImage="trash"
               role="destructive"
-              onPress={onDeleteDownload}
+              onPress={() => {
+                removeDownload(session, media.id);
+              }}
             >
               Delete downloaded files
             </Button>
           )}
-          {downloadState === "error" && (
-            <Button systemImage="arrow.down.circle" onPress={onDownload}>
+
+          {downloadStatus === "error" && (
+            <Button
+              systemImage="arrow.down.circle"
+              onPress={() => {
+                startDownload(session, media.id);
+                router.navigate("/downloads");
+              }}
+            >
               Retry download
             </Button>
           )}
 
           {/* Shelf action */}
+
           <Button
             systemImage={isOnShelf ? "bookmark.slash" : "bookmark"}
-            onPress={onToggleShelf}
+            onPress={toggleOnShelf}
           >
             {isOnShelf ? "Remove from saved" : "Save for later"}
           </Button>
 
           {/* Share action */}
-          <Button systemImage="square.and.arrow.up" onPress={onShare}>
+
+          <Button
+            systemImage="square.and.arrow.up"
+            onPress={() => {
+              const mediaURL = `${session.url}/audiobooks/${media.id}`;
+              Share.share({ message: mediaURL });
+            }}
+          >
             Share
           </Button>
         </ContextMenu.Items>

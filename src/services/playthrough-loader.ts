@@ -89,6 +89,7 @@ export async function startNewPlaythrough(
   await setActivePlaythroughIdForDevice(session, playthroughId);
 
   await playAndNotify();
+  // FIXME: this needs to be called later, after the player store state has been updated.
   bumpPlaythroughDataVersion();
 
   return result;
@@ -157,6 +158,7 @@ export async function resumePlaythrough(
   await setActivePlaythroughIdForDevice(session, playthroughId);
 
   await playAndNotify();
+  // FIXME: this needs to be called later, after the player store state has been updated.
   bumpPlaythroughDataVersion();
 
   return result;

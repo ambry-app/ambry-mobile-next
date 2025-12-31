@@ -33,7 +33,7 @@ export type FinishedOrAbandonedPlaythrough = NonNullable<
  */
 export type MediaPlaybackState =
   | { type: "loading" }
-  | { type: "loaded"; isPlaying: boolean }
+  | { type: "loaded"; isPlaying: boolean; playthrough: { id: string } }
   | { type: "in_progress"; playthrough: ActivePlaythrough }
   | { type: "finished"; playthrough: FinishedOrAbandonedPlaythrough }
   | { type: "abandoned"; playthrough: FinishedOrAbandonedPlaythrough }
@@ -130,8 +130,12 @@ export function useMediaPlaybackState(
   }, [session, mediaId, playthroughVersion, isCurrentlyLoaded]);
 
   // If this media is currently loaded in the player, return loaded state
-  if (isCurrentlyLoaded) {
-    return { type: "loaded", isPlaying: playing ?? false };
+  if (isCurrentlyLoaded && loadedPlaythrough) {
+    return {
+      type: "loaded",
+      isPlaying: playing ?? false,
+      playthrough: { id: loadedPlaythrough.playthroughId },
+    };
   }
 
   // Otherwise return the database-queried state

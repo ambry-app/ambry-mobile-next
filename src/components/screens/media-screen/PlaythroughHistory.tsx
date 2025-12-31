@@ -265,6 +265,7 @@ function PlaythroughRow({
           text: "Delete",
           style: "destructive",
           onPress: async () => {
+            // FIXME: this needs to be a high level coordinator call, not a direct DB call + bump
             await deletePlaythrough(session, playthrough.id);
             bumpPlaythroughDataVersion();
           },

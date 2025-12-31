@@ -1,34 +1,34 @@
 // Android version (default) - uses Jetpack Compose with overlay for custom trigger styling
 import { ReactElement } from "react";
-import { StyleSheet, View } from "react-native";
+import { Share, StyleSheet, View } from "react-native";
 import { Button, ButtonProps, ContextMenu } from "@expo/ui/jetpack-compose";
+import { router } from "expo-router";
+import { useShallow } from "zustand/shallow";
 
+import { MediaHeaderInfo } from "@/db/library";
+import { useMediaPlaybackState } from "@/hooks/use-media-playback-state";
+import { useShelvedMedia } from "@/hooks/use-shelved-media";
+import {
+  cancelDownload,
+  removeDownload,
+  startDownload,
+  useDownloads,
+} from "@/stores/downloads";
+import {
+  abandonPlaythrough,
+  continueExistingPlaythrough,
+  finishPlaythrough,
+  setPendingResumePrompt,
+  startFreshPlaythrough,
+} from "@/stores/player";
+import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 
 import { IconButton } from "./IconButton";
 
-export type PlaythroughState = "none" | "in_progress" | "finished";
-export type DownloadState =
-  | "none"
-  | "pending"
-  | "downloading"
-  | "ready"
-  | "error";
-
 export type MediaContextMenuProps = {
-  playthroughState: PlaythroughState;
-  downloadState: DownloadState;
-  isOnShelf: boolean;
-  isCurrentlyLoaded: boolean;
-  onPlay: () => void;
-  onResume: () => void;
-  onAbandon: () => void;
-  onMarkFinished: () => void;
-  onDownload: () => void;
-  onDeleteDownload: () => void;
-  onCancelDownload: () => void;
-  onToggleShelf: () => void;
-  onShare: () => void;
+  media: MediaHeaderInfo;
+  session: Session;
 };
 
 const triggerColors = {
@@ -46,56 +46,79 @@ const destructiveColors = {
   contentColor: Colors.red[400],
 };
 
-export function MediaContextMenu({
-  playthroughState,
-  downloadState,
-  isOnShelf,
-  isCurrentlyLoaded,
-  onPlay,
-  onResume,
-  onAbandon,
-  onMarkFinished,
-  onDownload,
-  onDeleteDownload,
-  onCancelDownload,
-  onToggleShelf,
-  onShare,
-}: MediaContextMenuProps) {
+export function MediaContextMenu({ media, session }: MediaContextMenuProps) {
+  const playbackState = useMediaPlaybackState(session, media.id);
+  const downloadStatus = useDownloads(
+    useShallow((state) => state.downloads[media.id]?.status),
+  );
+  const { isOnShelf, toggleOnShelf } = useShelvedMedia(
+    session,
+    media.id,
+    "saved",
+  );
+
   // Build menu items array - Android ContextMenu doesn't support fragments or null children
   const menuItems: ReactElement<ButtonProps>[] = [];
 
-  // Playthrough actions
-  if (playthroughState === "none") {
+  // Play/Resume action
+  if (playbackState.type === "none") {
+    // Start a new playthrough
     menuItems.push(
       <Button
         key="play"
         leadingIcon="filled.PlayArrow"
         elementColors={menuColors}
-        onPress={onPlay}
+        onPress={() => {
+          startFreshPlaythrough(session, media.id);
+        }}
       >
         Play
       </Button>,
     );
-  } else if (playthroughState === "in_progress") {
-    // Only show Resume if not currently loaded in player
-    if (!isCurrentlyLoaded) {
-      menuItems.push(
-        <Button
-          key="resume"
-          leadingIcon="filled.PlayArrow"
-          elementColors={menuColors}
-          onPress={onResume}
-        >
-          Resume
-        </Button>,
-      );
-    }
+  } else if (playbackState.type === "in_progress") {
+    // Resume
+    menuItems.push(
+      <Button
+        key="resume"
+        leadingIcon="filled.PlayArrow"
+        elementColors={menuColors}
+        onPress={() => {
+          continueExistingPlaythrough(session, playbackState.playthrough.id);
+        }}
+      >
+        Resume
+      </Button>,
+    );
+  } else if (
+    playbackState.type === "finished" ||
+    playbackState.type === "abandoned"
+  ) {
+    // Open resume prompt
+    menuItems.push(
+      <Button
+        key="resume"
+        leadingIcon="filled.PlayArrow"
+        elementColors={menuColors}
+        onPress={() => {
+          setPendingResumePrompt(playbackState);
+        }}
+      >
+        Play
+      </Button>,
+    );
+  }
+
+  // Playthrough actions
+  if (playbackState.type === "in_progress" || playbackState.type === "loaded") {
+    // Mark as finished or abandon
     menuItems.push(
       <Button
         key="finish"
         leadingIcon="filled.CheckCircle"
         elementColors={menuColors}
-        onPress={onMarkFinished}
+        onPress={() => {
+          finishPlaythrough(session, playbackState.playthrough.id);
+        }}
       >
         Mark as finished
       </Button>,
@@ -103,64 +126,65 @@ export function MediaContextMenu({
         key="abandon"
         leadingIcon="filled.Close"
         elementColors={destructiveColors}
-        onPress={onAbandon}
+        onPress={() => {
+          abandonPlaythrough(session, playbackState.playthrough.id);
+        }}
       >
         Abandon
-      </Button>,
-    );
-  } else if (playthroughState === "finished") {
-    menuItems.push(
-      <Button
-        key="play-again"
-        leadingIcon="filled.Refresh"
-        elementColors={menuColors}
-        onPress={onPlay}
-      >
-        Play again
       </Button>,
     );
   }
 
   // Download actions
-  if (downloadState === "none") {
+  if (!downloadStatus) {
     menuItems.push(
       <Button
         key="download"
         elementColors={menuColors}
         leadingIcon="filled.KeyboardArrowDown"
-        onPress={onDownload}
+        onPress={() => {
+          startDownload(session, media.id);
+          router.navigate("/downloads");
+        }}
       >
         Download
       </Button>,
     );
-  } else if (downloadState === "pending" || downloadState === "downloading") {
+  } else if (downloadStatus === "pending") {
     menuItems.push(
       <Button
         key="cancel-download"
         leadingIcon="filled.Close"
         elementColors={destructiveColors}
-        onPress={onCancelDownload}
+        onPress={() => {
+          cancelDownload(session, media.id);
+        }}
       >
         Cancel download
       </Button>,
     );
-  } else if (downloadState === "ready") {
+  } else if (downloadStatus === "ready") {
     menuItems.push(
       <Button
         key="delete-download"
         leadingIcon="filled.Delete"
         elementColors={destructiveColors}
-        onPress={onDeleteDownload}
+        onPress={() => {
+          removeDownload(session, media.id);
+        }}
       >
         Delete downloaded files
       </Button>,
     );
-  } else if (downloadState === "error") {
+  } else if (downloadStatus === "error") {
     menuItems.push(
       <Button
         key="retry-download"
         elementColors={menuColors}
-        onPress={onDownload}
+        onPress={() => {
+          startDownload(session, media.id);
+          router.navigate("/downloads");
+        }}
       >
         Retry download
       </Button>,
@@ -173,7 +197,7 @@ export function MediaContextMenu({
       key="shelf"
       leadingIcon={isOnShelf ? "filled.Favorite" : "filled.FavoriteBorder"}
       elementColors={menuColors}
-      onPress={onToggleShelf}
+      onPress={toggleOnShelf}
     >
       {isOnShelf ? "Remove from saved" : "Save for later"}
     </Button>,
@@ -185,7 +209,10 @@ export function MediaContextMenu({
       key="share"
       leadingIcon="filled.Share"
       elementColors={menuColors}
-      onPress={onShare}
+      onPress={() => {
+        const mediaURL = `${session.url}/audiobooks/${media.id}`;
+        Share.share({ message: mediaURL });
+      }}
     >
       Share
     </Button>,
