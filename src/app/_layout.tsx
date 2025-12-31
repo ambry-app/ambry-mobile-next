@@ -16,7 +16,10 @@ import { useAppBoot } from "@/hooks/use-app-boot";
 import { useAppState } from "@/hooks/use-app-state";
 import { useForegroundSync } from "@/hooks/use-foreground-sync";
 import { useRefreshLibraryDataVersion } from "@/hooks/use-refresh-library-data-version";
-import { usePlayer, usePlayerSubscriptions } from "@/stores/player";
+import {
+  usePlayerSubscriptions,
+  usePlayerUIState,
+} from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
 import { Colors } from "@/styles";
 
@@ -109,7 +112,7 @@ function DrizzleStudio() {
 
 function RootStack() {
   const isLoggedIn = useSession((state) => !!state.session);
-  const playerLoaded = usePlayer((state) => !!state.loadedPlaythrough);
+  const playerLoaded = usePlayerUIState((state) => !!state.loadedPlaythrough);
 
   const appState = useAppState();
   useForegroundSync(appState);

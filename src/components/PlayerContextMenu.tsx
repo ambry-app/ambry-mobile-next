@@ -10,13 +10,13 @@ import {
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 
-import { startDownload, useDownloads } from "@/stores/downloads";
 import {
   abandonPlaythrough,
   finishPlaythrough,
-  type LoadedPlaythrough,
   unloadPlayer,
-} from "@/stores/player";
+} from "@/services/playback-controls";
+import { startDownload, useDownloads } from "@/stores/downloads";
+import { type LoadedPlaythrough } from "@/stores/player-ui-state";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 

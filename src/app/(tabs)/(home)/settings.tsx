@@ -1,8 +1,8 @@
 import { Button, StyleSheet, Switch, Text, View } from "react-native";
 
 import { TestContextMenu } from "@/components/TestContextMenu";
+import { tryUnloadPlayer } from "@/services/playback-controls";
 import { useDebug } from "@/stores/debug";
-import { tryUnloadPlayer } from "@/stores/player";
 import { signOut, useSession } from "@/stores/session";
 import { Colors } from "@/styles";
 

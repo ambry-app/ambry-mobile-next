@@ -39,8 +39,8 @@ import * as Coordinator from "@/services/playback-coordinator";
 import {
   type LoadedPlaythrough,
   setPlayerRenderState,
-  usePlayer,
-} from "@/stores/player";
+  usePlayerUIState as usePlayer,
+} from "@/stores/player-ui-state";
 import { useScreen } from "@/stores/screen";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";

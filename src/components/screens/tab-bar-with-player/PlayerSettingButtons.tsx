@@ -5,7 +5,7 @@ import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
 
 import { IconButton } from "@/components";
-import { usePlayer } from "@/stores/player";
+import { usePlayerUIState as usePlayer } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
 import { setSleepTimerState, useSleepTimer } from "@/stores/sleep-timer";
 import { Colors } from "@/styles";

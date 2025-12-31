@@ -1,28 +1,18 @@
-import { useCallback, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
 
 import { PlaythroughContextMenu } from "@/components";
 import {
-  deletePlaythrough,
   getAllPlaythroughsForMedia,
   PlaythroughForMedia,
 } from "@/db/playthroughs";
 import { useLibraryData } from "@/hooks/use-library-data";
-import useLoadMediaCallback from "@/hooks/use-load-media-callback";
-import {
-  bumpPlaythroughDataVersion,
-  useDataVersion,
-} from "@/stores/data-version";
+import { useDataVersion } from "@/stores/data-version";
 import { useDebug } from "@/stores/debug";
-import {
-  abandonPlaythrough,
-  finishPlaythrough,
-  resumeAndLoadPlaythrough,
-  usePlayer,
-} from "@/stores/player";
+import { usePlayerUIState as usePlayer } from "@/stores/player-ui-state";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 import { secondsDisplay } from "@/utils";
@@ -239,41 +229,6 @@ function PlaythroughRow({
         ? timeAgo(statusDate)
         : timeAgo(statusDate);
 
-  // Handler for continuing an in-progress playthrough (uses existing hook)
-  const handleContinue = useLoadMediaCallback(session, playthrough.mediaId);
-
-  // Handler for resuming an abandoned or finished playthrough
-  const handleResume = useCallback(async () => {
-    await resumeAndLoadPlaythrough(session, playthrough.id);
-  }, [session, playthrough.id]);
-
-  const handleMarkFinished = useCallback(async () => {
-    await finishPlaythrough(session, playthrough.id);
-  }, [session, playthrough.id]);
-
-  const handleAbandon = useCallback(async () => {
-    await abandonPlaythrough(session, playthrough.id);
-  }, [session, playthrough.id]);
-
-  const handleDelete = useCallback(() => {
-    Alert.alert(
-      "Delete Playthrough",
-      "Are you sure you want to delete this playthrough? This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            // FIXME: this needs to be a high level coordinator call, not a direct DB call + bump
-            await deletePlaythrough(session, playthrough.id);
-            bumpPlaythroughDataVersion();
-          },
-        },
-      ],
-    );
-  }, [session, playthrough.id]);
-
   const handleDebugTap = () => {
     router.push(`/playthrough-debug/${playthrough.id}`);
   };
@@ -297,21 +252,7 @@ function PlaythroughRow({
         </View>
         <Text style={styles.dateLabel}>{dateLabel}</Text>
       </View>
-      <PlaythroughContextMenu
-        status={playthrough.status}
-        onContinue={
-          playthrough.status === "in_progress" ? handleContinue : undefined
-        }
-        onResume={
-          playthrough.status === "abandoned" ||
-          playthrough.status === "finished"
-            ? handleResume
-            : undefined
-        }
-        onMarkFinished={handleMarkFinished}
-        onAbandon={handleAbandon}
-        onDelete={handleDelete}
-      />
+      <PlaythroughContextMenu session={session} playthrough={playthrough} />
     </>
   );
 

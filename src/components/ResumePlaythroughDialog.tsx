@@ -12,8 +12,8 @@ import {
   handleResumePlaythrough,
   handleStartFresh,
   PendingResumePrompt,
-  usePlayer,
-} from "@/stores/player";
+} from "@/stores/player-prompts";
+import { usePlayerUIState } from "@/stores/player-ui-state";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 import { secondsDisplay } from "@/utils";
@@ -29,7 +29,7 @@ export function ResumePlaythroughDialog({
   prompt,
 }: ResumePlaythroughDialogProps) {
   const { top, bottom } = useSafeAreaInsets();
-  const loadingNewMedia = usePlayer((state) => state.loadingNewMedia);
+  const loadingNewMedia = usePlayerUIState((state) => state.loadingNewMedia);
 
   const relativeTime = timeAgo(prompt.statusDate);
   const daysSince = Math.floor(

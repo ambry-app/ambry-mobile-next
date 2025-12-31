@@ -1,20 +1,25 @@
 // Android version (default) - uses Jetpack Compose
-import { ReactElement } from "react";
-import { StyleSheet, View } from "react-native";
+import { ReactElement, useCallback } from "react";
+import { Alert, StyleSheet, View } from "react-native";
 import { Button, ButtonProps, ContextMenu } from "@expo/ui/jetpack-compose";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
+import { deletePlaythrough, PlaythroughForMedia } from "@/db/playthroughs";
+import {
+  abandonPlaythrough,
+  continueExistingPlaythrough,
+  finishPlaythrough,
+  resumeAndLoadPlaythrough,
+} from "@/services/playback-controls";
+import { bumpPlaythroughDataVersion } from "@/stores/data-version";
+import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 
 export type PlaythroughStatus = "in_progress" | "finished" | "abandoned";
 
 export type PlaythroughContextMenuProps = {
-  status: PlaythroughStatus;
-  onContinue?: () => void;
-  onResume?: () => void;
-  onMarkFinished: () => void;
-  onAbandon: () => void;
-  onDelete: () => void;
+  session: Session;
+  playthrough: PlaythroughForMedia;
 };
 
 const triggerColors = {
@@ -33,32 +38,72 @@ const destructiveColors = {
 };
 
 export function PlaythroughContextMenu({
-  status,
-  onContinue,
-  onResume,
-  onMarkFinished,
-  onAbandon,
-  onDelete,
+  session,
+  playthrough,
 }: PlaythroughContextMenuProps) {
-  // Build menu items array - Android ContextMenu doesn't support fragments or null children
+  const handleDelete = useCallback(() => {
+    Alert.alert(
+      "Delete Playthrough",
+      "Are you sure you want to delete this playthrough? This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            // FIXME: this needs to be a high level coordinator call, not a direct DB call + bump
+            await deletePlaythrough(session, playthrough.id);
+            bumpPlaythroughDataVersion();
+          },
+        },
+      ],
+    );
+  }, [session, playthrough.id]);
+
   const menuItems: ReactElement<ButtonProps>[] = [];
 
-  // Status-specific actions
-  if (status === "in_progress" && onContinue) {
+  if (playthrough.status === "in_progress") {
+    // Continue playthrough
     menuItems.push(
       <Button
-        key="continue"
+        key="resume"
         leadingIcon="filled.PlayArrow"
         elementColors={menuColors}
-        onPress={onContinue}
+        onPress={() => {
+          continueExistingPlaythrough(session, playthrough.id);
+        }}
       >
-        Continue
+        Resume
       </Button>,
+    );
+  } else if (
+    playthrough.status === "finished" ||
+    playthrough.status === "abandoned"
+  ) {
+    // Open resume prompt
+    menuItems.push(
       <Button
-        key="mark-finished"
+        key="resume"
+        leadingIcon="filled.PlayArrow"
+        elementColors={menuColors}
+        onPress={() => {
+          resumeAndLoadPlaythrough(session, playthrough.id);
+        }}
+      >
+        Resume
+      </Button>,
+    );
+  }
+
+  if (playthrough.status === "in_progress") {
+    menuItems.push(
+      <Button
+        key="finish"
         leadingIcon="filled.CheckCircle"
         elementColors={menuColors}
-        onPress={onMarkFinished}
+        onPress={() => {
+          finishPlaythrough(session, playthrough.id);
+        }}
       >
         Mark as finished
       </Button>,
@@ -66,22 +111,11 @@ export function PlaythroughContextMenu({
         key="abandon"
         leadingIcon="filled.Close"
         elementColors={destructiveColors}
-        onPress={onAbandon}
+        onPress={() => {
+          abandonPlaythrough(session, playthrough.id);
+        }}
       >
         Abandon
-      </Button>,
-    );
-  }
-
-  if ((status === "abandoned" || status === "finished") && onResume) {
-    menuItems.push(
-      <Button
-        key="resume"
-        leadingIcon="filled.PlayArrow"
-        elementColors={menuColors}
-        onPress={onResume}
-      >
-        Resume
       </Button>,
     );
   }
@@ -92,7 +126,7 @@ export function PlaythroughContextMenu({
       key="delete"
       leadingIcon="filled.Delete"
       elementColors={destructiveColors}
-      onPress={onDelete}
+      onPress={handleDelete}
     >
       Delete playthrough
     </Button>,

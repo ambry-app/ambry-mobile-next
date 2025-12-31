@@ -8,7 +8,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 
-import { usePlayer } from "@/stores/player";
+import { usePlayerUIState as usePlayer } from "@/stores/player-ui-state";
 import { Colors } from "@/styles";
 import { secondsDisplayMinutesOnly } from "@/utils";
 

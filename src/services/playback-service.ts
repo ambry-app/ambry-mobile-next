@@ -1,10 +1,14 @@
 import { PAUSE_REWIND_SECONDS } from "@/constants";
 import * as Coordinator from "@/services/playback-coordinator";
+import {
+  seekImmediateNoLog,
+  seekRelative,
+  SeekSource,
+} from "@/services/seek-service";
 import * as Player from "@/services/trackplayer-wrapper";
 import { Event } from "@/services/trackplayer-wrapper";
 import { initializeDevice } from "@/stores/device";
-import { setProgress } from "@/stores/player";
-import { seek, seekImmediateNoLog } from "@/utils/seek";
+import { setProgress } from "@/stores/player-ui-state";
 
 export const PlaybackService = async function () {
   console.debug("[TrackPlayer Service] Initializing");
@@ -81,14 +85,14 @@ export const PlaybackService = async function () {
     console.debug("[TrackPlayer Service] RemoteJumpBackward", args);
     const { interval } = args;
 
-    seek(-interval);
+    seekRelative(-interval, SeekSource.REMOTE);
   });
 
   Player.addEventListener(Event.RemoteJumpForward, async (args) => {
     console.debug("[TrackPlayer Service] RemoteJumpForward", args);
     const { interval } = args;
 
-    seek(interval);
+    seekRelative(interval, SeekSource.REMOTE);
   });
 
   // Player.addEventListener(Event.RemoteLike, () => {

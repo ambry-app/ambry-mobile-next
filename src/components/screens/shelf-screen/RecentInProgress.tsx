@@ -16,7 +16,7 @@ import {
 import { getPlaythroughsPage } from "@/db/library";
 import { useLibraryData } from "@/hooks/use-library-data";
 import { useDataVersion } from "@/stores/data-version";
-import { usePlayer } from "@/stores/player";
+import { usePlayerUIState } from "@/stores/player-ui-state";
 import { useScreen } from "@/stores/screen";
 import { Session } from "@/stores/session";
 
@@ -25,7 +25,9 @@ type RecentInProgressProps = {
 };
 
 export function RecentInProgress({ session }: RecentInProgressProps) {
-  const loadedMediaId = usePlayer((state) => state.loadedPlaythrough?.mediaId);
+  const loadedMediaId = usePlayerUIState(
+    (state) => state.loadedPlaythrough?.mediaId,
+  );
   const screenWidth = useScreen((state) => state.screenWidth);
   const playthroughVersion = useDataVersion(
     (state) => state.playthroughDataVersion,

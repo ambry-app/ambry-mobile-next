@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react-native";
 
 import { useMediaPlaybackState } from "@/hooks/use-media-playback-state";
 import { useDataVersion } from "@/stores/data-version";
-import { usePlayer } from "@/stores/player";
+import { usePlayerUIState } from "@/stores/player-ui-state";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createMedia,
@@ -23,7 +23,6 @@ const { getDb } = setupTestDatabase();
 // Reset stores before each test
 const playerInitialState = {
   initialized: false,
-  initializationError: null,
   loadedPlaythrough: null,
   streaming: undefined,
   loadingNewMedia: false,
@@ -57,7 +56,7 @@ const dataVersionInitialState = {
   shelfDataVersion: 0,
 };
 
-resetStoreBeforeEach(usePlayer, playerInitialState);
+resetStoreBeforeEach(usePlayerUIState, playerInitialState);
 resetStoreBeforeEach(useDataVersion, dataVersionInitialState);
 
 describe("useMediaPlaybackState", () => {
@@ -172,7 +171,7 @@ describe("useMediaPlaybackState", () => {
     });
 
     // Set up player store to have this media loaded
-    usePlayer.setState({
+    usePlayerUIState.setState({
       loadedPlaythrough: {
         mediaId: media.id,
         playthroughId: playthrough.id,
@@ -200,7 +199,7 @@ describe("useMediaPlaybackState", () => {
     });
 
     // Set up player store
-    usePlayer.setState({
+    usePlayerUIState.setState({
       loadedPlaythrough: {
         mediaId: media.id,
         playthroughId: playthrough.id,
@@ -301,7 +300,7 @@ describe("useMediaPlaybackState", () => {
     });
 
     // Start with media loaded
-    usePlayer.setState({
+    usePlayerUIState.setState({
       loadedPlaythrough: {
         mediaId: media.id,
         playthroughId: playthrough.id,
@@ -316,7 +315,7 @@ describe("useMediaPlaybackState", () => {
 
     // Unload the player
     act(() => {
-      usePlayer.setState({ loadedPlaythrough: null });
+      usePlayerUIState.setState({ loadedPlaythrough: null });
     });
 
     // Should query DB and return in_progress
@@ -336,7 +335,7 @@ describe("useMediaPlaybackState", () => {
     });
 
     // Load different media
-    usePlayer.setState({
+    usePlayerUIState.setState({
       loadedPlaythrough: {
         mediaId: loadedMedia.id,
         playthroughId: playthrough.id,

@@ -7,7 +7,7 @@ import {
 } from "@/db/playthroughs";
 import { useIsPlaying } from "@/services/trackplayer-wrapper";
 import { useDataVersion } from "@/stores/data-version";
-import { usePlayer } from "@/stores/player";
+import { usePlayerUIState } from "@/stores/player-ui-state";
 import { Session } from "@/stores/session";
 
 // Re-export the playthrough type for convenience
@@ -72,7 +72,9 @@ export function useMediaPlaybackState(
   mediaId: string,
 ): MediaPlaybackState {
   // Subscribe to player store for loaded state
-  const loadedPlaythrough = usePlayer((state) => state.loadedPlaythrough);
+  const loadedPlaythrough = usePlayerUIState(
+    (state) => state.loadedPlaythrough,
+  );
 
   // Subscribe to data version to refresh when playthroughs change
   const playthroughVersion = useDataVersion(

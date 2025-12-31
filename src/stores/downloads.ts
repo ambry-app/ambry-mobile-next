@@ -13,9 +13,9 @@ import {
 } from "@/db/downloads";
 import { getMediaDownloadInfo } from "@/db/library";
 import { DownloadedThumbnails, Thumbnails } from "@/db/schema";
+import { reloadCurrentPlaythroughIfMedia } from "@/services/playback-controls";
 import { documentDirectoryFilePath } from "@/utils";
 
-import { reloadCurrentPlaythroughIfMedia } from "./player";
 import { Session } from "./session";
 
 export type DownloadStatus = "pending" | "error" | "ready";

@@ -5,7 +5,8 @@ import Slider from "@react-native-community/slider";
 import { useShallow } from "zustand/shallow";
 
 import { Button, IconButton } from "@/components";
-import { setPlaybackRate, usePlayer } from "@/stores/player";
+import { setPlaybackRate } from "@/services/playback-controls";
+import { usePlayerUIState } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
 import { Colors } from "@/styles";
 import { formatPlaybackRate, secondsDisplay } from "@/utils";
@@ -15,7 +16,7 @@ export default function PlaybackRateRoute() {
 
   const session = useSession((state) => state.session);
 
-  const { position, duration, playbackRate } = usePlayer(
+  const { position, duration, playbackRate } = usePlayerUIState(
     useShallow(({ position, duration, playbackRate }) => ({
       position,
       duration,

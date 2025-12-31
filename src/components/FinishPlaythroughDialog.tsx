@@ -12,8 +12,8 @@ import {
   handleMarkFinished,
   handleSkipFinish,
   PendingFinishPrompt,
-  usePlayer,
-} from "@/stores/player";
+} from "@/stores/player-prompts";
+import { usePlayerUIState } from "@/stores/player-ui-state";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 
@@ -27,7 +27,7 @@ export function FinishPlaythroughDialog({
   prompt,
 }: FinishPlaythroughDialogProps) {
   const { top, bottom } = useSafeAreaInsets();
-  const loadingNewMedia = usePlayer((state) => state.loadingNewMedia);
+  const loadingNewMedia = usePlayerUIState((state) => state.loadingNewMedia);
 
   const percentage =
     prompt.currentDuration > 0

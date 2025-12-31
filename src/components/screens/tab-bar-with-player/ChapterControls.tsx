@@ -5,8 +5,8 @@ import { Button, IconButton } from "@/components";
 import {
   skipToBeginningOfChapter,
   skipToEndOfChapter,
-  usePlayer,
-} from "@/stores/player";
+} from "@/services/chapter-service";
+import { usePlayerUIState as usePlayer } from "@/stores/player-ui-state";
 import { Colors } from "@/styles";
 
 export function ChapterControls() {

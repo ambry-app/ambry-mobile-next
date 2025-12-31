@@ -1,5 +1,6 @@
 import * as LegacyFileSystem from "expo-file-system/legacy";
 
+import { reloadCurrentPlaythroughIfMedia } from "@/services/playback-controls";
 import {
   cancelDownload,
   initializeDownloads,
@@ -7,7 +8,6 @@ import {
   startDownload,
   useDownloads,
 } from "@/stores/downloads";
-import { reloadCurrentPlaythroughIfMedia } from "@/stores/player";
 import { Session } from "@/stores/session";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
@@ -19,7 +19,7 @@ import { mockDownloadResumable } from "@test/jest-setup";
 import { resetStoreBeforeEach } from "@test/store-test-utils";
 
 // Mock the player module to avoid pulling in react-native-track-player
-jest.mock("../player", () => ({
+jest.mock("../../services/playback-controls", () => ({
   reloadCurrentPlaythroughIfMedia: jest.fn(),
 }));
 

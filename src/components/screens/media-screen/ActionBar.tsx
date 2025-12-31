@@ -14,12 +14,12 @@ import {
   useMediaPlaybackState,
 } from "@/hooks/use-media-playback-state";
 import { useShelvedMedia } from "@/hooks/use-shelved-media";
-import { startDownload, useDownloads } from "@/stores/downloads";
 import {
   continueExistingPlaythrough,
-  setPendingResumePrompt,
   startFreshPlaythrough,
-} from "@/stores/player";
+} from "@/services/playback-controls";
+import { startDownload, useDownloads } from "@/stores/downloads";
+import { setPendingResumePrompt } from "@/stores/player-prompts";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 

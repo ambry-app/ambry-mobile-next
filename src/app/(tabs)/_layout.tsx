@@ -4,7 +4,8 @@ import { Stack } from "expo-router";
 
 import { FinishPlaythroughDialog, ResumePlaythroughDialog } from "@/components";
 import { CustomTabBar, CustomTabBarWithPlayer } from "@/components/screens";
-import { usePlayer } from "@/stores/player";
+import { usePlayerPrompts } from "@/stores/player-prompts";
+import { usePlayerUIState } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
 
 const screenOptions: NativeStackNavigationOptions =
@@ -17,9 +18,15 @@ const screenOptions: NativeStackNavigationOptions =
 
 export default function TabsWrapperLayout() {
   const session = useSession((state) => state.session);
-  const loadedPlaythrough = usePlayer((state) => state.loadedPlaythrough);
-  const pendingResumePrompt = usePlayer((state) => state.pendingResumePrompt);
-  const pendingFinishPrompt = usePlayer((state) => state.pendingFinishPrompt);
+  const loadedPlaythrough = usePlayerUIState(
+    (state) => state.loadedPlaythrough,
+  );
+  const pendingResumePrompt = usePlayerPrompts(
+    (state) => state.pendingResumePrompt,
+  );
+  const pendingFinishPrompt = usePlayerPrompts(
+    (state) => state.pendingFinishPrompt,
+  );
 
   if (!session) return null;
 

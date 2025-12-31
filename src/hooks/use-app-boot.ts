@@ -8,10 +8,10 @@ import {
 } from "@/db/migration-player-state";
 import { sync } from "@/db/sync";
 import { registerBackgroundSyncTask } from "@/services/background-sync-service";
+import { initializePlayer } from "@/services/playback-controls";
 import { initializeDataVersion } from "@/stores/data-version";
 import { initializeDevice } from "@/stores/device";
 import { initializeDownloads } from "@/stores/downloads";
-import { initializePlayer } from "@/stores/player";
 import { useSession } from "@/stores/session";
 import { initializeSleepTimer } from "@/stores/sleep-timer";
 import migrations from "@drizzle/migrations";

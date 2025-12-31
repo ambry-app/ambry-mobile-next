@@ -2,7 +2,7 @@ import { memo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useShallow } from "zustand/shallow";
 
-import { usePlayer } from "@/stores/player";
+import { usePlayerUIState } from "@/stores/player-ui-state";
 import { Colors } from "@/styles";
 import { secondsDisplay } from "@/utils";
 
@@ -10,7 +10,7 @@ import { ProgressBar } from "./ProgressBar";
 
 // Subscribes to position/duration/playbackRate/seekPosition (updates every 1s, or immediately on seek)
 export const PlayerProgressBar = memo(function PlayerProgressBar() {
-  const { position, duration, playbackRate, seekPosition } = usePlayer(
+  const { position, duration, playbackRate, seekPosition } = usePlayerUIState(
     useShallow(({ position, duration, playbackRate, seekPosition }) => ({
       position,
       duration,

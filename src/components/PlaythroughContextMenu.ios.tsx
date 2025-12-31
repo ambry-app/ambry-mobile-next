@@ -1,29 +1,48 @@
 // iOS version - uses SwiftUI
-import { StyleSheet } from "react-native";
+import { useCallback } from "react";
+import { Alert, StyleSheet } from "react-native";
 import { Button, ContextMenu, Host } from "@expo/ui/swift-ui";
 import { frame } from "@expo/ui/swift-ui/modifiers";
 
+import { deletePlaythrough, PlaythroughForMedia } from "@/db/playthroughs";
+import {
+  abandonPlaythrough,
+  continueExistingPlaythrough,
+  finishPlaythrough,
+  resumeAndLoadPlaythrough,
+} from "@/services/playback-controls";
+import { bumpPlaythroughDataVersion } from "@/stores/data-version";
+import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 
-export type PlaythroughStatus = "in_progress" | "finished" | "abandoned";
-
 export type PlaythroughContextMenuProps = {
-  status: PlaythroughStatus;
-  onContinue?: () => void;
-  onResume?: () => void;
-  onMarkFinished: () => void;
-  onAbandon: () => void;
-  onDelete: () => void;
+  session: Session;
+  playthrough: PlaythroughForMedia;
 };
 
 export function PlaythroughContextMenu({
-  status,
-  onContinue,
-  onResume,
-  onMarkFinished,
-  onAbandon,
-  onDelete,
+  session,
+  playthrough,
 }: PlaythroughContextMenuProps) {
+  const handleDelete = useCallback(() => {
+    Alert.alert(
+      "Delete Playthrough",
+      "Are you sure you want to delete this playthrough? This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            // FIXME: this needs to be a high level coordinator call, not a direct DB call + bump
+            await deletePlaythrough(session, playthrough.id);
+            bumpPlaythroughDataVersion();
+          },
+        },
+      ],
+    );
+  }, [session, playthrough.id]);
+
   return (
     <Host style={styles.host}>
       <ContextMenu activationMethod="singlePress">
@@ -37,33 +56,55 @@ export function PlaythroughContextMenu({
           />
         </ContextMenu.Trigger>
         <ContextMenu.Items>
-          {/* Status-specific actions */}
-          {status === "in_progress" && onContinue && (
+          {playthrough.status === "in_progress" && (
             <>
-              <Button systemImage="play.fill" onPress={onContinue}>
-                Continue
+              <Button
+                systemImage="play.fill"
+                onPress={() => {
+                  continueExistingPlaythrough(session, playthrough.id);
+                }}
+              >
+                Resume
               </Button>
-              <Button systemImage="flag.fill" onPress={onMarkFinished}>
+            </>
+          )}
+
+          {(playthrough.status === "finished" ||
+            playthrough.status === "abandoned") && (
+            <Button
+              systemImage="play.fill"
+              onPress={() => {
+                resumeAndLoadPlaythrough(session, playthrough.id);
+              }}
+            >
+              Resume
+            </Button>
+          )}
+
+          {playthrough.status === "in_progress" && (
+            <>
+              <Button
+                systemImage="flag.fill"
+                onPress={() => {
+                  finishPlaythrough(session, playthrough.id);
+                }}
+              >
                 Mark as finished
               </Button>
               <Button
                 systemImage="xmark.circle"
                 role="destructive"
-                onPress={onAbandon}
+                onPress={() => {
+                  abandonPlaythrough(session, playthrough.id);
+                }}
               >
                 Abandon
               </Button>
             </>
           )}
 
-          {(status === "abandoned" || status === "finished") && onResume && (
-            <Button systemImage="play.fill" onPress={onResume}>
-              Resume
-            </Button>
-          )}
-
           {/* Delete is always available */}
-          <Button systemImage="trash" role="destructive" onPress={onDelete}>
+          <Button systemImage="trash" role="destructive" onPress={handleDelete}>
             Delete playthrough
           </Button>
         </ContextMenu.Items>

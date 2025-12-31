@@ -9,18 +9,18 @@ import { MediaHeaderInfo } from "@/db/library";
 import { useMediaPlaybackState } from "@/hooks/use-media-playback-state";
 import { useShelvedMedia } from "@/hooks/use-shelved-media";
 import {
+  abandonPlaythrough,
+  continueExistingPlaythrough,
+  finishPlaythrough,
+  startFreshPlaythrough,
+} from "@/services/playback-controls";
+import {
   cancelDownload,
   removeDownload,
   startDownload,
   useDownloads,
 } from "@/stores/downloads";
-import {
-  abandonPlaythrough,
-  continueExistingPlaythrough,
-  finishPlaythrough,
-  setPendingResumePrompt,
-  startFreshPlaythrough,
-} from "@/stores/player";
+import { setPendingResumePrompt } from "@/stores/player-prompts";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 

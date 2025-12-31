@@ -4,7 +4,8 @@ import { useShallow } from "zustand/shallow";
 import { PlayerProgressBar, TileImage, TileText } from "@/components";
 import { getMedia } from "@/db/library";
 import { useLibraryData } from "@/hooks/use-library-data";
-import { expandPlayer, usePlayer } from "@/stores/player";
+import { expandPlayer } from "@/services/playback-controls";
+import { usePlayerUIState as usePlayer } from "@/stores/player-ui-state";
 import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 

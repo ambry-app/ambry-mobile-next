@@ -8,7 +8,8 @@ import { useShallow } from "zustand/shallow";
 import { Button } from "@/components";
 import * as schema from "@/db/schema";
 import useBackHandler from "@/hooks/use-back-handler";
-import { SeekSource, seekTo, usePlayer } from "@/stores/player";
+import { SeekSource, seekTo } from "@/services/seek-service";
+import { usePlayerUIState } from "@/stores/player-ui-state";
 import { Colors } from "@/styles";
 import { secondsDisplay } from "@/utils";
 
@@ -21,7 +22,7 @@ export default function ChapterSelectRoute() {
   });
   const { bottom } = useSafeAreaInsets();
 
-  const { chapters, currentChapter } = usePlayer(
+  const { chapters, currentChapter } = usePlayerUIState(
     useShallow(({ chapters, currentChapter }) => ({
       chapters,
       currentChapter,
