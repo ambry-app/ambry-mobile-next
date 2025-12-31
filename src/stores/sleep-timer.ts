@@ -9,18 +9,6 @@ import {
 
 import { Session } from "./session";
 
-// Callback for notifying coordinator of settings changes
-// Registered by playback-coordinator during init to break circular dependency
-let onSettingsChanged:
-  | ((event: "enabled" | "disabled" | "duration") => void)
-  | null = null;
-
-export function setSleepTimerSettingsCallback(
-  callback: ((event: "enabled" | "disabled" | "duration") => void) | null,
-) {
-  onSettingsChanged = callback;
-}
-
 export interface SleepTimerState {
   initialized: boolean;
   sleepTimer: number; // Duration in seconds
@@ -71,8 +59,6 @@ export async function setSleepTimerState(session: Session, enabled: boolean) {
   });
 
   await setSleepTimerEnabled(session.email, enabled);
-
-  onSettingsChanged?.(enabled ? "enabled" : "disabled");
 }
 
 /**
@@ -82,12 +68,6 @@ export async function setSleepTimer(session: Session, seconds: number) {
   useSleepTimer.setState({ sleepTimer: seconds });
 
   await setSleepTimerTime(session.email, seconds);
-
-  // If timer is currently active, notify coordinator to reset with new duration
-  const { sleepTimerTriggerTime } = useSleepTimer.getState();
-  if (sleepTimerTriggerTime !== null) {
-    onSettingsChanged?.("duration");
-  }
 }
 
 /**

@@ -2,14 +2,15 @@ import {
   SLEEP_TIMER_FADE_OUT_TIME,
   SLEEP_TIMER_PAUSE_REWIND_SECONDS,
 } from "@/constants";
+import * as EventRecording from "@/services/event-recording";
 import {
   __resetForTesting,
   cancel,
   maybeReset,
   reset,
-  setOnPauseCallback,
   startMonitoring,
 } from "@/services/sleep-timer-service";
+import { usePlayerUIState } from "@/stores/player-ui-state";
 import { useSleepTimer } from "@/stores/sleep-timer";
 import {
   mockIsPlaying,
@@ -21,6 +22,11 @@ import {
 } from "@test/jest-setup";
 
 const SLEEP_TIMER_CHECK_INTERVAL = 1000;
+
+// Mock the event recording service
+jest.mock("@/services/event-recording", () => ({
+  recordPauseEvent: jest.fn().mockResolvedValue(undefined),
+}));
 
 describe("sleep-timer-service", () => {
   beforeEach(() => {
@@ -34,6 +40,14 @@ describe("sleep-timer-service", () => {
       sleepTimerEnabled: false,
       sleepTimerTriggerTime: null,
     });
+    // Reset player store
+    usePlayerUIState.setState({
+      loadedPlaythrough: {
+        playthroughId: "test-playthrough",
+        mediaId: "test-media",
+      },
+      playbackRate: 1.0,
+    });
 
     // Reset mocks
     mockTrackPlayerPause.mockReset();
@@ -42,6 +56,8 @@ describe("sleep-timer-service", () => {
     mockTrackPlayerGetRate.mockReset();
     mockTrackPlayerSeekTo.mockReset();
     mockIsPlaying.mockReset();
+    mockIsPlaying.mockResolvedValue({ playing: false });
+    (EventRecording.recordPauseEvent as jest.Mock).mockClear();
 
     // Default mock implementations for pause rewind
     mockTrackPlayerGetProgress.mockResolvedValue({
@@ -79,24 +95,6 @@ describe("sleep-timer-service", () => {
     });
   });
 
-  describe("setOnPauseCallback", () => {
-    it("registers a callback that is called when timer expires", async () => {
-      const pauseCallback = jest.fn().mockResolvedValue(undefined);
-      setOnPauseCallback(pauseCallback);
-
-      const now = Date.now();
-      useSleepTimer.setState({
-        sleepTimerEnabled: true,
-        sleepTimerTriggerTime: now - 1000, // Already expired
-      });
-
-      startMonitoring();
-      await jest.advanceTimersByTimeAsync(SLEEP_TIMER_CHECK_INTERVAL);
-
-      expect(pauseCallback).toHaveBeenCalled();
-    });
-  });
-
   describe("checkTimer (via interval)", () => {
     it("resets volume to 1.0 when timer is disabled", async () => {
       useSleepTimer.setState({ sleepTimerEnabled: false });
@@ -119,7 +117,7 @@ describe("sleep-timer-service", () => {
       expect(mockTrackPlayerSetVolume).toHaveBeenCalledWith(1.0);
     });
 
-    it("pauses playback when timer expires", async () => {
+    it("pauses playback and records event when timer expires", async () => {
       const now = Date.now();
       useSleepTimer.setState({
         sleepTimerEnabled: true,
@@ -132,6 +130,7 @@ describe("sleep-timer-service", () => {
       expect(mockTrackPlayerPause).toHaveBeenCalled();
       expect(mockTrackPlayerSetVolume).toHaveBeenCalledWith(1.0);
       expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
+      expect(EventRecording.recordPauseEvent).toHaveBeenCalled();
     });
 
     it("rewinds by SLEEP_TIMER_PAUSE_REWIND_SECONDS when timer expires", async () => {
@@ -144,7 +143,7 @@ describe("sleep-timer-service", () => {
         position: 100,
         duration: 3600,
       });
-      mockTrackPlayerGetRate.mockResolvedValue(1.5);
+      usePlayerUIState.setState({ playbackRate: 1.5 });
 
       startMonitoring();
       await jest.advanceTimersByTimeAsync(SLEEP_TIMER_CHECK_INTERVAL);

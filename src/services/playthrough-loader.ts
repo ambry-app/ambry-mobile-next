@@ -29,12 +29,15 @@ import {
   setActivePlaythroughIdForDevice,
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
+import { syncPlaythroughs } from "@/db/sync";
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
-import { Session } from "@/stores/session";
+import { usePlayerUIState } from "@/stores/player-ui-state";
+import { Session, useSession } from "@/stores/session";
 import { documentDirectoryFilePath } from "@/utils";
 
-import { recordResumeEvent, recordStartEvent } from "./event-recording";
-import * as Coordinator from "./playback-coordinator";
+import * as EventRecording from "./event-recording";
+import * as Heartbeat from "./position-heartbeat";
+import * as SleepTimer from "./sleep-timer-service";
 import * as Player from "./trackplayer-wrapper";
 import { PitchAlgorithm, TrackType } from "./trackplayer-wrapper";
 
@@ -60,12 +63,13 @@ export interface TrackLoadResult {
  * Start a brand new playthrough for media.
  *
  * Creates a new playthrough, records "start" event, loads into TrackPlayer,
- * sets as active, and starts playing.
+ * and sets as active.
  *
  * Use when: User taps play on media that has no existing playthrough,
  * or user chooses "Start Fresh" to create a new playthrough.
  *
  * Returns TrackLoadResult for caller to update player state.
+ * Caller is responsible for starting playback.
  */
 export async function startNewPlaythrough(
   session: Session,
@@ -75,7 +79,7 @@ export async function startNewPlaythrough(
 
   // Create new playthrough and record start event
   const playthroughId = await createPlaythrough(session, mediaId);
-  await recordStartEvent(playthroughId);
+  await EventRecording.recordStartEvent(playthroughId);
 
   // Get the new playthrough with full media info
   const playthrough = await getPlaythroughById(session, playthroughId);
@@ -88,7 +92,6 @@ export async function startNewPlaythrough(
   // Track this as the active playthrough for this device
   await setActivePlaythroughIdForDevice(session, playthroughId);
 
-  await playAndNotify();
   // FIXME: this needs to be called later, after the player store state has been updated.
   bumpPlaythroughDataVersion();
 
@@ -98,12 +101,13 @@ export async function startNewPlaythrough(
 /**
  * Continue an existing in_progress playthrough.
  *
- * Just loads and plays - no status change needed since playthrough is
+ * Just loads - no status change needed since playthrough is
  * already in_progress.
  *
  * Use when: User taps play on media that has an in_progress playthrough.
  *
  * Returns TrackLoadResult for caller to update player state.
+ * Caller is responsible for starting playback.
  */
 export async function continuePlaythrough(
   session: Session,
@@ -122,19 +126,18 @@ export async function continuePlaythrough(
   // Track this as the active playthrough for this device
   await setActivePlaythroughIdForDevice(session, playthroughId);
 
-  await playAndNotify();
-
   return result;
 }
 
 /**
  * Resume a finished or abandoned playthrough.
  *
- * Marks as in_progress, records "resume" event, loads, and plays.
+ * Marks as in_progress, records "resume" event, and loads.
  *
  * Use when: User chooses to resume from ResumePlaythroughDialog.
  *
  * Returns TrackLoadResult for caller to update player state.
+ * Caller is responsible for starting playback.
  */
 export async function resumePlaythrough(
   session: Session,
@@ -144,7 +147,7 @@ export async function resumePlaythrough(
 
   // Mark as in_progress in database and record resume event
   await resumePlaythroughInDb(session, playthroughId);
-  await recordResumeEvent(playthroughId);
+  await EventRecording.recordResumeEvent(playthroughId);
 
   // Get the now-active playthrough with full media info
   const playthrough = await getPlaythroughById(session, playthroughId);
@@ -157,7 +160,6 @@ export async function resumePlaythrough(
   // Track this as the active playthrough for this device
   await setActivePlaythroughIdForDevice(session, playthroughId);
 
-  await playAndNotify();
   // FIXME: this needs to be called later, after the player store state has been updated.
   bumpPlaythroughDataVersion();
 
@@ -203,9 +205,6 @@ export async function loadActivePlaythroughIntoPlayer(
       );
       return null;
     }
-
-    // Initialize playthrough tracking for event recording
-    Coordinator.setCurrentPlaythrough(playthroughId, position, playbackRate);
 
     return {
       playthroughId,
@@ -364,22 +363,35 @@ async function pauseCurrentIfPlaying() {
 
   // Rewind slightly so the user has context when they resume
   // (see PAUSE_REWIND_SECONDS in constants.ts for explanation)
+  const { loadedPlaythrough, playbackRate } = usePlayerUIState.getState();
   const { position, duration } = await Player.getProgress();
-  const playbackRate = await Player.getRate();
   let seekPosition = position - PAUSE_REWIND_SECONDS * playbackRate;
   seekPosition = Math.max(0, Math.min(seekPosition, duration));
   await Player.seekTo(seekPosition);
 
-  // Notify coordinator to record pause event
-  Coordinator.onPause();
-}
+  // --- Inlined from Coordinator.onPause ---
+  Heartbeat.stop();
 
-/**
- * Start playback and notify coordinator.
- */
-async function playAndNotify() {
-  await Player.play();
-  Coordinator.onPlay();
+  if (loadedPlaythrough) {
+    try {
+      await EventRecording.recordPauseEvent(
+        loadedPlaythrough.playthroughId,
+        seekPosition, // Use rewound position
+        playbackRate,
+      );
+    } catch (error) {
+      console.warn("[Loader] Error recording pause event:", error);
+    }
+  }
+
+  SleepTimer.cancel();
+
+  const session = useSession.getState().session;
+  if (session) {
+    syncPlaythroughs(session).catch((error) => {
+      console.warn("[Loader] Background sync on pause failed:", error);
+    });
+  }
 }
 
 /**
@@ -449,13 +461,6 @@ async function loadPlaythroughIntoPlayer(
   // This is important because seekTo() can return before the seek completes,
   // and downstream code (event recording, UI) needs the real position
   const actualPosition = await waitForSeekToComplete(position);
-
-  // Initialize playthrough tracking for event recording
-  Coordinator.setCurrentPlaythrough(
-    playthrough.id,
-    actualPosition,
-    playbackRate,
-  );
 
   return {
     playthroughId: playthrough.id,

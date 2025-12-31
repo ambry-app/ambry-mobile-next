@@ -35,8 +35,8 @@ import {
 import { getMedia } from "@/db/library";
 import useBackHandler from "@/hooks/use-back-handler";
 import { useLibraryData } from "@/hooks/use-library-data";
-import * as Coordinator from "@/services/playback-coordinator";
 import {
+  clearPendingExpand,
   type LoadedPlaythrough,
   setPlayerRenderState,
   usePlayerUIState as usePlayer,
@@ -119,22 +119,29 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
   const { mediaId } = loadedPlaythrough;
   const insets = useSafeAreaInsets();
 
-  const { streaming, loadingNewMedia, shouldRenderMini, shouldRenderExpanded } =
-    usePlayer(
-      useShallow(
-        ({
-          streaming,
-          loadingNewMedia,
-          shouldRenderMini,
-          shouldRenderExpanded,
-        }) => ({
-          streaming,
-          loadingNewMedia,
-          shouldRenderMini,
-          shouldRenderExpanded,
-        }),
-      ),
-    );
+  const {
+    streaming,
+    loadingNewMedia,
+    shouldRenderMini,
+    shouldRenderExpanded,
+    pendingExpandPlayer,
+  } = usePlayer(
+    useShallow(
+      ({
+        streaming,
+        loadingNewMedia,
+        shouldRenderMini,
+        shouldRenderExpanded,
+        pendingExpandPlayer,
+      }) => ({
+        streaming,
+        loadingNewMedia,
+        shouldRenderMini,
+        shouldRenderExpanded,
+        pendingExpandPlayer,
+      }),
+    ),
+  );
   const media = useLibraryData(() => getMedia(session, mediaId), [mediaId]);
 
   // Initialize expansion based on current store state to stay in sync on mount/resume
@@ -254,12 +261,13 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
     );
   }, [expansion, setRenderCollapsed]);
 
+  // When a remote request to expand the player comes in, handle it.
   useEffect(() => {
-    Coordinator.setExpandPlayerCallback(expand);
-    return () => {
-      Coordinator.setExpandPlayerCallback(null);
-    };
-  }, [expand]);
+    if (pendingExpandPlayer) {
+      expand();
+      clearPendingExpand();
+    }
+  }, [pendingExpandPlayer, expand]);
 
   const tabBarHeight = TAB_BAR_BASE_HEIGHT + insets.bottom;
   const largeImageSize = shortScreen ? screenWidth * 0.6 : screenWidth * 0.8;

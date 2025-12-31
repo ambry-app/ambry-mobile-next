@@ -6,18 +6,21 @@ import {
   getInProgressPlaythrough,
   getPlaythroughById,
 } from "@/db/playthroughs";
+import { syncPlaythroughs } from "@/db/sync";
 import {
   initialChapterState,
+  requestExpandPlayer,
   resetPlayerUIState,
   usePlayerUIState,
 } from "@/stores/player-ui-state";
 import { Session, useSession } from "@/stores/session";
 
-import * as Coordinator from "./playback-coordinator";
+import * as EventRecording from "./event-recording";
 import * as Lifecycle from "./playthrough-lifecycle";
 import * as Loader from "./playthrough-loader";
 import * as Heartbeat from "./position-heartbeat";
 import { seekImmediateNoLog } from "./seek-service";
+import * as SleepTimer from "./sleep-timer-service";
 import * as Player from "./trackplayer-wrapper";
 import {
   AndroidAudioContentType,
@@ -37,7 +40,27 @@ export async function play() {
   const { position } = await Player.getProgress();
   console.debug("[Controls] Playing from position", position.toFixed(1));
   await Player.play();
-  Coordinator.onPlay();
+
+  // --- Inlined from Coordinator.onPlay ---
+  const { loadedPlaythrough } = usePlayerUIState.getState();
+  if (loadedPlaythrough) {
+    try {
+      const { position } = await Player.getProgress();
+      const rate = await Player.getRate();
+      usePlayerUIState.setState({ playbackRate: rate });
+
+      await EventRecording.recordPlayEvent(
+        loadedPlaythrough.playthroughId,
+        position,
+        rate,
+      );
+      Heartbeat.start(loadedPlaythrough.playthroughId, rate);
+    } catch (error) {
+      console.warn("[Controls] Error recording play event:", error);
+    }
+  }
+  SleepTimer.reset();
+  // --- End Inlined ---
 }
 
 /**
@@ -49,7 +72,33 @@ export async function pause() {
   console.debug("[Controls] Pausing at position", position.toFixed(1));
   await Player.pause();
   await seekImmediateNoLog(-PAUSE_REWIND_SECONDS);
-  Coordinator.onPause();
+
+  // --- Inlined from Coordinator.onPause ---
+  Heartbeat.stop();
+
+  const { loadedPlaythrough, playbackRate } = usePlayerUIState.getState();
+  if (loadedPlaythrough) {
+    try {
+      const { position } = await Player.getProgress();
+      await EventRecording.recordPauseEvent(
+        loadedPlaythrough.playthroughId,
+        position,
+        playbackRate,
+      );
+    } catch (error) {
+      console.warn("[Controls] Error recording pause event:", error);
+    }
+  }
+
+  SleepTimer.cancel();
+
+  const session = useSession.getState().session;
+  if (session) {
+    syncPlaythroughs(session).catch((error) => {
+      console.warn("[Controls] Background sync on pause failed:", error);
+    });
+  }
+  // --- End Inlined ---
 }
 
 /**
@@ -72,13 +121,23 @@ export async function setPlaybackRate(session: Session, playbackRate: number) {
 
   await Player.setRate(playbackRate);
 
-  // Notify coordinator for event recording
-  const { position } = await Player.getProgress();
-  Coordinator.onRateChanged({
-    previousRate,
-    newRate: playbackRate,
-    position,
-  });
+  // --- Inlined from Coordinator.onRateChanged ---
+  const { loadedPlaythrough } = usePlayerUIState.getState();
+  if (loadedPlaythrough) {
+    try {
+      const { position } = await Player.getProgress();
+      await EventRecording.recordRateChangeEvent(
+        loadedPlaythrough.playthroughId,
+        position,
+        playbackRate,
+        previousRate,
+      );
+      Heartbeat.setPlaybackRate(playbackRate);
+    } catch (error) {
+      console.warn("[Controls] Error recording rate change:", error);
+    }
+  }
+  // --- End Inlined ---
 }
 
 // =============================================================================
@@ -205,6 +264,7 @@ export async function loadAndPlayMedia(session: Session, mediaId: string) {
       : await Loader.startNewPlaythrough(session, mediaId);
 
     applyTrackLoadResult(result);
+    await play();
   } catch (error) {
     console.error("[Controls] Failed to load and play media:", error);
     usePlayerUIState.setState({ loadingNewMedia: false });
@@ -226,6 +286,7 @@ export async function continueExistingPlaythrough(
   try {
     const result = await Loader.continuePlaythrough(session, playthroughId);
     applyTrackLoadResult(result);
+    await play();
   } catch (error) {
     console.error("[Controls] Failed to continue playthrough:", error);
     usePlayerUIState.setState({ loadingNewMedia: false });
@@ -244,6 +305,7 @@ export async function startFreshPlaythrough(session: Session, mediaId: string) {
   try {
     const result = await Loader.startNewPlaythrough(session, mediaId);
     applyTrackLoadResult(result);
+    await play();
   } catch (error) {
     console.error("[Controls] Failed to start playthrough:", error);
     usePlayerUIState.setState({ loadingNewMedia: false });
@@ -340,6 +402,8 @@ export async function resumeAndLoadPlaythrough(
       streaming: result.streaming,
       ...initialChapterState(result.chapters, result.position, result.duration),
     });
+
+    await play();
   } catch (error) {
     console.error("[Controls] Failed to resume playthrough:", error);
     usePlayerUIState.setState({ loadingNewMedia: false });
@@ -362,7 +426,7 @@ export async function finishPlaythrough(
   const isLoaded = loadedPlaythrough?.playthroughId === playthroughId;
 
   if (isLoaded) {
-    const paused = await Coordinator.pauseAndRecordEvent();
+    const paused = await pauseAndRecordEvent();
     if (paused) {
       Heartbeat.stop();
     }
@@ -386,7 +450,7 @@ export async function abandonPlaythrough(
   const isLoaded = loadedPlaythrough?.playthroughId === playthroughId;
 
   if (isLoaded) {
-    const paused = await Coordinator.pauseAndRecordEvent();
+    const paused = await pauseAndRecordEvent();
     if (paused) {
       Heartbeat.stop();
     }
@@ -396,6 +460,43 @@ export async function abandonPlaythrough(
 
   if (isLoaded) {
     await tryUnloadPlayer();
+  }
+}
+
+/**
+ * Pause playback (if playing) and record the pause event, waiting for it to complete.
+ * Use this when you need to ensure the pause event is recorded before
+ * performing other operations (like marking a playthrough as finished/abandoned).
+ *
+ * Only records a pause event if audio is actually playing. If already paused,
+ * this is a no-op (the pause event was already recorded when playback stopped).
+ *
+ * Returns true if a pause was recorded, false if already paused.
+ */
+async function pauseAndRecordEvent(): Promise<boolean> {
+  const { loadedPlaythrough, playbackRate } = usePlayerUIState.getState();
+
+  if (!loadedPlaythrough) return false;
+
+  const { playing } = await Player.isPlaying();
+  if (!playing) {
+    console.debug("[Controls] pauseAndRecordEvent: not playing, skipping");
+    return false;
+  }
+
+  try {
+    await Player.pause();
+    const { position } = await Player.getProgress();
+    await EventRecording.recordPauseEvent(
+      loadedPlaythrough.playthroughId,
+      position,
+      playbackRate,
+    );
+    console.debug("[Controls] pauseAndRecordEvent completed");
+    return true;
+  } catch (error) {
+    console.warn("[Controls] Error in pauseAndRecordEvent:", error);
+    return false;
   }
 }
 
@@ -445,14 +546,14 @@ export async function forceUnloadPlayer() {
  * Requests the UI to expand the player.
  */
 export function expandPlayer() {
-  Coordinator.expandPlayer();
+  requestExpandPlayer();
 }
 
 /**
  * Expands the player UI and waits for the animation to complete.
  */
 export function expandPlayerAndWait(): Promise<void> {
-  Coordinator.expandPlayer();
+  requestExpandPlayer();
   return new Promise((resolve) => {
     setTimeout(resolve, PLAYER_EXPAND_ANIMATION_DURATION);
   });

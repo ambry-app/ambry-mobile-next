@@ -2,29 +2,19 @@ import {
   SLEEP_TIMER_FADE_OUT_TIME,
   SLEEP_TIMER_PAUSE_REWIND_SECONDS,
 } from "@/constants";
+import { recordPauseEvent } from "@/services/event-recording";
+import * as Heartbeat from "@/services/position-heartbeat";
 import * as Player from "@/services/trackplayer-wrapper";
+import { usePlayerUIState } from "@/stores/player-ui-state";
 import { setTriggerTime, useSleepTimer } from "@/stores/sleep-timer";
 
 const SLEEP_TIMER_CHECK_INTERVAL = 1000;
 let sleepTimerCheckInterval: NodeJS.Timeout | null = null;
-let onSleepTimerPause: (() => Promise<void>) | null = null;
-
-/**
- * Set the callback for when sleep timer triggers a pause.
- * Called once by the coordinator during initialization.
- *
- * NOTE: Only one callback can be registered.
- */
-export function setOnPauseCallback(callback: () => Promise<void>) {
-  if (onSleepTimerPause !== null) {
-    console.warn("[SleepTimer] Pause callback already registered");
-  }
-  onSleepTimerPause = callback;
-}
+let unsubscribeFromStore: (() => void) | null = null;
 
 /**
  * Start monitoring sleep timer (checks every second).
- * The coordinator calls reset/maybeReset/cancel directly.
+ * The service now subscribes to store changes to react to settings updates.
  */
 export function startMonitoring() {
   if (sleepTimerCheckInterval) return;
@@ -34,6 +24,25 @@ export function startMonitoring() {
   sleepTimerCheckInterval = setInterval(() => {
     checkTimer();
   }, SLEEP_TIMER_CHECK_INTERVAL);
+
+  // Subscribe to store changes to react to settings updates
+  unsubscribeFromStore = useSleepTimer.subscribe((state, prevState) => {
+    // When timer is enabled
+    if (state.sleepTimerEnabled && !prevState.sleepTimerEnabled) {
+      maybeReset();
+    }
+    // When timer is disabled
+    else if (!state.sleepTimerEnabled && prevState.sleepTimerEnabled) {
+      cancel();
+    }
+    // When duration changes while timer is active
+    else if (
+      state.sleepTimer !== prevState.sleepTimer &&
+      state.sleepTimerTriggerTime !== null
+    ) {
+      maybeReset();
+    }
+  });
 }
 
 /**
@@ -53,22 +62,36 @@ async function checkTimer() {
   if (timeRemaining <= 0) {
     // Time's up - pause and reset
     console.debug("[Sleep Timer] Triggering - pausing playback");
+
+    const { loadedPlaythrough, playbackRate } = usePlayerUIState.getState();
+    if (!loadedPlaythrough) {
+      // Player not loaded, just cancel timer
+      cancel();
+      return;
+    }
+
+    // Stop heartbeat before pausing
+    Heartbeat.stop();
+
     await Player.pause();
     await Player.setVolume(1.0);
 
     // Rewind so the user has context when they resume the next day
     // (see SLEEP_TIMER_PAUSE_REWIND_SECONDS in constants.ts for explanation)
     const { position, duration } = await Player.getProgress();
-    const playbackRate = await Player.getRate();
     let seekPosition =
       position - SLEEP_TIMER_PAUSE_REWIND_SECONDS * playbackRate;
     seekPosition = Math.max(0, Math.min(seekPosition, duration));
     await Player.seekTo(seekPosition);
 
     setTriggerTime(null);
-    // Call the injected callback to record the pause event
-    // NOTE: We don't call cancel() here because that would create a loop
-    await onSleepTimerPause?.();
+
+    // Record the pause event directly instead of using a callback
+    await recordPauseEvent(
+      loadedPlaythrough.playthroughId,
+      seekPosition, // Record with the new, rewound position
+      playbackRate,
+    );
   } else if (timeRemaining <= SLEEP_TIMER_FADE_OUT_TIME) {
     // Fade volume in last 30 seconds
     const volume = timeRemaining / SLEEP_TIMER_FADE_OUT_TIME;
@@ -130,5 +153,6 @@ export function __resetForTesting() {
     clearInterval(sleepTimerCheckInterval);
     sleepTimerCheckInterval = null;
   }
-  onSleepTimerPause = null;
+  unsubscribeFromStore?.();
+  unsubscribeFromStore = null;
 }

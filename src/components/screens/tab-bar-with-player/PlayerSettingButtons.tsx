@@ -65,7 +65,7 @@ function SleepTimerLabel() {
     // Update countdown immediately
     const updateCountdown = () => {
       const newCountdown = (sleepTimerTriggerTime - Date.now()) / 1000;
-      setCountdown(Math.max(0, newCountdown));
+      setCountdown(Math.ceil(Math.max(0, newCountdown)));
     };
 
     updateCountdown();

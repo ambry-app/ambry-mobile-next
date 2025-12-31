@@ -15,8 +15,6 @@ import Svg, { Line, Path, Rect } from "react-native-svg";
 import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 import { useShallow } from "zustand/shallow";
 
-import * as Coordinator from "@/services/playback-coordinator";
-import type { SeekAppliedPayload } from "@/services/playback-types";
 import { SeekSource, seekTo } from "@/services/seek-service";
 import * as Player from "@/services/trackplayer-wrapper";
 import { State, usePlaybackState } from "@/services/trackplayer-wrapper";
@@ -32,6 +30,8 @@ const WIDTH = Dimensions.get("window").width;
 const HEIGHT = 60;
 const HALF_WIDTH = WIDTH / 2;
 const NUM_TICKS = Math.ceil(WIDTH / SPACING);
+
+const DRIFT_CORRECTION_INTERVAL = 5000;
 
 const clamp = (value: number, lowerBound: number, upperBound: number) => {
   "worklet";
@@ -151,7 +151,6 @@ const Markers = memo(function Markers({ markers }: MarkersProps) {
 
 export const Scrubber = memo(function Scrubber() {
   const { state } = usePlaybackState();
-  // Only subscribe to values that rarely change - NOT position
   const { playbackRate, chapters, duration } = usePlayerUIState(
     useShallow(({ playbackRate, chapters, duration }) => ({
       playbackRate,
@@ -159,10 +158,12 @@ export const Scrubber = memo(function Scrubber() {
       duration,
     })),
   );
+  const lastSeekTimestamp = usePlayerUIState(
+    (state) => state.lastSeekTimestamp,
+  );
   const playing = state === State.Playing;
   const markers = chapters?.map((chapter) => chapter.startTime) || [];
 
-  // Get initial position once without subscribing
   const initialPosition = useRef(usePlayerUIState.getState().position);
   const translateX = useSharedValue(timeToTranslateX(initialPosition.current));
   const [isScrubbing, setIsScrubbing] = useIsScrubbing();
@@ -172,6 +173,19 @@ export const Scrubber = memo(function Scrubber() {
   const isAnimatingUserSeek = useSharedValue(false);
   const timecodeOpacity = useSharedValue(0);
   const lastTimestamp = useSharedValue(0);
+
+  // Correct initial translateX value once on mount
+  useEffect(() => {
+    const setAccurateInitialPosition = async () => {
+      try {
+        const { position } = await Player.getProgress();
+        translateX.value = timeToTranslateX(position);
+      } catch (e) {
+        console.warn("[Scrubber] Error getting accurate initial progress:", e);
+      }
+    };
+    setAccurateInitialPosition();
+  }, [translateX]);
 
   const panGestureHandler = Gesture.Pan()
     .onStart((_event) => {
@@ -330,41 +344,44 @@ export const Scrubber = memo(function Scrubber() {
     lastTimestamp.value = frameInfo.timestamp;
   });
 
-  // Register callback to animate to new position when seek is applied
-  const handleSeekApplied = useCallback(
-    (payload: SeekAppliedPayload) => {
-      // Don't animate while scrubbing (user is controlling the position)
-      if (isScrubbing) return;
-
-      // Don't animate for pause-related seeks (they're tiny adjustments)
-      if (payload.source === SeekSource.PAUSE) return;
-
-      scheduleOnUI(() => {
-        "worklet";
-        isAnimatingUserSeek.value = true;
-        translateX.value = withTiming(
-          timeToTranslateX(payload.position),
-          {
-            duration: 400,
-            easing: Easing.out(Easing.exp),
-          },
-          (finished) => {
-            if (finished) {
-              isAnimatingUserSeek.value = false;
-            }
-          },
-        );
-      });
-    },
-    [isScrubbing, translateX, isAnimatingUserSeek],
-  );
-
+  // Animate to new position when a seek is applied from outside the scrubber
   useEffect(() => {
-    Coordinator.setScrubberSeekCallback(handleSeekApplied);
-    return () => {
-      Coordinator.setScrubberSeekCallback(null);
+    // Don't run this if there's no seek event
+    if (!lastSeekTimestamp) return;
+
+    // Don't animate while scrubbing (user is controlling the position)
+    if (isScrubbing) return;
+
+    const animateToNewPosition = async () => {
+      try {
+        const { position } = await Player.getProgress();
+        scheduleOnUI(() => {
+          "worklet";
+          isAnimatingUserSeek.value = true;
+          translateX.value = withTiming(
+            timeToTranslateX(position),
+            {
+              duration: 400,
+              easing: Easing.out(Easing.exp),
+            },
+            (finished) => {
+              if (finished) {
+                isAnimatingUserSeek.value = false;
+              }
+            },
+          );
+        });
+      } catch (e) {
+        // Player might not be ready, ignore
+        console.warn(
+          "[Scrubber] Error getting progress for seek animation:",
+          e,
+        );
+      }
     };
-  }, [handleSeekApplied]);
+
+    animateToNewPosition();
+  }, [isScrubbing, translateX, isAnimatingUserSeek, lastSeekTimestamp]);
 
   // Periodic drift correction - check every 2 seconds without causing re-renders
   // Only runs while playing and not scrubbing
@@ -382,6 +399,11 @@ export const Scrubber = memo(function Scrubber() {
 
         // Snap if drifted more than 500ms
         if (drift > 0.5) {
+          console.debug(
+            `[Scrubber] drift detected: ${drift.toFixed(
+              2,
+            )}s, correcting animation position.`,
+          );
           translateX.value = timeToTranslateX(position);
         }
       } catch {
@@ -393,7 +415,7 @@ export const Scrubber = memo(function Scrubber() {
     checkDrift();
 
     // Then check periodically (every 2 seconds is plenty for drift correction)
-    const intervalId = setInterval(checkDrift, 2000);
+    const intervalId = setInterval(checkDrift, DRIFT_CORRECTION_INTERVAL);
 
     return () => clearInterval(intervalId);
   }, [isScrubbing, playing, translateX, isAnimatingUserSeek]);

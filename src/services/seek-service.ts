@@ -2,9 +2,14 @@ import {
   SEEK_ACCUMULATION_WINDOW,
   SEEK_EVENT_ACCUMULATION_WINDOW,
 } from "@/constants";
-import { usePlayerUIState } from "@/stores/player-ui-state";
+import {
+  setLastSeek,
+  setProgress,
+  usePlayerUIState,
+} from "@/stores/player-ui-state";
 
-import * as Coordinator from "./playback-coordinator";
+import * as EventRecording from "./event-recording";
+import * as SleepTimer from "./sleep-timer-service";
 import * as Player from "./trackplayer-wrapper";
 
 // ============================================================================
@@ -121,12 +126,10 @@ export async function seekImmediateNoLog(amount: number) {
   );
 
   await Player.seekTo(newPosition);
-  Coordinator.onSeekApplied({
-    position: newPosition,
-    duration,
-    userInitiated: false,
-    source: SeekSource.PAUSE,
-  });
+
+  // Update player store position and notify scrubber for animation
+  setProgress(newPosition, duration);
+  setLastSeek(SeekSource.PAUSE);
 
   isApplying = false;
 }
@@ -184,13 +187,18 @@ async function applyAccumulatedSeek(source: SeekSourceType) {
   eventTo = positionToApply;
   eventTimestamp = new Date();
 
-  // Notify for UI updates
-  Coordinator.onSeekApplied({
-    position: positionToApply,
-    duration,
-    userInitiated: true,
-    source,
-  });
+  // --- Inlined from onSeekApplied ---
+  // Update player store position (important for remote seeks from seek.ts)
+  setProgress(positionToApply, duration);
+
+  // Sleep timer resets on seek, unless it's a pause-related seek
+  if (source !== "pause") {
+    SleepTimer.maybeReset();
+  }
+
+  // Notify Scrubber for thumb animation
+  setLastSeek(source);
+  // --- End Inlined ---
 
   // Clear UI seeking state
   clearSeekUI();
@@ -201,7 +209,7 @@ async function applyAccumulatedSeek(source: SeekSourceType) {
 /**
  * Record the completed seek event after debounce.
  */
-function recordSeekEvent() {
+async function recordSeekEvent() {
   seekEventTimer = null;
 
   if (eventFrom === null || eventTo === null || eventTimestamp === null) {
@@ -217,11 +225,31 @@ function recordSeekEvent() {
     eventTo.toFixed(1),
   );
 
-  Coordinator.onSeekCompleted({
-    fromPosition: eventFrom,
-    toPosition: eventTo,
-    timestamp: eventTimestamp,
-  });
+  // --- Inlined from onSeekCompleted ---
+  const { loadedPlaythrough, playbackRate } = usePlayerUIState.getState();
+
+  if (!loadedPlaythrough) return;
+
+  const fromPosition = eventFrom;
+  const toPosition = eventTo;
+
+  // Don't record trivial seeks (< 2 seconds)
+  if (Math.abs(toPosition - fromPosition) < 2) {
+    return;
+  }
+
+  try {
+    await EventRecording.recordSeekEvent(
+      loadedPlaythrough.playthroughId,
+      fromPosition,
+      toPosition,
+      playbackRate,
+      eventTimestamp,
+    );
+  } catch (error) {
+    console.warn("[Seek] Error recording seek event:", error);
+  }
+  // --- End Inlined ---
 
   // Reset event state for the next interaction
   eventFrom = null;

@@ -3,6 +3,7 @@ import { AppStateStatus, EmitterSubscription } from "react-native";
 import { create } from "zustand";
 
 import * as schema from "@/db/schema";
+import type { SeekSourceType } from "@/services/seek-service";
 import * as Player from "@/services/trackplayer-wrapper";
 import { Event } from "@/services/trackplayer-wrapper";
 
@@ -52,6 +53,13 @@ export interface PlayerUIState {
   seekEffectiveDiff: number | null;
   seekLastDirection: "left" | "right" | null;
   seekPosition: number | null;
+  // When a seek is applied, this is set to Date.now()
+  // The Scrubber watches for changes to know "a seek just happened"
+  lastSeekTimestamp: number | null;
+  lastSeekSource: SeekSourceType | null;
+
+  /* UI state */
+  pendingExpandPlayer: boolean;
 }
 
 // ============================================================================
@@ -75,6 +83,9 @@ const initialState = {
   seekEffectiveDiff: null,
   seekLastDirection: null,
   seekPosition: null,
+  lastSeekTimestamp: null,
+  lastSeekSource: null,
+  pendingExpandPlayer: false,
 };
 
 export const usePlayerUIState = create<PlayerUIState>()(() => ({
@@ -99,6 +110,21 @@ export function setPlayerRenderState(
   shouldRenderExpanded: boolean,
 ) {
   usePlayerUIState.setState({ shouldRenderMini, shouldRenderExpanded });
+}
+
+export function requestExpandPlayer() {
+  usePlayerUIState.setState({ pendingExpandPlayer: true });
+}
+
+export function clearPendingExpand() {
+  usePlayerUIState.setState({ pendingExpandPlayer: false });
+}
+
+export function setLastSeek(source: SeekSourceType) {
+  usePlayerUIState.setState({
+    lastSeekTimestamp: Date.now(),
+    lastSeekSource: source,
+  });
 }
 
 /**
