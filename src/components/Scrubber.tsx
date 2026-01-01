@@ -33,6 +33,8 @@ const NUM_TICKS = Math.ceil(WIDTH / SPACING);
 
 const DRIFT_CORRECTION_INTERVAL = 5000;
 
+const DECAY_VELOCITY_CUTOFF = 100;
+
 const clamp = (value: number, lowerBound: number, upperBound: number) => {
   "worklet";
   return Math.min(Math.max(lowerBound, value), upperBound);
@@ -158,8 +160,11 @@ export const Scrubber = memo(function Scrubber() {
       duration,
     })),
   );
-  const lastSeekTimestamp = usePlayerUIState(
-    (state) => state.lastSeekTimestamp,
+  const { lastSeekTimestamp, lastSeekSource } = usePlayerUIState(
+    useShallow(({ lastSeekTimestamp, lastSeekSource }) => ({
+      lastSeekTimestamp,
+      lastSeekSource,
+    })),
   );
   const playing = state === State.Playing;
   const markers = chapters?.map((chapter) => chapter.startTime) || [];
@@ -188,6 +193,8 @@ export const Scrubber = memo(function Scrubber() {
   }, [translateX]);
 
   const panGestureHandler = Gesture.Pan()
+    .minDistance(0)
+    .shouldCancelWhenOutside(false)
     .onStart((_event) => {
       scheduleOnRN(setIsScrubbing, true);
       const currentX = translateX.value;
@@ -207,12 +214,14 @@ export const Scrubber = memo(function Scrubber() {
       }
     })
     .onEnd((event) => {
-      // If it's just a tap (no significant velocity or movement), skip seeking
-      const isTap =
-        Math.abs(event.velocityX) < 50 &&
-        Math.abs(translateX.value - startX.value) < 2;
+      const lowVelocity = Math.abs(event.velocityX) < DECAY_VELOCITY_CUTOFF;
 
-      if (isTap) {
+      if (lowVelocity) {
+        // Low velocity, leave at current position without decay
+        if (Math.abs(translateX.value - startX.value) !== 0) {
+          const newPosition = translateXToTime(translateX.value);
+          scheduleOnRN(seekTo, newPosition, SeekSource.SCRUBBER);
+        }
         scheduleOnRN(setIsScrubbing, false);
         return;
       }
@@ -221,8 +230,10 @@ export const Scrubber = memo(function Scrubber() {
         isAnimating.value = false;
 
         if (finished) {
-          const newPosition = translateXToTime(translateX.value);
-          scheduleOnRN(seekTo, newPosition, SeekSource.SCRUBBER);
+          if (Math.abs(translateX.value - startX.value) !== 0) {
+            const newPosition = translateXToTime(translateX.value);
+            scheduleOnRN(seekTo, newPosition, SeekSource.SCRUBBER);
+          }
           scheduleOnRN(setIsScrubbing, false);
         }
       };
@@ -349,6 +360,9 @@ export const Scrubber = memo(function Scrubber() {
     // Don't run this if there's no seek event
     if (!lastSeekTimestamp) return;
 
+    // Don't run if the seek wasn't from an external source
+    if (lastSeekSource === SeekSource.SCRUBBER) return;
+
     // Don't animate while scrubbing (user is controlling the position)
     if (isScrubbing) return;
 
@@ -381,7 +395,13 @@ export const Scrubber = memo(function Scrubber() {
     };
 
     animateToNewPosition();
-  }, [isScrubbing, translateX, isAnimatingUserSeek, lastSeekTimestamp]);
+  }, [
+    isScrubbing,
+    translateX,
+    isAnimatingUserSeek,
+    lastSeekTimestamp,
+    lastSeekSource,
+  ]);
 
   // Periodic drift correction - check every 2 seconds without causing re-renders
   // Only runs while playing and not scrubbing
