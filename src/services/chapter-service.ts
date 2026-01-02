@@ -1,6 +1,6 @@
-import { usePlayerUIState } from "@/stores/player-ui-state";
+import { SeekSource, usePlayerUIState } from "@/stores/player-ui-state";
 
-import { SeekSource, seekTo } from "./seek-service";
+import { seekTo } from "./seek-service";
 
 /**
  * Skip to the end of the current chapter.

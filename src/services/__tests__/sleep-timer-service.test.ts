@@ -1,8 +1,8 @@
 import {
-  defaultSleepTimer,
-  defaultSleepTimerEnabled,
-  localUserSettings,
-} from "@/db/schema";
+  DEFAULT_SLEEP_TIMER_ENABLED,
+  DEFAULT_SLEEP_TIMER_SECONDS,
+} from "@/constants";
+import { localUserSettings } from "@/db/schema";
 import {
   initializeSleepTimer,
   updateSleepTimerDuration,
@@ -25,8 +25,8 @@ describe("sleep-timer service", () => {
 
   resetStoreBeforeEach(useSleepTimer, {
     initialized: false,
-    sleepTimer: defaultSleepTimer,
-    sleepTimerEnabled: defaultSleepTimerEnabled,
+    sleepTimer: DEFAULT_SLEEP_TIMER_SECONDS,
+    sleepTimerEnabled: DEFAULT_SLEEP_TIMER_ENABLED,
     sleepTimerTriggerTime: null,
   });
 
@@ -56,8 +56,8 @@ describe("sleep-timer service", () => {
 
       const state = useSleepTimer.getState();
       expect(state.initialized).toBe(true);
-      expect(state.sleepTimer).toBe(defaultSleepTimer);
-      expect(state.sleepTimerEnabled).toBe(defaultSleepTimerEnabled);
+      expect(state.sleepTimer).toBe(DEFAULT_SLEEP_TIMER_SECONDS);
+      expect(state.sleepTimerEnabled).toBe(DEFAULT_SLEEP_TIMER_ENABLED);
     });
 
     it("skips initialization if already initialized", async () => {

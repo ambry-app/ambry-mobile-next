@@ -1,8 +1,8 @@
 import * as schema from "@/db/schema";
+import { initializeDataVersion } from "@/services/data-version-service";
 import {
   bumpPlaythroughDataVersion,
   initialDataVersionState,
-  initializeDataVersion,
   setLibraryDataVersion,
   useDataVersion,
 } from "@/stores/data-version";

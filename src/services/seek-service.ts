@@ -3,6 +3,8 @@ import {
   SEEK_EVENT_ACCUMULATION_WINDOW,
 } from "@/constants";
 import {
+  SeekSource,
+  SeekSourceType,
   setLastSeek,
   setProgress,
   usePlayerUIState,
@@ -11,20 +13,6 @@ import {
 import * as EventRecording from "./event-recording";
 import * as SleepTimer from "./sleep-timer-service";
 import * as Player from "./trackplayer-wrapper";
-
-// ============================================================================
-// Types
-// ============================================================================
-
-export const SeekSource = {
-  BUTTON: "button",
-  CHAPTER: "chapter",
-  REMOTE: "remote",
-  SCRUBBER: "scrubber",
-  PAUSE: "pause",
-} as const;
-
-export type SeekSourceType = (typeof SeekSource)[keyof typeof SeekSource];
 
 // ============================================================================
 // Module State (for core accumulation logic)

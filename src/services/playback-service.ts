@@ -3,16 +3,12 @@ import { syncPlaythroughs } from "@/db/sync";
 import * as EventRecording from "@/services/event-recording";
 import * as Lifecycle from "@/services/playthrough-lifecycle";
 import * as Heartbeat from "@/services/position-heartbeat";
-import {
-  seekImmediateNoLog,
-  seekRelative,
-  SeekSource,
-} from "@/services/seek-service";
+import { seekImmediateNoLog, seekRelative } from "@/services/seek-service";
 import * as SleepTimer from "@/services/sleep-timer-service";
 import * as Player from "@/services/trackplayer-wrapper";
 import { Event } from "@/services/trackplayer-wrapper";
 import { initializeDevice } from "@/stores/device";
-import { usePlayerUIState } from "@/stores/player-ui-state";
+import { SeekSource, usePlayerUIState } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
 
 export const PlaybackService = async function () {

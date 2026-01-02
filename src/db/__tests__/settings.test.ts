@@ -1,4 +1,7 @@
-import * as schema from "@/db/schema";
+import {
+  DEFAULT_SLEEP_TIMER_ENABLED,
+  DEFAULT_SLEEP_TIMER_SECONDS,
+} from "@/constants";
 import {
   getSleepTimerSettings,
   setPreferredPlaybackRate,
@@ -146,8 +149,8 @@ describe("settings", () => {
     it("returns defaults when no settings exist", async () => {
       const settings = await getSleepTimerSettings(userEmail);
 
-      expect(settings.sleepTimer).toBe(schema.defaultSleepTimer);
-      expect(settings.sleepTimerEnabled).toBe(schema.defaultSleepTimerEnabled);
+      expect(settings.sleepTimer).toBe(DEFAULT_SLEEP_TIMER_SECONDS);
+      expect(settings.sleepTimerEnabled).toBe(DEFAULT_SLEEP_TIMER_ENABLED);
     });
 
     it("returns saved settings when they exist", async () => {

@@ -1,4 +1,4 @@
-import type { SeekSourceType } from "@/services/seek-service";
+import { SeekSourceType } from "@/stores/player-ui-state";
 
 // Callback types for UI components
 export type ExpandPlayerCallback = () => void;

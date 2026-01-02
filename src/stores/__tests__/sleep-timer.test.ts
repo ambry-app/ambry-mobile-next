@@ -1,12 +1,15 @@
-import { defaultSleepTimer, defaultSleepTimerEnabled } from "@/db/schema";
+import {
+  DEFAULT_SLEEP_TIMER_ENABLED,
+  DEFAULT_SLEEP_TIMER_SECONDS,
+} from "@/constants";
 import { setTriggerTime, useSleepTimer } from "@/stores/sleep-timer";
 import { resetStoreBeforeEach } from "@test/store-test-utils";
 
 describe("sleep-timer store", () => {
   resetStoreBeforeEach(useSleepTimer, {
     initialized: false,
-    sleepTimer: defaultSleepTimer,
-    sleepTimerEnabled: defaultSleepTimerEnabled,
+    sleepTimer: DEFAULT_SLEEP_TIMER_SECONDS,
+    sleepTimerEnabled: DEFAULT_SLEEP_TIMER_ENABLED,
     sleepTimerTriggerTime: null,
   });
 

@@ -1,5 +1,9 @@
 import { eq, sql } from "drizzle-orm";
 
+import {
+  DEFAULT_SLEEP_TIMER_ENABLED,
+  DEFAULT_SLEEP_TIMER_SECONDS,
+} from "@/constants";
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
 
@@ -67,8 +71,8 @@ export async function getSleepTimerSettings(userEmail: string) {
     return response;
   } else {
     return {
-      sleepTimer: schema.defaultSleepTimer,
-      sleepTimerEnabled: schema.defaultSleepTimerEnabled,
+      sleepTimer: DEFAULT_SLEEP_TIMER_SECONDS,
+      sleepTimerEnabled: DEFAULT_SLEEP_TIMER_ENABLED,
     };
   }
 }

@@ -41,6 +41,10 @@ jest.mock("@/stores/player-ui-state", () => ({
   usePlayerUIState: {
     getState: () => mockUsePlayerUIState,
   },
+  SeekSource: {
+    REMOTE: "remote",
+    UI: "ui",
+  },
 }));
 
 const mockUseSession = {
@@ -70,9 +74,6 @@ const mockSeekImmediateNoLog = jest.fn().mockResolvedValue(undefined);
 jest.mock("@/services/seek-service", () => ({
   seekRelative: (...args: unknown[]) => mockSeekRelative(...args),
   seekImmediateNoLog: (...args: unknown[]) => mockSeekImmediateNoLog(...args),
-  SeekSource: {
-    REMOTE: "remote",
-  },
 }));
 
 import { PlaybackService } from "@/services/playback-service";

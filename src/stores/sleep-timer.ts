@@ -1,6 +1,9 @@
 import { create } from "zustand";
 
-import { defaultSleepTimer, defaultSleepTimerEnabled } from "@/db/schema";
+import {
+  DEFAULT_SLEEP_TIMER_ENABLED,
+  DEFAULT_SLEEP_TIMER_SECONDS,
+} from "@/constants";
 
 export interface SleepTimerState {
   initialized: boolean;
@@ -11,8 +14,8 @@ export interface SleepTimerState {
 
 export const useSleepTimer = create<SleepTimerState>()(() => ({
   initialized: false,
-  sleepTimer: defaultSleepTimer,
-  sleepTimerEnabled: defaultSleepTimerEnabled,
+  sleepTimer: DEFAULT_SLEEP_TIMER_SECONDS,
+  sleepTimerEnabled: DEFAULT_SLEEP_TIMER_ENABLED,
   sleepTimerTriggerTime: null,
 }));
 

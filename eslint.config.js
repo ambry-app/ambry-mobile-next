@@ -2,6 +2,7 @@ const { defineConfig, globalIgnores } = require("eslint/config");
 
 const prettier = require("eslint-plugin-prettier");
 const simpleImportSort = require("eslint-plugin-simple-import-sort");
+const boundaries = require("eslint-plugin-boundaries");
 const js = require("@eslint/js");
 
 const { FlatCompat } = require("@eslint/eslintrc");
@@ -19,12 +20,25 @@ module.exports = defineConfig([
     plugins: {
       prettier,
       "simple-import-sort": simpleImportSort,
+      boundaries,
     },
 
     languageOptions: {
       parserOptions: {
         project: "./tsconfig.json",
       },
+    },
+
+    settings: {
+      "boundaries/elements": [
+        { type: "ui", pattern: "src/components/**" },
+        { type: "hooks", pattern: "src/hooks/**" },
+        { type: "stores", pattern: "src/stores/**" },
+        { type: "services", pattern: "src/services/**" },
+        { type: "db", pattern: "src/db/**" },
+        { type: "utils", pattern: "src/utils/**" },
+      ],
+      "boundaries/ignore": ["**/*.test.ts", "**/*.test.tsx"],
     },
 
     rules: {
@@ -68,6 +82,43 @@ module.exports = defineConfig([
           ],
         },
       ],
+
+      ...boundaries.configs.recommended.rules,
+      "boundaries/element-types": [
+        2,
+        {
+          default: "disallow",
+          rules: [
+            // UI can import from anything
+            {
+              from: "ui",
+              allow: ["ui", "hooks", "stores", "services", "db", "utils"],
+            },
+
+            // Hooks can import stores, services, utils (not UI)
+            {
+              from: "hooks",
+              allow: ["hooks", "stores", "services", "db", "utils"],
+            },
+
+            // Stores are PURE STATE - can only import utils and other stores
+            { from: "stores", allow: ["stores", "db", "utils"] },
+
+            // Services can import db, utils, stores, other services (not UI)
+            // Stores export pure setters that don't import services, so no cycle is created
+            {
+              from: "services",
+              allow: ["services", "stores", "db", "utils"],
+            },
+
+            // DB layer only imports stores and utils
+            { from: "db", allow: ["stores", "db", "utils"] },
+
+            // Utils are leaf nodes - no imports from other layers
+            { from: "utils", allow: ["utils"] },
+          ],
+        },
+      ],
     },
   },
   // Allow the wrapper file to import from react-native-track-player
@@ -88,5 +139,5 @@ module.exports = defineConfig([
       ],
     },
   },
-  globalIgnores(["**/expo-env.d.ts", "src/graphql/client/*"]),
+  globalIgnores(["**/expo-env.d.ts", "src/graphql/client/*"])
 ]);

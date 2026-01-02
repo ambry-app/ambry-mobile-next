@@ -46,3 +46,6 @@ export const PAUSE_REWIND_SECONDS = 1;
  * 15 seconds of audio time (10 seconds of real time).
  */
 export const SLEEP_TIMER_PAUSE_REWIND_SECONDS = 10;
+
+export const DEFAULT_SLEEP_TIMER_SECONDS = 600; // 10 minutes
+export const DEFAULT_SLEEP_TIMER_ENABLED = false;

@@ -1,11 +1,20 @@
 import { create } from "zustand";
 
 import * as schema from "@/db/schema";
-import type { SeekSourceType } from "@/services/seek-service";
 
 // ============================================================================
 // Types
 // ============================================================================
+
+export const SeekSource = {
+  BUTTON: "button",
+  CHAPTER: "chapter",
+  REMOTE: "remote",
+  SCRUBBER: "scrubber",
+  PAUSE: "pause",
+} as const;
+
+export type SeekSourceType = (typeof SeekSource)[keyof typeof SeekSource];
 
 /**
  * Represents the currently loaded playthrough in the player.

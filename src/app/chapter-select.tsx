@@ -8,8 +8,8 @@ import { useShallow } from "zustand/shallow";
 import { Button } from "@/components";
 import * as schema from "@/db/schema";
 import useBackHandler from "@/hooks/use-back-handler";
-import { SeekSource, seekTo } from "@/services/seek-service";
-import { usePlayerUIState } from "@/stores/player-ui-state";
+import { seekTo } from "@/services/seek-service";
+import { SeekSource, usePlayerUIState } from "@/stores/player-ui-state";
 import { Colors } from "@/styles";
 import { secondsDisplay } from "@/utils";
 

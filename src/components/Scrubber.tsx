@@ -15,10 +15,10 @@ import Svg, { Line, Path, Rect } from "react-native-svg";
 import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 import { useShallow } from "zustand/shallow";
 
-import { SeekSource, seekTo } from "@/services/seek-service";
+import { seekTo } from "@/services/seek-service";
 import * as Player from "@/services/trackplayer-wrapper";
 import { State, usePlaybackState } from "@/services/trackplayer-wrapper";
-import { usePlayerUIState } from "@/stores/player-ui-state";
+import { SeekSource, usePlayerUIState } from "@/stores/player-ui-state";
 import { Colors } from "@/styles";
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
