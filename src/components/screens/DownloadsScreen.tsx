@@ -25,7 +25,7 @@ export function DownloadsScreen({ session }: { session: Session }) {
     <FlatList
       data={media}
       keyExtractor={(media) => media.id}
-      renderItem={({ item }) => <DownloadRow media={item} />}
+      renderItem={({ item }) => <DownloadRow media={item} session={session} />}
       refreshing={refreshing}
       onRefresh={onRefresh}
     />

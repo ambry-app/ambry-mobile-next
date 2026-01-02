@@ -1,18 +1,9 @@
 // iOS version - uses SwiftUI
-import { useCallback } from "react";
 import { StyleSheet } from "react-native";
 import { Button, ContextMenu, Host } from "@expo/ui/swift-ui";
 import { frame } from "@expo/ui/swift-ui/modifiers";
-import { router } from "expo-router";
 
-import {
-  abandonPlaythrough,
-  finishPlaythrough,
-  unloadPlayer,
-} from "@/services/playback-controls";
-import { startDownload, useDownloads } from "@/stores/downloads";
-import { type LoadedPlaythrough } from "@/stores/player-ui-state";
-import { Session } from "@/stores/session";
+import { DownloadStatus } from "@/stores/downloads";
 import { Colors } from "@/styles";
 
 type AuthorOrNarrator = {
@@ -22,66 +13,31 @@ type AuthorOrNarrator = {
   personName: string;
 };
 
-export type PlayerContextMenuProps = {
-  session: Session;
-  loadedPlaythrough: LoadedPlaythrough;
-  bookTitle: string;
+export type PlayerContextMenuImplProps = {
   authors: AuthorOrNarrator[];
   narrators: AuthorOrNarrator[];
-  onCollapse: () => void;
+  downloadStatus: DownloadStatus | undefined;
+  handleGoToBook: () => void;
+  handleGoToPerson: (item: AuthorOrNarrator) => void;
+  handleUnloadPlayer: () => void;
+  handleMarkFinished: () => void;
+  handleAbandon: () => void;
+  handleDownload: () => void;
 };
 
 const NARRATOR_THRESHOLD = 5;
 
-export function PlayerContextMenu({
-  session,
-  loadedPlaythrough,
-  bookTitle,
+export function PlayerContextMenuImpl({
   authors,
   narrators,
-  onCollapse,
-}: PlayerContextMenuProps) {
-  const { mediaId, playthroughId } = loadedPlaythrough;
-  const downloadStatus = useDownloads(
-    (state) => state.downloads[mediaId]?.status,
-  );
-
-  const handleGoToBook = useCallback(() => {
-    onCollapse();
-    router.navigate({
-      pathname: "/media/[id]",
-      params: { id: mediaId, title: bookTitle },
-    });
-  }, [mediaId, bookTitle, onCollapse]);
-
-  const handleGoToPerson = useCallback(
-    (item: AuthorOrNarrator) => {
-      onCollapse();
-      router.navigate({
-        pathname: "/person/[id]",
-        params: { id: item.personId, title: item.personName },
-      });
-    },
-    [onCollapse],
-  );
-
-  const handleUnloadPlayer = useCallback(async () => {
-    await unloadPlayer(session);
-  }, [session]);
-
-  const handleMarkFinished = useCallback(async () => {
-    await finishPlaythrough(session, playthroughId);
-  }, [session, playthroughId]);
-
-  const handleAbandon = useCallback(async () => {
-    await abandonPlaythrough(session, playthroughId);
-  }, [session, playthroughId]);
-
-  const handleDownload = useCallback(() => {
-    startDownload(session, mediaId);
-    router.navigate("/downloads");
-  }, [session, mediaId]);
-
+  downloadStatus,
+  handleGoToBook,
+  handleGoToPerson,
+  handleUnloadPlayer,
+  handleMarkFinished,
+  handleAbandon,
+  handleDownload,
+}: PlayerContextMenuImplProps) {
   // Render author menu items
   const renderAuthorItems = () => {
     const singleAuthor = authors.length === 1 ? authors[0] : null;

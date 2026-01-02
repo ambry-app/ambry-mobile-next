@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
@@ -16,23 +17,31 @@ import {
   removeDownload,
   useDownloads,
 } from "@/stores/downloads";
-import { useSession } from "@/stores/session";
+import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
 
 import { FileSize } from "./FileSize";
 
 type DownloadRowProps = {
   media: DownloadedMedia;
+  session: Session;
 };
 
-export function DownloadRow({ media }: DownloadRowProps) {
-  const session = useSession((state) => state.session);
+export function DownloadRow({ media, session }: DownloadRowProps) {
   const { filePath, status } = useDownloads(
     useShallow((state) => {
       const { filePath, status } = state.downloads[media.id] || {};
       return { filePath, status };
     }),
   );
+
+  const onDelete = useCallback(() => {
+    removeDownload(session, media.id);
+  }, [session, media.id]);
+
+  const onCancel = useCallback(() => {
+    cancelDownload(session, media.id);
+  }, [session, media.id]);
 
   if (!session || !status) return null;
 
@@ -80,8 +89,8 @@ export function DownloadRow({ media }: DownloadRowProps) {
         <LoadingIndicator mediaId={media.id} />
         <DownloadContextMenu
           status={status}
-          onDelete={() => removeDownload(session, media.id)}
-          onCancel={() => cancelDownload(session, media.id)}
+          onDelete={onDelete}
+          onCancel={onCancel}
         />
       </View>
       <DownloadProgressBar mediaId={media.id} />
