@@ -1,11 +1,7 @@
-import { useEffect } from "react";
-import { AppStateStatus, EmitterSubscription } from "react-native";
 import { create } from "zustand";
 
 import * as schema from "@/db/schema";
 import type { SeekSourceType } from "@/services/seek-service";
-import * as Player from "@/services/trackplayer-wrapper";
-import { Event } from "@/services/trackplayer-wrapper";
 
 // ============================================================================
 // Types
@@ -190,61 +186,4 @@ export function initialChapterState(
     chapters[chapters.indexOf(currentChapter) - 1]?.startTime || 0;
 
   return { chapters, currentChapter, previousChapterStartTime };
-}
-
-// ============================================================================
-// Hooks
-// ============================================================================
-
-// FIXME: this is not pure zustand state logic and should be moved elsewhere
-
-const POSITION_POLL_INTERVAL = 1000; // 1 second for position/duration
-
-/**
- * Subscribes to TrackPlayer events and polls for position to keep the UI
- * state in sync with the native player.
- */
-export function usePlayerSubscriptions(appState: AppStateStatus) {
-  const playerLoaded = usePlayerUIState((state) => !!state.loadedPlaythrough);
-
-  useEffect(() => {
-    const subscriptions: EmitterSubscription[] = [];
-    let positionIntervalId: NodeJS.Timeout | null = null;
-
-    const pollPosition = async () => {
-      try {
-        const progress = await Player.getProgress();
-        setProgress(progress.position, progress.duration);
-      } catch (error) {
-        // Can happen if player is reset while polling
-        console.warn("[PlayerUI] Error polling position:", error);
-      }
-    };
-
-    const onPlaybackQueueEnded = () => {
-      const { duration } = usePlayerUIState.getState();
-      console.debug("[PlayerUI] PlaybackQueueEnded at position", duration);
-      setProgress(duration, duration);
-    };
-
-    if (appState === "active" && playerLoaded) {
-      console.debug("[PlayerUI] Subscribing to player events");
-      pollPosition(); // Initial poll
-
-      // Poll position/duration every 1 second
-      positionIntervalId = setInterval(pollPosition, POSITION_POLL_INTERVAL);
-
-      subscriptions.push(
-        Player.addEventListener(Event.PlaybackQueueEnded, onPlaybackQueueEnded),
-      );
-    }
-
-    return () => {
-      if (positionIntervalId) clearInterval(positionIntervalId);
-      if (subscriptions.length !== 0) {
-        console.debug("[PlayerUI] Unsubscribing from player events");
-        subscriptions.forEach((sub) => sub.remove());
-      }
-    };
-  }, [appState, playerLoaded]);
 }

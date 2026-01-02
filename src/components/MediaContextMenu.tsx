@@ -7,17 +7,17 @@ import { MediaHeaderInfo } from "@/db/library";
 import { useMediaPlaybackState } from "@/hooks/use-media-playback-state";
 import { useShelvedMedia } from "@/hooks/use-shelved-media";
 import {
+  cancelDownload,
+  removeDownload,
+  startDownload,
+} from "@/services/download-service";
+import {
   abandonPlaythrough,
   continueExistingPlaythrough,
   finishPlaythrough,
   startFreshPlaythrough,
 } from "@/services/playback-controls";
-import {
-  cancelDownload,
-  removeDownload,
-  startDownload,
-  useDownloads,
-} from "@/stores/downloads";
+import { useDownloads } from "@/stores/downloads";
 import { Session } from "@/stores/session";
 
 import { MediaContextMenuImpl } from "./MediaContextMenuImpl";

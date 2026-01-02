@@ -5,12 +5,12 @@ import Slider from "@react-native-community/slider";
 import { useShallow } from "zustand/shallow";
 
 import { Button, IconButton } from "@/components";
-import { useSession } from "@/stores/session";
 import {
-  setSleepTimer,
-  setSleepTimerState,
-  useSleepTimer,
-} from "@/stores/sleep-timer";
+  updateSleepTimerDuration,
+  updateSleepTimerEnabled,
+} from "@/services/sleep-timer-service";
+import { useSession } from "@/stores/session";
+import { useSleepTimer } from "@/stores/sleep-timer";
 import { Colors } from "@/styles";
 
 function formatSeconds(seconds: number) {
@@ -38,7 +38,7 @@ export default function SleepTimerRoute() {
   const setSleepTimerSecondsAndDisplay = useCallback(
     (value: number) => {
       setDisplaySleepTimerSeconds(value);
-      if (session) setSleepTimer(session, value);
+      if (session) updateSleepTimerDuration(session, value);
     },
     [session],
   );
@@ -134,7 +134,7 @@ export default function SleepTimerRoute() {
             thumbColor={Colors.zinc[100]}
             value={sleepTimerEnabled}
             onValueChange={(value) => {
-              setSleepTimerState(session, value);
+              updateSleepTimerEnabled(session, value);
             }}
           />
         </View>

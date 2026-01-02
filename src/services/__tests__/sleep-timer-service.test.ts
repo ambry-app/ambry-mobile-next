@@ -1,342 +1,152 @@
 import {
-  SLEEP_TIMER_FADE_OUT_TIME,
-  SLEEP_TIMER_PAUSE_REWIND_SECONDS,
-} from "@/constants";
-import * as EventRecording from "@/services/event-recording";
+  defaultSleepTimer,
+  defaultSleepTimerEnabled,
+  localUserSettings,
+} from "@/db/schema";
 import {
-  __resetForTesting,
-  cancel,
-  maybeReset,
-  reset,
-  startMonitoring,
+  initializeSleepTimer,
+  updateSleepTimerDuration,
+  updateSleepTimerEnabled,
 } from "@/services/sleep-timer-service";
-import { usePlayerUIState } from "@/stores/player-ui-state";
+import { Session } from "@/stores/session";
 import { useSleepTimer } from "@/stores/sleep-timer";
-import {
-  mockIsPlaying,
-  mockTrackPlayerGetProgress,
-  mockTrackPlayerGetRate,
-  mockTrackPlayerPause,
-  mockTrackPlayerSeekTo,
-  mockTrackPlayerSetVolume,
-} from "@test/jest-setup";
+import { setupTestDatabase } from "@test/db-test-utils";
+import { createLocalUserSettings, DEFAULT_TEST_SESSION } from "@test/factories";
+import { resetStoreBeforeEach } from "@test/store-test-utils";
 
-const SLEEP_TIMER_CHECK_INTERVAL = 1000;
+describe("sleep-timer service", () => {
+  const { getDb } = setupTestDatabase();
 
-// Mock the event recording service
-jest.mock("@/services/event-recording", () => ({
-  recordPauseEvent: jest.fn().mockResolvedValue(undefined),
-}));
+  const testSession: Session = {
+    url: DEFAULT_TEST_SESSION.url,
+    email: DEFAULT_TEST_SESSION.email,
+    token: "test-token",
+  };
 
-describe("sleep-timer-service", () => {
+  resetStoreBeforeEach(useSleepTimer, {
+    initialized: false,
+    sleepTimer: defaultSleepTimer,
+    sleepTimerEnabled: defaultSleepTimerEnabled,
+    sleepTimerTriggerTime: null,
+  });
+
   beforeEach(() => {
-    jest.useFakeTimers();
-    __resetForTesting();
-
-    // Reset store to default state
-    useSleepTimer.setState({
-      initialized: true,
-      sleepTimer: 60, // 60 seconds default
-      sleepTimerEnabled: false,
-      sleepTimerTriggerTime: null,
-    });
-    // Reset player store
-    usePlayerUIState.setState({
-      loadedPlaythrough: {
-        playthroughId: "test-playthrough",
-        mediaId: "test-media",
-      },
-      playbackRate: 1.0,
-    });
-
-    // Reset mocks
-    mockTrackPlayerPause.mockReset();
-    mockTrackPlayerSetVolume.mockReset();
-    mockTrackPlayerGetProgress.mockReset();
-    mockTrackPlayerGetRate.mockReset();
-    mockTrackPlayerSeekTo.mockReset();
-    mockIsPlaying.mockReset();
-    mockIsPlaying.mockResolvedValue({ playing: false });
-    (EventRecording.recordPauseEvent as jest.Mock).mockClear();
-
-    // Default mock implementations for pause rewind
-    mockTrackPlayerGetProgress.mockResolvedValue({
-      position: 100,
-      duration: 3600,
-    });
-    mockTrackPlayerGetRate.mockResolvedValue(1.0);
+    jest.clearAllMocks();
   });
 
-  afterEach(() => {
-    __resetForTesting();
-    jest.useRealTimers();
-  });
+  describe("initializeSleepTimer", () => {
+    it("loads settings from database and sets initialized", async () => {
+      const db = getDb();
+      await createLocalUserSettings(db, {
+        userEmail: testSession.email,
+        sleepTimer: 1800, // 30 minutes
+        sleepTimerEnabled: true,
+      });
 
-  describe("startMonitoring", () => {
-    it("only initializes once", () => {
-      startMonitoring();
-      startMonitoring();
+      await initializeSleepTimer(testSession);
 
-      // If it initialized twice, we'd have duplicate intervals
-      // Verify no errors occur
-      expect(true).toBe(true);
+      const state = useSleepTimer.getState();
+      expect(state.initialized).toBe(true);
+      expect(state.sleepTimer).toBe(1800);
+      expect(state.sleepTimerEnabled).toBe(true);
     });
 
-    it("starts the check interval", async () => {
+    it("uses defaults when no settings exist", async () => {
+      await initializeSleepTimer(testSession);
+
+      const state = useSleepTimer.getState();
+      expect(state.initialized).toBe(true);
+      expect(state.sleepTimer).toBe(defaultSleepTimer);
+      expect(state.sleepTimerEnabled).toBe(defaultSleepTimerEnabled);
+    });
+
+    it("skips initialization if already initialized", async () => {
+      const db = getDb();
+      await createLocalUserSettings(db, {
+        userEmail: testSession.email,
+        sleepTimer: 1800,
+        sleepTimerEnabled: true,
+      });
+
+      // First initialization
+      await initializeSleepTimer(testSession);
+      expect(useSleepTimer.getState().sleepTimer).toBe(1800);
+
+      // Change DB value
+      await db.update(localUserSettings).set({ sleepTimer: 3600 });
+
+      // Second initialization should skip
+      await initializeSleepTimer(testSession);
+
+      // Should still have original value
+      expect(useSleepTimer.getState().sleepTimer).toBe(1800);
+    });
+
+    it("does not reset sleepTimerTriggerTime on initialization", async () => {
+      // Set a trigger time before initialization (simulating persisted JS context)
+      const triggerTime = Date.now() + 60000;
+      useSleepTimer.setState({ sleepTimerTriggerTime: triggerTime });
+
+      await initializeSleepTimer(testSession);
+
+      // Trigger time should be preserved
+      expect(useSleepTimer.getState().sleepTimerTriggerTime).toBe(triggerTime);
+    });
+  });
+
+  describe("updateSleepTimerEnabled", () => {
+    it("enables sleep timer", async () => {
+      await updateSleepTimerEnabled(testSession, true);
+
+      expect(useSleepTimer.getState().sleepTimerEnabled).toBe(true);
+    });
+
+    it("disables sleep timer", async () => {
+      // Start with enabled
       useSleepTimer.setState({ sleepTimerEnabled: true });
 
-      startMonitoring();
+      await updateSleepTimerEnabled(testSession, false);
 
-      // Advance by one check interval
-      await jest.advanceTimersByTimeAsync(SLEEP_TIMER_CHECK_INTERVAL);
-
-      // setVolume should have been called (even if just to set to 1.0)
-      expect(mockTrackPlayerSetVolume).toHaveBeenCalled();
-    });
-  });
-
-  describe("checkTimer (via interval)", () => {
-    it("resets volume to 1.0 when timer is disabled", async () => {
-      useSleepTimer.setState({ sleepTimerEnabled: false });
-
-      startMonitoring();
-      await jest.advanceTimersByTimeAsync(SLEEP_TIMER_CHECK_INTERVAL);
-
-      expect(mockTrackPlayerSetVolume).toHaveBeenCalledWith(1.0);
+      expect(useSleepTimer.getState().sleepTimerEnabled).toBe(false);
     });
 
-    it("resets volume to 1.0 when no trigger time is set", async () => {
-      useSleepTimer.setState({
-        sleepTimerEnabled: true,
-        sleepTimerTriggerTime: null,
-      });
+    it("resets trigger time when state changes", async () => {
+      // Set a trigger time
+      useSleepTimer.setState({ sleepTimerTriggerTime: Date.now() + 60000 });
 
-      startMonitoring();
-      await jest.advanceTimersByTimeAsync(SLEEP_TIMER_CHECK_INTERVAL);
-
-      expect(mockTrackPlayerSetVolume).toHaveBeenCalledWith(1.0);
-    });
-
-    it("pauses playback and records event when timer expires", async () => {
-      const now = Date.now();
-      useSleepTimer.setState({
-        sleepTimerEnabled: true,
-        sleepTimerTriggerTime: now - 1000, // Already expired
-      });
-
-      startMonitoring();
-      await jest.advanceTimersByTimeAsync(SLEEP_TIMER_CHECK_INTERVAL);
-
-      expect(mockTrackPlayerPause).toHaveBeenCalled();
-      expect(mockTrackPlayerSetVolume).toHaveBeenCalledWith(1.0);
-      expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
-      expect(EventRecording.recordPauseEvent).toHaveBeenCalled();
-    });
-
-    it("rewinds by SLEEP_TIMER_PAUSE_REWIND_SECONDS when timer expires", async () => {
-      const now = Date.now();
-      useSleepTimer.setState({
-        sleepTimerEnabled: true,
-        sleepTimerTriggerTime: now - 1000,
-      });
-      mockTrackPlayerGetProgress.mockResolvedValue({
-        position: 100,
-        duration: 3600,
-      });
-      usePlayerUIState.setState({ playbackRate: 1.5 });
-
-      startMonitoring();
-      await jest.advanceTimersByTimeAsync(SLEEP_TIMER_CHECK_INTERVAL);
-
-      // At 1.5x speed, rewinds 15 seconds of audio time (10 * 1.5)
-      expect(mockTrackPlayerSeekTo).toHaveBeenCalledWith(
-        100 - SLEEP_TIMER_PAUSE_REWIND_SECONDS * 1.5,
-      );
-    });
-
-    it("fades volume when within fade out window", async () => {
-      const now = Date.now();
-      // Set trigger time to 15 seconds from now (halfway through 30s fade)
-      useSleepTimer.setState({
-        sleepTimerEnabled: true,
-        sleepTimerTriggerTime: now + 15000,
-      });
-
-      startMonitoring();
-      await jest.advanceTimersByTimeAsync(SLEEP_TIMER_CHECK_INTERVAL);
-
-      // Volume should be approximately 0.5 (15000 / 30000)
-      expect(mockTrackPlayerSetVolume).toHaveBeenCalled();
-      const volumeCall = mockTrackPlayerSetVolume.mock.calls[0][0];
-      expect(volumeCall).toBeCloseTo(0.5, 1);
-    });
-
-    it("sets volume to 1.0 when outside fade window", async () => {
-      const now = Date.now();
-      // Set trigger time to 60 seconds from now (well outside 30s fade)
-      useSleepTimer.setState({
-        sleepTimerEnabled: true,
-        sleepTimerTriggerTime: now + 60000,
-      });
-
-      startMonitoring();
-      await jest.advanceTimersByTimeAsync(SLEEP_TIMER_CHECK_INTERVAL);
-
-      expect(mockTrackPlayerSetVolume).toHaveBeenCalledWith(1.0);
-    });
-
-    it("progressively fades volume as time passes", async () => {
-      const now = Date.now();
-      // Start with 25 seconds remaining
-      useSleepTimer.setState({
-        sleepTimerEnabled: true,
-        sleepTimerTriggerTime: now + 25000,
-      });
-
-      startMonitoring();
-
-      // First check - ~25s remaining, volume ~0.83
-      await jest.advanceTimersByTimeAsync(SLEEP_TIMER_CHECK_INTERVAL);
-      const volume1 = mockTrackPlayerSetVolume.mock.calls[0][0];
-      expect(volume1).toBeGreaterThan(0.7);
-
-      // Advance 10 more seconds - ~14s remaining, volume ~0.47
-      mockTrackPlayerSetVolume.mockClear();
-      await jest.advanceTimersByTimeAsync(10000);
-      const volume2 = mockTrackPlayerSetVolume.mock.calls.at(-1)?.[0];
-      expect(volume2).toBeLessThan(0.6);
-      expect(volume2).toBeGreaterThan(0.3);
-    });
-  });
-
-  describe("reset", () => {
-    it("sets trigger time when enabled", async () => {
-      useSleepTimer.setState({
-        sleepTimerEnabled: true,
-        sleepTimer: 120, // 2 minutes
-      });
-
-      const before = Date.now();
-      await reset();
-      const after = Date.now();
-
-      const triggerTime = useSleepTimer.getState().sleepTimerTriggerTime;
-      expect(triggerTime).not.toBeNull();
-      // Should be approximately 120 seconds from now
-      expect(triggerTime).toBeGreaterThanOrEqual(before + 120000);
-      expect(triggerTime).toBeLessThanOrEqual(after + 120000);
-    });
-
-    it("does nothing when disabled", async () => {
-      useSleepTimer.setState({
-        sleepTimerEnabled: false,
-        sleepTimer: 120,
-      });
-
-      await reset();
+      await updateSleepTimerEnabled(testSession, true);
 
       expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
     });
 
-    it("resets volume to 1.0", async () => {
-      useSleepTimer.setState({
-        sleepTimerEnabled: true,
-        sleepTimer: 60,
+    it("persists enabled state to database", async () => {
+      const db = getDb();
+
+      await updateSleepTimerEnabled(testSession, true);
+
+      const settings = await db.query.localUserSettings.findFirst({
+        where: (s, { eq }) => eq(s.userEmail, testSession.email),
       });
-
-      await reset();
-
-      expect(mockTrackPlayerSetVolume).toHaveBeenCalledWith(1.0);
+      expect(settings?.sleepTimerEnabled).toBe(true);
     });
   });
 
-  describe("maybeReset", () => {
-    it("resets timer when enabled and playing", async () => {
-      useSleepTimer.setState({
-        sleepTimerEnabled: true,
-        sleepTimer: 60,
-      });
-      mockIsPlaying.mockResolvedValue({ playing: true });
+  describe("updateSleepTimerDuration", () => {
+    it("updates timer duration in store", async () => {
+      await updateSleepTimerDuration(testSession, 2700); // 45 minutes
 
-      await maybeReset();
-
-      expect(useSleepTimer.getState().sleepTimerTriggerTime).not.toBeNull();
+      expect(useSleepTimer.getState().sleepTimer).toBe(2700);
     });
 
-    it("does nothing when disabled", async () => {
-      useSleepTimer.setState({
-        sleepTimerEnabled: false,
-        sleepTimer: 60,
+    it("persists timer duration to database", async () => {
+      const db = getDb();
+
+      await updateSleepTimerDuration(testSession, 2700);
+
+      const settings = await db.query.localUserSettings.findFirst({
+        where: (s, { eq }) => eq(s.userEmail, testSession.email),
       });
-      mockIsPlaying.mockResolvedValue({ playing: true });
-
-      await maybeReset();
-
-      expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
-      expect(mockIsPlaying).not.toHaveBeenCalled();
-    });
-
-    it("does nothing when not playing", async () => {
-      useSleepTimer.setState({
-        sleepTimerEnabled: true,
-        sleepTimer: 60,
-      });
-      mockIsPlaying.mockResolvedValue({ playing: false });
-
-      await maybeReset();
-
-      expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
-    });
-  });
-
-  describe("cancel", () => {
-    it("clears the trigger time", async () => {
-      useSleepTimer.setState({
-        sleepTimerEnabled: true,
-        sleepTimerTriggerTime: Date.now() + 60000,
-      });
-
-      await cancel();
-
-      expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
-    });
-
-    it("resets volume to 1.0", async () => {
-      await cancel();
-
-      expect(mockTrackPlayerSetVolume).toHaveBeenCalledWith(1.0);
-    });
-  });
-
-  describe("fade timing edge cases", () => {
-    it("handles exactly SLEEP_TIMER_FADE_OUT_TIME remaining", async () => {
-      const now = Date.now();
-      useSleepTimer.setState({
-        sleepTimerEnabled: true,
-        sleepTimerTriggerTime: now + SLEEP_TIMER_FADE_OUT_TIME,
-      });
-
-      startMonitoring();
-      await jest.advanceTimersByTimeAsync(SLEEP_TIMER_CHECK_INTERVAL);
-
-      // At exactly fade time, volume should be 1.0 (30000/30000)
-      const volumeCall = mockTrackPlayerSetVolume.mock.calls[0][0];
-      expect(volumeCall).toBeCloseTo(1.0, 1);
-    });
-
-    it("handles very short time remaining", async () => {
-      const now = Date.now();
-      useSleepTimer.setState({
-        sleepTimerEnabled: true,
-        sleepTimerTriggerTime: now + 1000, // 1 second remaining
-      });
-
-      startMonitoring();
-      await jest.advanceTimersByTimeAsync(SLEEP_TIMER_CHECK_INTERVAL);
-
-      // Volume should be very low (1000/30000 ≈ 0.033)
-      // But timer expires before we check, so it should pause
-      expect(mockTrackPlayerPause).toHaveBeenCalled();
+      expect(settings?.sleepTimer).toBe(2700);
     });
   });
 });

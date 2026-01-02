@@ -2,15 +2,64 @@ import {
   SLEEP_TIMER_FADE_OUT_TIME,
   SLEEP_TIMER_PAUSE_REWIND_SECONDS,
 } from "@/constants";
+import {
+  getSleepTimerSettings,
+  setSleepTimerEnabled,
+  setSleepTimerTime,
+} from "@/db/settings";
 import { recordPauseEvent } from "@/services/event-recording";
 import * as Heartbeat from "@/services/position-heartbeat";
 import * as Player from "@/services/trackplayer-wrapper";
 import { usePlayerUIState } from "@/stores/player-ui-state";
+import { Session } from "@/stores/session";
 import { setTriggerTime, useSleepTimer } from "@/stores/sleep-timer";
 
 const SLEEP_TIMER_CHECK_INTERVAL = 1000;
 let sleepTimerCheckInterval: NodeJS.Timeout | null = null;
 let unsubscribeFromStore: (() => void) | null = null;
+
+/**
+ * Initialize the sleep timer store.
+ * Loads user preferences from DB if not already initialized.
+ */
+export async function initializeSleepTimer(session: Session) {
+  if (useSleepTimer.getState().initialized) {
+    console.debug("[SleepTimer] Already initialized, skipping");
+    return;
+  }
+  console.debug("[SleepTimer] Initializing");
+  const settings = await getSleepTimerSettings(session.email);
+  useSleepTimer.setState({
+    initialized: true,
+    sleepTimer: settings.sleepTimer,
+    sleepTimerEnabled: settings.sleepTimerEnabled,
+  });
+}
+
+/**
+ * Updates the enabled state for the sleep timer and persists it to the database.
+ */
+export async function updateSleepTimerEnabled(
+  session: Session,
+  enabled: boolean,
+) {
+  useSleepTimer.setState({
+    sleepTimerEnabled: enabled,
+    sleepTimerTriggerTime: null, // Reset trigger time in memory
+  });
+  await setSleepTimerEnabled(session.email, enabled);
+}
+
+/**
+ * Updates the duration for the sleep timer and persists it to the database.
+ */
+export async function updateSleepTimerDuration(
+  session: Session,
+  seconds: number,
+) {
+  useSleepTimer.setState({ sleepTimer: seconds });
+  await setSleepTimerTime(session.email, seconds);
+}
 
 /**
  * Start monitoring sleep timer (checks every second).

@@ -1,12 +1,13 @@
 import { useCallback } from "react";
 import { router } from "expo-router";
 
+import { startDownload } from "@/services/download-service";
 import {
   abandonPlaythrough,
   finishPlaythrough,
   unloadPlayer,
 } from "@/services/playback-controls";
-import { startDownload, useDownloads } from "@/stores/downloads";
+import { useDownloads } from "@/stores/downloads";
 import { type LoadedPlaythrough } from "@/stores/player-ui-state";
 import { Session } from "@/stores/session";
 

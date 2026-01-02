@@ -15,11 +15,9 @@ import { getExpoDb } from "@/db/db";
 import { useAppBoot } from "@/hooks/use-app-boot";
 import { useAppState } from "@/hooks/use-app-state";
 import { useForegroundSync } from "@/hooks/use-foreground-sync";
+import { usePlayerSubscriptions } from "@/hooks/use-player-subscriptions";
 import { useRefreshLibraryDataVersion } from "@/hooks/use-refresh-library-data-version";
-import {
-  usePlayerSubscriptions,
-  usePlayerUIState,
-} from "@/stores/player-ui-state";
+import { usePlayerUIState } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
 import { Colors } from "@/styles";
 

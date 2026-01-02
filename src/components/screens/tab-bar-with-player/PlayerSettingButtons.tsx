@@ -5,9 +5,10 @@ import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
 
 import { IconButton } from "@/components";
+import { updateSleepTimerEnabled } from "@/services/sleep-timer-service";
 import { usePlayerUIState as usePlayer } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
-import { setSleepTimerState, useSleepTimer } from "@/stores/sleep-timer";
+import { useSleepTimer } from "@/stores/sleep-timer";
 import { Colors } from "@/styles";
 import { formatPlaybackRate, secondsDisplayMinutesOnly } from "@/utils";
 
@@ -34,7 +35,7 @@ function SleepTimerButton() {
         router.navigate("/sleep-timer");
       }}
       onLongPress={() => {
-        if (session) setSleepTimerState(session, !sleepTimerEnabled);
+        if (session) updateSleepTimerEnabled(session, !sleepTimerEnabled);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }}
     >

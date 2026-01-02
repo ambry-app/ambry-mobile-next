@@ -8,12 +8,12 @@ import {
 } from "@/db/migration-player-state";
 import { sync } from "@/db/sync";
 import { registerBackgroundSyncTask } from "@/services/background-sync-service";
+import { initializeDownloads } from "@/services/download-service";
 import { initializePlayer } from "@/services/playback-controls";
+import { initializeSleepTimer } from "@/services/sleep-timer-service";
 import { initializeDataVersion } from "@/stores/data-version";
 import { initializeDevice } from "@/stores/device";
-import { initializeDownloads } from "@/stores/downloads";
 import { useSession } from "@/stores/session";
-import { initializeSleepTimer } from "@/stores/sleep-timer";
 import migrations from "@drizzle/migrations";
 
 const useAppBoot = () => {
