@@ -29,7 +29,6 @@ import {
   setActivePlaythroughIdForDevice,
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
-import { bumpPlaythroughDataVersion } from "@/stores/data-version";
 import { usePlayerUIState } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
 import { Session } from "@/types/session";
@@ -92,9 +91,6 @@ export async function startNewPlaythrough(
 
   // Track this as the active playthrough for this device
   await setActivePlaythroughIdForDevice(session, playthroughId);
-
-  // FIXME: this needs to be called later, after the player store state has been updated.
-  bumpPlaythroughDataVersion();
 
   return result;
 }
@@ -160,9 +156,6 @@ export async function resumePlaythrough(
 
   // Track this as the active playthrough for this device
   await setActivePlaythroughIdForDevice(session, playthroughId);
-
-  // FIXME: this needs to be called later, after the player store state has been updated.
-  bumpPlaythroughDataVersion();
 
   return result;
 }

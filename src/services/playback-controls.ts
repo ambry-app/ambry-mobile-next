@@ -272,6 +272,7 @@ export async function loadAndPlayMedia(session: Session, mediaId: string) {
       : await Loader.startNewPlaythrough(session, mediaId);
 
     applyTrackLoadResult(result);
+    bumpPlaythroughDataVersion();
     await play();
   } catch (error) {
     console.error("[Controls] Failed to load and play media:", error);
@@ -294,6 +295,7 @@ export async function continueExistingPlaythrough(
   try {
     const result = await Loader.continuePlaythrough(session, playthroughId);
     applyTrackLoadResult(result);
+    bumpPlaythroughDataVersion();
     await play();
   } catch (error) {
     console.error("[Controls] Failed to continue playthrough:", error);
@@ -313,6 +315,7 @@ export async function startFreshPlaythrough(session: Session, mediaId: string) {
   try {
     const result = await Loader.startNewPlaythrough(session, mediaId);
     applyTrackLoadResult(result);
+    bumpPlaythroughDataVersion();
     await play();
   } catch (error) {
     console.error("[Controls] Failed to start playthrough:", error);
@@ -410,6 +413,8 @@ export async function resumeAndLoadPlaythrough(
       streaming: result.streaming,
       ...initialChapterState(result.chapters, result.position, result.duration),
     });
+
+    bumpPlaythroughDataVersion();
 
     await play();
   } catch (error) {

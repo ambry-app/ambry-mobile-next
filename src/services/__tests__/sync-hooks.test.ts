@@ -22,9 +22,14 @@ describe("usePullToRefresh", () => {
   });
 
   it("refreshing is true during onRefresh, then false after", async () => {
-    // Patch sync to delay
+    // Use a controlled promise so we can check state while sync is blocked
+    let resolveSync!: () => void;
+    const syncPromise = new Promise<void>((resolve) => {
+      resolveSync = resolve;
+    });
+
     syncSpy = jest.spyOn(syncService, "sync").mockImplementation(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await syncPromise;
       return [
         { success: true, result: "no_changes" },
         { success: true, result: "no_changes" },
@@ -33,16 +38,21 @@ describe("usePullToRefresh", () => {
 
     const { result } = renderHook(() => usePullToRefresh(DEFAULT_TEST_SESSION));
 
-    // Call onRefresh but do not await
-    void result.current.onRefresh();
-    // Yield to event loop to allow state update
-    await act(async () => {});
-    // Now refreshing should be true
-    expect(result.current.refreshing).toBe(true);
-    // Wait for refresh to complete
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 20));
+    // Start the refresh (wrap in act to flush state updates)
+    let refreshPromise!: Promise<void>;
+    act(() => {
+      refreshPromise = result.current.onRefresh();
     });
+
+    // Now refreshing should be true (sync is blocked on our promise)
+    expect(result.current.refreshing).toBe(true);
+
+    // Release the sync and wait for completion
+    await act(async () => {
+      resolveSync();
+      await refreshPromise;
+    });
+
     // Should be false after
     expect(result.current.refreshing).toBe(false);
   });
