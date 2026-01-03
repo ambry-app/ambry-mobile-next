@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import * as schema from "@/db/schema";
+import { Chapter } from "@/types/db-schema";
 
 // ============================================================================
 // Types
@@ -48,8 +48,8 @@ export interface PlayerUIState {
   shouldRenderExpanded: boolean;
 
   /* chapter state */
-  chapters: schema.Chapter[];
-  currentChapter: schema.Chapter | undefined;
+  chapters: Chapter[];
+  currentChapter: Chapter | undefined;
   previousChapterStartTime: number;
 
   /* seek state - for UI animation */
@@ -176,7 +176,7 @@ function maybeUpdateChapterState() {
  * Set the initial chapter state when a new track is loaded.
  */
 export function initialChapterState(
-  chapters: schema.Chapter[],
+  chapters: Chapter[],
   position: number,
   duration: number,
 ) {

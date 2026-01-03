@@ -3,7 +3,7 @@
 import * as LegacyFileSystem from "expo-file-system/legacy";
 import { create } from "zustand";
 
-import { DownloadedThumbnails } from "@/db/schema";
+import { DownloadedThumbnails } from "@/types/db-schema";
 
 export type DownloadStatus = "pending" | "error" | "ready";
 

@@ -102,7 +102,7 @@ module.exports = defineConfig([
             },
 
             // Stores are PURE STATE - can only import utils and other stores
-            { from: "stores", allow: ["stores", "db", "utils"] },
+            { from: "stores", allow: ["stores", "utils"] },
 
             // Services can import db, utils, stores, other services (not UI)
             // Stores export pure setters that don't import services, so no cycle is created
