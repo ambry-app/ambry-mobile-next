@@ -61,6 +61,7 @@ export function PlayerContextMenuImpl({
 }: PlayerContextMenuImplProps) {
   // Build menu items array
   const menuItems: ReactElement<ButtonProps>[] = [];
+  const actionMenuItems: ReactElement<ButtonProps>[] = [];
 
   // Go to book
   menuItems.push(
@@ -74,81 +75,52 @@ export function PlayerContextMenuImpl({
     </Button>,
   );
 
-  // Go to author(s)
-  const singleAuthor = authors.length === 1 ? authors[0] : null;
-  if (singleAuthor) {
-    menuItems.push(
-      <Button
-        key="go-to-author"
-        leadingIcon="filled.Person"
-        elementColors={menuColors}
-        onPress={() => handleGoToPerson(singleAuthor)}
-      >
-        Go to author: {singleAuthor.name}
-      </Button>,
-    );
-  } else if (authors.length > 1) {
-    menuItems.push(
-      <Submenu
-        key="go-to-author-submenu"
-        button={
-          <Button leadingIcon="filled.Person" elementColors={menuColors}>
-            Go to author
-          </Button>
-        }
-      >
-        {authors.map((author) => (
-          <Button
-            key={author.id}
-            elementColors={menuColors}
-            onPress={() => handleGoToPerson(author)}
-          >
-            {author.name}
-          </Button>
-        ))}
-      </Submenu>,
-    );
-  }
+  menuItems.push(
+    <Submenu
+      key="go-to-author-submenu"
+      button={
+        <Button leadingIcon="filled.Person" elementColors={menuColors}>
+          {authors.length > 1 ? "Authors" : "Author"}
+        </Button>
+      }
+    >
+      {authors.map((author) => (
+        <Button
+          key={author.id}
+          elementColors={menuColors}
+          onPress={() => handleGoToPerson(author)}
+        >
+          {author.name}
+        </Button>
+      ))}
+    </Submenu>,
+  );
 
-  // Go to narrator(s) - only if <= threshold
-  const singleNarrator = narrators.length === 1 ? narrators[0] : null;
-  if (singleNarrator) {
-    menuItems.push(
-      <Button
-        key="go-to-narrator"
-        leadingIcon="filled.Person"
-        elementColors={menuColors}
-        onPress={() => handleGoToPerson(singleNarrator)}
-      >
-        Go to narrator: {singleNarrator.name}
-      </Button>,
-    );
-  } else if (narrators.length > 1 && narrators.length <= NARRATOR_THRESHOLD) {
-    menuItems.push(
-      <Submenu
-        key="go-to-narrator-submenu"
-        button={
-          <Button leadingIcon="filled.Person" elementColors={menuColors}>
-            Go to narrator
-          </Button>
-        }
-      >
-        {narrators.map((narrator) => (
-          <Button
-            key={narrator.id}
-            elementColors={menuColors}
-            onPress={() => handleGoToPerson(narrator)}
-          >
-            {narrator.name}
-          </Button>
-        ))}
-      </Submenu>,
-    );
-  }
+  menuItems.push(
+    <Submenu
+      key="go-to-narrator-submenu"
+      button={
+        <Button leadingIcon="filled.Person" elementColors={menuColors}>
+          {narrators.length > 1 ? "Narrators" : "Narrator"}
+        </Button>
+      }
+    >
+      {narrators.slice(0, NARRATOR_THRESHOLD).map((narrator) => (
+        <Button
+          key={narrator.id}
+          elementColors={menuColors}
+          onPress={() => handleGoToPerson(narrator)}
+        >
+          {narrator.name}
+        </Button>
+      ))}
+    </Submenu>,
+  );
+  // }
 
   // Download (only if not already downloaded or downloading)
   if (!downloadStatus) {
-    menuItems.push(
+    actionMenuItems.push(
       <Button
         key="download"
         leadingIcon="filled.KeyboardArrowDown"
@@ -161,7 +133,7 @@ export function PlayerContextMenuImpl({
   }
 
   // Unload player
-  menuItems.push(
+  actionMenuItems.push(
     <Button
       key="unload"
       leadingIcon="filled.Close"
@@ -173,7 +145,7 @@ export function PlayerContextMenuImpl({
   );
 
   // Mark finished
-  menuItems.push(
+  actionMenuItems.push(
     <Button
       key="mark-finished"
       leadingIcon="filled.CheckCircle"
@@ -185,7 +157,7 @@ export function PlayerContextMenuImpl({
   );
 
   // Abandon
-  menuItems.push(
+  actionMenuItems.push(
     <Button
       key="abandon"
       leadingIcon="filled.Close"
@@ -194,6 +166,19 @@ export function PlayerContextMenuImpl({
     >
       Abandon
     </Button>,
+  );
+
+  menuItems.push(
+    <Submenu
+      key="actions-submenu"
+      button={
+        <Button leadingIcon="filled.Done" elementColors={menuColors}>
+          Actions
+        </Button>
+      }
+    >
+      {actionMenuItems}
+    </Submenu>,
   );
 
   return (

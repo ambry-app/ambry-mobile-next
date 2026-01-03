@@ -218,7 +218,8 @@ export const Scrubber = memo(function Scrubber() {
 
       if (lowVelocity) {
         // Low velocity, leave at current position without decay
-        if (Math.abs(translateX.value - startX.value) !== 0) {
+        if (Math.abs(translateX.value - startX.value) >= 1) {
+          // only seek if position changed
           const newPosition = translateXToTime(translateX.value);
           scheduleOnRN(seekTo, newPosition, SeekSource.SCRUBBER);
         }
