@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 
 import {
-  ActivePlaythrough,
+  type ActivePlaythrough,
   getFinishedOrAbandonedPlaythrough,
   getInProgressPlaythrough,
-} from "@/db/playthroughs";
+} from "@/services/playthrough-query-service";
 import { useIsPlaying } from "@/services/trackplayer-wrapper";
 import { useDataVersion } from "@/stores/data-version";
 import { usePlayerUIState } from "@/stores/player-ui-state";

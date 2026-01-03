@@ -3,6 +3,17 @@ import { useDataVersion } from "@/stores/data-version";
 import { Session } from "@/types/session";
 
 /**
+ * Gets the library data version (last sync timestamp) for a session.
+ * Used to detect if background sync has updated data while app was backgrounded.
+ */
+export async function getLibraryDataVersion(
+  session: Session,
+): Promise<Date | null> {
+  const { libraryDataVersion } = await getServerSyncTimestamps(session);
+  return libraryDataVersion;
+}
+
+/**
  * Initialize the data version store.
  * Loads sync timestamps from DB if not already initialized.
  * Returns whether initial sync is needed (for use by app boot).

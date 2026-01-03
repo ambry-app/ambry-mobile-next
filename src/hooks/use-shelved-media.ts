@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { isMediaOnShelf, toggleMediaOnShelf } from "@/db/shelves";
+import { isMediaOnShelf, toggleMediaOnShelf } from "@/services/shelf-service";
 import { bumpShelfDataVersion } from "@/stores/data-version";
 import { Session } from "@/types/session";
 

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { AppStateStatus } from "react-native";
 
-import { getServerSyncTimestamps } from "@/db/sync-helpers";
+import { getLibraryDataVersion } from "@/services/data-version-service";
 import { setLibraryDataVersion } from "@/stores/data-version";
 import { useSession } from "@/stores/session";
 
@@ -14,7 +14,7 @@ export function useRefreshLibraryDataVersion(appState: AppStateStatus) {
     const run = async () => {
       if (session && appState === "active") {
         console.debug("[AppState] reloading library data version");
-        const { libraryDataVersion } = await getServerSyncTimestamps(session);
+        const libraryDataVersion = await getLibraryDataVersion(session);
         if (libraryDataVersion) setLibraryDataVersion(libraryDataVersion);
       }
     };

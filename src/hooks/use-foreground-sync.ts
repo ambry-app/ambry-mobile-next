@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { AppStateStatus } from "react-native";
 
-import { getExpoDb } from "@/db/db";
+import { performWalCheckpoint } from "@/services/db-service";
 import { sync } from "@/services/sync-service";
 import { useSession } from "@/stores/session";
 
@@ -22,7 +22,7 @@ export function useForegroundSync(appState: AppStateStatus) {
         await sync(session);
 
         console.debug("[ForegroundSync] performing WAL checkpoint");
-        getExpoDb().execSync("PRAGMA wal_checkpoint(PASSIVE);");
+        performWalCheckpoint();
 
         console.debug("[ForegroundSync] completed successfully");
       } catch (error) {

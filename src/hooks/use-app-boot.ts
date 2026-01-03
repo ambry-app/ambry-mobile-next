@@ -1,56 +1,23 @@
 import { useEffect, useState } from "react";
-import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 
-import { getExpoSqliteDb } from "@/db/db";
-import {
-  migrateFromPlayerStateToPlaythrough,
-  needsPlayerStateMigration,
-} from "@/db/migration-player-state";
 import { registerBackgroundSyncTask } from "@/services/background-sync-service";
 import { initializeDataVersion } from "@/services/data-version-service";
+import { useDatabaseMigrations } from "@/services/db-service";
 import { initializeDownloads } from "@/services/download-service";
 import { initializePlayer } from "@/services/playback-controls";
 import { initializeSleepTimer } from "@/services/sleep-timer-service";
 import { sync } from "@/services/sync-service";
 import { initializeDevice } from "@/stores/device";
 import { useSession } from "@/stores/session";
-import migrations from "@drizzle/migrations";
 
 const useAppBoot = () => {
   const [isReady, setIsReady] = useState(false);
   const [initialSyncComplete, setInitialSyncComplete] = useState(false);
-  const [playerStateMigrationComplete, setPlayerStateMigrationComplete] =
-    useState(false);
-  const { success: migrationSuccess, error: migrationError } = useMigrations(
-    getExpoSqliteDb(),
-    migrations,
-  );
+  const { success: migrationSuccess, error: migrationError } =
+    useDatabaseMigrations();
   const session = useSession((state) => state.session);
 
-  // Step 2: PlayerState migration (after Drizzle migrations, before boot)
-  useEffect(() => {
-    async function runPlayerStateMigration() {
-      if (!migrationSuccess) return;
-
-      const shouldMigrate = await needsPlayerStateMigration();
-      if (shouldMigrate) {
-        console.debug("[AppBoot] Old PlayerState data detected, migrating...");
-        try {
-          await migrateFromPlayerStateToPlaythrough();
-          console.debug("[AppBoot] PlayerState migration complete");
-        } catch (e) {
-          console.error("[AppBoot] PlayerState migration error", e);
-          // Continue boot even if migration fails
-        }
-      }
-
-      setPlayerStateMigrationComplete(true);
-    }
-
-    runPlayerStateMigration();
-  }, [migrationSuccess]);
-
-  // Step 3: Boot (session-dependent initialization)
+  // Boot (after migrations complete, session-dependent initialization)
   useEffect(() => {
     async function boot() {
       if (!session) {
@@ -95,10 +62,10 @@ const useAppBoot = () => {
       setIsReady(true);
     }
 
-    if (playerStateMigrationComplete) {
+    if (migrationSuccess) {
       boot();
     }
-  }, [playerStateMigrationComplete, session]);
+  }, [migrationSuccess, session]);
 
   return { isReady, migrationError, initialSyncComplete };
 };

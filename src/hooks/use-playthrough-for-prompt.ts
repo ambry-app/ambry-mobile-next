@@ -1,5 +1,5 @@
-import { getPlaythroughById } from "@/db/playthroughs";
 import { useLibraryData } from "@/hooks/use-library-data";
+import { getPlaythroughById } from "@/services/playthrough-query-service";
 import { useSession } from "@/stores/session";
 
 export function usePlaythroughForPrompt(playthroughId: string) {

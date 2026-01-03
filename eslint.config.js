@@ -98,7 +98,7 @@ module.exports = defineConfig([
             // Hooks can import stores, services, utils (not UI)
             {
               from: "hooks",
-              allow: ["hooks", "stores", "services", "db", "utils"],
+              allow: ["hooks", "stores", "services", "utils"],
             },
 
             // Stores are PURE STATE - can only import utils and other stores
