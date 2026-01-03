@@ -1,6 +1,6 @@
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
 
-import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { usePullToRefresh } from "@/services/sync-service";
 import { Session } from "@/types/session";
 
 import {

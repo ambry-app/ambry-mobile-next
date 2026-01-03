@@ -8,17 +8,17 @@ import {
   MediaContextMenu,
   PlayButton as PlayerPlayButton,
 } from "@/components";
-import { MediaHeaderInfo } from "@/db/library";
-import {
-  MediaPlaybackState,
-  useMediaPlaybackState,
-} from "@/hooks/use-media-playback-state";
-import { useShelvedMedia } from "@/hooks/use-shelved-media";
 import { startDownload } from "@/services/download-service";
+import { MediaHeaderInfo } from "@/services/library-service";
 import {
   continueExistingPlaythrough,
   startFreshPlaythrough,
 } from "@/services/playback-controls";
+import {
+  MediaPlaybackState,
+  useMediaPlaybackState,
+} from "@/services/playthrough-query-service";
+import { useShelvedMedia } from "@/services/shelf-service";
 import { useDownloads } from "@/stores/downloads";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";

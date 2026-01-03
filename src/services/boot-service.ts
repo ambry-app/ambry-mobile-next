@@ -1,3 +1,10 @@
+/**
+ * Boot Service
+ *
+ * Handles application boot sequence including migrations, store initialization,
+ * and initial sync.
+ */
+
 import { useEffect, useState } from "react";
 
 import { registerBackgroundSyncTask } from "@/services/background-sync-service";
@@ -10,7 +17,25 @@ import { sync } from "@/services/sync-service";
 import { initializeDevice } from "@/stores/device";
 import { useSession } from "@/stores/session";
 
-const useAppBoot = () => {
+/**
+ * Hook that handles application boot sequence.
+ *
+ * Boot sequence:
+ * 1. Apply database migrations (schema + data migrations)
+ * 2. Check session (exit early if none)
+ * 3. Initialize device info
+ * 4. Initialize data version store
+ * 5. Initialize downloads store
+ * 6. Initialize sleep timer store
+ * 7. Initial sync if needed
+ * 8. Initialize player
+ * 9. Register background sync task
+ *
+ * @returns isReady - true when boot is complete
+ * @returns migrationError - Error if migrations failed
+ * @returns initialSyncComplete - true when initial sync has finished
+ */
+export function useAppBoot() {
   const [isReady, setIsReady] = useState(false);
   const [initialSyncComplete, setInitialSyncComplete] = useState(false);
   const { success: migrationSuccess, error: migrationError } =
@@ -68,6 +93,4 @@ const useAppBoot = () => {
   }, [migrationSuccess, session]);
 
   return { isReady, migrationError, initialSyncComplete };
-};
-
-export { useAppBoot };
+}

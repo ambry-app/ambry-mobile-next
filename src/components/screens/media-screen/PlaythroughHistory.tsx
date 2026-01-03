@@ -5,11 +5,11 @@ import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
 
 import { PlaythroughContextMenu } from "@/components";
+import { useLibraryData } from "@/services/library-service";
 import {
   getAllPlaythroughsForMedia,
   PlaythroughForMedia,
-} from "@/db/playthroughs";
-import { useLibraryData } from "@/hooks/use-library-data";
+} from "@/services/playthrough-query-service";
 import { useDataVersion } from "@/stores/data-version";
 import { useDebug } from "@/stores/debug";
 import { usePlayerUIState as usePlayer } from "@/stores/player-ui-state";

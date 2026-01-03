@@ -7,8 +7,8 @@ import {
   HORIZONTAL_TILE_SPACING,
   HORIZONTAL_TILE_WIDTH_RATIO,
 } from "@/constants";
-import { getSavedMediaPage } from "@/db/shelves";
-import { useLibraryData } from "@/hooks/use-library-data";
+import { useLibraryData } from "@/services/library-service";
+import { getSavedMediaPage } from "@/services/shelf-service";
 import { useDataVersion } from "@/stores/data-version";
 import { useScreen } from "@/stores/screen";
 import { Session } from "@/types/session";

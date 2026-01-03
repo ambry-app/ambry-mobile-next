@@ -2,11 +2,11 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { Loading } from "@/components";
-import { usePlaythroughForPrompt } from "@/hooks/use-playthrough-for-prompt";
 import {
   resumeAndLoadPlaythrough,
   startFreshPlaythrough,
 } from "@/services/playback-controls";
+import { usePlaythroughForPrompt } from "@/services/playthrough-query-service";
 import { Colors } from "@/styles";
 import { secondsDisplay } from "@/utils";
 import { timeAgo } from "@/utils/date";

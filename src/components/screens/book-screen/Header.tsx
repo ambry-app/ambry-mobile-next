@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { NamesList } from "@/components";
-import { BookDetails } from "@/db/library";
+import { BookDetails } from "@/services/library-service";
 import { Colors } from "@/styles";
 import { formatPublished } from "@/utils";
 

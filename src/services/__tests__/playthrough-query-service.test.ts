@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 
-import { useMediaPlaybackState } from "@/hooks/use-media-playback-state";
+import { useMediaPlaybackState } from "@/services/playthrough-query-service";
 import { useDataVersion } from "@/stores/data-version";
 import { usePlayerUIState } from "@/stores/player-ui-state";
 import { setupTestDatabase } from "@test/db-test-utils";

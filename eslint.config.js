@@ -32,7 +32,6 @@ module.exports = defineConfig([
     settings: {
       "boundaries/elements": [
         { type: "ui", pattern: "src/components/**" },
-        { type: "hooks", pattern: "src/hooks/**" },
         { type: "stores", pattern: "src/stores/**" },
         { type: "services", pattern: "src/services/**" },
         { type: "db", pattern: "src/db/**" },
@@ -89,16 +88,10 @@ module.exports = defineConfig([
         {
           default: "disallow",
           rules: [
-            // UI can import from anything
+            // UI can import from services, stores, utils (not db directly)
             {
               from: "ui",
-              allow: ["ui", "hooks", "stores", "services", "db", "utils"],
-            },
-
-            // Hooks can import stores, services, utils (not UI)
-            {
-              from: "hooks",
-              allow: ["hooks", "stores", "services", "utils"],
+              allow: ["ui", "stores", "services", "utils"],
             },
 
             // Stores are PURE STATE - can only import utils and other stores
@@ -111,7 +104,7 @@ module.exports = defineConfig([
               allow: ["services", "stores", "db", "utils"],
             },
 
-            // DB layer only imports stores and utils
+            // DB layer only imports utils (and other db modules)
             { from: "db", allow: ["db", "utils"] },
 
             // Utils are leaf nodes - no imports from other layers

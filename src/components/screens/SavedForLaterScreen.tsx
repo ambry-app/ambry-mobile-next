@@ -2,9 +2,9 @@ import { FlatList, StyleSheet, Text } from "react-native";
 
 import { FadeInOnMount, Loading, MediaTile, TimeAgo } from "@/components";
 import { PAGE_SIZE } from "@/constants";
-import { getSavedMediaPage } from "@/db/shelves";
-import { usePaginatedLibraryData } from "@/hooks/use-paginated-library-data";
-import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { usePaginatedLibraryData } from "@/services/library-service";
+import { getSavedMediaPage } from "@/services/shelf-service";
+import { usePullToRefresh } from "@/services/sync-service";
 import { useDataVersion } from "@/stores/data-version";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";

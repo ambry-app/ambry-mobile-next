@@ -2,8 +2,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useShallow } from "zustand/shallow";
 
 import { PlayerProgressBar, TileImage, TileText } from "@/components";
-import { getMedia } from "@/db/library";
-import { useLibraryData } from "@/hooks/use-library-data";
+import { getMedia } from "@/services/library-service";
+import { useLibraryData } from "@/services/library-service";
 import { expandPlayer } from "@/services/playback-controls";
 import { usePlayerUIState as usePlayer } from "@/stores/player-ui-state";
 import { Colors } from "@/styles";

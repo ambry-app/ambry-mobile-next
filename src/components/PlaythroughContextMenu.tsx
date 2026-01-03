@@ -4,13 +4,16 @@ import { Alert, StyleSheet, View } from "react-native";
 import { Button, ButtonProps, ContextMenu } from "@expo/ui/jetpack-compose";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
-import { deletePlaythrough, PlaythroughForMedia } from "@/db/playthroughs";
 import {
   abandonPlaythrough,
   continueExistingPlaythrough,
   finishPlaythrough,
   resumeAndLoadPlaythrough,
 } from "@/services/playback-controls";
+import {
+  deletePlaythrough,
+  PlaythroughForMedia,
+} from "@/services/playthrough-query-service";
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";

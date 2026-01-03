@@ -1,12 +1,12 @@
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 
-import { useDebounce } from "@/hooks/use-debounce";
 import { pause, play } from "@/services/playback-controls";
 import {
   State,
   useIsPlaying,
   usePlaybackState,
 } from "@/services/trackplayer-wrapper";
+import { useDebounce } from "@/utils/hooks";
 
 import { IconButton } from "./IconButton";
 import { Loading } from "./Loading";

@@ -2,10 +2,13 @@ import { FlatList, StyleSheet } from "react-native";
 
 import { FadeInOnMount, Loading, SeriesBookTile } from "@/components";
 import { PAGE_SIZE } from "@/constants";
-import { getSeriesBooksPage, getSeriesDetails } from "@/db/library";
-import { useLibraryData } from "@/hooks/use-library-data";
-import { usePaginatedLibraryData } from "@/hooks/use-paginated-library-data";
-import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import {
+  getSeriesBooksPage,
+  getSeriesDetails,
+} from "@/services/library-service";
+import { useLibraryData } from "@/services/library-service";
+import { usePaginatedLibraryData } from "@/services/library-service";
+import { usePullToRefresh } from "@/services/sync-service";
 import { Session } from "@/types/session";
 
 import { Header } from "./series-screen";

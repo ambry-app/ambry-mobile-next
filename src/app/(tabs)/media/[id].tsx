@@ -3,7 +3,7 @@ import { Stack, useLocalSearchParams } from "expo-router";
 import { Delay } from "@/components";
 import { MediaScreen } from "@/components/screens";
 import { getMediaTitle } from "@/db/library";
-import { useLibraryData } from "@/hooks/use-library-data";
+import { useLibraryData } from "@/services/library-service";
 import { useSession } from "@/stores/session";
 import { RouterParams } from "@/types/router";
 

@@ -12,8 +12,11 @@ import {
   HORIZONTAL_TILE_SPACING,
   HORIZONTAL_TILE_WIDTH_RATIO,
 } from "@/constants";
-import { getBookOtherEditions, MediaHeaderInfo } from "@/db/library";
-import { useLibraryData } from "@/hooks/use-library-data";
+import {
+  getBookOtherEditions,
+  MediaHeaderInfo,
+} from "@/services/library-service";
+import { useLibraryData } from "@/services/library-service";
 import { useScreen } from "@/stores/screen";
 import { Session } from "@/types/session";
 

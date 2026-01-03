@@ -5,9 +5,9 @@ import {
   FullLibrary,
   SearchResults,
 } from "@/components/screens/library-screen";
-import { useDebounce } from "@/hooks/use-debounce";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";
+import { useDebounce } from "@/utils/hooks";
 
 type LibraryScreenProps = {
   session: Session;

@@ -3,8 +3,8 @@ import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 
 import { MediaTile } from "@/components";
 import { PAGE_SIZE } from "@/constants";
-import { getSearchedMedia } from "@/db/library";
-import { useLibraryData } from "@/hooks/use-library-data";
+import { getSearchedMedia } from "@/services/library-service";
+import { useLibraryData } from "@/services/library-service";
 import { useScreen } from "@/stores/screen";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";

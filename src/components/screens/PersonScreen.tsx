@@ -6,9 +6,9 @@ import {
   Header,
   MediaByNarrators,
 } from "@/components/screens/person-screen";
-import { getPersonHeaderInfo } from "@/db/library";
-import { useLibraryData } from "@/hooks/use-library-data";
-import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { getPersonHeaderInfo } from "@/services/library-service";
+import { useLibraryData } from "@/services/library-service";
+import { usePullToRefresh } from "@/services/sync-service";
 import { Session } from "@/types/session";
 
 type PersonScreenProps = {

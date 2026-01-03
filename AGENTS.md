@@ -32,7 +32,7 @@ npm run generate-migrations  # Generate Drizzle ORM migrations after schema chan
 
 ```bash
 npm run lint                 # Run ESLint (includes Prettier formatting checks)
-npm run lint -- --fix        # Auto-fix ESLint and formatting issues
+npm run lint:fix             # Auto-fix ESLint and formatting issues
 npx tsc                      # Type check (run after changes)
 npm test                     # Run Jest tests once (for CI/scripts)
 npm run test:watch           # Run Jest tests in watch mode
@@ -40,7 +40,7 @@ npm run test:coverage        # Run Jest tests with coverage reporting
 npm run doctor               # Check Expo environment health
 ```
 
-**Important**: After making code changes, always run `npx tsc` to check for type errors and `npm run lint` to verify linting and formatting. Use `npm run lint -- --fix` to auto-fix issues before committing.
+**Important**: After making code changes, always run `npx tsc` to check for type errors and `npm run lint` to verify linting and formatting. Use `npm run lint:fix` to auto-fix issues before committing.
 
 ### Building
 

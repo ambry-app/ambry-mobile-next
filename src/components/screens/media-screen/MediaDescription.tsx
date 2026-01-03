@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { Description } from "@/components";
-import { MediaHeaderInfo } from "@/db/library";
+import { MediaHeaderInfo } from "@/services/library-service";
 import { Colors } from "@/styles";
 import { formatPublished } from "@/utils";
 

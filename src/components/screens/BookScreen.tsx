@@ -3,8 +3,8 @@ import { FlatList, StyleSheet } from "react-native";
 import { FadeInOnMount, Tile } from "@/components";
 import { Header } from "@/components/screens/book-screen";
 import { PAGE_SIZE } from "@/constants";
-import { getBookDetails } from "@/db/library";
-import { useLibraryData } from "@/hooks/use-library-data";
+import { getBookDetails } from "@/services/library-service";
+import { useLibraryData } from "@/services/library-service";
 import { Session } from "@/types/session";
 
 type BookScreenProps = {

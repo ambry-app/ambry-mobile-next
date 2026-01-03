@@ -4,7 +4,7 @@ import {
   HORIZONTAL_TILE_SPACING,
   HORIZONTAL_TILE_WIDTH_RATIO,
 } from "@/constants";
-import { MediaAuthorOrNarrator } from "@/db/library/shared-queries";
+import { MediaAuthorOrNarrator } from "@/services/library-service";
 import { useScreen } from "@/stores/screen";
 import { Colors } from "@/styles";
 import { requireValue } from "@/utils";

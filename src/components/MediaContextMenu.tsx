@@ -3,20 +3,20 @@ import { Share } from "react-native";
 import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
 
-import { MediaHeaderInfo } from "@/db/library";
-import { useMediaPlaybackState } from "@/hooks/use-media-playback-state";
-import { useShelvedMedia } from "@/hooks/use-shelved-media";
 import {
   cancelDownload,
   removeDownload,
   startDownload,
 } from "@/services/download-service";
+import { MediaHeaderInfo } from "@/services/library-service";
 import {
   abandonPlaythrough,
   continueExistingPlaythrough,
   finishPlaythrough,
   startFreshPlaythrough,
 } from "@/services/playback-controls";
+import { useMediaPlaybackState } from "@/services/playthrough-query-service";
+import { useShelvedMedia } from "@/services/shelf-service";
 import { useDownloads } from "@/stores/downloads";
 import { Session } from "@/types/session";
 

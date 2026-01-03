@@ -1,7 +1,7 @@
 import { StyleProp } from "react-native";
 import { Image, ImageStyle } from "expo-image";
 
-import { DownloadedThumbnails, Thumbnails } from "@/db/schema";
+import { DownloadedThumbnails, Thumbnails } from "@/services/library-service";
 import { useSession } from "@/stores/session";
 import { documentDirectoryFilePath } from "@/utils";
 

@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react-native";
 
-import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { usePullToRefresh } from "@/services/sync-service";
 import * as syncService from "@/services/sync-service";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { DEFAULT_TEST_SESSION } from "@test/factories";

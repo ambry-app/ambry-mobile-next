@@ -6,7 +6,7 @@ import {
   PlaythroughDebugData,
 } from "@/db/playthroughs";
 import { PlaybackEventSelect } from "@/db/schema";
-import { useLibraryData } from "@/hooks/use-library-data";
+import { useLibraryData } from "@/services/library-service";
 import { Colors } from "@/styles";
 
 export default function PlaythroughDebugRoute() {

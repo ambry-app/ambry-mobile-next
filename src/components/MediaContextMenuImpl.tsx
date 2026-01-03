@@ -3,7 +3,7 @@ import { ReactElement } from "react";
 import { StyleSheet, View } from "react-native";
 import { Button, ButtonProps, ContextMenu } from "@expo/ui/jetpack-compose";
 
-import { MediaPlaybackState } from "@/hooks/use-media-playback-state";
+import { MediaPlaybackState } from "@/services/playthrough-query-service";
 import { DownloadStatus } from "@/stores/downloads";
 import { Colors } from "@/styles";
 

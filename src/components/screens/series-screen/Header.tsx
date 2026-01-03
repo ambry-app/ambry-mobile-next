@@ -1,5 +1,5 @@
 import { AuthorsAndNarrators } from "@/components";
-import { MediaAuthorOrNarrator } from "@/db/library/shared-queries";
+import { MediaAuthorOrNarrator } from "@/services/library-service";
 
 type FooterProps = {
   authorsAndNarrators: MediaAuthorOrNarrator[];

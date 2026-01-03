@@ -13,10 +13,10 @@ import {
   AuthorHeaderInfo,
   getAuthorHeaderInfo,
   getBooksByAuthorPage,
-} from "@/db/library";
-import { useLibraryData } from "@/hooks/use-library-data";
-import { usePaginatedLibraryData } from "@/hooks/use-paginated-library-data";
-import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+} from "@/services/library-service";
+import { useLibraryData } from "@/services/library-service";
+import { usePaginatedLibraryData } from "@/services/library-service";
+import { usePullToRefresh } from "@/services/sync-service";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";
 

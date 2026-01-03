@@ -3,7 +3,7 @@ import { StyleSheet } from "react-native";
 import { Button, ContextMenu, Host } from "@expo/ui/swift-ui";
 import { frame } from "@expo/ui/swift-ui/modifiers";
 
-import { MediaPlaybackState } from "@/hooks/use-media-playback-state";
+import { MediaPlaybackState } from "@/services/playthrough-query-service";
 import { DownloadStatus } from "@/stores/downloads";
 import { Colors } from "@/styles";
 

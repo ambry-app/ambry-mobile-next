@@ -12,9 +12,9 @@ import {
   OtherMediaByNarrators,
   PlaythroughHistory,
 } from "@/components/screens/media-screen";
-import { getMediaHeaderInfo } from "@/db/library";
-import { useLibraryData } from "@/hooks/use-library-data";
-import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { getMediaHeaderInfo } from "@/services/library-service";
+import { useLibraryData } from "@/services/library-service";
+import { usePullToRefresh } from "@/services/sync-service";
 import { Session } from "@/types/session";
 
 type MediaScreenProps = {

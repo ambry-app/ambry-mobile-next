@@ -10,14 +10,14 @@ import {
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 
-import { PlaythroughWithMedia } from "@/db/library";
+import { PlaythroughWithMedia } from "@/services/library-service";
 import {
   DownloadedThumbnails,
   PlaythroughStatus,
   Thumbnails,
-} from "@/db/schema";
-import useNavigateToBookCallback from "@/hooks/use-navigate-to-book-callback";
+} from "@/services/library-service";
 import { Colors } from "@/styles";
+import { useNavigateToBookCallback } from "@/utils/hooks";
 
 import { BookDetailsText } from "./BookDetailsText";
 import { MultiThumbnailImage } from "./MultiThumbnailImage";

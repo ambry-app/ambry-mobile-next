@@ -1,7 +1,7 @@
 import { FlatList, StyleSheet, Text } from "react-native";
 
-import { useDownloadedMedia } from "@/hooks/use-downloaded-media";
-import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { useDownloadedMedia } from "@/services/library-service";
+import { usePullToRefresh } from "@/services/sync-service";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";
 

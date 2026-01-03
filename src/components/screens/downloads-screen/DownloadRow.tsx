@@ -10,12 +10,12 @@ import {
   Loading,
   ThumbnailImage,
 } from "@/components";
-import { DownloadedMedia } from "@/db/library";
-import { useThrottle } from "@/hooks/use-throttle";
 import { cancelDownload, removeDownload } from "@/services/download-service";
+import { DownloadedMedia } from "@/services/library-service";
 import { useDownloads } from "@/stores/downloads";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";
+import { useThrottle } from "@/utils/hooks";
 
 import { FileSize } from "./FileSize";
 

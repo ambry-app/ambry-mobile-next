@@ -4,13 +4,16 @@ import { Alert, StyleSheet } from "react-native";
 import { Button, ContextMenu, Host } from "@expo/ui/swift-ui";
 import { frame } from "@expo/ui/swift-ui/modifiers";
 
-import { deletePlaythrough, PlaythroughForMedia } from "@/db/playthroughs";
 import {
   abandonPlaythrough,
   continueExistingPlaythrough,
   finishPlaythrough,
   resumeAndLoadPlaythrough,
 } from "@/services/playback-controls";
+import {
+  deletePlaythrough,
+  PlaythroughForMedia,
+} from "@/services/playthrough-query-service";
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";

@@ -12,14 +12,14 @@ import * as SplashScreen from "expo-splash-screen";
 
 import { Loading, MeasureScreenHeight, ScreenCentered } from "@/components";
 import { getExpoDb } from "@/db/db";
-import { useAppBoot } from "@/hooks/use-app-boot";
-import { useAppState } from "@/hooks/use-app-state";
-import { useForegroundSync } from "@/hooks/use-foreground-sync";
-import { usePlayerSubscriptions } from "@/hooks/use-player-subscriptions";
-import { useRefreshLibraryDataVersion } from "@/hooks/use-refresh-library-data-version";
+import { useAppBoot } from "@/services/boot-service";
+import { useRefreshLibraryDataVersion } from "@/services/data-version-service";
+import { usePlayerSubscriptions } from "@/services/playback-controls";
+import { useForegroundSync } from "@/services/sync-service";
 import { usePlayerUIState } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
 import { Colors } from "@/styles";
+import { useAppState } from "@/utils/hooks";
 
 import "core-js/actual/object/group-by";
 
