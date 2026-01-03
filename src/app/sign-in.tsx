@@ -5,8 +5,9 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { FocusableTextInput, IconButton, Loading } from "@/components";
 import { CreateSessionErrorCode } from "@/graphql/api";
 import { ExecuteErrorCode } from "@/graphql/client/execute";
+import { signIn } from "@/services/auth-service";
 import { useScreen } from "@/stores/screen";
-import { signIn, useSession } from "@/stores/session";
+import { useSession } from "@/stores/session";
 import { Colors } from "@/styles";
 import Logo from "@assets/images/logo.svg";
 

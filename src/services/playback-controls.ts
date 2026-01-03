@@ -102,9 +102,7 @@ export async function pause() {
 
   const session = useSession.getState().session;
   if (session) {
-    syncPlaythroughs(session).catch((error) => {
-      console.warn("[Controls] Background sync on pause failed:", error);
-    });
+    syncPlaythroughs(session);
   }
   // --- End Inlined ---
 }

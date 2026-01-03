@@ -127,7 +127,5 @@ export async function abandonPlaythrough(
  * Trigger a sync in the background without blocking.
  */
 function triggerBackgroundSync(session: Session) {
-  syncPlaythroughs(session).catch((error) => {
-    console.warn("[Lifecycle] Background sync failed:", error);
-  });
+  syncPlaythroughs(session);
 }

@@ -1,58 +1,208 @@
 import { useCallback, useEffect, useState } from "react";
 import { AppStateStatus } from "react-native";
 
+import { FOREGROUND_SYNC_INTERVAL } from "@/constants";
 import {
-  PlaythroughsSyncSuccess,
-  SyncError,
-  syncLibrary as syncLibraryDb,
-  syncPlaythroughs as syncPlaythroughsDb,
+  applyLibraryChanges,
+  applyPlaythroughSyncResult,
+  getLastLibrarySyncInfo,
+  getPlaythroughSyncData,
+  LibraryChangesInput,
 } from "@/db/sync";
+import {
+  DeviceTypeInput,
+  getLibraryChangesSince,
+  PlaybackEventType,
+  PlaythroughStatus,
+  syncProgress,
+  SyncProgressInput,
+} from "@/graphql/api";
+import {
+  ExecuteAuthenticatedError,
+  ExecuteAuthenticatedErrorCode,
+} from "@/graphql/client/execute";
 import {
   bumpPlaythroughDataVersion,
   setLibraryDataVersion,
 } from "@/stores/data-version";
 import { getDeviceInfo } from "@/stores/device";
-import { forceSignOut, useSession } from "@/stores/session";
+import { clearSession, useSession } from "@/stores/session";
+import { DeviceInfo } from "@/types/device-info";
 import { Session } from "@/types/session";
 
 import { performWalCheckpoint } from "./db-service";
 
+// =============================================================================
+// Error Logging
+// =============================================================================
+
+function logGQLError(error: ExecuteAuthenticatedError, context: string) {
+  switch (error.code) {
+    case ExecuteAuthenticatedErrorCode.UNAUTHORIZED:
+      console.warn(`[${context}] unauthorized, signing out...`);
+      break;
+    case ExecuteAuthenticatedErrorCode.NETWORK_ERROR:
+      console.error(`[${context}] network error, we'll try again later`);
+      break;
+    case ExecuteAuthenticatedErrorCode.SERVER_ERROR:
+    case ExecuteAuthenticatedErrorCode.GQL_ERROR:
+      console.error(`[${context}] server error, we'll try again later`);
+      break;
+  }
+}
+
+// =============================================================================
+// Library Sync
+// =============================================================================
+
+export async function syncLibrary(session: Session): Promise<void> {
+  console.debug("[SyncLibrary] syncing library...");
+
+  // 1. Get last sync info from DB
+  const syncInfo = await getLastLibrarySyncInfo(session);
+
+  // 2. Call GraphQL API to get changes
+  const result = await getLibraryChangesSince(session, syncInfo.lastSyncTime);
+
+  if (!result.success) {
+    logGQLError(result.error, "[SyncLibrary]");
+
+    if (result.error.code === ExecuteAuthenticatedErrorCode.UNAUTHORIZED) {
+      clearSession();
+    }
+    return;
+  }
+
+  const changes = result.result;
+
+  if (!changes) {
+    console.debug("[SyncLibrary] no changes to apply");
+    return;
+  }
+
+  // 3. Apply changes to DB
+  const { newDataAsOf } = await applyLibraryChanges(
+    session,
+    changes as LibraryChangesInput,
+    syncInfo,
+  );
+
+  // 4. Update global data version store
+  if (newDataAsOf) {
+    setLibraryDataVersion(newDataAsOf);
+  }
+
+  console.debug("[SyncLibrary] library sync complete");
+}
+
+// =============================================================================
+// Playthrough Sync
+// =============================================================================
+
+// Mapping from local types to GraphQL enums
+const deviceTypeMap: Record<string, DeviceTypeInput> = {
+  ios: DeviceTypeInput.Ios,
+  android: DeviceTypeInput.Android,
+};
+
+const playthroughStatusMap: Record<string, PlaythroughStatus> = {
+  in_progress: PlaythroughStatus.InProgress,
+  finished: PlaythroughStatus.Finished,
+  abandoned: PlaythroughStatus.Abandoned,
+};
+
+const eventTypeMap: Record<string, PlaybackEventType> = {
+  start: PlaybackEventType.Start,
+  play: PlaybackEventType.Play,
+  pause: PlaybackEventType.Pause,
+  seek: PlaybackEventType.Seek,
+  rate_change: PlaybackEventType.RateChange,
+  finish: PlaybackEventType.Finish,
+  abandon: PlaybackEventType.Abandon,
+  resume: PlaybackEventType.Resume,
+};
+
+export async function syncPlaythroughs(
+  session: Session,
+  deviceInfoOverride?: DeviceInfo,
+): Promise<void> {
+  console.debug("[SyncPlaythroughs] starting...");
+
+  // 1. Get unsynced data from DB
+  const deviceInfo = deviceInfoOverride ?? (await getDeviceInfo());
+  const syncData = await getPlaythroughSyncData(session);
+
+  // 2. Build GraphQL input
+  const input: SyncProgressInput = {
+    lastSyncTime: syncData.lastSyncTime,
+    device: {
+      id: deviceInfo.id,
+      type: deviceTypeMap[deviceInfo.type] ?? DeviceTypeInput.Android,
+      brand: deviceInfo.brand,
+      modelName: deviceInfo.modelName,
+      osName: deviceInfo.osName,
+      osVersion: deviceInfo.osVersion,
+    },
+    playthroughs: syncData.unsyncedPlaythroughs.map((p) => ({
+      id: p.id,
+      mediaId: p.mediaId,
+      status: playthroughStatusMap[p.status] ?? PlaythroughStatus.InProgress,
+      startedAt: p.startedAt,
+      finishedAt: p.finishedAt,
+      abandonedAt: p.abandonedAt,
+      deletedAt: p.deletedAt,
+    })),
+    events: syncData.unsyncedEvents.map((e) => ({
+      id: e.id,
+      playthroughId: e.playthroughId,
+      type: eventTypeMap[e.type] ?? PlaybackEventType.Play,
+      timestamp: e.timestamp,
+      position: e.position,
+      playbackRate: e.playbackRate,
+      fromPosition: e.fromPosition,
+      toPosition: e.toPosition,
+      previousRate: e.previousRate,
+    })),
+  };
+
+  // 3. Call GraphQL API
+  const result = await syncProgress(session, input);
+
+  if (!result.success) {
+    logGQLError(result.error, "[SyncPlaythroughs]");
+    if (result.error.code === ExecuteAuthenticatedErrorCode.UNAUTHORIZED) {
+      clearSession();
+    }
+    return;
+  }
+
+  const syncResult = result.result.syncProgress;
+  if (!syncResult) {
+    console.debug("[SyncPlaythroughs] no sync result returned");
+    return;
+  }
+
+  // 4. Apply result to DB
+  await applyPlaythroughSyncResult(
+    session,
+    syncResult,
+    syncData.unsyncedPlaythroughs.map((p) => p.id),
+    syncData.unsyncedEvents.map((e) => e.id),
+  );
+
+  // 5. Notify UI that playthrough data changed
+  bumpPlaythroughDataVersion();
+
+  console.debug("[SyncPlaythroughs] playthrough sync complete");
+  return;
+}
+
+// =============================================================================
+// Combined Sync
+// =============================================================================
+
 export async function sync(session: Session) {
   return Promise.all([syncLibrary(session), syncPlaythroughs(session)]);
-}
-
-export async function syncLibrary(session: Session) {
-  const result = await syncLibraryDb(session);
-
-  if (!result.success && result.error === SyncError.AUTH_ERROR) {
-    forceSignOut();
-  }
-
-  if (result.success && result.result !== "no_changes") {
-    const { newDataAsOf } = result.result;
-    if (newDataAsOf) {
-      // Update global data version store
-      setLibraryDataVersion(newDataAsOf);
-    }
-  }
-
-  return result;
-}
-
-export async function syncPlaythroughs(session: Session) {
-  const deviceInfo = await getDeviceInfo();
-  const result = await syncPlaythroughsDb(session, deviceInfo);
-
-  if (!result.success && result.error === SyncError.AUTH_ERROR) {
-    forceSignOut();
-  }
-
-  if (result.success && result.result === PlaythroughsSyncSuccess.SYNCED) {
-    // Notify UI that playthrough data changed
-    bumpPlaythroughDataVersion();
-  }
-
-  return result;
 }
 
 // =============================================================================
@@ -88,7 +238,7 @@ export function useForegroundSync(appState: AppStateStatus) {
 
     if (session && appState === "active") {
       console.debug("[ForegroundSync] starting periodic sync");
-      intervalId = setInterval(performSync, 15 * 60 * 1000); // 15 minutes
+      intervalId = setInterval(performSync, FOREGROUND_SYNC_INTERVAL);
     }
 
     return () => {
@@ -111,7 +261,7 @@ export function usePullToRefresh(session: Session) {
     try {
       await sync(session);
     } catch (error) {
-      console.error("Pull-to-refresh sync error:", error);
+      console.error("[Pull-to-refresh] sync error:", error);
     } finally {
       setRefreshing(false);
     }

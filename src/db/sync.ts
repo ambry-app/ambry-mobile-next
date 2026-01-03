@@ -8,64 +8,134 @@ import {
   markPlaythroughsSynced,
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
-import type { SyncProgressInput } from "@/graphql/api";
-import {
-  DeviceTypeInput,
-  getLibraryChangesSince,
-  PlaybackEventType,
-  PlaythroughStatus,
-  syncProgress,
-} from "@/graphql/api";
-import {
-  ExecuteAuthenticatedError,
-  ExecuteAuthenticatedErrorCode,
-} from "@/graphql/client/execute";
-import { DeviceInfo } from "@/types/device-info";
-import { Result } from "@/types/result";
+import { Thumbnails } from "@/db/schema";
 import { Session } from "@/types/session";
 import { groupBy } from "@/utils/group-by";
 
-export const SyncError = {
-  AUTH_ERROR: "auth_error",
-  NETWORK_ERROR: "network_error",
-  SERVER_ERROR: "server_error",
-} as const;
-
-export type SyncErrorType = (typeof SyncError)[keyof typeof SyncError];
-
-export const PlaythroughsSyncSuccess = {
-  SYNCED: "synced",
-  NO_CHANGES: "no_changes",
-} as const;
-
-export type PlaythroughsSyncSuccessType =
-  (typeof PlaythroughsSyncSuccess)[keyof typeof PlaythroughsSyncSuccess];
-
-export type LibrarySyncSuccess = "no_changes" | { newDataAsOf: Date | null };
+// =============================================================================
+// Library Sync - DB Operations
+// =============================================================================
 
 /**
- * Handles API errors from authenticated GraphQL requests.
- * Returns true if the error was handled (caller should return early),
- * false otherwise (should never happen due to exhaustiveness check).
+ * Information about the last library sync for a server.
  */
-function handleApiError(
-  error: ExecuteAuthenticatedError,
-  context: string,
-): SyncErrorType {
-  switch (error.code) {
-    case ExecuteAuthenticatedErrorCode.UNAUTHORIZED:
-      console.warn(`[${context}] unauthorized, signing out...`);
-      return SyncError.AUTH_ERROR;
-    case ExecuteAuthenticatedErrorCode.NETWORK_ERROR:
-      console.error(`[${context}] network error, we'll try again later`);
-      return SyncError.NETWORK_ERROR;
-    case ExecuteAuthenticatedErrorCode.SERVER_ERROR:
-    case ExecuteAuthenticatedErrorCode.GQL_ERROR:
-      console.error(`[${context}] server error, we'll try again later`);
-      return SyncError.SERVER_ERROR;
-  }
-  // istanbul ignore next - exhaustiveness check, should never be reached
-  error satisfies never;
+export interface LibrarySyncInfo {
+  lastSyncTime: Date | null;
+  libraryDataVersion: Date | null;
+}
+
+/**
+ * Get the last library sync info for a server.
+ */
+export async function getLastLibrarySyncInfo(
+  session: Session,
+): Promise<LibrarySyncInfo> {
+  const syncedServer = await getDb().query.syncedServers.findFirst({
+    where: eq(schema.syncedServers.url, session.url),
+  });
+
+  return {
+    lastSyncTime: syncedServer?.lastSyncTime ?? null,
+    libraryDataVersion: syncedServer?.libraryDataVersion ?? null,
+  };
+}
+
+// Input types for library changes - matches GraphQL response shape
+export interface LibraryChangesInput {
+  peopleChangedSince: {
+    id: string;
+    name: string;
+    description: string | null;
+    thumbnails: Thumbnails | null;
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  authorsChangedSince: {
+    id: string;
+    person: { id: string };
+    name: string;
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  narratorsChangedSince: {
+    id: string;
+    person: { id: string };
+    name: string;
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  booksChangedSince: {
+    id: string;
+    title: string;
+    published: string;
+    publishedFormat: string;
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  bookAuthorsChangedSince: {
+    id: string;
+    book: { id: string };
+    author: { id: string };
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  seriesChangedSince: {
+    id: string;
+    name: string;
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  seriesBooksChangedSince: {
+    id: string;
+    book: { id: string };
+    series: { id: string };
+    bookNumber: string;
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  mediaChangedSince: {
+    id: string;
+    book: { id: string };
+    status: string;
+    description: string | null;
+    thumbnails: Thumbnails | null;
+    published: string | null;
+    publishedFormat: string;
+    publisher: string | null;
+    notes: string | null;
+    abridged: boolean;
+    fullCast: boolean;
+    mp4Path: string | null;
+    mpdPath: string | null;
+    hlsPath: string | null;
+    duration: string | null;
+    chapters: {
+      id: string;
+      title: string | null;
+      startTime: number;
+      endTime: number;
+    }[];
+    supplementalFiles: {
+      filename: string;
+      label: string | null;
+      mime: string;
+      path: string;
+    }[];
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  mediaNarratorsChangedSince: {
+    id: string;
+    media: { id: string };
+    narrator: { id: string };
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  deletionsSince: {
+    type: string;
+    recordId: string;
+  }[];
+  serverTime: string;
 }
 
 const deletionsTables = {
@@ -80,28 +150,23 @@ const deletionsTables = {
   PERSON: schema.people,
 };
 
-export async function syncLibrary(
+/**
+ * Result of applying library changes to the database.
+ */
+export interface ApplyLibraryChangesResult {
+  newDataAsOf: Date | null;
+}
+
+/**
+ * Apply library changes from the server to the local database.
+ * Returns the new data version timestamp if there were changes.
+ */
+export async function applyLibraryChanges(
   session: Session,
-): Promise<Result<LibrarySyncSuccess, SyncErrorType>> {
-  console.debug("[SyncLibrary] syncing library...");
-
-  const syncedServer = await getDb().query.syncedServers.findFirst({
-    where: eq(schema.syncedServers.url, session.url),
-  });
-
-  const lastSync = syncedServer?.lastSyncTime;
-  const result = await getLibraryChangesSince(session, lastSync);
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: handleApiError(result.error, "SyncLibrary"),
-    };
-  }
-
-  const changes = result.result;
-
-  if (!changes) return { success: true, result: "no_changes" };
+  changes: LibraryChangesInput,
+  previousSyncInfo: LibrarySyncInfo,
+): Promise<ApplyLibraryChangesResult> {
+  console.debug("[SyncLibrary] applying library changes...");
 
   const peopleValues = changes.peopleChangedSince.map((person) => {
     return {
@@ -240,7 +305,25 @@ export async function syncLibrary(
     (deletion) => deletion.recordId,
   );
 
-  let newDataAsOf: Date | null = null;
+  const serverTime = new Date(changes.serverTime);
+
+  const countChanges =
+    changes.authorsChangedSince.length +
+    changes.bookAuthorsChangedSince.length +
+    changes.booksChangedSince.length +
+    changes.deletionsSince.length +
+    changes.mediaChangedSince.length +
+    changes.mediaNarratorsChangedSince.length +
+    changes.narratorsChangedSince.length +
+    changes.peopleChangedSince.length +
+    changes.seriesBooksChangedSince.length +
+    changes.seriesChangedSince.length;
+
+  const newDataAsOf =
+    countChanges > 0 || previousSyncInfo.lastSyncTime === null
+      ? serverTime
+      : previousSyncInfo.libraryDataVersion;
+
   await getDb().transaction(async (tx) => {
     if (peopleValues.length !== 0) {
       console.debug("[SyncDown] inserting", peopleValues.length, "people...");
@@ -424,25 +507,6 @@ export async function syncLibrary(
       }
     }
 
-    const serverTime = new Date(changes.serverTime);
-
-    const countChanges =
-      changes.authorsChangedSince.length +
-      changes.bookAuthorsChangedSince.length +
-      changes.booksChangedSince.length +
-      changes.deletionsSince.length +
-      changes.mediaChangedSince.length +
-      changes.mediaNarratorsChangedSince.length +
-      changes.narratorsChangedSince.length +
-      changes.peopleChangedSince.length +
-      changes.seriesBooksChangedSince.length +
-      changes.seriesChangedSince.length;
-
-    newDataAsOf =
-      countChanges > 0 || syncedServer === undefined
-        ? serverTime
-        : syncedServer.libraryDataVersion;
-
     await tx
       .insert(schema.syncedServers)
       .values({
@@ -459,20 +523,29 @@ export async function syncLibrary(
       });
   });
 
-  console.debug("[SyncLibrary] library sync complete");
-  return { success: true, result: { newDataAsOf } };
+  console.debug("[SyncLibrary] library changes applied");
+  return { newDataAsOf };
 }
 
 // =============================================================================
-// Playthrough Sync (new event-sourced model)
+// Playthrough Sync - DB Operations
 // =============================================================================
 
-export async function syncPlaythroughs(
-  session: Session,
-  deviceInfo: DeviceInfo,
-): Promise<Result<PlaythroughsSyncSuccessType, SyncErrorType>> {
-  console.debug("[SyncPlaythroughs] starting...");
+/**
+ * Data needed to build a sync request for playthroughs.
+ */
+export interface PlaythroughSyncData {
+  unsyncedPlaythroughs: Awaited<ReturnType<typeof getUnsyncedPlaythroughs>>;
+  unsyncedEvents: Awaited<ReturnType<typeof getUnsyncedEvents>>;
+  lastSyncTime: Date | null;
+}
 
+/**
+ * Get all unsynced playthrough data needed for a sync request.
+ */
+export async function getPlaythroughSyncData(
+  session: Session,
+): Promise<PlaythroughSyncData> {
   // Get unsynced playthroughs
   const unsyncedPlaythroughs = await getUnsyncedPlaythroughs(session);
 
@@ -491,14 +564,6 @@ export async function syncPlaythroughs(
     allPlaythroughIds.map((p) => p.id),
   );
 
-  console.debug(
-    "[SyncPlaythroughs] found",
-    unsyncedPlaythroughs.length,
-    "unsynced playthroughs,",
-    unsyncedEvents.length,
-    "unsynced events",
-  );
-
   // Get last sync time from server profile
   const serverProfile = await getDb().query.serverProfiles.findFirst({
     where: and(
@@ -507,93 +572,68 @@ export async function syncPlaythroughs(
     ),
   });
 
-  // Map local device type to GraphQL enum
-  const deviceTypeMap: Record<string, DeviceTypeInput> = {
-    ios: DeviceTypeInput.Ios,
-    android: DeviceTypeInput.Android,
-  };
+  console.debug(
+    "[SyncPlaythroughs] found",
+    unsyncedPlaythroughs.length,
+    "unsynced playthroughs,",
+    unsyncedEvents.length,
+    "unsynced events",
+  );
 
-  // Map local playthrough status to GraphQL enum
-  const playthroughStatusMap: Record<string, PlaythroughStatus> = {
-    in_progress: PlaythroughStatus.InProgress,
-    finished: PlaythroughStatus.Finished,
-    abandoned: PlaythroughStatus.Abandoned,
-  };
-
-  // Map local event type to GraphQL enum
-  const eventTypeMap: Record<string, PlaybackEventType> = {
-    start: PlaybackEventType.Start,
-    play: PlaybackEventType.Play,
-    pause: PlaybackEventType.Pause,
-    seek: PlaybackEventType.Seek,
-    rate_change: PlaybackEventType.RateChange,
-    finish: PlaybackEventType.Finish,
-    abandon: PlaybackEventType.Abandon,
-    resume: PlaybackEventType.Resume,
-  };
-
-  // Prepare input for syncProgress mutation
-  const input: SyncProgressInput = {
+  return {
+    unsyncedPlaythroughs,
+    unsyncedEvents,
     lastSyncTime: serverProfile?.lastSyncTime ?? null,
-    device: {
-      id: deviceInfo.id,
-      type: deviceTypeMap[deviceInfo.type] ?? DeviceTypeInput.Android,
-      brand: deviceInfo.brand,
-      modelName: deviceInfo.modelName,
-      osName: deviceInfo.osName,
-      osVersion: deviceInfo.osVersion,
-    },
-    playthroughs: unsyncedPlaythroughs.map((p) => ({
-      id: p.id,
-      mediaId: p.mediaId,
-      status: playthroughStatusMap[p.status] ?? PlaythroughStatus.InProgress,
-      startedAt: p.startedAt,
-      finishedAt: p.finishedAt,
-      abandonedAt: p.abandonedAt,
-      deletedAt: p.deletedAt,
-    })),
-    events: unsyncedEvents.map((e) => ({
-      id: e.id,
-      playthroughId: e.playthroughId,
-      type: eventTypeMap[e.type] ?? PlaybackEventType.Play,
-      timestamp: e.timestamp,
-      position: e.position,
-      playbackRate: e.playbackRate,
-      fromPosition: e.fromPosition,
-      toPosition: e.toPosition,
-      previousRate: e.previousRate,
-    })),
   };
+}
 
-  // Call the sync mutation
-  const result = await syncProgress(session, input);
+// Input types for playthrough sync result - matches GraphQL response shape
+export interface PlaythroughSyncResultInput {
+  playthroughs: {
+    id: string;
+    status: string;
+    startedAt: string;
+    finishedAt?: string | null;
+    abandonedAt?: string | null;
+    deletedAt?: string | null;
+    insertedAt: string;
+    updatedAt: string;
+    media: { id: string };
+  }[];
+  events: {
+    id: string;
+    playthroughId: string;
+    deviceId?: string | null;
+    type: string;
+    timestamp: string;
+    position?: number | null;
+    playbackRate?: number | null;
+    fromPosition?: number | null;
+    toPosition?: number | null;
+    previousRate?: number | null;
+  }[];
+  serverTime: string;
+}
 
-  if (!result.success) {
-    return {
-      success: false,
-      error: handleApiError(result.error, "SyncPlaythroughs"),
-    };
-  }
-
-  const syncResult = result.result.syncProgress;
-  if (!syncResult)
-    return { success: true, result: PlaythroughsSyncSuccess.NO_CHANGES };
-
+/**
+ * Apply the result of a playthrough sync to the local database.
+ * Marks sent items as synced and upserts received data.
+ */
+export async function applyPlaythroughSyncResult(
+  session: Session,
+  syncResult: PlaythroughSyncResultInput,
+  sentPlaythroughIds: string[],
+  sentEventIds: string[],
+): Promise<void> {
   const serverTime = new Date(syncResult.serverTime);
 
   // Mark our sent items as synced
-  if (unsyncedPlaythroughs.length > 0) {
-    await markPlaythroughsSynced(
-      unsyncedPlaythroughs.map((p) => p.id),
-      serverTime,
-    );
+  if (sentPlaythroughIds.length > 0) {
+    await markPlaythroughsSynced(sentPlaythroughIds, serverTime);
   }
 
-  if (unsyncedEvents.length > 0) {
-    await markEventsSynced(
-      unsyncedEvents.map((e) => e.id),
-      serverTime,
-    );
+  if (sentEventIds.length > 0) {
+    await markEventsSynced(sentEventIds, serverTime);
   }
 
   // Batch all database operations in a single transaction for better performance
@@ -726,6 +766,4 @@ export async function syncPlaythroughs(
     syncResult.events.length,
     "events",
   );
-
-  return { success: true, result: PlaythroughsSyncSuccess.SYNCED };
 }

@@ -34,6 +34,7 @@ module.exports = defineConfig([
         { type: "ui", pattern: "src/components/**" },
         { type: "stores", pattern: "src/stores/**" },
         { type: "services", pattern: "src/services/**" },
+        { type: "graphql", pattern: "src/graphql/**" },
         { type: "db", pattern: "src/db/**" },
         { type: "utils", pattern: "src/utils/**" },
       ],
@@ -97,12 +98,14 @@ module.exports = defineConfig([
             // Stores are PURE STATE - can only import utils and other stores
             { from: "stores", allow: ["stores", "utils"] },
 
-            // Services can import db, utils, stores, other services (not UI)
-            // Stores export pure setters that don't import services, so no cycle is created
+            // Services can import db, graphql, utils, stores, other services (not UI)
             {
               from: "services",
-              allow: ["services", "stores", "db", "utils"],
+              allow: ["services", "stores", "graphql", "db", "utils"],
             },
+
+            // GraphQL layer only imports utils (pure network calls)
+            { from: "graphql", allow: ["graphql", "utils"] },
 
             // DB layer only imports utils (and other db modules)
             { from: "db", allow: ["db", "utils"] },

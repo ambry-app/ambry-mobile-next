@@ -382,9 +382,7 @@ async function pauseCurrentIfPlaying() {
 
   const session = useSession.getState().session;
   if (session) {
-    syncPlaythroughs(session).catch((error) => {
-      console.warn("[Loader] Background sync on pause failed:", error);
-    });
+    syncPlaythroughs(session);
   }
 }
 

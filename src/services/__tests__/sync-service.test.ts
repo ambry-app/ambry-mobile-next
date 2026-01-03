@@ -48,10 +48,10 @@ jest.mock("@/graphql/api", () => ({
   },
 }));
 
-const mockForceSignOut = jest.fn();
+const mockClearSession = jest.fn();
 jest.mock("@/stores/session", () => ({
   useSession: jest.requireActual("@/stores/session").useSession,
-  forceSignOut: () => mockForceSignOut(),
+  clearSession: () => mockClearSession(),
 }));
 
 // Mock stores
@@ -109,7 +109,7 @@ beforeEach(() => {
   mockGetUnsyncedEvents.mockClear();
   mockMarkPlaythroughsSynced.mockClear();
   mockMarkEventsSynced.mockClear();
-  mockForceSignOut.mockClear();
+  mockClearSession.mockClear();
   resetSyncFixtureIdCounter();
 
   // Default DB mock - just return an empty Drizzle instance
@@ -159,10 +159,7 @@ describe("sync (orchestration)", () => {
 
     const result = await sync(session);
 
-    expect(result).toEqual([
-      { success: true, result: { newDataAsOf: new Date(serverTime) } },
-      { success: true, result: "synced" },
-    ]);
+    expect(result).toEqual([undefined, undefined]);
   });
 });
 
@@ -185,7 +182,7 @@ describe("syncLibrary", () => {
     expect(libraryDataVersion).toBe(new Date(serverTime).getTime());
   });
 
-  it("calls forceSignOut on unauthorized error", async () => {
+  it("calls clearSession on unauthorized error", async () => {
     mockGetLibraryChangesSince.mockResolvedValue({
       success: false,
       error: { code: "ExecuteAuthenticatedErrorCodeUnauthorized" },
@@ -193,7 +190,7 @@ describe("syncLibrary", () => {
 
     await syncLibrary(session);
 
-    expect(mockForceSignOut).toHaveBeenCalledTimes(1);
+    expect(mockClearSession).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -202,7 +199,7 @@ describe("syncLibrary", () => {
 // =============================================================================
 
 describe("syncPlaythroughs", () => {
-  it("calls forceSignOut on unauthorized error", async () => {
+  it("calls clearSession on unauthorized error", async () => {
     // Ensure device is initialized
     useDevice.setState({
       initialized: true,
@@ -216,7 +213,7 @@ describe("syncPlaythroughs", () => {
 
     await syncPlaythroughs(session);
 
-    expect(mockForceSignOut).toHaveBeenCalledTimes(1);
+    expect(mockClearSession).toHaveBeenCalledTimes(1);
   });
 
   it("bumps playthroughDataVersion on successful sync", async () => {

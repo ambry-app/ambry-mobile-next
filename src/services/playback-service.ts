@@ -161,12 +161,7 @@ export const PlaybackService = async function () {
     const session = useSession.getState().session;
     if (session) {
       // Fire and forget
-      syncPlaythroughs(session).catch((error) => {
-        console.warn(
-          "[PlaybackService] Background sync on remote pause failed:",
-          error,
-        );
-      });
+      syncPlaythroughs(session);
     }
   });
 

@@ -49,3 +49,5 @@ export const SLEEP_TIMER_PAUSE_REWIND_SECONDS = 10;
 
 export const DEFAULT_SLEEP_TIMER_SECONDS = 600; // 10 minutes
 export const DEFAULT_SLEEP_TIMER_ENABLED = false;
+
+export const FOREGROUND_SYNC_INTERVAL = 15 * 60 * 1000; // 15 minutes

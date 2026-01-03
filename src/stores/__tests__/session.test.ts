@@ -3,7 +3,8 @@
  */
 
 import { CreateSessionErrorCode } from "@/graphql/api";
-import { forceSignOut, signIn, signOut, useSession } from "@/stores/session";
+import { signIn, signOut } from "@/services/auth-service";
+import { clearSession, useSession } from "@/stores/session";
 import {
   clearSecureStore,
   mockCreateSession,
@@ -141,10 +142,10 @@ describe("session store", () => {
   });
 
   // ===========================================================================
-  // forceSignOut
+  // clearSession
   // ===========================================================================
 
-  describe("forceSignOut", () => {
+  describe("clearSession", () => {
     const testSession = {
       token: "auth-token-123",
       email: "test@example.com",
@@ -155,7 +156,7 @@ describe("session store", () => {
       // Set up initial session
       useSession.setState({ session: testSession });
 
-      forceSignOut();
+      clearSession();
 
       // Should NOT call deleteSession API
       expect(mockDeleteSession).not.toHaveBeenCalled();
@@ -169,7 +170,7 @@ describe("session store", () => {
       // Session is already null from beforeEach
 
       // Should not throw
-      expect(() => forceSignOut()).not.toThrow();
+      expect(() => clearSession()).not.toThrow();
 
       const state = useSession.getState();
       expect(state.session).toBeNull();

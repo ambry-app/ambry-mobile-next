@@ -30,10 +30,7 @@ describe("usePullToRefresh", () => {
 
     syncSpy = jest.spyOn(syncService, "sync").mockImplementation(async () => {
       await syncPromise;
-      return [
-        { success: true, result: "no_changes" },
-        { success: true, result: "no_changes" },
-      ];
+      return [undefined, undefined];
     });
 
     const { result } = renderHook(() => usePullToRefresh(DEFAULT_TEST_SESSION));

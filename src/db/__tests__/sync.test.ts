@@ -33,9 +33,9 @@ jest.mock("@/graphql/api", () => ({
 }));
 
 import * as schema from "@/db/schema";
-import { syncLibrary, syncPlaythroughs } from "@/db/sync";
 import { getServerSyncTimestamps } from "@/db/sync-helpers";
 import { ExecuteAuthenticatedErrorCode } from "@/graphql/client/execute";
+import { syncLibrary, syncPlaythroughs } from "@/services/sync-service";
 import { initialDataVersionState, useDataVersion } from "@/stores/data-version";
 import { initialDeviceState, useDevice } from "@/stores/device";
 import { useSession } from "@/stores/session";
@@ -178,11 +178,11 @@ describe("syncLibrary", () => {
 
       // Verify the API was called with the correct lastSyncTime
       expect(mockGetLibraryChangesSince).toHaveBeenCalledTimes(2);
-      // First call: no prior sync, so lastSync is undefined (from DB query returning undefined)
+      // First call: no prior sync, so lastSync is null (from DB query returning null)
       expect(mockGetLibraryChangesSince).toHaveBeenNthCalledWith(
         1,
         session,
-        undefined,
+        null,
       );
       // Second call: should use the first sync's server time
       expect(mockGetLibraryChangesSince).toHaveBeenNthCalledWith(
@@ -694,7 +694,7 @@ describe("syncLibrary", () => {
       expect(servers).toHaveLength(0);
     });
 
-    it("calls forceSignOut on unauthorized error", async () => {
+    it("calls clearSession on unauthorized error", async () => {
       mockGetLibraryChangesSince.mockResolvedValue({
         success: false,
         error: { code: ExecuteAuthenticatedErrorCode.UNAUTHORIZED },
@@ -1205,7 +1205,7 @@ describe("syncPlaythroughs", () => {
       expect(profiles).toHaveLength(0);
     });
 
-    it("calls forceSignOut on unauthorized error", async () => {
+    it("calls clearSession on unauthorized error", async () => {
       mockSyncProgress.mockResolvedValue({
         success: false,
         error: { code: ExecuteAuthenticatedErrorCode.UNAUTHORIZED },
