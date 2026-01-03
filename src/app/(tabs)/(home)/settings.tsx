@@ -1,6 +1,5 @@
 import { Button, StyleSheet, Switch, Text, View } from "react-native";
 
-import { TestContextMenu } from "@/components/TestContextMenu";
 import { signOut } from "@/services/auth-service";
 import { tryUnloadPlayer } from "@/services/playback-controls";
 import { useDebug } from "@/stores/debug";
@@ -39,9 +38,6 @@ export default function SettingsRoute() {
           thumbColor={debugModeEnabled ? Colors.lime[300] : Colors.zinc[400]}
         />
       </View>
-
-      {/* Cross-platform Context Menu Example */}
-      <TestContextMenu />
     </View>
   );
 }
