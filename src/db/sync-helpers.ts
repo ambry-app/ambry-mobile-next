@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
-import type { Session } from "@/stores/session";
+import type { Session } from "@/types/session";
 
 export async function getServerSyncTimestamps(session: Session) {
   const result = await getDb()

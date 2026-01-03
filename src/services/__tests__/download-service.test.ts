@@ -8,7 +8,7 @@ import {
 } from "@/services/download-service";
 import { reloadCurrentPlaythroughIfMedia } from "@/services/playback-controls";
 import { useDownloads } from "@/stores/downloads";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createDownload as createDownloadFactory,

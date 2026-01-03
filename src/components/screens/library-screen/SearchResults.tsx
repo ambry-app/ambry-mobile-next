@@ -6,8 +6,8 @@ import { PAGE_SIZE } from "@/constants";
 import { getSearchedMedia } from "@/db/library";
 import { useLibraryData } from "@/hooks/use-library-data";
 import { useScreen } from "@/stores/screen";
-import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
+import { Session } from "@/types/session";
 
 // FlatList layout constants for 2-column grid
 const FLATLIST_PADDING = 8;

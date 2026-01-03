@@ -42,8 +42,8 @@ import {
   usePlayerUIState as usePlayer,
 } from "@/stores/player-ui-state";
 import { useScreen } from "@/stores/screen";
-import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
+import { Session } from "@/types/session";
 
 import { TabBarTabs } from "./tab-bar";
 import {

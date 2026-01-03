@@ -8,8 +8,8 @@ import {
   updateSleepTimerDuration,
   updateSleepTimerEnabled,
 } from "@/services/sleep-timer-service";
-import { Session } from "@/stores/session";
 import { useSleepTimer } from "@/stores/sleep-timer";
+import { Session } from "@/types/session";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { createLocalUserSettings, DEFAULT_TEST_SESSION } from "@test/factories";
 import { resetStoreBeforeEach } from "@test/store-test-utils";

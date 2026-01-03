@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 import { requireValue } from "@/utils";
 
 export type NarratorHeaderInfo = Awaited<

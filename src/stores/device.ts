@@ -3,20 +3,10 @@ import * as Device from "expo-device";
 import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
 
+import { DeviceInfo } from "@/types/device-info";
 import { randomUUID } from "@/utils/crypto";
 
 const DEVICE_ID_KEY = "Ambry_deviceId";
-
-export type DeviceType = "ios" | "android" | "web";
-
-export interface DeviceInfo {
-  id: string;
-  type: DeviceType;
-  brand: string | null;
-  modelName: string | null;
-  osName: string | null;
-  osVersion: string | null;
-}
 
 interface DeviceState {
   initialized: boolean;
@@ -30,6 +20,7 @@ export const initialDeviceState: DeviceState = {
 
 export const useDevice = create<DeviceState>(() => initialDeviceState);
 
+// FIXME: we can probably _not_ call this initialize in so many places
 /**
  * Initialize the device store.
  * Loads or creates device ID from SecureStore and gathers device info.
@@ -79,4 +70,14 @@ export async function initializeDevice() {
  */
 export function getDeviceIdSync(): string | null {
   return useDevice.getState().deviceInfo?.id ?? null;
+}
+
+/**
+ * Gets device info, waiting for initialization if necessary.
+ */
+export async function getDeviceInfo(): Promise<DeviceInfo> {
+  if (!useDevice.getState().initialized) {
+    await initializeDevice();
+  }
+  return useDevice.getState().deviceInfo!;
 }

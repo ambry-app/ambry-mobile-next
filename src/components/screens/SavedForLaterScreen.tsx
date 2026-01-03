@@ -6,8 +6,8 @@ import { getSavedMediaPage } from "@/db/shelves";
 import { usePaginatedLibraryData } from "@/hooks/use-paginated-library-data";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { useDataVersion } from "@/stores/data-version";
-import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
+import { Session } from "@/types/session";
 
 type SavedForLaterScreenProps = {
   session: Session;

@@ -20,12 +20,28 @@ import {
   ExecuteAuthenticatedError,
   ExecuteAuthenticatedErrorCode,
 } from "@/graphql/client/execute";
-import {
-  bumpPlaythroughDataVersion,
-  setLibraryDataVersion,
-} from "@/stores/data-version";
-import { useDevice } from "@/stores/device";
-import { forceSignOut, Session } from "@/stores/session";
+import { DeviceInfo } from "@/types/device-info";
+import { Result } from "@/types/result";
+import { Session } from "@/types/session";
+import { groupBy } from "@/utils/group-by";
+
+export const SyncError = {
+  AUTH_ERROR: "auth_error",
+  NETWORK_ERROR: "network_error",
+  SERVER_ERROR: "server_error",
+} as const;
+
+export type SyncErrorType = (typeof SyncError)[keyof typeof SyncError];
+
+export const PlaythroughsSyncSuccess = {
+  SYNCED: "synced",
+  NO_CHANGES: "no_changes",
+} as const;
+
+export type PlaythroughsSyncSuccessType =
+  (typeof PlaythroughsSyncSuccess)[keyof typeof PlaythroughsSyncSuccess];
+
+export type LibrarySyncSuccess = "no_changes" | { newDataAsOf: Date | null };
 
 /**
  * Handles API errors from authenticated GraphQL requests.
@@ -35,19 +51,18 @@ import { forceSignOut, Session } from "@/stores/session";
 function handleApiError(
   error: ExecuteAuthenticatedError,
   context: string,
-): true {
+): SyncErrorType {
   switch (error.code) {
     case ExecuteAuthenticatedErrorCode.UNAUTHORIZED:
       console.warn(`[${context}] unauthorized, signing out...`);
-      resetAndSignOut();
-      return true;
+      return SyncError.AUTH_ERROR;
     case ExecuteAuthenticatedErrorCode.NETWORK_ERROR:
       console.error(`[${context}] network error, we'll try again later`);
-      return true;
+      return SyncError.NETWORK_ERROR;
     case ExecuteAuthenticatedErrorCode.SERVER_ERROR:
     case ExecuteAuthenticatedErrorCode.GQL_ERROR:
       console.error(`[${context}] server error, we'll try again later`);
-      return true;
+      return SyncError.SERVER_ERROR;
   }
   // istanbul ignore next - exhaustiveness check, should never be reached
   error satisfies never;
@@ -65,11 +80,9 @@ const deletionsTables = {
   PERSON: schema.people,
 };
 
-export async function sync(session: Session) {
-  return Promise.all([syncLibrary(session), syncPlaythroughs(session)]);
-}
-
-export async function syncLibrary(session: Session) {
+export async function syncLibrary(
+  session: Session,
+): Promise<Result<LibrarySyncSuccess, SyncErrorType>> {
   console.debug("[SyncLibrary] syncing library...");
 
   const syncedServer = await getDb().query.syncedServers.findFirst({
@@ -80,13 +93,15 @@ export async function syncLibrary(session: Session) {
   const result = await getLibraryChangesSince(session, lastSync);
 
   if (!result.success) {
-    handleApiError(result.error, "SyncDown");
-    return;
+    return {
+      success: false,
+      error: handleApiError(result.error, "SyncLibrary"),
+    };
   }
 
   const changes = result.result;
 
-  if (!changes) return;
+  if (!changes) return { success: true, result: "no_changes" };
 
   const peopleValues = changes.peopleChangedSince.map((person) => {
     return {
@@ -444,25 +459,19 @@ export async function syncLibrary(session: Session) {
       });
   });
 
-  // Update global data version store
-  if (newDataAsOf) setLibraryDataVersion(newDataAsOf);
-
   console.debug("[SyncLibrary] library sync complete");
+  return { success: true, result: { newDataAsOf } };
 }
 
 // =============================================================================
 // Playthrough Sync (new event-sourced model)
 // =============================================================================
 
-export async function syncPlaythroughs(session: Session) {
+export async function syncPlaythroughs(
+  session: Session,
+  deviceInfo: DeviceInfo,
+): Promise<Result<PlaythroughsSyncSuccessType, SyncErrorType>> {
   console.debug("[SyncPlaythroughs] starting...");
-
-  // Get device info from store (should be initialized at boot)
-  const deviceInfo = useDevice.getState().deviceInfo;
-  if (!deviceInfo) {
-    console.warn("[SyncPlaythroughs] Device not initialized, skipping");
-    return;
-  }
 
   // Get unsynced playthroughs
   const unsyncedPlaythroughs = await getUnsyncedPlaythroughs(session);
@@ -560,12 +569,15 @@ export async function syncPlaythroughs(session: Session) {
   const result = await syncProgress(session, input);
 
   if (!result.success) {
-    handleApiError(result.error, "SyncPlaythroughs");
-    return;
+    return {
+      success: false,
+      error: handleApiError(result.error, "SyncPlaythroughs"),
+    };
   }
 
   const syncResult = result.result.syncProgress;
-  if (!syncResult) return;
+  if (!syncResult)
+    return { success: true, result: PlaythroughsSyncSuccess.NO_CHANGES };
 
   const serverTime = new Date(syncResult.serverTime);
 
@@ -715,27 +727,5 @@ export async function syncPlaythroughs(session: Session) {
     "events",
   );
 
-  // Notify UI that playthrough data changed
-  bumpPlaythroughDataVersion();
+  return { success: true, result: PlaythroughsSyncSuccess.SYNCED };
 }
-
-function resetAndSignOut() {
-  // Just sign out - the player will clean up reactively via session subscription
-  forceSignOut();
-}
-
-const groupBy = <T, K extends keyof any, V>(
-  list: T[],
-  getKey: (item: T) => K,
-  getValue: (item: T) => V,
-) => {
-  return list.reduce(
-    (previous, currentItem) => {
-      const group = getKey(currentItem);
-      if (!previous[group]) previous[group] = [];
-      previous[group].push(getValue(currentItem));
-      return previous;
-    },
-    {} as Record<K, V[]>,
-  );
-};

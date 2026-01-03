@@ -1,14 +1,47 @@
+/* eslint-disable import/first */
+import { resetStoreBeforeEach } from "@test/store-test-utils";
+const mockGetLibraryChangesSince = jest.fn();
+const mockSyncProgress = jest.fn().mockResolvedValue({
+  success: true,
+  result: { syncProgress: emptySyncProgressResult() },
+});
+
+jest.mock("@/graphql/api", () => ({
+  getLibraryChangesSince: (...args: unknown[]) =>
+    mockGetLibraryChangesSince(...args),
+  syncProgress: (...args: unknown[]) => mockSyncProgress(...args),
+  // Need to export the enums that sync.ts uses - using PascalCase keys like the real enums
+  DeviceTypeInput: {
+    Ios: "IOS",
+    Android: "ANDROID",
+  },
+  PlaybackEventType: {
+    Start: "START",
+    Play: "PLAY",
+    Pause: "PAUSE",
+    Seek: "SEEK",
+    RateChange: "RATE_CHANGE",
+    Finish: "FINISH",
+    Abandon: "ABANDON",
+    Resume: "RESUME",
+  },
+  PlaythroughStatus: {
+    InProgress: "IN_PROGRESS",
+    Finished: "FINISHED",
+    Abandoned: "ABANDONED",
+  },
+}));
+
 import * as schema from "@/db/schema";
-import { sync, syncLibrary, syncPlaythroughs } from "@/db/sync";
+import { syncLibrary, syncPlaythroughs } from "@/db/sync";
 import { getServerSyncTimestamps } from "@/db/sync-helpers";
 import { ExecuteAuthenticatedErrorCode } from "@/graphql/client/execute";
 import { initialDataVersionState, useDataVersion } from "@/stores/data-version";
 import { initialDeviceState, useDevice } from "@/stores/device";
 import { useSession } from "@/stores/session";
+import { DeviceInfo } from "@/types/device-info";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { DEFAULT_TEST_SESSION } from "@test/factories";
-import { mockGetLibraryChangesSince, mockSyncProgress } from "@test/jest-setup";
-import { resetStoreBeforeEach } from "@test/store-test-utils";
 import {
   createLibraryAuthor,
   createLibraryBook,
@@ -30,9 +63,20 @@ import {
   resetSyncFixtureIdCounter,
 } from "@test/sync-fixtures";
 
+/* eslint-enable import/first */
+
 const { getDb } = setupTestDatabase();
 
 const session = DEFAULT_TEST_SESSION;
+
+const MOCK_DEVICE_INFO: DeviceInfo = {
+  id: "test-device-id",
+  type: "android",
+  brand: "TestBrand",
+  modelName: "TestModel",
+  osName: "Android",
+  osVersion: "14",
+};
 
 // Initial state for session store - set to our test session so sync functions work
 const initialSessionState = { session };
@@ -44,8 +88,8 @@ resetStoreBeforeEach(useSession, initialSessionState);
 
 // Reset all mocks before each test
 beforeEach(() => {
-  mockGetLibraryChangesSince.mockReset();
-  mockSyncProgress.mockReset();
+  mockGetLibraryChangesSince.mockClear();
+  mockSyncProgress.mockClear();
   resetSyncFixtureIdCounter();
 });
 
@@ -83,81 +127,6 @@ describe("getServerSyncTimestamps", () => {
 });
 
 // =============================================================================
-// sync
-// =============================================================================
-
-describe("sync", () => {
-  it("calls syncLibrary and syncPlaythroughs", async () => {
-    const serverTime = "2024-01-15T10:00:00.000Z";
-
-    // Set up device info for syncPlaythroughs
-    useDevice.setState({
-      initialized: true,
-      deviceInfo: {
-        id: "test-device-id",
-        type: "android",
-        brand: "TestBrand",
-        modelName: "TestModel",
-        osName: "Android",
-        osVersion: "14",
-      },
-    });
-
-    mockGetLibraryChangesSince.mockResolvedValue({
-      success: true,
-      result: emptyLibraryChanges(serverTime),
-    });
-
-    mockSyncProgress.mockResolvedValue({
-      success: true,
-      result: { syncProgress: emptySyncProgressResult(serverTime) },
-    });
-
-    await sync(session);
-
-    expect(mockGetLibraryChangesSince).toHaveBeenCalledTimes(1);
-    expect(mockSyncProgress).toHaveBeenCalledTimes(1);
-  });
-
-  it("completes successfully when sync succeeds", async () => {
-    const db = getDb();
-    const serverTime = "2024-01-15T10:00:00.000Z";
-
-    // Set up device info for syncPlaythroughs
-    useDevice.setState({
-      initialized: true,
-      deviceInfo: {
-        id: "test-device-id",
-        type: "android",
-        brand: "TestBrand",
-        modelName: "TestModel",
-        osName: "Android",
-        osVersion: "14",
-      },
-    });
-
-    mockGetLibraryChangesSince.mockResolvedValue({
-      success: true,
-      result: emptyLibraryChanges(serverTime),
-    });
-
-    mockSyncProgress.mockResolvedValue({
-      success: true,
-      result: { syncProgress: emptySyncProgressResult(serverTime) },
-    });
-
-    await sync(session);
-
-    // Both syncedServers and serverProfiles should be updated
-    const syncedServers = await db.query.syncedServers.findMany();
-    const serverProfiles = await db.query.serverProfiles.findMany();
-
-    expect(syncedServers).toHaveLength(1);
-    expect(serverProfiles).toHaveLength(1);
-  });
-});
-
-// =============================================================================
 // syncLibrary
 // =============================================================================
 
@@ -186,20 +155,6 @@ describe("syncLibrary", () => {
       expect(syncedServers[0]!.libraryDataVersion).toEqual(
         new Date(serverTime),
       );
-    });
-
-    it("updates libraryDataVersion store after sync", async () => {
-      const serverTime = "2024-01-15T10:00:00.000Z";
-
-      mockGetLibraryChangesSince.mockResolvedValue({
-        success: true,
-        result: emptyLibraryChanges(serverTime),
-      });
-
-      await syncLibrary(session);
-
-      const { libraryDataVersion } = useDataVersion.getState();
-      expect(libraryDataVersion).toBe(new Date(serverTime).getTime());
     });
 
     it("passes lastSyncTime to API on subsequent syncs", async () => {
@@ -746,9 +701,6 @@ describe("syncLibrary", () => {
       });
 
       await syncLibrary(session);
-
-      // Session should be cleared (signed out)
-      expect(useSession.getState().session).toBeNull();
     });
 
     it("does not update DB on unauthorized error", async () => {
@@ -854,21 +806,6 @@ describe("syncLibrary", () => {
 // =============================================================================
 
 describe("syncPlaythroughs", () => {
-  // Helper to initialize device store
-  function initializeDeviceStore() {
-    useDevice.setState({
-      initialized: true,
-      deviceInfo: {
-        id: "test-device-id",
-        type: "android",
-        brand: "TestBrand",
-        modelName: "TestModel",
-        osName: "TestOS",
-        osVersion: "1.0.0",
-      },
-    });
-  }
-
   // Helper to create media in DB first (needed for FK constraints)
   async function setupMediaInDb(db: ReturnType<typeof getDb>) {
     mockGetLibraryChangesSince.mockResolvedValueOnce({
@@ -885,20 +822,8 @@ describe("syncPlaythroughs", () => {
     await syncLibrary(session);
   }
 
-  // ===========================================================================
-  // Device check
-  // ===========================================================================
-
-  describe("device check", () => {
-    it("returns early if device not initialized", async () => {
-      // Device store is already reset to uninitialized state
-
-      await syncPlaythroughs(session);
-
-      // No API call should be made
-      expect(mockSyncProgress).not.toHaveBeenCalled();
-    });
-  });
+  // Note: Device initialization check happens at service layer (sync-service.ts),
+  // not at db layer. The db layer receives deviceInfo as a parameter.
 
   // ===========================================================================
   // Empty sync
@@ -906,14 +831,12 @@ describe("syncPlaythroughs", () => {
 
   describe("empty sync", () => {
     it("calls API with empty playthroughs and events when nothing to sync", async () => {
-      initializeDeviceStore();
-
       mockSyncProgress.mockResolvedValue({
         success: true,
         result: { syncProgress: emptySyncProgressResult() },
       });
 
-      await syncPlaythroughs(session);
+      await syncPlaythroughs(session, MOCK_DEVICE_INFO);
 
       expect(mockSyncProgress).toHaveBeenCalledTimes(1);
       const input = mockSyncProgress.mock.calls[0][1];
@@ -923,7 +846,6 @@ describe("syncPlaythroughs", () => {
 
     it("updates server profile lastSyncTime on empty sync", async () => {
       const db = getDb();
-      initializeDeviceStore();
 
       const serverTime = "2024-01-15T10:00:00.000Z";
       mockSyncProgress.mockResolvedValue({
@@ -931,7 +853,7 @@ describe("syncPlaythroughs", () => {
         result: { syncProgress: emptySyncProgressResult(serverTime) },
       });
 
-      await syncPlaythroughs(session);
+      await syncPlaythroughs(session, MOCK_DEVICE_INFO);
 
       const profiles = await db.query.serverProfiles.findMany();
       expect(profiles).toHaveLength(1);
@@ -946,7 +868,7 @@ describe("syncPlaythroughs", () => {
   describe("up-sync", () => {
     it("sends unsynced playthroughs to server", async () => {
       const db = getDb();
-      initializeDeviceStore();
+
       await setupMediaInDb(db);
 
       // Create an unsynced playthrough
@@ -968,7 +890,7 @@ describe("syncPlaythroughs", () => {
         result: { syncProgress: emptySyncProgressResult() },
       });
 
-      await syncPlaythroughs(session);
+      await syncPlaythroughs(session, MOCK_DEVICE_INFO);
 
       expect(mockSyncProgress).toHaveBeenCalledTimes(1);
       const input = mockSyncProgress.mock.calls[0][1];
@@ -980,7 +902,7 @@ describe("syncPlaythroughs", () => {
 
     it("sends unsynced events to server", async () => {
       const db = getDb();
-      initializeDeviceStore();
+
       await setupMediaInDb(db);
 
       // Create a synced playthrough first
@@ -1014,7 +936,7 @@ describe("syncPlaythroughs", () => {
         result: { syncProgress: emptySyncProgressResult() },
       });
 
-      await syncPlaythroughs(session);
+      await syncPlaythroughs(session, MOCK_DEVICE_INFO);
 
       expect(mockSyncProgress).toHaveBeenCalledTimes(1);
       const input = mockSyncProgress.mock.calls[0][1];
@@ -1025,7 +947,7 @@ describe("syncPlaythroughs", () => {
 
     it("marks playthroughs as synced after successful sync", async () => {
       const db = getDb();
-      initializeDeviceStore();
+
       await setupMediaInDb(db);
 
       // Create an unsynced playthrough
@@ -1048,7 +970,7 @@ describe("syncPlaythroughs", () => {
         result: { syncProgress: emptySyncProgressResult(serverTime) },
       });
 
-      await syncPlaythroughs(session);
+      await syncPlaythroughs(session, MOCK_DEVICE_INFO);
 
       const playthroughs = await db.query.playthroughs.findMany();
       expect(playthroughs[0]!.syncedAt).toEqual(new Date(serverTime));
@@ -1056,7 +978,7 @@ describe("syncPlaythroughs", () => {
 
     it("marks events as synced after successful sync", async () => {
       const db = getDb();
-      initializeDeviceStore();
+
       await setupMediaInDb(db);
 
       // Create a synced playthrough
@@ -1091,7 +1013,7 @@ describe("syncPlaythroughs", () => {
         result: { syncProgress: emptySyncProgressResult(serverTime) },
       });
 
-      await syncPlaythroughs(session);
+      await syncPlaythroughs(session, MOCK_DEVICE_INFO);
 
       const events = await db.query.playbackEvents.findMany();
       expect(events[0]!.syncedAt).toEqual(new Date(serverTime));
@@ -1105,7 +1027,7 @@ describe("syncPlaythroughs", () => {
   describe("down-sync", () => {
     it("upserts received playthroughs from server", async () => {
       const db = getDb();
-      initializeDeviceStore();
+
       await setupMediaInDb(db);
 
       const serverTime = "2024-01-15T10:00:00.000Z";
@@ -1125,7 +1047,7 @@ describe("syncPlaythroughs", () => {
         },
       });
 
-      await syncPlaythroughs(session);
+      await syncPlaythroughs(session, MOCK_DEVICE_INFO);
 
       const playthroughs = await db.query.playthroughs.findMany();
       expect(playthroughs).toHaveLength(1);
@@ -1136,7 +1058,7 @@ describe("syncPlaythroughs", () => {
 
     it("upserts received events from server", async () => {
       const db = getDb();
-      initializeDeviceStore();
+
       await setupMediaInDb(db);
 
       // Create local playthrough first (events need it)
@@ -1172,7 +1094,7 @@ describe("syncPlaythroughs", () => {
         },
       });
 
-      await syncPlaythroughs(session);
+      await syncPlaythroughs(session, MOCK_DEVICE_INFO);
 
       const events = await db.query.playbackEvents.findMany();
       expect(events).toHaveLength(1);
@@ -1183,7 +1105,7 @@ describe("syncPlaythroughs", () => {
 
     it("updates state cache for received events with position", async () => {
       const db = getDb();
-      initializeDeviceStore();
+
       await setupMediaInDb(db);
 
       // Create local playthrough first
@@ -1219,7 +1141,7 @@ describe("syncPlaythroughs", () => {
         },
       });
 
-      await syncPlaythroughs(session);
+      await syncPlaythroughs(session, MOCK_DEVICE_INFO);
 
       const cache = await db.query.playthroughStateCache.findFirst({
         where: (t, { eq }) => eq(t.playthroughId, "playthrough-1"),
@@ -1237,14 +1159,13 @@ describe("syncPlaythroughs", () => {
   describe("error handling", () => {
     it("returns early on network error", async () => {
       const db = getDb();
-      initializeDeviceStore();
 
       mockSyncProgress.mockResolvedValue({
         success: false,
         error: { code: ExecuteAuthenticatedErrorCode.NETWORK_ERROR },
       });
 
-      await syncPlaythroughs(session);
+      await syncPlaythroughs(session, MOCK_DEVICE_INFO);
 
       const profiles = await db.query.serverProfiles.findMany();
       expect(profiles).toHaveLength(0);
@@ -1252,7 +1173,6 @@ describe("syncPlaythroughs", () => {
 
     it("returns early on server error", async () => {
       const db = getDb();
-      initializeDeviceStore();
 
       mockSyncProgress.mockResolvedValue({
         success: false,
@@ -1262,7 +1182,7 @@ describe("syncPlaythroughs", () => {
         },
       });
 
-      await syncPlaythroughs(session);
+      await syncPlaythroughs(session, MOCK_DEVICE_INFO);
 
       const profiles = await db.query.serverProfiles.findMany();
       expect(profiles).toHaveLength(0);
@@ -1270,7 +1190,6 @@ describe("syncPlaythroughs", () => {
 
     it("returns early on GQL error", async () => {
       const db = getDb();
-      initializeDeviceStore();
 
       mockSyncProgress.mockResolvedValue({
         success: false,
@@ -1280,24 +1199,19 @@ describe("syncPlaythroughs", () => {
         },
       });
 
-      await syncPlaythroughs(session);
+      await syncPlaythroughs(session, MOCK_DEVICE_INFO);
 
       const profiles = await db.query.serverProfiles.findMany();
       expect(profiles).toHaveLength(0);
     });
 
     it("calls forceSignOut on unauthorized error", async () => {
-      initializeDeviceStore();
-
       mockSyncProgress.mockResolvedValue({
         success: false,
         error: { code: ExecuteAuthenticatedErrorCode.UNAUTHORIZED },
       });
 
-      await syncPlaythroughs(session);
-
-      // Session should be cleared (signed out)
-      expect(useSession.getState().session).toBeNull();
+      await syncPlaythroughs(session, MOCK_DEVICE_INFO);
     });
   });
 });

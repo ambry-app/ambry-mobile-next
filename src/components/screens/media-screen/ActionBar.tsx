@@ -20,8 +20,8 @@ import {
   startFreshPlaythrough,
 } from "@/services/playback-controls";
 import { useDownloads } from "@/stores/downloads";
-import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
+import { Session } from "@/types/session";
 
 type ActionBarProps = {
   media: MediaHeaderInfo;

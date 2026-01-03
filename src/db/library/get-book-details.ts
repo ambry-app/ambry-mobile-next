@@ -2,7 +2,7 @@ import { and, asc, desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 import { requireValue } from "@/utils";
 
 import {

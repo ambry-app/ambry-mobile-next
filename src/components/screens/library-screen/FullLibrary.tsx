@@ -7,8 +7,8 @@ import { getMediaPage } from "@/db/library";
 import { usePaginatedLibraryData } from "@/hooks/use-paginated-library-data";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { useScreen } from "@/stores/screen";
-import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
+import { Session } from "@/types/session";
 
 // FlatList layout constants for 2-column grid
 const FLATLIST_PADDING = 8;

@@ -8,14 +8,9 @@ import {
   deleteSession,
 } from "@/graphql/api";
 import { Result } from "@/types/result";
+import { Session } from "@/types/session";
 
 const AUTH_STORAGE_KEY = "Ambry_userSessionV2";
-
-export interface Session {
-  token: string;
-  email: string;
-  url: string;
-}
 
 interface SessionState {
   session: Session | null;

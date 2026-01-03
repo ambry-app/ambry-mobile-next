@@ -18,7 +18,7 @@ import {
   startFreshPlaythrough,
 } from "@/services/playback-controls";
 import { useDownloads } from "@/stores/downloads";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 
 import { MediaContextMenuImpl } from "./MediaContextMenuImpl";
 

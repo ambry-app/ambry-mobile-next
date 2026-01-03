@@ -19,7 +19,7 @@ import {
   setDownloadResumable,
   useDownloads,
 } from "@/stores/downloads";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 import { documentDirectoryFilePath } from "@/utils";
 
 import { reloadCurrentPlaythroughIfMedia } from "./playback-controls";

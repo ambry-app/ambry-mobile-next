@@ -22,11 +22,12 @@ import {
   clearActivePlaythroughIdForDevice,
   updatePlaythroughStatus,
 } from "@/db/playthroughs";
-import { syncPlaythroughs } from "@/db/sync";
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
-import { Session, useSession } from "@/stores/session";
+import { useSession } from "@/stores/session";
+import { Session } from "@/types/session";
 
 import { recordAbandonEvent, recordFinishEvent } from "./event-recording";
+import { syncPlaythroughs } from "./sync-service";
 
 // =============================================================================
 // Public API

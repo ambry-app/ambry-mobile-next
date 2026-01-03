@@ -58,7 +58,7 @@ jest.mock("@/stores/session", () => ({
 
 // Mock DB dependencies
 const mockSyncPlaythroughs = jest.fn().mockResolvedValue(undefined);
-jest.mock("@/db/sync", () => ({
+jest.mock("@/services/sync-service", () => ({
   syncPlaythroughs: (...args: unknown[]) => mockSyncPlaythroughs(...args),
 }));
 

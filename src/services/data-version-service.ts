@@ -1,6 +1,6 @@
 import { getServerSyncTimestamps } from "@/db/sync-helpers";
 import { useDataVersion } from "@/stores/data-version";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 
 /**
  * Initialize the data version store.

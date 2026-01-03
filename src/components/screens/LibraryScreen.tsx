@@ -6,8 +6,8 @@ import {
   SearchResults,
 } from "@/components/screens/library-screen";
 import { useDebounce } from "@/hooks/use-debounce";
-import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
+import { Session } from "@/types/session";
 
 type LibraryScreenProps = {
   session: Session;

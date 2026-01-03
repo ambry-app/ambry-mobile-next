@@ -9,7 +9,7 @@ import {
 } from "@/services/playback-controls";
 import { useDownloads } from "@/stores/downloads";
 import { type LoadedPlaythrough } from "@/stores/player-ui-state";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 
 import { PlayerContextMenuImpl } from "./PlayerContextMenuImpl";
 

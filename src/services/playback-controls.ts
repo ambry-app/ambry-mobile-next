@@ -6,14 +6,14 @@ import {
   getInProgressPlaythrough,
   getPlaythroughById,
 } from "@/db/playthroughs";
-import { syncPlaythroughs } from "@/db/sync";
 import {
   initialChapterState,
   requestExpandPlayer,
   resetPlayerUIState,
   usePlayerUIState,
 } from "@/stores/player-ui-state";
-import { Session, useSession } from "@/stores/session";
+import { useSession } from "@/stores/session";
+import { Session } from "@/types/session";
 
 import * as EventRecording from "./event-recording";
 import * as Lifecycle from "./playthrough-lifecycle";
@@ -21,6 +21,7 @@ import * as Loader from "./playthrough-loader";
 import * as Heartbeat from "./position-heartbeat";
 import { seekImmediateNoLog } from "./seek-service";
 import * as SleepTimer from "./sleep-timer-service";
+import { syncPlaythroughs } from "./sync-service";
 import * as Player from "./trackplayer-wrapper";
 import {
   AndroidAudioContentType,

@@ -3,7 +3,7 @@ import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
 import { PlaythroughStatus } from "@/db/schema";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 import { groupMapBy } from "@/utils";
 
 export async function getAuthorsForBooks(session: Session, bookIds: string[]) {

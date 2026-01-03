@@ -17,8 +17,8 @@ import {
 import { useLibraryData } from "@/hooks/use-library-data";
 import { usePaginatedLibraryData } from "@/hooks/use-paginated-library-data";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
-import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
+import { Session } from "@/types/session";
 
 type AuthorScreenProps = {
   authorId: string;

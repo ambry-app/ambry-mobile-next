@@ -1,7 +1,7 @@
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
 
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 
 import {
   NowPlaying,

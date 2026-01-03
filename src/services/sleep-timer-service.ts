@@ -11,8 +11,8 @@ import { recordPauseEvent } from "@/services/event-recording";
 import * as Heartbeat from "@/services/position-heartbeat";
 import * as Player from "@/services/trackplayer-wrapper";
 import { usePlayerUIState } from "@/stores/player-ui-state";
-import { Session } from "@/stores/session";
 import { setTriggerTime, useSleepTimer } from "@/stores/sleep-timer";
+import { Session } from "@/types/session";
 
 const SLEEP_TIMER_CHECK_INTERVAL = 1000;
 let sleepTimerCheckInterval: NodeJS.Timeout | null = null;

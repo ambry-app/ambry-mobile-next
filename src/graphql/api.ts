@@ -7,8 +7,8 @@ import {
   ExecuteErrorCode,
 } from "@/graphql/client/execute";
 import type { SyncProgressInput } from "@/graphql/client/graphql";
-import { Session } from "@/stores/session";
 import { Result } from "@/types/result";
+import { Session } from "@/types/session";
 
 const libraryChangesSinceQuery = graphql(`
   query LibraryChangesSince($since: DateTime) {

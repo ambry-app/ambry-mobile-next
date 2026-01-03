@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 
-import { sync } from "@/db/sync";
-import { Session } from "@/stores/session";
+import { sync } from "@/services/sync-service";
+import { Session } from "@/types/session";
 
 export function usePullToRefresh(session: Session) {
   const [refreshing, setRefreshing] = useState(false);

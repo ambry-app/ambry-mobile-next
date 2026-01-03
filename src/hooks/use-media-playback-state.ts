@@ -8,7 +8,7 @@ import {
 import { useIsPlaying } from "@/services/trackplayer-wrapper";
 import { useDataVersion } from "@/stores/data-version";
 import { usePlayerUIState } from "@/stores/player-ui-state";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 
 // Re-export the playthrough type for convenience
 export type { ActivePlaythrough };

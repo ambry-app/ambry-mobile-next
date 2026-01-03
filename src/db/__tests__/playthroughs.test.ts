@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 
 import * as playthroughs from "@/db/playthroughs";
 import * as schema from "@/db/schema";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createMedia,

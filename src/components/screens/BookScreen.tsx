@@ -5,7 +5,7 @@ import { Header } from "@/components/screens/book-screen";
 import { PAGE_SIZE } from "@/constants";
 import { getBookDetails } from "@/db/library";
 import { useLibraryData } from "@/hooks/use-library-data";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 
 type BookScreenProps = {
   bookId: string;

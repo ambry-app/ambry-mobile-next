@@ -15,7 +15,7 @@ import {
 import { getBookOtherEditions, MediaHeaderInfo } from "@/db/library";
 import { useLibraryData } from "@/hooks/use-library-data";
 import { useScreen } from "@/stores/screen";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 
 type OtherEditionsProps = {
   media: MediaHeaderInfo;

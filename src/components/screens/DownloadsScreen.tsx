@@ -2,8 +2,8 @@ import { FlatList, StyleSheet, Text } from "react-native";
 
 import { useDownloadedMedia } from "@/hooks/use-downloaded-media";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
-import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
+import { Session } from "@/types/session";
 
 import { DownloadRow } from "./downloads-screen";
 

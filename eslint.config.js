@@ -112,7 +112,7 @@ module.exports = defineConfig([
             },
 
             // DB layer only imports stores and utils
-            { from: "db", allow: ["stores", "db", "utils"] },
+            { from: "db", allow: ["db", "utils"] },
 
             // Utils are leaf nodes - no imports from other layers
             { from: "utils", allow: ["utils"] },

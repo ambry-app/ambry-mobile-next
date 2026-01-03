@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { isMediaOnShelf, toggleMediaOnShelf } from "@/db/shelves";
 import { bumpShelfDataVersion } from "@/stores/data-version";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 
 export function useShelvedMedia(
   session: Session,

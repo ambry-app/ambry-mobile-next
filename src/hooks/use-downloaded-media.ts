@@ -2,7 +2,7 @@ import { useShallow } from "zustand/shallow";
 
 import { getDownloadedMedia } from "@/db/library";
 import { useDownloads } from "@/stores/downloads";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 
 import { useLibraryData } from "./use-library-data";
 

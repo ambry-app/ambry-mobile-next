@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react-native";
 
-import * as syncModule from "@/db/sync";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import * as syncService from "@/services/sync-service";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { DEFAULT_TEST_SESSION } from "@test/factories";
 
@@ -23,9 +23,12 @@ describe("usePullToRefresh", () => {
 
   it("refreshing is true during onRefresh, then false after", async () => {
     // Patch sync to delay
-    syncSpy = jest.spyOn(syncModule, "sync").mockImplementation(async () => {
+    syncSpy = jest.spyOn(syncService, "sync").mockImplementation(async () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
-      return [undefined, undefined];
+      return [
+        { success: true, result: "no_changes" },
+        { success: true, result: "no_changes" },
+      ];
     });
 
     const { result } = renderHook(() => usePullToRefresh(DEFAULT_TEST_SESSION));

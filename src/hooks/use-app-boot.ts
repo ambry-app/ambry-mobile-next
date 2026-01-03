@@ -6,12 +6,12 @@ import {
   migrateFromPlayerStateToPlaythrough,
   needsPlayerStateMigration,
 } from "@/db/migration-player-state";
-import { sync } from "@/db/sync";
 import { registerBackgroundSyncTask } from "@/services/background-sync-service";
 import { initializeDataVersion } from "@/services/data-version-service";
 import { initializeDownloads } from "@/services/download-service";
 import { initializePlayer } from "@/services/playback-controls";
 import { initializeSleepTimer } from "@/services/sleep-timer-service";
+import { sync } from "@/services/sync-service";
 import { initializeDevice } from "@/stores/device";
 import { useSession } from "@/stores/session";
 import migrations from "@drizzle/migrations";

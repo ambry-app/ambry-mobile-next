@@ -13,8 +13,8 @@ import { useLibraryData } from "@/hooks/use-library-data";
 import { useDataVersion } from "@/stores/data-version";
 import { useDebug } from "@/stores/debug";
 import { usePlayerUIState as usePlayer } from "@/stores/player-ui-state";
-import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
+import { Session } from "@/types/session";
 import { secondsDisplay } from "@/utils";
 import { timeAgo } from "@/utils/date";
 

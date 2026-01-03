@@ -5,8 +5,8 @@ import { PAGE_SIZE } from "@/constants";
 import { getPlaythroughsPage } from "@/db/library";
 import { usePaginatedLibraryData } from "@/hooks/use-paginated-library-data";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
-import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
+import { Session } from "@/types/session";
 
 type FinishedScreenProps = {
   session: Session;

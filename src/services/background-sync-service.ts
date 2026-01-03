@@ -2,8 +2,9 @@ import * as BackgroundTask from "expo-background-task";
 import * as TaskManager from "expo-task-manager";
 
 import { getExpoDb } from "@/db/db";
-import { sync } from "@/db/sync";
 import { useSession } from "@/stores/session";
+
+import { sync } from "./sync-service";
 
 const BACKGROUND_SYNC_TASK_NAME = "ambry-background-sync";
 

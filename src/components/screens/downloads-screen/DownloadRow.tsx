@@ -14,8 +14,8 @@ import { DownloadedMedia } from "@/db/library";
 import { useThrottle } from "@/hooks/use-throttle";
 import { cancelDownload, removeDownload } from "@/services/download-service";
 import { useDownloads } from "@/stores/downloads";
-import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
+import { Session } from "@/types/session";
 
 import { FileSize } from "./FileSize";
 

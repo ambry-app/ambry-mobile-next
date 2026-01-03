@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { Database, getDb } from "@/db/db";
 import * as schema from "@/db/schema";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 import { randomUUID } from "@/utils/crypto";
 
 // =============================================================================

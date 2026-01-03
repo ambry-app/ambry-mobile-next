@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { AppStateStatus } from "react-native";
 
 import { getExpoDb } from "@/db/db";
-import { sync } from "@/db/sync";
+import { sync } from "@/services/sync-service";
 import { useSession } from "@/stores/session";
 
 // Periodic sync every 15 minutes while the app is in the foreground.

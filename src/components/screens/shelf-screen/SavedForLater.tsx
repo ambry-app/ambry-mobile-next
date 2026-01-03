@@ -11,7 +11,7 @@ import { getSavedMediaPage } from "@/db/shelves";
 import { useLibraryData } from "@/hooks/use-library-data";
 import { useDataVersion } from "@/stores/data-version";
 import { useScreen } from "@/stores/screen";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 
 type SavedForLaterProps = {
   session: Session;

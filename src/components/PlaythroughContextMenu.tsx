@@ -12,8 +12,8 @@ import {
   resumeAndLoadPlaythrough,
 } from "@/services/playback-controls";
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
-import { Session } from "@/stores/session";
 import { Colors } from "@/styles";
+import { Session } from "@/types/session";
 
 export type PlaythroughStatus = "in_progress" | "finished" | "abandoned";
 

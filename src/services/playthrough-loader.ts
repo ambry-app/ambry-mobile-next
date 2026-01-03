@@ -29,15 +29,16 @@ import {
   setActivePlaythroughIdForDevice,
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
-import { syncPlaythroughs } from "@/db/sync";
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
 import { usePlayerUIState } from "@/stores/player-ui-state";
-import { Session, useSession } from "@/stores/session";
+import { useSession } from "@/stores/session";
+import { Session } from "@/types/session";
 import { documentDirectoryFilePath } from "@/utils";
 
 import * as EventRecording from "./event-recording";
 import * as Heartbeat from "./position-heartbeat";
 import * as SleepTimer from "./sleep-timer-service";
+import { syncPlaythroughs } from "./sync-service";
 import * as Player from "./trackplayer-wrapper";
 import { PitchAlgorithm, TrackType } from "./trackplayer-wrapper";
 

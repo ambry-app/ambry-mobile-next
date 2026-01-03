@@ -2,7 +2,7 @@ import { and, desc, eq, ne, or, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 import { flatMapGroups } from "@/utils";
 
 import { MediaHeaderInfo } from "./get-media-header-info";

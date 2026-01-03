@@ -2,7 +2,7 @@ import { and, asc, eq } from "drizzle-orm";
 
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
-import { Session } from "@/stores/session";
+import { Session } from "@/types/session";
 
 import { MediaHeaderInfo } from "./get-media-header-info";
 import { combineAuthorsAndNarrators } from "./shared-queries";

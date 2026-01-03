@@ -1,5 +1,4 @@
 import { PAUSE_REWIND_SECONDS } from "@/constants";
-import { syncPlaythroughs } from "@/db/sync";
 import * as EventRecording from "@/services/event-recording";
 import * as Lifecycle from "@/services/playthrough-lifecycle";
 import * as Heartbeat from "@/services/position-heartbeat";
@@ -10,6 +9,8 @@ import { Event } from "@/services/trackplayer-wrapper";
 import { initializeDevice } from "@/stores/device";
 import { SeekSource, usePlayerUIState } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
+
+import { syncPlaythroughs } from "./sync-service";
 
 export const PlaybackService = async function () {
   console.debug("[TrackPlayer Service] Initializing");
