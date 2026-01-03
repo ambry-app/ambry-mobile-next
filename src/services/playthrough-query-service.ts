@@ -27,7 +27,6 @@ import { useIsPlaying } from "./trackplayer-wrapper";
 // Re-export types and functions for UI consumers
 export type { ActivePlaythrough };
 export {
-  deletePlaythrough,
   getAllPlaythroughsForMedia,
   type PlaythroughForMedia,
 } from "@/db/playthroughs";

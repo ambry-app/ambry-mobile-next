@@ -6,9 +6,11 @@ import {
   PLAYER_EXPAND_ANIMATION_DURATION,
 } from "@/constants";
 import {
+  deletePlaythrough as deletePlaythroughDb,
   getInProgressPlaythrough,
   getPlaythroughById,
 } from "@/db/playthroughs";
+import { bumpPlaythroughDataVersion } from "@/stores/data-version";
 import {
   initialChapterState,
   requestExpandPlayer,
@@ -467,6 +469,28 @@ export async function abandonPlaythrough(
   if (isLoaded) {
     await tryUnloadPlayer();
   }
+}
+
+/**
+ * Delete a playthrough and unload it from the player if loaded.
+ */
+export async function deletePlaythrough(
+  session: Session,
+  playthroughId: string,
+) {
+  const { loadedPlaythrough } = usePlayerUIState.getState();
+  const isLoaded = loadedPlaythrough?.playthroughId === playthroughId;
+
+  if (isLoaded) {
+    const paused = await pauseAndRecordEvent();
+    if (paused) {
+      Heartbeat.stop();
+    }
+    await tryUnloadPlayer();
+  }
+
+  await deletePlaythroughDb(session, playthroughId);
+  bumpPlaythroughDataVersion();
 }
 
 /**
