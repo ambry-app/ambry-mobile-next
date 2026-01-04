@@ -4,11 +4,12 @@ import * as Lifecycle from "@/services/playthrough-lifecycle";
 import * as Heartbeat from "@/services/position-heartbeat";
 import { seekImmediateNoLog, seekRelative } from "@/services/seek-service";
 import * as SleepTimer from "@/services/sleep-timer-service";
-import * as Player from "@/services/trackplayer-wrapper";
-import { Event } from "@/services/trackplayer-wrapper";
+import * as Player from "@/services/track-player-service";
 import { initializeDevice } from "@/stores/device";
-import { SeekSource, usePlayerUIState } from "@/stores/player-ui-state";
+import { SeekSource } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
+import { useTrackPlayer } from "@/stores/track-player";
+import { Event } from "@/types/track-player";
 
 import { syncPlaythroughs } from "./sync-service";
 
@@ -55,33 +56,33 @@ export const PlaybackService = async function () {
 
   Player.addEventListener(Event.PlaybackQueueEnded, async () => {
     console.debug("[TrackPlayer Service] PlaybackQueueEnded");
-    const { loadedPlaythrough, playbackRate } = usePlayerUIState.getState();
 
     Heartbeat.stop();
+    SleepTimer.stop();
 
-    if (loadedPlaythrough) {
-      try {
-        const { duration } = await Player.getProgress();
-        await EventRecording.recordPauseEvent(
-          loadedPlaythrough.playthroughId,
-          duration, // At the very end
-          playbackRate,
-        );
+    const { playthrough } = useTrackPlayer.getState();
 
-        // Auto-finish the playthrough
-        console.debug(
-          "[PlaybackService] Playback ended, auto-finishing playthrough",
-        );
-        await Lifecycle.finishPlaythrough(
-          null,
-          loadedPlaythrough.playthroughId,
-        );
-      } catch (error) {
-        console.warn("[PlaybackService] Error handling queue ended:", error);
-      }
+    if (!playthrough) {
+      console.warn(
+        "[PlaybackService] No loaded playthrough when handling queue end",
+      );
+      return;
     }
 
-    SleepTimer.stop();
+    const playbackRate = await Player.getPlaybackRate();
+    const progress = await Player.getAccurateProgress();
+
+    await EventRecording.recordPauseEvent(
+      playthrough.id,
+      progress.duration,
+      playbackRate,
+    );
+
+    // Auto-finish the playthrough
+    console.debug(
+      "[PlaybackService] Playback ended, auto-finishing playthrough",
+    );
+    await Lifecycle.finishPlaythrough(null, playthrough.id);
   });
 
   // Player.addEventListener(Event.PlaybackResume, (args) => {
@@ -135,35 +136,40 @@ export const PlaybackService = async function () {
   Player.addEventListener(Event.RemotePause, async () => {
     console.debug("[TrackPlayer Service] RemotePause");
 
+    Heartbeat.stop();
+    SleepTimer.stop();
+
     await Player.pause();
     await seekImmediateNoLog(-PAUSE_REWIND_SECONDS);
 
-    Heartbeat.stop();
+    const { playthrough } = useTrackPlayer.getState();
 
-    const { loadedPlaythrough, playbackRate } = usePlayerUIState.getState();
-    if (loadedPlaythrough) {
-      try {
-        const { position } = await Player.getProgress();
-        await EventRecording.recordPauseEvent(
-          loadedPlaythrough.playthroughId,
-          position,
-          playbackRate,
-        );
-      } catch (error) {
-        console.warn(
-          "[PlaybackService] Error recording remote pause event:",
-          error,
-        );
-      }
+    if (!playthrough) {
+      console.warn(
+        "[PlaybackService] No loaded playthrough when handling remote pause",
+      );
+      return;
     }
 
-    SleepTimer.stop();
+    const playbackRate = await Player.getPlaybackRate();
+    const progress = await Player.getAccurateProgress();
 
-    const session = useSession.getState().session;
-    if (session) {
-      // Fire and forget
-      syncPlaythroughs(session);
+    await EventRecording.recordPauseEvent(
+      playthrough.id,
+      progress.position,
+      playbackRate,
+    );
+
+    const { session } = useSession.getState();
+
+    if (!session) {
+      console.warn(
+        "[PlaybackService] No session when handling remote pause, cannot sync",
+      );
+      return;
     }
+
+    syncPlaythroughs(session);
   });
 
   Player.addEventListener(Event.RemotePlay, async () => {
@@ -171,25 +177,28 @@ export const PlaybackService = async function () {
 
     await Player.play();
 
-    const { loadedPlaythrough } = usePlayerUIState.getState();
-    if (loadedPlaythrough) {
-      try {
-        const { position } = await Player.getProgress();
-        const rate = await Player.getRate();
-        await EventRecording.recordPlayEvent(
-          loadedPlaythrough.playthroughId,
-          position,
-          rate,
-        );
-        Heartbeat.start(loadedPlaythrough.playthroughId, rate);
-      } catch (error) {
-        console.warn(
-          "[PlaybackService] Error recording remote play event:",
-          error,
-        );
-      }
-    }
     SleepTimer.start();
+
+    const { playthrough } = useTrackPlayer.getState();
+
+    if (!playthrough) {
+      console.warn(
+        "[PlaybackService] No loaded playthrough when handling remote play",
+      );
+      return;
+    }
+
+    const playbackRate = await Player.getPlaybackRate();
+
+    Heartbeat.start(playthrough.id, playbackRate);
+
+    const progress = await Player.getAccurateProgress();
+
+    await EventRecording.recordPlayEvent(
+      playthrough.id,
+      progress.position,
+      playbackRate,
+    );
   });
 
   // Player.addEventListener(Event.RemotePlayId, (args) => {

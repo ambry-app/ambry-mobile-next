@@ -7,10 +7,10 @@ import {
   setSleepTimerEnabled as setSleepTimerEnabledDb,
   setSleepTimerTime as setSleepTimerTimeDb,
 } from "@/db/settings";
-import * as Player from "@/services/trackplayer-wrapper";
-import { usePlayerUIState } from "@/stores/player-ui-state";
+import * as Player from "@/services/track-player-service";
 import { useSession } from "@/stores/session";
 import { setTriggerTime, useSleepTimer } from "@/stores/sleep-timer";
+import { useTrackPlayer } from "@/stores/track-player";
 import { Session } from "@/types/session";
 
 import * as EventRecording from "./event-recording";
@@ -92,7 +92,7 @@ export async function maybeResetTriggerTime() {
  */
 export async function setSleepTimerEnabled(session: Session, enabled: boolean) {
   console.debug("[SleepTimer] Setting enabled to", enabled);
-  const { playing } = await Player.isPlaying();
+  const { playing } = Player.isPlaying();
 
   useSleepTimer.setState({
     sleepTimerEnabled: enabled,
@@ -149,8 +149,8 @@ async function checkTimer() {
     // Time's up - pause and reset
     console.debug("[SleepTimer] Triggering - pausing playback");
 
-    const { playbackRate, loadedPlaythrough } = usePlayerUIState.getState();
-    const { position, duration } = await Player.getProgress();
+    const { playthrough, playbackRate } = useTrackPlayer.getState();
+    const { position, duration } = await Player.getAccurateProgress();
 
     // We have to re-implement most of the pause logic from player-controls here
     await Player.pause();
@@ -163,13 +163,9 @@ async function checkTimer() {
     seekPosition = Math.max(0, Math.min(seekPosition, duration));
     await Player.seekTo(seekPosition);
 
-    if (loadedPlaythrough) {
-      const { position } = await Player.getProgress();
-      EventRecording.recordPauseEvent(
-        loadedPlaythrough.playthroughId,
-        position,
-        playbackRate,
-      );
+    if (playthrough) {
+      const { position } = await Player.getAccurateProgress();
+      EventRecording.recordPauseEvent(playthrough.id, position, playbackRate);
     }
 
     const session = useSession.getState().session;

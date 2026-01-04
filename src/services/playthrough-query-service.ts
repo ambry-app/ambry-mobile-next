@@ -10,27 +10,26 @@
 
 import { useEffect, useState } from "react";
 
-import { FINISH_PROMPT_THRESHOLD } from "@/constants";
+import { FINISH_PROMPT_THRESHOLD_PERCENT } from "@/constants";
 import {
   type ActivePlaythrough,
   getFinishedOrAbandonedPlaythrough as getFinishedOrAbandonedFromDb,
   getInProgressPlaythrough as getInProgressFromDb,
-  getPlaythroughById as getPlaythroughByIdFromDb,
+  getPlaythroughWithMedia as getPlaythroughByIdFromDb,
 } from "@/db/playthroughs";
 import { useDataVersion } from "@/stores/data-version";
-import { usePlayerUIState } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
+import { useTrackPlayer } from "@/stores/track-player";
 import { Session } from "@/types/session";
 
 import { useLibraryData } from "./library-service";
-import { useIsPlaying } from "./trackplayer-wrapper";
 
 // Re-export types and functions for UI consumers
-export type { ActivePlaythrough };
 export {
   getAllPlaythroughsForMedia,
   type PlaythroughForMedia,
 } from "@/db/playthroughs";
+export type { ActivePlaythrough };
 
 // Derive type for finished/abandoned playthroughs
 export type FinishedOrAbandonedPlaythrough = NonNullable<
@@ -139,20 +138,17 @@ export function useMediaPlaybackState(
   mediaId: string,
 ): MediaPlaybackState {
   // Subscribe to player store for loaded state
-  const loadedPlaythrough = usePlayerUIState(
-    (state) => state.loadedPlaythrough,
-  );
-
+  const playthrough = useTrackPlayer((state) => state.playthrough);
   // Subscribe to data version to refresh when playthroughs change
   const playthroughVersion = useDataVersion(
     (state) => state.playthroughDataVersion,
   );
 
   // Get current play state (used when this media is loaded)
-  const { playing } = useIsPlaying();
+  const { playing } = useTrackPlayer((state) => state.isPlaying);
 
   // Check if this specific media is currently loaded
-  const isCurrentlyLoaded = loadedPlaythrough?.mediaId === mediaId;
+  const isCurrentlyLoaded = playthrough?.mediaId === mediaId;
 
   // State for database query results
   const [dbState, setDbState] = useState<MediaPlaybackState>({
@@ -199,11 +195,11 @@ export function useMediaPlaybackState(
   }, [session, mediaId, playthroughVersion, isCurrentlyLoaded]);
 
   // If this media is currently loaded in the player, return loaded state
-  if (isCurrentlyLoaded && loadedPlaythrough) {
+  if (isCurrentlyLoaded && playthrough) {
     return {
       type: "loaded",
       isPlaying: playing ?? false,
-      playthrough: { id: loadedPlaythrough.playthroughId },
+      playthrough: { id: playthrough.id },
     };
   }
 
@@ -236,21 +232,12 @@ type ShouldPromptForFinishResult =
 export async function shouldPromptForFinish(
   session: Session,
 ): Promise<ShouldPromptForFinishResult> {
-  const { position, duration, loadedPlaythrough } = usePlayerUIState.getState();
-
-  if (!loadedPlaythrough) return { shouldPrompt: false };
-
-  const playthrough = await getPlaythroughById(
-    session,
-    loadedPlaythrough.playthroughId,
-  );
+  const { progress, playthrough } = useTrackPlayer.getState();
 
   if (!playthrough) return { shouldPrompt: false };
 
-  const progress = duration === 0 ? 0 : position / duration;
-
   if (
-    progress >= FINISH_PROMPT_THRESHOLD &&
+    progress.percent >= FINISH_PROMPT_THRESHOLD_PERCENT &&
     playthrough.status !== "finished"
   ) {
     return { shouldPrompt: true, playthroughId: playthrough.id };

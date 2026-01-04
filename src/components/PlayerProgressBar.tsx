@@ -1,31 +1,24 @@
 import { memo } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { useShallow } from "zustand/shallow";
 
 import { usePlayerUIState } from "@/stores/player-ui-state";
+import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";
 import { secondsDisplay } from "@/utils";
 
 import { ProgressBar } from "./ProgressBar";
 
-// Subscribes to position/duration/playbackRate/seekPosition (updates every 1s, or immediately on seek)
 export const PlayerProgressBar = memo(function PlayerProgressBar() {
-  const { position, duration, playbackRate, seekPosition } = usePlayerUIState(
-    useShallow(({ position, duration, playbackRate, seekPosition }) => ({
-      position,
-      duration,
-      playbackRate,
-      seekPosition,
-    })),
-  );
+  const seekPosition = usePlayerUIState((state) => state.seekPosition);
+  const progress = useTrackPlayer((state) => state.progress);
+  const playbackRate = useTrackPlayer((state) => state.playbackRate);
 
   // Use seekPosition if available (during seek accumulation), otherwise use position
-  const displayPosition = seekPosition ?? position;
-  const progressPercent = duration > 0 ? (displayPosition / duration) * 100 : 0;
+  const displayPosition = seekPosition ?? progress.position;
 
   return (
     <View>
-      <ProgressBar percent={progressPercent} />
+      <ProgressBar percent={progress.percent} />
       <View style={styles.timeDisplayRow}>
         <Text style={styles.timeDisplayText}>
           {secondsDisplay(displayPosition)}
@@ -33,11 +26,11 @@ export const PlayerProgressBar = memo(function PlayerProgressBar() {
         <Text style={styles.timeDisplayText}>
           -
           {secondsDisplay(
-            Math.max(duration - displayPosition, 0) / playbackRate,
+            Math.max(progress.duration - displayPosition, 0) / playbackRate,
           )}
         </Text>
         <Text style={[styles.timeDisplayText, styles.percentText]}>
-          {progressPercent.toFixed(1)}%
+          {progress.percent.toFixed(1)}%
         </Text>
       </View>
     </View>

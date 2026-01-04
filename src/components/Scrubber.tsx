@@ -20,9 +20,9 @@ import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 import { useShallow } from "zustand/shallow";
 
 import { seekTo } from "@/services/seek-service";
-import * as Player from "@/services/trackplayer-wrapper";
-import { State, usePlaybackState } from "@/services/trackplayer-wrapper";
+import * as Player from "@/services/track-player-service";
 import { SeekSource, usePlayerUIState } from "@/stores/player-ui-state";
+import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
@@ -160,10 +160,10 @@ export const Scrubber = memo(function Scrubber({
 }: {
   playerPanGesture: PanGesture;
 }) {
-  const { state } = usePlaybackState();
-  const { playbackRate, chapters, duration } = usePlayerUIState(
-    useShallow(({ playbackRate, chapters, duration }) => ({
-      playbackRate,
+  const { playing } = useTrackPlayer((state) => state.isPlaying);
+  const playbackRate = useTrackPlayer((state) => state.playbackRate);
+  const { chapters, duration } = usePlayerUIState(
+    useShallow(({ chapters, duration }) => ({
       chapters,
       duration,
     })),
@@ -174,7 +174,6 @@ export const Scrubber = memo(function Scrubber({
       lastSeekSource,
     })),
   );
-  const playing = state === State.Playing;
   const markers = chapters?.map((chapter) => chapter.startTime) || [];
 
   const initialPosition = useRef(usePlayerUIState.getState().position);
@@ -191,7 +190,7 @@ export const Scrubber = memo(function Scrubber({
   useEffect(() => {
     const setAccurateInitialPosition = async () => {
       try {
-        const { position } = await Player.getProgress();
+        const { position } = await Player.getAccurateProgress();
         translateX.value = timeToTranslateX(position);
       } catch (e) {
         console.warn("[Scrubber] Error getting accurate initial progress:", e);
@@ -378,7 +377,7 @@ export const Scrubber = memo(function Scrubber({
 
     const animateToNewPosition = async () => {
       try {
-        const { position } = await Player.getProgress();
+        const { position } = await Player.getAccurateProgress();
         scheduleOnUI(() => {
           "worklet";
           isAnimatingUserSeek.value = true;
@@ -423,7 +422,7 @@ export const Scrubber = memo(function Scrubber({
       if (isAnimatingUserSeek.value) return;
 
       try {
-        const { position } = await Player.getProgress();
+        const { position } = await Player.getAccurateProgress();
         const animatedPos = translateXToTime(translateX.value);
         const drift = Math.abs(animatedPos - position);
 

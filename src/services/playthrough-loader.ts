@@ -24,22 +24,23 @@ import {
   clearActivePlaythroughIdForDevice,
   createPlaythrough,
   getActivePlaythroughIdForDevice,
-  getPlaythroughById,
+  getPlaythroughWithMedia,
   resumePlaythrough as resumePlaythroughInDb,
   setActivePlaythroughIdForDevice,
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
-import { usePlayerUIState } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
+import { useTrackPlayer } from "@/stores/track-player";
 import { Session } from "@/types/session";
+import { Capability, PitchAlgorithm, TrackType } from "@/types/track-player";
 import { documentDirectoryFilePath } from "@/utils";
 
 import * as EventRecording from "./event-recording";
 import * as Heartbeat from "./position-heartbeat";
 import * as SleepTimer from "./sleep-timer-service";
 import { syncPlaythroughs } from "./sync-service";
-import * as Player from "./trackplayer-wrapper";
-import { Capability, PitchAlgorithm, TrackType } from "./trackplayer-wrapper";
+import * as Player from "./track-player-service";
+import { setRate } from "./track-player-service";
 
 // =============================================================================
 // Types
@@ -82,7 +83,7 @@ export async function startNewPlaythrough(
   await EventRecording.recordStartEvent(playthroughId);
 
   // Get the new playthrough with full media info
-  const playthrough = await getPlaythroughById(session, playthroughId);
+  const playthrough = await getPlaythroughWithMedia(session, playthroughId);
   if (!playthrough) {
     throw new Error(`Playthrough not found after create: ${playthroughId}`);
   }
@@ -113,7 +114,7 @@ export async function continuePlaythrough(
   await pauseCurrentIfPlaying();
 
   // Get the playthrough with full media info
-  const playthrough = await getPlaythroughById(session, playthroughId);
+  const playthrough = await getPlaythroughWithMedia(session, playthroughId);
   if (!playthrough) {
     throw new Error(`Playthrough not found: ${playthroughId}`);
   }
@@ -147,7 +148,7 @@ export async function resumePlaythrough(
   await EventRecording.recordResumeEvent(playthroughId);
 
   // Get the now-active playthrough with full media info
-  const playthrough = await getPlaythroughById(session, playthroughId);
+  const playthrough = await getPlaythroughWithMedia(session, playthroughId);
   if (!playthrough) {
     throw new Error(`Playthrough not found after resume: ${playthroughId}`);
   }
@@ -184,13 +185,13 @@ export async function loadActivePlaythroughIntoPlayer(
     // The description field contains the playthroughId
     const playthroughId = track.description!;
     const streaming = track.url.startsWith("http");
-    const progress = await Player.getProgress();
+    const playbackRate = await Player.getPlaybackRate();
+    const progress = await Player.getAccurateProgress();
     const position = progress.position;
     const duration = progress.duration;
-    const playbackRate = await Player.getRate();
 
     // Get playthrough with full media info
-    const playthrough = await getPlaythroughById(session, playthroughId);
+    const playthrough = await getPlaythroughWithMedia(session, playthroughId);
 
     if (!playthrough) {
       console.warn(
@@ -220,7 +221,10 @@ export async function loadActivePlaythroughIntoPlayer(
   }
 
   // Verify the stored playthrough exists and is in_progress
-  const playthrough = await getPlaythroughById(session, storedPlaythroughId);
+  const playthrough = await getPlaythroughWithMedia(
+    session,
+    storedPlaythroughId,
+  );
 
   if (!playthrough) {
     console.debug(
@@ -266,7 +270,7 @@ export async function reloadPlaythroughById(
 ): Promise<TrackLoadResult> {
   console.debug("[Loader] Reloading playthrough by ID:", playthroughId);
 
-  const playthrough = await getPlaythroughById(session, playthroughId);
+  const playthrough = await getPlaythroughWithMedia(session, playthroughId);
 
   if (!playthrough) {
     throw new Error(`Playthrough not found: ${playthroughId}`);
@@ -311,7 +315,7 @@ async function waitForSeekToComplete(
   const pollIntervalMs = 50;
 
   while (Date.now() - startTime < timeoutMs) {
-    const { position } = await Player.getProgress();
+    const { position } = await Player.getAccurateProgress();
 
     // If seeking to 0, just accept any position (including 0)
     if (expectedPosition === 0) {
@@ -334,7 +338,7 @@ async function waitForSeekToComplete(
   }
 
   // Timeout - return whatever position we have
-  const { position } = await Player.getProgress();
+  const { position } = await Player.getAccurateProgress();
   console.warn(
     "[Loader] waitForSeekToComplete timed out. Expected:",
     expectedPosition.toFixed(2),
@@ -349,26 +353,29 @@ async function waitForSeekToComplete(
  * No-op if nothing is playing.
  */
 async function pauseCurrentIfPlaying() {
-  const { playing } = await Player.isPlaying();
-  if (!playing) return;
+  const isPlaying = Player.isPlaying();
+  if (!isPlaying.playing) return;
 
   console.debug("[Loader] Pausing current playback before transition");
   await Player.pause();
 
   // Rewind slightly so the user has context when they resume
   // (see PAUSE_REWIND_SECONDS in constants.ts for explanation)
-  const { loadedPlaythrough, playbackRate } = usePlayerUIState.getState();
-  const { position, duration } = await Player.getProgress();
-  let seekPosition = position - PAUSE_REWIND_SECONDS * playbackRate;
-  seekPosition = Math.max(0, Math.min(seekPosition, duration));
+
+  const playbackRate = await Player.getPlaybackRate();
+  const progress = await Player.getAccurateProgress();
+  let seekPosition = progress.position - PAUSE_REWIND_SECONDS * playbackRate;
+  seekPosition = Math.max(0, Math.min(seekPosition, progress.duration));
   await Player.seekTo(seekPosition);
 
   Heartbeat.stop();
 
-  if (loadedPlaythrough) {
+  const playthrough = useTrackPlayer.getState().playthrough;
+
+  if (playthrough) {
     try {
       await EventRecording.recordPauseEvent(
-        loadedPlaythrough.playthroughId,
+        playthrough.id,
         seekPosition, // Use rewound position
         playbackRate,
       );
@@ -446,7 +453,7 @@ async function loadPlaythroughIntoPlayer(
   }
 
   await Player.seekTo(position);
-  await Player.setRate(playbackRate);
+  await setRate(playbackRate);
   await setPlayerOptions();
 
   // Wait for TrackPlayer to report the correct position after seek

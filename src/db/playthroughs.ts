@@ -65,7 +65,7 @@ export type ActivePlaythrough = Exclude<
   undefined
 >;
 
-export async function getPlaythroughById(
+export async function getPlaythroughWithMedia(
   session: Session,
   playthroughId: string,
 ) {
@@ -105,6 +105,18 @@ export async function getPlaythroughById(
           },
         },
       },
+    },
+  });
+}
+
+export async function getPlaythrough(session: Session, playthroughId: string) {
+  return getDb().query.playthroughs.findFirst({
+    where: and(
+      eq(schema.playthroughs.url, session.url),
+      eq(schema.playthroughs.id, playthroughId),
+    ),
+    with: {
+      stateCache: true,
     },
   });
 }

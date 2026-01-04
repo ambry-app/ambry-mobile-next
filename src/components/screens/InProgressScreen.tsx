@@ -5,7 +5,7 @@ import { PAGE_SIZE } from "@/constants";
 import { getPlaythroughsPage } from "@/services/library-service";
 import { usePaginatedLibraryData } from "@/services/library-service";
 import { usePullToRefresh } from "@/services/sync-service";
-import { usePlayerUIState } from "@/stores/player-ui-state";
+import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";
 
@@ -14,9 +14,7 @@ type InProgressScreenProps = {
 };
 
 export function InProgressScreen({ session }: InProgressScreenProps) {
-  const loadedPlaythroughId = usePlayerUIState(
-    (state) => state.loadedPlaythrough?.playthroughId,
-  );
+  const loadedPlaythroughId = useTrackPlayer((state) => state.playthrough?.id);
   const getPage = (pageSize: number, cursor: Date | undefined) =>
     getPlaythroughsPage(
       session,

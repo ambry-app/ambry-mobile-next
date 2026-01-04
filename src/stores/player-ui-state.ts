@@ -28,8 +28,6 @@ export interface LoadedPlaythrough {
 export interface PlayerUIState {
   /* initialization state */
   initialized: boolean;
-  /** The currently loaded playthrough, or null if no media is loaded */
-  loadedPlaythrough: LoadedPlaythrough | null;
   streaming: boolean | undefined;
   loadingNewMedia: boolean;
 
@@ -40,7 +38,6 @@ export interface PlayerUIState {
   /** Current TrackPlayer duration */
   duration: number;
   /** Current TrackPlayer playback rate */
-  playbackRate: number;
 
   /** Whether mini player content should render (true when collapsed or animating) */
   shouldRenderMini: boolean;
@@ -72,12 +69,10 @@ export interface PlayerUIState {
 // ============================================================================
 
 const initialState = {
-  loadedPlaythrough: null,
   streaming: undefined,
   loadingNewMedia: false,
   position: 0,
   duration: 0,
-  playbackRate: 1,
   shouldRenderMini: false,
   shouldRenderExpanded: true,
   chapters: [],

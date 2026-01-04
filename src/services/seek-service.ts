@@ -9,10 +9,11 @@ import {
   setProgress,
   usePlayerUIState,
 } from "@/stores/player-ui-state";
+import { useTrackPlayer } from "@/stores/track-player";
 
 import * as EventRecording from "./event-recording";
 import * as SleepTimer from "./sleep-timer-service";
-import * as Player from "./trackplayer-wrapper";
+import * as Player from "./track-player-service";
 
 // ============================================================================
 // Module State (for core accumulation logic)
@@ -43,7 +44,7 @@ let eventTimestamp: Date | null = null;
 export async function seekTo(position: number, source: SeekSourceType) {
   if (isApplying) return;
 
-  const { position: currentPosition } = await Player.getProgress();
+  const { position: currentPosition } = await Player.getAccurateProgress();
   setupSeekTimers(currentPosition);
 
   // Update state for absolute seek
@@ -71,13 +72,13 @@ export async function seekRelative(amount: number, source: SeekSourceType) {
 
   // On first tap, get fresh data from the player
   if (!seekTimer) {
-    const { position } = await Player.getProgress();
+    const { position } = await Player.getAccurateProgress();
     setupSeekTimers(position);
   }
 
   // Accumulate the seek amount
   accumulator += amount;
-  const { playbackRate } = usePlayerUIState.getState();
+  const playbackRate = useTrackPlayer.getState().playbackRate;
   targetPosition = basePosition + accumulator * playbackRate;
 
   // Update UI for button animation
@@ -99,8 +100,8 @@ export async function seekImmediateNoLog(amount: number) {
   if (isApplying) return;
   isApplying = true;
 
-  const { position, duration } = await Player.getProgress();
-  const { playbackRate } = usePlayerUIState.getState();
+  const { position, duration } = await Player.getAccurateProgress();
+  const playbackRate = useTrackPlayer.getState().playbackRate;
 
   let newPosition = position + amount * playbackRate;
   newPosition = Math.max(0, Math.min(newPosition, duration));
@@ -213,10 +214,9 @@ async function recordSeekEvent() {
     eventTo.toFixed(1),
   );
 
-  // --- Inlined from onSeekCompleted ---
-  const { loadedPlaythrough, playbackRate } = usePlayerUIState.getState();
+  const { playthrough, playbackRate } = useTrackPlayer.getState();
 
-  if (!loadedPlaythrough) return;
+  if (!playthrough) return;
 
   const fromPosition = eventFrom;
   const toPosition = eventTo;
@@ -228,7 +228,7 @@ async function recordSeekEvent() {
 
   try {
     await EventRecording.recordSeekEvent(
-      loadedPlaythrough.playthroughId,
+      playthrough.id,
       fromPosition,
       toPosition,
       playbackRate,
@@ -237,7 +237,6 @@ async function recordSeekEvent() {
   } catch (error) {
     console.warn("[Seek] Error recording seek event:", error);
   }
-  // --- End Inlined ---
 
   // Reset event state for the next interaction
   eventFrom = null;

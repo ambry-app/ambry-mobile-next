@@ -9,7 +9,7 @@ import {
 } from "@/services/playback-controls";
 import { shouldPromptForFinish } from "@/services/playthrough-query-service";
 import { useDownloads } from "@/stores/downloads";
-import { type LoadedPlaythrough } from "@/stores/player-ui-state";
+import { Playthrough } from "@/stores/track-player";
 import { Session } from "@/types/session";
 
 import { PlayerContextMenuImpl } from "./PlayerContextMenuImpl";
@@ -23,7 +23,7 @@ type AuthorOrNarrator = {
 
 export type PlayerContextMenuProps = {
   session: Session;
-  loadedPlaythrough: LoadedPlaythrough;
+  playthrough: Playthrough;
   bookTitle: string;
   authors: AuthorOrNarrator[];
   narrators: AuthorOrNarrator[];
@@ -32,13 +32,13 @@ export type PlayerContextMenuProps = {
 
 export function PlayerContextMenu({
   session,
-  loadedPlaythrough,
+  playthrough,
   bookTitle,
   authors,
   narrators,
   onCollapse,
 }: PlayerContextMenuProps) {
-  const { mediaId, playthroughId } = loadedPlaythrough;
+  const { mediaId, id: playthroughId } = playthrough;
   const downloadStatus = useDownloads(
     (state) => state.downloads[mediaId]?.status,
   );

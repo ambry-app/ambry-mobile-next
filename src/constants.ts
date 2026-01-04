@@ -21,7 +21,7 @@ export const SLEEP_TIMER_FADE_OUT_TIME = 30000;
 export const PLAYER_EXPAND_ANIMATION_DURATION = 400;
 
 /* Threshold for prompting user to mark playthrough as finished (95%) */
-export const FINISH_PROMPT_THRESHOLD = 0.95;
+export const FINISH_PROMPT_THRESHOLD_PERCENT = 95;
 
 /**
  * How many seconds to rewind when pausing playback.

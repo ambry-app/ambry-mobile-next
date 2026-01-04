@@ -4,7 +4,7 @@ import { App } from "expo-router/build/qualified-entry";
 import { renderRootComponent } from "expo-router/build/renderRootComponent";
 
 import { PlaybackService } from "@/services/playback-service";
-import { registerPlaybackService } from "@/services/trackplayer-wrapper";
+import { registerPlaybackService } from "@/services/track-player-service";
 
 import "@expo/metro-runtime";
 

@@ -17,6 +17,7 @@ import {
 } from "@/services/playback-controls";
 import { initialize as initializeSleepTimer } from "@/services/sleep-timer-service";
 import { sync } from "@/services/sync-service";
+import { initialize } from "@/services/track-player-service";
 import { initializeDevice } from "@/stores/device";
 import { useSession } from "@/stores/session";
 
@@ -78,6 +79,7 @@ export function useAppBoot() {
 
       // Initialize player (sets up TrackPlayer and loads active playthrough)
       await setupTrackPlayer();
+      initialize();
       await initializePlayer(session);
 
       // Register background sync

@@ -13,11 +13,13 @@ import {
   HORIZONTAL_TILE_SPACING,
   HORIZONTAL_TILE_WIDTH_RATIO,
 } from "@/constants";
-import { getPlaythroughsPage } from "@/services/library-service";
-import { useLibraryData } from "@/services/library-service";
+import {
+  getPlaythroughsPage,
+  useLibraryData,
+} from "@/services/library-service";
 import { useDataVersion } from "@/stores/data-version";
-import { usePlayerUIState } from "@/stores/player-ui-state";
 import { useScreen } from "@/stores/screen";
+import { useTrackPlayer } from "@/stores/track-player";
 import { Session } from "@/types/session";
 
 type RecentInProgressProps = {
@@ -25,9 +27,7 @@ type RecentInProgressProps = {
 };
 
 export function RecentInProgress({ session }: RecentInProgressProps) {
-  const loadedPlaythroughId = usePlayerUIState(
-    (state) => state.loadedPlaythrough?.playthroughId,
-  );
+  const loadedPlaythroughId = useTrackPlayer((state) => state.playthrough?.id);
   const screenWidth = useScreen((state) => state.screenWidth);
   const playthroughVersion = useDataVersion(
     (state) => state.playthroughDataVersion,

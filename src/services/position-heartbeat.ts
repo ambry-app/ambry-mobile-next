@@ -12,7 +12,7 @@
 
 import { PROGRESS_SAVE_INTERVAL } from "@/constants";
 import { updateStateCache } from "@/db/playthroughs";
-import * as Player from "@/services/trackplayer-wrapper";
+import * as Player from "@/services/track-player-service";
 
 // =============================================================================
 // Module State
@@ -93,7 +93,7 @@ async function save(): Promise<void> {
   if (!currentPlaythroughId) return;
 
   try {
-    const { position } = await Player.getProgress();
+    const { position } = await Player.getAccurateProgress();
 
     // Update state cache without creating events (background save)
     await updateStateCache(currentPlaythroughId, position, currentPlaybackRate);

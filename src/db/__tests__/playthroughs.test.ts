@@ -133,7 +133,7 @@ describe("playthroughs module", () => {
       const db = getDb();
       const pt = await createPlaythrough(db, { id: "pt-123" });
 
-      const result = await playthroughs.getPlaythroughById(
+      const result = await playthroughs.getPlaythroughWithMedia(
         testSession,
         "pt-123",
       );
@@ -143,7 +143,7 @@ describe("playthroughs module", () => {
     });
 
     it("returns undefined when not found", async () => {
-      const result = await playthroughs.getPlaythroughById(
+      const result = await playthroughs.getPlaythroughWithMedia(
         testSession,
         "nonexistent",
       );

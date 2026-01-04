@@ -8,7 +8,7 @@ import {
 import {
   deletePlaythrough as deletePlaythroughDb,
   getInProgressPlaythrough,
-  getPlaythroughById,
+  getPlaythroughWithMedia,
 } from "@/db/playthroughs";
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
 import {
@@ -19,7 +19,14 @@ import {
   usePlayerUIState,
 } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
+import { useTrackPlayer } from "@/stores/track-player";
 import { Session } from "@/types/session";
+import {
+  AndroidAudioContentType,
+  Event,
+  IOSCategory,
+  IOSCategoryMode,
+} from "@/types/track-player";
 
 import * as EventRecording from "./event-recording";
 import * as Lifecycle from "./playthrough-lifecycle";
@@ -28,14 +35,8 @@ import * as Heartbeat from "./position-heartbeat";
 import { seekImmediateNoLog } from "./seek-service";
 import * as SleepTimer from "./sleep-timer-service";
 import { syncPlaythroughs } from "./sync-service";
-import * as Player from "./trackplayer-wrapper";
-import {
-  AndroidAudioContentType,
-  Event,
-  IOSCategory,
-  IOSCategoryMode,
-  useIsPlaying,
-} from "./trackplayer-wrapper";
+import { setRate } from "./track-player-service";
+import * as Player from "./track-player-service";
 
 export type PlaythroughAction =
   | { type: "unloadPlayer" }
@@ -52,23 +53,22 @@ export type PlaythroughAction =
  * Start or resume playback.
  */
 export async function play() {
-  const { position } = await Player.getProgress();
+  const { position } = await Player.getAccurateProgress();
   console.debug("[Controls] Playing from position", position.toFixed(1));
   await Player.play();
 
-  const { loadedPlaythrough } = usePlayerUIState.getState();
+  const loadedPlaythrough = useTrackPlayer.getState().playthrough;
   if (loadedPlaythrough) {
     try {
-      const { position } = await Player.getProgress();
-      const rate = await Player.getRate();
-      usePlayerUIState.setState({ playbackRate: rate });
+      const { position } = await Player.getAccurateProgress();
+      const rate = await Player.getPlaybackRate();
 
       await EventRecording.recordPlayEvent(
-        loadedPlaythrough.playthroughId,
+        loadedPlaythrough.id,
         position,
         rate,
       );
-      Heartbeat.start(loadedPlaythrough.playthroughId, rate);
+      Heartbeat.start(loadedPlaythrough.id, rate);
     } catch (error) {
       console.warn("[Controls] Error recording play event:", error);
     }
@@ -81,19 +81,19 @@ export async function play() {
  * Rewinds slightly for context.
  */
 export async function pause() {
-  const { position } = await Player.getProgress();
+  const { position } = await Player.getAccurateProgress();
   console.debug("[Controls] Pausing at position", position.toFixed(1));
   await Player.pause();
   await seekImmediateNoLog(-PAUSE_REWIND_SECONDS);
 
   Heartbeat.stop();
 
-  const { loadedPlaythrough, playbackRate } = usePlayerUIState.getState();
-  if (loadedPlaythrough) {
+  const { playthrough, playbackRate } = useTrackPlayer.getState();
+  if (playthrough) {
     try {
-      const { position } = await Player.getProgress();
+      const { position } = await Player.getAccurateProgress();
       await EventRecording.recordPauseEvent(
-        loadedPlaythrough.playthroughId,
+        playthrough.id,
         position,
         playbackRate,
       );
@@ -124,19 +124,17 @@ export async function pauseIfPlaying() {
 /**
  * Set the playback rate.
  */
-export async function setPlaybackRate(session: Session, playbackRate: number) {
-  const previousRate = usePlayerUIState.getState().playbackRate;
-  usePlayerUIState.setState({ playbackRate });
+export async function setPlaybackRate(playbackRate: number) {
+  const previousRate = useTrackPlayer.getState().playbackRate;
 
-  await Player.setRate(playbackRate);
+  await setRate(playbackRate);
 
-  // --- Inlined from Coordinator.onRateChanged ---
-  const { loadedPlaythrough } = usePlayerUIState.getState();
+  const loadedPlaythrough = useTrackPlayer.getState().playthrough;
   if (loadedPlaythrough) {
     try {
-      const { position } = await Player.getProgress();
+      const { position } = await Player.getAccurateProgress();
       await EventRecording.recordRateChangeEvent(
-        loadedPlaythrough.playthroughId,
+        loadedPlaythrough.id,
         position,
         playbackRate,
         previousRate,
@@ -146,7 +144,6 @@ export async function setPlaybackRate(session: Session, playbackRate: number) {
       console.warn("[Controls] Error recording rate change:", error);
     }
   }
-  // --- End Inlined ---
 }
 
 // =============================================================================
@@ -173,10 +170,13 @@ export async function initializePlayer(session: Session) {
       if (track) {
         const playthroughId = track.description!;
         const streaming = track.url.startsWith("http");
-        const progress = await Player.getProgress();
-        const playbackRate = await Player.getRate();
+        const progress = await Player.getAccurateProgress();
+        const playbackRate = await Player.getPlaybackRate();
 
-        const playthrough = await getPlaythroughById(session, playthroughId);
+        const playthrough = await getPlaythroughWithMedia(
+          session,
+          playthroughId,
+        );
 
         if (!playthrough) {
           console.warn(
@@ -311,13 +311,8 @@ export async function startFreshPlaythrough(session: Session, mediaId: string) {
 function applyTrackLoadResult(result: Loader.TrackLoadResult) {
   usePlayerUIState.setState({
     loadingNewMedia: false,
-    loadedPlaythrough: {
-      mediaId: result.mediaId,
-      playthroughId: result.playthroughId,
-    },
     duration: result.duration,
     position: result.position,
-    playbackRate: result.playbackRate,
     streaming: result.streaming,
     ...initialChapterState(result.chapters, result.position, result.duration),
   });
@@ -330,9 +325,9 @@ export async function reloadCurrentPlaythroughIfMedia(
   session: Session,
   mediaId: string,
 ): Promise<void> {
-  const { loadedPlaythrough } = usePlayerUIState.getState();
+  const playthrough = useTrackPlayer.getState().playthrough;
 
-  if (!loadedPlaythrough || loadedPlaythrough.mediaId !== mediaId) {
+  if (!playthrough || playthrough.mediaId !== mediaId) {
     return;
   }
 
@@ -340,20 +335,17 @@ export async function reloadCurrentPlaythroughIfMedia(
     "[Controls] Reloading current playthrough for media:",
     mediaId,
     "playthroughId:",
-    loadedPlaythrough.playthroughId,
+    playthrough.id,
   );
 
   await pauseIfPlaying();
   await Heartbeat.saveNow();
 
-  const track = await Loader.reloadPlaythroughById(
-    session,
-    loadedPlaythrough.playthroughId,
-  );
+  const track = await Loader.reloadPlaythroughById(session, playthrough.id);
 
   applyTrackLoadResult(track);
 
-  if (track.playthroughId === loadedPlaythrough.playthroughId) {
+  if (track.playthroughId === playthrough.id) {
     await play();
   }
 }
@@ -418,8 +410,8 @@ export async function finishPlaythrough(
   playthroughId: string,
   options?: { skipUnload?: boolean },
 ) {
-  const { loadedPlaythrough } = usePlayerUIState.getState();
-  const isLoaded = loadedPlaythrough?.playthroughId === playthroughId;
+  const playthrough = useTrackPlayer.getState().playthrough;
+  const isLoaded = playthrough?.id === playthroughId;
 
   if (isLoaded) {
     const paused = await pauseAndRecordEvent();
@@ -442,8 +434,8 @@ export async function abandonPlaythrough(
   session: Session,
   playthroughId: string,
 ) {
-  const { loadedPlaythrough } = usePlayerUIState.getState();
-  const isLoaded = loadedPlaythrough?.playthroughId === playthroughId;
+  const playthrough = useTrackPlayer.getState().playthrough;
+  const isLoaded = playthrough?.id === playthroughId;
 
   if (isLoaded) {
     const paused = await pauseAndRecordEvent();
@@ -466,8 +458,8 @@ export async function deletePlaythrough(
   session: Session,
   playthroughId: string,
 ) {
-  const { loadedPlaythrough } = usePlayerUIState.getState();
-  const isLoaded = loadedPlaythrough?.playthroughId === playthroughId;
+  const playthrough = useTrackPlayer.getState().playthrough;
+  const isLoaded = playthrough?.id === playthroughId;
 
   if (isLoaded) {
     const paused = await pauseAndRecordEvent();
@@ -492,9 +484,9 @@ export async function deletePlaythrough(
  * Returns true if a pause was recorded, false if already paused.
  */
 async function pauseAndRecordEvent(): Promise<boolean> {
-  const { loadedPlaythrough, playbackRate } = usePlayerUIState.getState();
+  const { playthrough, playbackRate } = useTrackPlayer.getState();
 
-  if (!loadedPlaythrough) return false;
+  if (!playthrough) return false;
 
   const { playing } = await Player.isPlaying();
   if (!playing) {
@@ -504,9 +496,9 @@ async function pauseAndRecordEvent(): Promise<boolean> {
 
   try {
     await Player.pause();
-    const { position } = await Player.getProgress();
+    const { position } = await Player.getAccurateProgress();
     await EventRecording.recordPauseEvent(
-      loadedPlaythrough.playthroughId,
+      playthrough.id,
       position,
       playbackRate,
     );
@@ -602,15 +594,15 @@ const POSITION_POLL_INTERVAL = 1000; // 1 second for position/duration
  * state in sync with the native player.
  */
 export function usePlayerSubscriptions(appState: AppStateStatus) {
-  const playerLoaded = usePlayerUIState((state) => !!state.loadedPlaythrough);
-  const { playing } = useIsPlaying();
+  const playerLoaded = useTrackPlayer((state) => !!state.playthrough);
+  const { playing } = useTrackPlayer((state) => state.isPlaying);
 
   useEffect(() => {
     const subscriptions: EmitterSubscription[] = [];
     let positionIntervalId: NodeJS.Timeout | null = null;
 
     const pollPosition = async () => {
-      const progress = await Player.getProgress();
+      const progress = await Player.getAccurateProgress();
       setProgress(progress.position, progress.duration);
     };
 

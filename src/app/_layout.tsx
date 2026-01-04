@@ -16,8 +16,8 @@ import { useAppBoot } from "@/services/boot-service";
 import { useRefreshLibraryDataVersion } from "@/services/data-version-service";
 import { usePlayerSubscriptions } from "@/services/playback-controls";
 import { useForegroundSync } from "@/services/sync-service";
-import { usePlayerUIState } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
+import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";
 import { useAppState } from "@/utils/hooks";
 
@@ -110,7 +110,7 @@ function DrizzleStudio() {
 
 function RootStack() {
   const isLoggedIn = useSession((state) => !!state.session);
-  const playerLoaded = usePlayerUIState((state) => !!state.loadedPlaythrough);
+  const playerLoaded = useTrackPlayer((state) => !!state.playthrough);
 
   const appState = useAppState();
   useForegroundSync(appState);

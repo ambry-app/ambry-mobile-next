@@ -3,8 +3,8 @@ import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { Stack } from "expo-router";
 
 import { CustomTabBar, CustomTabBarWithPlayer } from "@/components/screens";
-import { usePlayerUIState } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
+import { useTrackPlayer } from "@/stores/track-player";
 
 const screenOptions: NativeStackNavigationOptions =
   Platform.OS === "ios"
@@ -16,9 +16,7 @@ const screenOptions: NativeStackNavigationOptions =
 
 export default function TabsWrapperLayout() {
   const session = useSession((state) => state.session);
-  const loadedPlaythrough = usePlayerUIState(
-    (state) => state.loadedPlaythrough,
-  );
+  const playthrough = useTrackPlayer((state) => state.playthrough);
 
   if (!session) return null;
 
@@ -36,11 +34,8 @@ export default function TabsWrapperLayout() {
         <Stack.Screen name="narrator/[id]" />
         <Stack.Screen name="series/[id]" />
       </Stack>
-      {loadedPlaythrough ? (
-        <CustomTabBarWithPlayer
-          session={session}
-          loadedPlaythrough={loadedPlaythrough}
-        />
+      {playthrough ? (
+        <CustomTabBarWithPlayer session={session} playthrough={playthrough} />
       ) : (
         <CustomTabBar />
       )}

@@ -1,11 +1,8 @@
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 
 import { pause, play } from "@/services/playback-controls";
-import {
-  State,
-  useIsPlaying,
-  usePlaybackState,
-} from "@/services/trackplayer-wrapper";
+import { useTrackPlayer } from "@/stores/track-player";
+import { State } from "@/types/track-player";
 import { useDebounce } from "@/utils/hooks";
 
 import { IconButton } from "./IconButton";
@@ -21,7 +18,10 @@ type PlayButtonProps = {
 
 export function PlayButton(props: PlayButtonProps) {
   const { size, color, style, playIconStyle } = props;
-  const { playing, bufferingDuringPlay } = useIsPlaying();
+  const { playing, bufferingDuringPlay } = useTrackPlayer(
+    (state) => state.isPlaying,
+  );
+  // const { playing, bufferingDuringPlay } = useIsPlaying();
   const icon = useStateIcon(playing, bufferingDuringPlay);
   const iconStyle = icon === "play" ? playIconStyle : undefined;
 
@@ -60,7 +60,7 @@ function useStateIcon(
   playing: boolean | undefined,
   bufferingDuringPlay: boolean | undefined,
 ) {
-  const { state } = usePlaybackState();
+  const { state } = useTrackPlayer((state) => state.playbackState);
   const debouncedState = useDebounce(state, 100);
 
   if (playing) return "pause";

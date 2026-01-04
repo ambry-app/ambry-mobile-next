@@ -6,9 +6,9 @@ import { useShallow } from "zustand/shallow";
 
 import { IconButton } from "@/components";
 import { setSleepTimerEnabled } from "@/services/sleep-timer-service";
-import { usePlayerUIState as usePlayer } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
 import { useSleepTimer } from "@/stores/sleep-timer";
+import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";
 import { formatPlaybackRate, secondsDisplayMinutesOnly } from "@/utils";
 
@@ -94,7 +94,7 @@ function SleepTimerLabel() {
 }
 
 function PlaybackRateButton() {
-  const playbackRate = usePlayer((s) => s.playbackRate);
+  const playbackRate = useTrackPlayer((state) => state.playbackRate);
 
   return (
     <IconButton

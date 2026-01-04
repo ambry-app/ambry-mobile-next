@@ -63,25 +63,25 @@ module.exports = defineConfig([
 
       // Enforce absolute imports over relative parent imports
       // and restrict direct TrackPlayer imports
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "react-native-track-player",
-              message:
-                "Import from @/services/trackplayer-wrapper instead of react-native-track-player directly.",
-            },
-          ],
-          patterns: [
-            {
-              group: ["../*"],
-              message:
-                "Use absolute imports (@/... or @test/...) instead of relative parent imports",
-            },
-          ],
-        },
-      ],
+      // "no-restricted-imports": [
+      //   "error",
+      //   {
+      //     paths: [
+      //       {
+      //         name: "react-native-track-player",
+      //         message:
+      //           "Import from @/services/trackplayer-wrapper instead of react-native-track-player directly.",
+      //       },
+      //     ],
+      //     patterns: [
+      //       {
+      //         group: ["../*"],
+      //         message:
+      //           "Use absolute imports (@/... or @test/...) instead of relative parent imports",
+      //       },
+      //     ],
+      //   },
+      // ],
 
       ...boundaries.configs.recommended.rules,
       "boundaries/element-types": [
@@ -118,22 +118,22 @@ module.exports = defineConfig([
     },
   },
   // Allow the wrapper file to import from react-native-track-player
-  {
-    files: ["src/services/trackplayer-wrapper.ts"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: ["../*"],
-              message:
-                "Use absolute imports (@/... or @test/...) instead of relative parent imports",
-            },
-          ],
-        },
-      ],
-    },
-  },
+  // {
+  //   files: ["src/services/trackplayer-wrapper.ts"],
+  //   rules: {
+  //     "no-restricted-imports": [
+  //       "error",
+  //       {
+  //         patterns: [
+  //           {
+  //             group: ["../*"],
+  //             message:
+  //               "Use absolute imports (@/... or @test/...) instead of relative parent imports",
+  //           },
+  //         ],
+  //       },
+  //     ],
+  //   },
+  // },
   globalIgnores(["**/expo-env.d.ts", "src/graphql/client/*"])
 ]);

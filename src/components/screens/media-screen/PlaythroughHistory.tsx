@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
-import { useShallow } from "zustand/shallow";
 
 import { PlaythroughContextMenu } from "@/components";
 import { useLibraryData } from "@/services/library-service";
@@ -13,6 +12,7 @@ import {
 import { useDataVersion } from "@/stores/data-version";
 import { useDebug } from "@/stores/debug";
 import { usePlayerUIState as usePlayer } from "@/stores/player-ui-state";
+import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";
 import { secondsDisplay } from "@/utils";
@@ -39,7 +39,7 @@ export function PlaythroughHistory({
   );
 
   // Get current player state for "Now Playing" detection
-  const loadedMediaId = usePlayer((state) => state.loadedPlaythrough?.mediaId);
+  const loadedPlaythroughId = useTrackPlayer((state) => state.playthrough?.id);
 
   const primaryPlaythrough = playthroughs?.[0];
   if (!primaryPlaythrough) return null;
@@ -50,7 +50,7 @@ export function PlaythroughHistory({
   // Check if the primary in-progress playthrough is currently loaded in player
   const primaryIsNowPlaying =
     primaryPlaythrough.status === "in_progress" &&
-    primaryPlaythrough.mediaId === loadedMediaId;
+    primaryPlaythrough.id === loadedPlaythroughId;
 
   return (
     <View style={styles.container}>
@@ -147,22 +147,15 @@ function NowPlayingRow({ playthroughId }: { playthroughId: string }) {
  * Only mounted when the screen is visible (not hidden behind expanded player).
  */
 function NowPlayingTimeInfo() {
-  const { position, duration, playbackRate } = usePlayer(
-    useShallow(({ position, duration, playbackRate }) => ({
-      position,
-      duration,
-      playbackRate,
-    })),
-  );
+  const progress = useTrackPlayer((state) => state.progress);
+  const playbackRate = useTrackPlayer((state) => state.playbackRate);
 
-  const percentage = duration > 0 ? Math.round((position / duration) * 100) : 0;
-  const remainingBookTime = duration - position;
-  const remainingRealTime =
-    playbackRate > 0 ? remainingBookTime / playbackRate : remainingBookTime;
+  const remainingBookTime = progress.duration - progress.position;
+  const remainingRealTime = remainingBookTime / playbackRate;
 
   return (
     <Text style={styles.timeInfo}>
-      {percentage}% · {secondsDisplay(remainingRealTime)} left
+      {progress.percent.toFixed(1)}% · {secondsDisplay(remainingRealTime)} left
     </Text>
   );
 }

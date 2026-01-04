@@ -1,11 +1,11 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useShallow } from "zustand/shallow";
 
 import { PlayerProgressBar, TileImage, TileText } from "@/components";
 import { getMedia } from "@/services/library-service";
 import { useLibraryData } from "@/services/library-service";
 import { expandPlayer } from "@/services/playback-controls";
 import { usePlayerUIState as usePlayer } from "@/stores/player-ui-state";
+import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";
 
@@ -14,20 +14,14 @@ type NowPlayingProps = {
 };
 
 export function NowPlaying({ session }: NowPlayingProps) {
-  const { loadedPlaythrough, shouldRenderMini } = usePlayer(
-    useShallow(({ loadedPlaythrough, shouldRenderMini }) => ({
-      loadedPlaythrough,
-      shouldRenderMini,
-    })),
-  );
+  const playthrough = useTrackPlayer((state) => state.playthrough);
+  const shouldRenderMini = usePlayer((state) => state.shouldRenderMini);
 
   // Don't render when player is fully expanded (we're hidden behind it anyway)
   // shouldRenderMini is false when fully expanded, true when collapsed or animating
-  if (!loadedPlaythrough || !shouldRenderMini) return null;
+  if (!playthrough || !shouldRenderMini) return null;
 
-  return (
-    <NowPlayingDetails session={session} mediaId={loadedPlaythrough.mediaId} />
-  );
+  return <NowPlayingDetails session={session} mediaId={playthrough.mediaId} />;
 }
 
 type NowPlayingDetailsProps = {
