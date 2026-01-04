@@ -31,7 +31,6 @@ import { syncPlaythroughs } from "./sync-service";
 import * as Player from "./trackplayer-wrapper";
 import {
   AndroidAudioContentType,
-  Capability,
   Event,
   IOSCategory,
   IOSCategoryMode,
