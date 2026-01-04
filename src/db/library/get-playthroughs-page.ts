@@ -10,14 +10,14 @@ export async function getPlaythroughsPage(
   session: Session,
   limit: number,
   status: schema.PlaythroughStatus,
-  withoutMediaId?: string | null,
+  withoutPlaythroughId?: string | null,
   cursorBefore?: Date,
 ) {
   const playthroughs = await getPlaythroughs(
     session,
     limit,
     status,
-    withoutMediaId,
+    withoutPlaythroughId,
     cursorBefore,
   );
 
@@ -44,7 +44,7 @@ async function getPlaythroughs(
   session: Session,
   limit: number,
   status: schema.PlaythroughStatus,
-  withoutMediaId?: string | null,
+  withoutPlaythroughId?: string | null,
   cursorBefore?: Date,
 ) {
   // Determine sort/cursor field based on status:
@@ -120,8 +120,8 @@ async function getPlaythroughs(
         eq(schema.playthroughs.userEmail, session.email),
         eq(schema.playthroughs.status, status),
         isNull(schema.playthroughs.deletedAt),
-        withoutMediaId
-          ? ne(schema.playthroughs.mediaId, withoutMediaId)
+        withoutPlaythroughId
+          ? ne(schema.playthroughs.id, withoutPlaythroughId)
           : undefined,
         cursorBefore ? lt(sortField, cursorBefore) : undefined,
       ),

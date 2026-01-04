@@ -310,14 +310,17 @@ describe("getPlaythroughsPage", () => {
     const book = await createBook(db);
     const media1 = await createMedia(db, { bookId: book.id });
     const media2 = await createMedia(db, { bookId: book.id });
-    await createPlaythrough(db, { mediaId: media1.id, status: "in_progress" });
+    const pt1 = await createPlaythrough(db, {
+      mediaId: media1.id,
+      status: "in_progress",
+    });
     await createPlaythrough(db, { mediaId: media2.id, status: "in_progress" });
 
     const result = await getPlaythroughsPage(
       DEFAULT_TEST_SESSION,
       10,
       "in_progress",
-      media1.id,
+      pt1.id,
     );
 
     expect(result).toHaveLength(1);
