@@ -51,7 +51,7 @@ export async function setRate(rate: number) {
 }
 
 export async function setVolume(volume: number) {
-  // Don't log volume changes during fade (too noisy)
+  console.debug("[TrackPlayer] setVolume", volume);
   return TrackPlayer.setVolume(volume);
 }
 
@@ -70,6 +70,7 @@ export async function add(track: AddTrack) {
 }
 
 export async function getTrack(index: number): Promise<Track | undefined> {
+  console.debug("[TrackPlayer] getTrack", index);
   return TrackPlayer.getTrack(index);
 }
 
@@ -78,10 +79,13 @@ export async function getTrack(index: number): Promise<Track | undefined> {
 // =============================================================================
 
 export async function getProgress(): Promise<Progress> {
+  // This one is too noisy due to constant position polling while playing
+  // console.debug("[TrackPlayer] getProgress");
   return TrackPlayer.getProgress();
 }
 
 export async function getRate(): Promise<number> {
+  console.debug("[TrackPlayer] getRate");
   return TrackPlayer.getRate();
 }
 
@@ -89,6 +93,7 @@ export async function isPlaying(): Promise<{
   playing: boolean | undefined;
   bufferingDuringPlay: boolean | undefined;
 }> {
+  console.debug("[TrackPlayer] isPlaying");
   return trackPlayerIsPlaying();
 }
 
@@ -100,6 +105,7 @@ export function addEventListener<T extends Event>(
   event: T,
   handler: Parameters<typeof TrackPlayer.addEventListener<T>>[1],
 ) {
+  console.debug("[TrackPlayer] addEventListener", event);
   return TrackPlayer.addEventListener(event, handler);
 }
 

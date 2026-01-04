@@ -5,7 +5,7 @@ import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
 
 import { IconButton } from "@/components";
-import { updateSleepTimerEnabled } from "@/services/sleep-timer-service";
+import { setSleepTimerEnabled } from "@/services/sleep-timer-service";
 import { usePlayerUIState as usePlayer } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
 import { useSleepTimer } from "@/stores/sleep-timer";
@@ -35,7 +35,7 @@ function SleepTimerButton() {
         router.navigate("/sleep-timer");
       }}
       onLongPress={() => {
-        if (session) updateSleepTimerEnabled(session, !sleepTimerEnabled);
+        if (session) setSleepTimerEnabled(session, !sleepTimerEnabled);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }}
     >

@@ -157,7 +157,7 @@ function restartTimers(source: SeekSourceType) {
 }
 
 /**
- * Apply the accumulated seek to TrackPlayer and notify coordinator.
+ * Apply the accumulated seek to TrackPlayer.
  */
 async function applyAccumulatedSeek(source: SeekSourceType) {
   if (isApplying) return;
@@ -175,18 +175,16 @@ async function applyAccumulatedSeek(source: SeekSourceType) {
   eventTo = positionToApply;
   eventTimestamp = new Date();
 
-  // --- Inlined from onSeekApplied ---
-  // Update player store position (important for remote seeks from seek.ts)
+  // Update player store position
   setProgress(positionToApply, duration);
 
   // Sleep timer resets on seek, unless it's a pause-related seek
   if (source !== "pause") {
-    SleepTimer.maybeReset();
+    await SleepTimer.maybeResetTriggerTime();
   }
 
-  // Notify Scrubber for thumb animation
+  // Notify Scrubber
   setLastSeek(source);
-  // --- End Inlined ---
 
   // Clear UI seeking state
   clearSeekUI();

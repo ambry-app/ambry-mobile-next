@@ -12,7 +12,7 @@ import { initializeDataVersion } from "@/services/data-version-service";
 import { useDatabaseMigrations } from "@/services/db-service";
 import { initializeDownloads } from "@/services/download-service";
 import { initializePlayer } from "@/services/playback-controls";
-import { initializeSleepTimer } from "@/services/sleep-timer-service";
+import { initialize as initializeSleepTimer } from "@/services/sleep-timer-service";
 import { sync } from "@/services/sync-service";
 import { initializeDevice } from "@/stores/device";
 import { useSession } from "@/stores/session";

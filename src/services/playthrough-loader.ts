@@ -363,7 +363,6 @@ async function pauseCurrentIfPlaying() {
   seekPosition = Math.max(0, Math.min(seekPosition, duration));
   await Player.seekTo(seekPosition);
 
-  // --- Inlined from Coordinator.onPause ---
   Heartbeat.stop();
 
   if (loadedPlaythrough) {
@@ -378,7 +377,7 @@ async function pauseCurrentIfPlaying() {
     }
   }
 
-  SleepTimer.cancel();
+  SleepTimer.stop();
 
   const session = useSession.getState().session;
   if (session) {

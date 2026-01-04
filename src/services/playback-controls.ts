@@ -35,6 +35,7 @@ import {
   Event,
   IOSCategory,
   IOSCategoryMode,
+  useIsPlaying,
 } from "./trackplayer-wrapper";
 
 export type PlaythroughAction =
@@ -73,7 +74,7 @@ export async function play() {
       console.warn("[Controls] Error recording play event:", error);
     }
   }
-  SleepTimer.reset();
+  await SleepTimer.start();
 }
 
 /**
@@ -102,7 +103,7 @@ export async function pause() {
     }
   }
 
-  SleepTimer.cancel();
+  await SleepTimer.stop();
 
   const session = useSession.getState().session;
   if (session) {
@@ -622,19 +623,15 @@ const POSITION_POLL_INTERVAL = 1000; // 1 second for position/duration
  */
 export function usePlayerSubscriptions(appState: AppStateStatus) {
   const playerLoaded = usePlayerUIState((state) => !!state.loadedPlaythrough);
+  const { playing } = useIsPlaying();
 
   useEffect(() => {
     const subscriptions: EmitterSubscription[] = [];
     let positionIntervalId: NodeJS.Timeout | null = null;
 
     const pollPosition = async () => {
-      try {
-        const progress = await Player.getProgress();
-        setProgress(progress.position, progress.duration);
-      } catch (error) {
-        // Can happen if player is reset while polling
-        console.warn("[PlayerSubscriptions] Error polling position:", error);
-      }
+      const progress = await Player.getProgress();
+      setProgress(progress.position, progress.duration);
     };
 
     const onPlaybackQueueEnded = () => {
@@ -647,15 +644,24 @@ export function usePlayerSubscriptions(appState: AppStateStatus) {
     };
 
     if (appState === "active" && playerLoaded) {
-      console.debug("[PlayerSubscriptions] Subscribing to player events");
-      pollPosition(); // Initial poll
-
-      // Poll position/duration every 1 second
-      positionIntervalId = setInterval(pollPosition, POSITION_POLL_INTERVAL);
+      console.debug("[PlayerSubscriptions] Attaching player subscriptions");
+      pollPosition(); // Initial poll to get position regardless of play state
 
       subscriptions.push(
         Player.addEventListener(Event.PlaybackQueueEnded, onPlaybackQueueEnded),
       );
+
+      // Only poll for position if the player is actively playing.
+      if (playing) {
+        console.debug(
+          "[PlayerSubscriptions] Player is playing, starting position poll.",
+        );
+        positionIntervalId = setInterval(pollPosition, POSITION_POLL_INTERVAL);
+      } else {
+        console.debug(
+          "[PlayerSubscriptions] Player not playing, position poll is disabled.",
+        );
+      }
     }
 
     return () => {
@@ -665,5 +671,5 @@ export function usePlayerSubscriptions(appState: AppStateStatus) {
         subscriptions.forEach((sub) => sub.remove());
       }
     };
-  }, [appState, playerLoaded]);
+  }, [appState, playerLoaded, playing]);
 }

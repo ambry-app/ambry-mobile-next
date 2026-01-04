@@ -81,7 +81,7 @@ export const PlaybackService = async function () {
       }
     }
 
-    SleepTimer.cancel();
+    SleepTimer.stop();
   });
 
   // Player.addEventListener(Event.PlaybackResume, (args) => {
@@ -104,9 +104,10 @@ export const PlaybackService = async function () {
   //   console.debug("[TrackPlayer Service] RemoteDislike");
   // });
 
+  // FIXME: this event doesn't seem to work
   Player.addEventListener(Event.RemoteDuck, (args) => {
     console.debug("[TrackPlayer Service] RemoteDuck", args);
-    SleepTimer.reset();
+    SleepTimer.maybeResetTriggerTime();
   });
 
   Player.addEventListener(Event.RemoteJumpBackward, async (args) => {
@@ -156,7 +157,7 @@ export const PlaybackService = async function () {
       }
     }
 
-    SleepTimer.cancel();
+    SleepTimer.stop();
 
     const session = useSession.getState().session;
     if (session) {
@@ -188,7 +189,7 @@ export const PlaybackService = async function () {
         );
       }
     }
-    SleepTimer.reset();
+    SleepTimer.start();
   });
 
   // Player.addEventListener(Event.RemotePlayId, (args) => {
@@ -226,5 +227,4 @@ export const PlaybackService = async function () {
   // Initialize services
   // Device store must be initialized for getDeviceIdSync() to work in event recording
   await initializeDevice();
-  SleepTimer.startMonitoring();
 };

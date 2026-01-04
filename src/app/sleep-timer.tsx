@@ -6,8 +6,8 @@ import { useShallow } from "zustand/shallow";
 
 import { Button, IconButton } from "@/components";
 import {
-  updateSleepTimerDuration,
-  updateSleepTimerEnabled,
+  setSleepTimerEnabled,
+  setSleepTimerTime,
 } from "@/services/sleep-timer-service";
 import { useSession } from "@/stores/session";
 import { useSleepTimer } from "@/stores/sleep-timer";
@@ -38,7 +38,7 @@ export default function SleepTimerRoute() {
   const setSleepTimerSecondsAndDisplay = useCallback(
     (value: number) => {
       setDisplaySleepTimerSeconds(value);
-      if (session) updateSleepTimerDuration(session, value);
+      if (session) setSleepTimerTime(session, value);
     },
     [session],
   );
@@ -134,7 +134,7 @@ export default function SleepTimerRoute() {
             thumbColor={Colors.zinc[100]}
             value={sleepTimerEnabled}
             onValueChange={(value) => {
-              updateSleepTimerEnabled(session, value);
+              setSleepTimerEnabled(session, value);
             }}
           />
         </View>
