@@ -15,7 +15,6 @@ import { Session } from "@/types/session";
 
 import * as EventRecording from "./event-recording";
 import * as Heartbeat from "./position-heartbeat";
-import { seekImmediateNoLog } from "./seek-service";
 import { syncPlaythroughs } from "./sync-service";
 
 const SLEEP_TIMER_CHECK_INTERVAL = 1000;
@@ -144,14 +143,20 @@ async function checkTimer() {
     // Time's up - pause and reset
     console.debug("[SleepTimer] Triggering - pausing playback");
 
+    const { playbackRate, loadedPlaythrough } = usePlayerUIState.getState();
+    const { position, duration } = await Player.getProgress();
+
     // We have to re-implement most of the pause logic from player-controls here
     await Player.pause();
-    await seekImmediateNoLog(-SLEEP_TIMER_PAUSE_REWIND_SECONDS);
-
     Heartbeat.stop();
     stop();
 
-    const { loadedPlaythrough, playbackRate } = usePlayerUIState.getState();
+    // seek back a bit
+    let seekPosition =
+      position - SLEEP_TIMER_PAUSE_REWIND_SECONDS * playbackRate;
+    seekPosition = Math.max(0, Math.min(seekPosition, duration));
+    await Player.seekTo(seekPosition);
+
     if (loadedPlaythrough) {
       const { position } = await Player.getProgress();
       EventRecording.recordPauseEvent(
