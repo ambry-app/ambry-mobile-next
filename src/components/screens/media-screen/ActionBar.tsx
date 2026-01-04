@@ -8,11 +8,12 @@ import {
   MediaContextMenu,
   PlayButton as PlayerPlayButton,
 } from "@/components";
+import { FINISH_PROMPT_THRESHOLD } from "@/constants";
 import { startDownload } from "@/services/download-service";
 import { MediaHeaderInfo } from "@/services/library-service";
 import {
-  continueExistingPlaythrough,
-  startFreshPlaythrough,
+  applyPlaythroughAction,
+  PlaythroughAction,
 } from "@/services/playback-controls";
 import {
   MediaPlaybackState,
@@ -20,6 +21,7 @@ import {
 } from "@/services/playthrough-query-service";
 import { useShelvedMedia } from "@/services/shelf-service";
 import { useDownloads } from "@/stores/downloads";
+import { getPlaythroughProgress } from "@/stores/player-ui-state";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";
 
@@ -172,25 +174,47 @@ function LoadMediaButton({
   playbackState,
 }: LoadMediaButtonProps) {
   const handlePress = useCallback(async () => {
-    switch (playbackState.type) {
-      case "in_progress":
-        await continueExistingPlaythrough(
-          session,
-          playbackState.playthrough.id,
-        );
-        break;
+    // if there is a currently loaded playthrough, _and_ that playthrough is at
+    // >= 95% progress, then we navigate to "mark-finished-prompt", with the
+    // continuationAction set appropriately based on the logic here. If there
+    // isn't a loaded playthrough, or it's < 95%, we perform the action here.
 
-      case "finished":
-      case "abandoned":
+    const playthroughProgress = getPlaythroughProgress();
+
+    const action: PlaythroughAction =
+      playbackState.type === "in_progress"
+        ? {
+            type: "continueExistingPlaythrough",
+            playthroughId: playbackState.playthrough.id,
+          }
+        : playbackState.type === "finished" ||
+            playbackState.type === "abandoned"
+          ? {
+              type: "promptForResume",
+              playthroughId: playbackState.playthrough.id,
+            }
+          : { type: "startFreshPlaythrough", mediaId: media.id };
+
+    if (
+      playthroughProgress &&
+      playthroughProgress.progressPercent >= FINISH_PROMPT_THRESHOLD
+    ) {
+      router.navigate({
+        pathname: "/mark-finished-prompt",
+        params: {
+          playthroughId: playthroughProgress.loadedPlaythrough.playthroughId,
+          continuationAction: JSON.stringify(action),
+        },
+      });
+    } else {
+      if (action.type === "promptForResume") {
         router.navigate({
           pathname: "/resume-prompt",
-          params: { playthroughId: playbackState.playthrough.id },
+          params: { playthroughId: action.playthroughId },
         });
-        break;
-
-      case "none":
-        await startFreshPlaythrough(session, media.id);
-        break;
+      } else {
+        applyPlaythroughAction(session, action);
+      }
     }
   }, [session, media.id, playbackState]);
 

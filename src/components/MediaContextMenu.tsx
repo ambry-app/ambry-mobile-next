@@ -3,6 +3,7 @@ import { Share } from "react-native";
 import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
 
+import { FINISH_PROMPT_THRESHOLD } from "@/constants";
 import {
   cancelDownload,
   removeDownload,
@@ -13,11 +14,13 @@ import {
   abandonPlaythrough,
   continueExistingPlaythrough,
   finishPlaythrough,
+  PlaythroughAction,
   startFreshPlaythrough,
 } from "@/services/playback-controls";
 import { useMediaPlaybackState } from "@/services/playthrough-query-service";
 import { useShelvedMedia } from "@/services/shelf-service";
 import { useDownloads } from "@/stores/downloads";
+import { getPlaythroughProgress } from "@/stores/player-ui-state";
 import { Session } from "@/types/session";
 
 import { MediaContextMenuImpl } from "./MediaContextMenuImpl";
@@ -39,12 +42,52 @@ export function MediaContextMenu({ media, session }: MediaContextMenuProps) {
   );
 
   const onPlay = useCallback(() => {
-    startFreshPlaythrough(session, media.id);
+    const playthroughProgress = getPlaythroughProgress();
+
+    if (
+      playthroughProgress &&
+      playthroughProgress.progressPercent >= FINISH_PROMPT_THRESHOLD
+    ) {
+      const action: PlaythroughAction = {
+        type: "startFreshPlaythrough",
+        mediaId: media.id,
+      };
+
+      router.navigate({
+        pathname: "/mark-finished-prompt",
+        params: {
+          playthroughId: playthroughProgress.loadedPlaythrough.playthroughId,
+          continuationAction: JSON.stringify(action),
+        },
+      });
+    } else {
+      startFreshPlaythrough(session, media.id);
+    }
   }, [session, media.id]);
 
   const onResume = useCallback(() => {
     if (playbackState.type === "in_progress") {
-      continueExistingPlaythrough(session, playbackState.playthrough.id);
+      const playthroughProgress = getPlaythroughProgress();
+
+      if (
+        playthroughProgress &&
+        playthroughProgress.progressPercent >= FINISH_PROMPT_THRESHOLD
+      ) {
+        const action: PlaythroughAction = {
+          type: "continueExistingPlaythrough",
+          playthroughId: playbackState.playthrough.id,
+        };
+
+        router.navigate({
+          pathname: "/mark-finished-prompt",
+          params: {
+            playthroughId: playthroughProgress.loadedPlaythrough.playthroughId,
+            continuationAction: JSON.stringify(action),
+          },
+        });
+      } else {
+        continueExistingPlaythrough(session, playbackState.playthrough.id);
+      }
     }
   }, [session, playbackState]);
 
@@ -53,10 +96,30 @@ export function MediaContextMenu({ media, session }: MediaContextMenuProps) {
       playbackState.type === "finished" ||
       playbackState.type === "abandoned"
     ) {
-      router.navigate({
-        pathname: "/resume-prompt",
-        params: { playthroughId: playbackState.playthrough.id },
-      });
+      const playthroughProgress = getPlaythroughProgress();
+
+      if (
+        playthroughProgress &&
+        playthroughProgress.progressPercent >= FINISH_PROMPT_THRESHOLD
+      ) {
+        const action: PlaythroughAction = {
+          type: "promptForResume",
+          playthroughId: playbackState.playthrough.id,
+        };
+
+        router.navigate({
+          pathname: "/mark-finished-prompt",
+          params: {
+            playthroughId: playthroughProgress.loadedPlaythrough.playthroughId,
+            continuationAction: JSON.stringify(action),
+          },
+        });
+      } else {
+        router.navigate({
+          pathname: "/resume-prompt",
+          params: { playthroughId: playbackState.playthrough.id },
+        });
+      }
     }
   }, [playbackState]);
 

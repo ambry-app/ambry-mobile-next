@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { router } from "expo-router";
 
+import { FINISH_PROMPT_THRESHOLD } from "@/constants";
 import { startDownload } from "@/services/download-service";
 import {
   abandonPlaythrough,
@@ -8,7 +9,10 @@ import {
   unloadPlayer,
 } from "@/services/playback-controls";
 import { useDownloads } from "@/stores/downloads";
-import { type LoadedPlaythrough } from "@/stores/player-ui-state";
+import {
+  getPlaythroughProgress,
+  type LoadedPlaythrough,
+} from "@/stores/player-ui-state";
 import { Session } from "@/types/session";
 
 import { PlayerContextMenuImpl } from "./PlayerContextMenuImpl";
@@ -62,7 +66,22 @@ export function PlayerContextMenu({
   );
 
   const handleUnloadPlayer = useCallback(async () => {
-    await unloadPlayer(session);
+    const playthroughProgress = getPlaythroughProgress();
+
+    if (
+      playthroughProgress &&
+      playthroughProgress.progressPercent >= FINISH_PROMPT_THRESHOLD
+    ) {
+      router.navigate({
+        pathname: "/mark-finished-prompt",
+        params: {
+          playthroughId: playthroughProgress.loadedPlaythrough.playthroughId,
+          continuationAction: JSON.stringify({ type: "unloadPlayer" }),
+        },
+      });
+    } else {
+      await unloadPlayer(session);
+    }
   }, [session]);
 
   const handleMarkFinished = useCallback(async () => {

@@ -61,6 +61,10 @@ export default function ResumePromptModal() {
     await startFreshPlaythrough(session, media.id);
   };
 
+  const handleCancel = () => {
+    router.back();
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Resume or Start Fresh?</Text>
@@ -78,6 +82,9 @@ export default function ResumePromptModal() {
           <Text style={styles.startFreshButtonText}>Start Fresh</Text>
         </TouchableOpacity>
       </View>
+      <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
+        <Text style={styles.cancelButtonText}>Cancel</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -86,7 +93,7 @@ const styles = StyleSheet.create({
   container: {
     padding: 32,
     gap: 16,
-    height: 250,
+    height: 350,
   },
   title: {
     color: Colors.zinc[100],
@@ -123,6 +130,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   startFreshButtonText: {
+    color: Colors.zinc[100],
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  cancelButton: {
+    backgroundColor: Colors.zinc[800],
+    borderRadius: 8,
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  cancelButtonText: {
     color: Colors.zinc[100],
     fontSize: 16,
     fontWeight: "600",

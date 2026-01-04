@@ -99,6 +99,30 @@ export const usePlayerUIState = create<PlayerUIState>()(() => ({
 }));
 
 // ============================================================================
+// Getters
+// ============================================================================
+
+export type PlaythroughProgress = {
+  loadedPlaythrough: LoadedPlaythrough;
+  progressPercent: number;
+  position: number;
+  duration: number;
+};
+
+export function getPlaythroughProgress(): PlaythroughProgress | null {
+  const { position, duration, loadedPlaythrough } = usePlayerUIState.getState();
+  if (!loadedPlaythrough) return null;
+  if (duration === 0)
+    return { loadedPlaythrough, progressPercent: 0, position, duration };
+  return {
+    loadedPlaythrough,
+    progressPercent: position / duration,
+    position,
+    duration,
+  };
+}
+
+// ============================================================================
 // Actions
 // ============================================================================
 

@@ -1,14 +1,18 @@
 import { useCallback } from "react";
 import { Alert } from "react-native";
+import { router } from "expo-router";
 
+import { FINISH_PROMPT_THRESHOLD } from "@/constants";
 import {
   abandonPlaythrough,
   continueExistingPlaythrough,
   deletePlaythrough,
   finishPlaythrough,
+  PlaythroughAction,
   resumeAndLoadPlaythrough,
 } from "@/services/playback-controls";
 import { PlaythroughForMedia } from "@/services/playthrough-query-service";
+import { getPlaythroughProgress } from "@/stores/player-ui-state";
 import { Session } from "@/types/session";
 
 import { PlaythroughContextMenuImpl } from "./PlaythroughContextMenuImpl";
@@ -23,11 +27,49 @@ export function PlaythroughContextMenu({
   playthrough,
 }: PlaythroughContextMenuProps) {
   const onResume = useCallback(() => {
-    continueExistingPlaythrough(session, playthrough.id);
+    const playthroughProgress = getPlaythroughProgress();
+    if (
+      playthroughProgress &&
+      playthroughProgress.progressPercent >= FINISH_PROMPT_THRESHOLD
+    ) {
+      const action: PlaythroughAction = {
+        type: "continueExistingPlaythrough",
+        playthroughId: playthrough.id,
+      };
+
+      router.navigate({
+        pathname: "/mark-finished-prompt",
+        params: {
+          playthroughId: playthroughProgress.loadedPlaythrough.playthroughId,
+          continuationAction: JSON.stringify(action),
+        },
+      });
+    } else {
+      continueExistingPlaythrough(session, playthrough.id);
+    }
   }, [session, playthrough.id]);
 
   const onResumeFromPrevious = useCallback(() => {
-    resumeAndLoadPlaythrough(session, playthrough.id);
+    const playthroughProgress = getPlaythroughProgress();
+    if (
+      playthroughProgress &&
+      playthroughProgress.progressPercent >= FINISH_PROMPT_THRESHOLD
+    ) {
+      const action: PlaythroughAction = {
+        type: "resumeAndLoadPlaythrough",
+        playthroughId: playthrough.id,
+      };
+
+      router.navigate({
+        pathname: "/mark-finished-prompt",
+        params: {
+          playthroughId: playthroughProgress.loadedPlaythrough.playthroughId,
+          continuationAction: JSON.stringify(action),
+        },
+      });
+    } else {
+      resumeAndLoadPlaythrough(session, playthrough.id);
+    }
   }, [session, playthrough.id]);
 
   const onMarkAsFinished = useCallback(() => {

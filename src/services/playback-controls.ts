@@ -37,6 +37,13 @@ import {
   IOSCategoryMode,
 } from "./trackplayer-wrapper";
 
+export type PlaythroughAction =
+  | { type: "unloadPlayer" }
+  | { type: "continueExistingPlaythrough"; playthroughId: string }
+  | { type: "startFreshPlaythrough"; mediaId: string }
+  | { type: "resumeAndLoadPlaythrough"; playthroughId: string }
+  | { type: "promptForResume"; playthroughId: string };
+
 // =============================================================================
 // Public Playback Actions (Play, Pause, Rate)
 // =============================================================================
@@ -49,7 +56,6 @@ export async function play() {
   console.debug("[Controls] Playing from position", position.toFixed(1));
   await Player.play();
 
-  // --- Inlined from Coordinator.onPlay ---
   const { loadedPlaythrough } = usePlayerUIState.getState();
   if (loadedPlaythrough) {
     try {
@@ -68,7 +74,6 @@ export async function play() {
     }
   }
   SleepTimer.reset();
-  // --- End Inlined ---
 }
 
 /**
@@ -81,7 +86,6 @@ export async function pause() {
   await Player.pause();
   await seekImmediateNoLog(-PAUSE_REWIND_SECONDS);
 
-  // --- Inlined from Coordinator.onPause ---
   Heartbeat.stop();
 
   const { loadedPlaythrough, playbackRate } = usePlayerUIState.getState();
@@ -104,7 +108,6 @@ export async function pause() {
   if (session) {
     syncPlaythroughs(session);
   }
-  // --- End Inlined ---
 }
 
 /**
@@ -367,17 +370,7 @@ export async function reloadCurrentPlaythroughIfMedia(
     loadedPlaythrough.playthroughId,
   );
 
-  usePlayerUIState.setState({
-    loadedPlaythrough: {
-      mediaId: track.mediaId,
-      playthroughId: track.playthroughId,
-    },
-    duration: track.duration,
-    position: track.position,
-    playbackRate: track.playbackRate,
-    streaming: track.streaming,
-    ...initialChapterState(track.chapters, track.position, track.duration),
-  });
+  applyTrackLoadResult(track);
 
   if (track.playthroughId === loadedPlaythrough.playthroughId) {
     await play();
@@ -399,25 +392,36 @@ export async function resumeAndLoadPlaythrough(
   try {
     const result = await Loader.resumePlaythrough(session, playthroughId);
 
-    usePlayerUIState.setState({
-      loadingNewMedia: false,
-      loadedPlaythrough: {
-        mediaId: result.mediaId,
-        playthroughId: result.playthroughId,
-      },
-      duration: result.duration,
-      position: result.position,
-      playbackRate: result.playbackRate,
-      streaming: result.streaming,
-      ...initialChapterState(result.chapters, result.position, result.duration),
-    });
-
+    applyTrackLoadResult(result);
     bumpPlaythroughDataVersion();
 
     await play();
   } catch (error) {
     console.error("[Controls] Failed to resume playthrough:", error);
     usePlayerUIState.setState({ loadingNewMedia: false });
+  }
+}
+
+export async function applyPlaythroughAction(
+  session: Session,
+  action: PlaythroughAction,
+) {
+  switch (action.type) {
+    case "unloadPlayer":
+      await unloadPlayer(session);
+      break;
+    case "continueExistingPlaythrough":
+      await continueExistingPlaythrough(session, action.playthroughId);
+      break;
+    case "startFreshPlaythrough":
+      await startFreshPlaythrough(session, action.mediaId);
+      break;
+    case "resumeAndLoadPlaythrough":
+      await resumeAndLoadPlaythrough(session, action.playthroughId);
+      break;
+    case "promptForResume":
+      // No-op: handled by UI
+      break;
   }
 }
 
