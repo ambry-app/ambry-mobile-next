@@ -313,8 +313,6 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
       }
     });
 
-  const gestures = Gesture.Race(panGesture);
-
   // Use shouldRenderExpanded to determine if player can be collapsed
   useBackHandler(() => {
     if (shouldRenderExpanded && expansion.value > 0.5) {
@@ -520,7 +518,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
           height: tabBarHeight + PLAYER_HEIGHT,
         }}
       >
-        <GestureDetector gesture={gestures}>
+        <GestureDetector gesture={panGesture}>
           <Animated.View
             style={[
               {
@@ -784,7 +782,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                         <ChapterControls />
                       </View>
                     </View>
-                    <Scrubber />
+                    <Scrubber playerPanGesture={panGesture} />
                   </Animated.View>
                 </>
               )}

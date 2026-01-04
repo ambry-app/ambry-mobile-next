@@ -1,6 +1,10 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, StyleSheet, TextInput } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import {
+  Gesture,
+  GestureDetector,
+  type PanGesture,
+} from "react-native-gesture-handler";
 import Animated, {
   Easing,
   useAnimatedProps,
@@ -151,7 +155,11 @@ const Markers = memo(function Markers({ markers }: MarkersProps) {
   });
 });
 
-export const Scrubber = memo(function Scrubber() {
+export const Scrubber = memo(function Scrubber({
+  playerPanGesture,
+}: {
+  playerPanGesture: PanGesture;
+}) {
   const { state } = usePlaybackState();
   const { playbackRate, chapters, duration } = usePlayerUIState(
     useShallow(({ playbackRate, chapters, duration }) => ({
@@ -193,6 +201,7 @@ export const Scrubber = memo(function Scrubber() {
   }, [translateX]);
 
   const panGestureHandler = Gesture.Pan()
+    .blocksExternalGesture(playerPanGesture)
     .minDistance(0)
     .shouldCancelWhenOutside(false)
     .onStart((_event) => {
@@ -443,7 +452,7 @@ export const Scrubber = memo(function Scrubber() {
 
   return (
     <GestureDetector gesture={panGestureHandler}>
-      <Animated.View>
+      <Animated.View style={styles.container}>
         <AnimatedTextInput
           animatedProps={animatedTimecodeProps}
           style={[styles.timecode, animatedTimecodeStyle]}
@@ -482,6 +491,11 @@ const colors = {
 };
 
 const styles = StyleSheet.create({
+  container: {
+    marginTop: -10,
+    paddingTop: 10,
+    backgroundColor: "transparent",
+  },
   timecode: {
     fontWeight: "300",
     fontSize: 16,
