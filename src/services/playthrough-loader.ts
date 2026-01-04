@@ -39,7 +39,7 @@ import * as Heartbeat from "./position-heartbeat";
 import * as SleepTimer from "./sleep-timer-service";
 import { syncPlaythroughs } from "./sync-service";
 import * as Player from "./trackplayer-wrapper";
-import { PitchAlgorithm, TrackType } from "./trackplayer-wrapper";
+import { Capability, PitchAlgorithm, TrackType } from "./trackplayer-wrapper";
 
 // =============================================================================
 // Types
@@ -447,6 +447,7 @@ async function loadPlaythroughIntoPlayer(
 
   await Player.seekTo(position);
   await Player.setRate(playbackRate);
+  await setPlayerOptions();
 
   // Wait for TrackPlayer to report the correct position after seek
   // This is important because seekTo() can return before the seek completes,
@@ -462,4 +463,27 @@ async function loadPlaythroughIntoPlayer(
     chapters: playthrough.media.chapters,
     streaming,
   };
+}
+
+async function setPlayerOptions() {
+  await Player.updateOptions({
+    android: {
+      alwaysPauseOnInterruption: true,
+    },
+    capabilities: [
+      Capability.Play,
+      Capability.Pause,
+      Capability.JumpForward,
+      Capability.JumpBackward,
+    ],
+    notificationCapabilities: [
+      Capability.Play,
+      Capability.Pause,
+      Capability.JumpBackward,
+      Capability.JumpForward,
+    ],
+    forwardJumpInterval: 10,
+    backwardJumpInterval: 10,
+    progressUpdateEventInterval: 1,
+  });
 }

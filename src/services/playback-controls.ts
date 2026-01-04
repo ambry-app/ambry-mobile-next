@@ -201,9 +201,6 @@ export async function initializePlayer(session: Session) {
       console.debug("[Controls] TrackPlayer not yet set up, proceeding:", e);
     }
 
-    // Set up TrackPlayer if not already set up or reset
-    await setupTrackPlayer();
-
     usePlayerUIState.setState({ initialized: true });
 
     if (trackLoadResult) {
@@ -224,34 +221,18 @@ export async function initializePlayer(session: Session) {
  * Low-level TrackPlayer setup.
  * Configures TrackPlayer options (capabilities, notification, etc.).
  */
-async function setupTrackPlayer() {
-  await Player.setupPlayer({
-    androidAudioContentType: AndroidAudioContentType.Speech,
-    iosCategory: IOSCategory.Playback,
-    iosCategoryMode: IOSCategoryMode.SpokenAudio,
-    autoHandleInterruptions: true,
-  });
-
-  await Player.updateOptions({
-    android: {
-      alwaysPauseOnInterruption: true,
-    },
-    capabilities: [
-      Capability.Play,
-      Capability.Pause,
-      Capability.JumpForward,
-      Capability.JumpBackward,
-    ],
-    notificationCapabilities: [
-      Capability.Play,
-      Capability.Pause,
-      Capability.JumpBackward,
-      Capability.JumpForward,
-    ],
-    forwardJumpInterval: 10,
-    backwardJumpInterval: 10,
-    progressUpdateEventInterval: 1,
-  });
+export async function setupTrackPlayer() {
+  try {
+    await Player.setupPlayer({
+      androidAudioContentType: AndroidAudioContentType.Speech,
+      iosCategory: IOSCategory.Playback,
+      iosCategoryMode: IOSCategoryMode.SpokenAudio,
+      autoHandleInterruptions: true,
+    });
+  } catch {
+    // already initialized
+    return;
+  }
 
   console.debug("[Controls] TrackPlayer setup succeeded");
 }

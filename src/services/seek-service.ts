@@ -164,6 +164,8 @@ async function applyAccumulatedSeek(source: SeekSourceType) {
   isApplying = true;
   seekTimer = null;
 
+  // Smell: `duration` is updated in the player UI state store by polling, and
+  // the poller is only active while the UI is mounted.
   const { duration } = usePlayerUIState.getState();
   const positionToApply = Math.max(0, Math.min(targetPosition, duration));
 

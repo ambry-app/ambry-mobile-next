@@ -11,7 +11,10 @@ import { registerBackgroundSyncTask } from "@/services/background-sync-service";
 import { initializeDataVersion } from "@/services/data-version-service";
 import { useDatabaseMigrations } from "@/services/db-service";
 import { initializeDownloads } from "@/services/download-service";
-import { initializePlayer } from "@/services/playback-controls";
+import {
+  initializePlayer,
+  setupTrackPlayer,
+} from "@/services/playback-controls";
 import { initialize as initializeSleepTimer } from "@/services/sleep-timer-service";
 import { sync } from "@/services/sync-service";
 import { initializeDevice } from "@/stores/device";
@@ -73,7 +76,8 @@ export function useAppBoot() {
       }
       setInitialSyncComplete(true);
 
-      // Initialize player (sets up TrackPlayer and loads most recent media)
+      // Initialize player (sets up TrackPlayer and loads active playthrough)
+      await setupTrackPlayer();
       await initializePlayer(session);
 
       // Register background sync
