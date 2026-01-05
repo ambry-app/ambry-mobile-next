@@ -52,7 +52,6 @@ export interface TrackLoadResult {
   duration: number;
   position: number;
   playbackRate: number;
-  streaming: boolean;
   chapters: schema.Chapter[];
 }
 
@@ -184,7 +183,6 @@ export async function loadActivePlaythroughIntoPlayer(
     // Track already loaded (e.g., from headless context or previous session)
     // The description field contains the playthroughId
     const playthroughId = track.description!;
-    const streaming = track.url.startsWith("http");
     const playbackRate = await Player.getPlaybackRate();
     const progress = await Player.getAccurateProgress();
     const position = progress.position;
@@ -207,7 +205,6 @@ export async function loadActivePlaythroughIntoPlayer(
       position,
       duration,
       playbackRate,
-      streaming,
       chapters: playthrough.media.chapters,
     };
   }
@@ -404,12 +401,9 @@ async function loadPlaythroughIntoPlayer(
   const position = playthrough.stateCache?.currentPosition ?? 0;
   const playbackRate = playthrough.stateCache?.currentRate ?? 1;
 
-  let streaming: boolean;
-
   await Player.reset();
   if (playthrough.media.download?.status === "ready") {
     // the media is downloaded, load the local file
-    streaming = false;
     await Player.add({
       url: documentDirectoryFilePath(playthrough.media.download.filePath),
       pitchAlgorithm: PitchAlgorithm.Voice,
@@ -429,7 +423,6 @@ async function loadPlaythroughIntoPlayer(
     });
   } else {
     // the media is not downloaded, load the stream
-    streaming = true;
     await Player.add({
       url:
         Platform.OS === "ios"
@@ -468,7 +461,6 @@ async function loadPlaythroughIntoPlayer(
     position: actualPosition,
     playbackRate,
     chapters: playthrough.media.chapters,
-    streaming,
   };
 }
 

@@ -28,7 +28,6 @@ export interface LoadedPlaythrough {
 export interface PlayerUIState {
   /* initialization state */
   initialized: boolean;
-  streaming: boolean | undefined;
   loadingNewMedia: boolean;
 
   /* playback state */
@@ -69,7 +68,6 @@ export interface PlayerUIState {
 // ============================================================================
 
 const initialState = {
-  streaming: undefined,
   loadingNewMedia: false,
   position: 0,
   duration: 0,

@@ -169,7 +169,6 @@ export async function initializePlayer(session: Session) {
       const track = await Player.getTrack(0);
       if (track) {
         const playthroughId = track.description!;
-        const streaming = track.url.startsWith("http");
         const progress = await Player.getAccurateProgress();
         const playbackRate = await Player.getPlaybackRate();
 
@@ -191,7 +190,6 @@ export async function initializePlayer(session: Session) {
             position: progress.position,
             duration: progress.duration,
             playbackRate,
-            streaming,
             chapters: playthrough.media.chapters,
           };
         }
@@ -313,7 +311,6 @@ function applyTrackLoadResult(result: Loader.TrackLoadResult) {
     loadingNewMedia: false,
     duration: result.duration,
     position: result.position,
-    streaming: result.streaming,
     ...initialChapterState(result.chapters, result.position, result.duration),
   });
 }

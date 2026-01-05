@@ -40,7 +40,7 @@ import {
   usePlayerUIState as usePlayer,
 } from "@/stores/player-ui-state";
 import { useScreen } from "@/stores/screen";
-import { Playthrough } from "@/stores/track-player";
+import { Playthrough, useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";
 import { useBackHandler } from "@/utils/hooks";
@@ -119,8 +119,9 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
   const { mediaId } = playthrough;
   const insets = useSafeAreaInsets();
 
+  const streaming = useTrackPlayer((state) => state.streaming);
+
   const {
-    streaming,
     loadingNewMedia,
     shouldRenderMini,
     shouldRenderExpanded,
@@ -128,13 +129,11 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
   } = usePlayer(
     useShallow(
       ({
-        streaming,
         loadingNewMedia,
         shouldRenderMini,
         shouldRenderExpanded,
         pendingExpandPlayer,
       }) => ({
-        streaming,
         loadingNewMedia,
         shouldRenderMini,
         shouldRenderExpanded,
