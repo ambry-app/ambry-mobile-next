@@ -7,7 +7,9 @@ import {
 } from "react-native-gesture-handler";
 import Animated, {
   Easing,
+  SharedValue,
   useAnimatedProps,
+  useAnimatedReaction,
   useAnimatedStyle,
   useDerivedValue,
   useFrameCallback,
@@ -157,8 +159,10 @@ const Markers = memo(function Markers({ markers }: MarkersProps) {
 
 export const Scrubber = memo(function Scrubber({
   playerPanGesture,
+  isPaused,
 }: {
   playerPanGesture: PanGesture;
+  isPaused: SharedValue<boolean>;
 }) {
   const { playing } = useTrackPlayer((state) => state.isPlaying);
   const playbackRate = useTrackPlayer((state) => state.playbackRate);
@@ -345,8 +349,13 @@ export const Scrubber = memo(function Scrubber({
   useFrameCallback((frameInfo) => {
     "worklet";
 
-    // Pause frame callback during scrubbing or user seek animations
-    if (!playing || isScrubbing || isAnimatingUserSeek.value) {
+    // Pause frame callback during scrubbing or user seek animations or when explicitly paused
+    if (
+      !playing ||
+      isScrubbing ||
+      isAnimatingUserSeek.value ||
+      isPaused.value
+    ) {
       lastTimestamp.value = 0;
       return;
     }
@@ -419,7 +428,7 @@ export const Scrubber = memo(function Scrubber({
     if (isScrubbing || !playing) return;
 
     const checkDrift = async () => {
-      if (isAnimatingUserSeek.value) return;
+      if (isAnimatingUserSeek.value || isPaused.value) return;
 
       try {
         const { position } = await Player.getAccurateProgress();
@@ -447,7 +456,26 @@ export const Scrubber = memo(function Scrubber({
     const intervalId = setInterval(checkDrift, DRIFT_CORRECTION_INTERVAL);
 
     return () => clearInterval(intervalId);
-  }, [isScrubbing, playing, translateX, isAnimatingUserSeek]);
+  }, [isScrubbing, playing, translateX, isAnimatingUserSeek, isPaused]);
+
+  // When un-paused, immediately sync to the correct position
+  const syncPosition = useCallback(async () => {
+    const { position } = await Player.getAccurateProgress();
+    scheduleOnUI(() => {
+      "worklet";
+      translateX.value = timeToTranslateX(position);
+    });
+  }, [translateX]);
+
+  useAnimatedReaction(
+    () => isPaused.value,
+    (paused, wasPaused) => {
+      if (wasPaused === true && paused === false) {
+        scheduleOnRN(syncPosition);
+      }
+    },
+    [isPaused, syncPosition],
+  );
 
   return (
     <GestureDetector gesture={panGestureHandler}>

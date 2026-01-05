@@ -37,10 +37,7 @@ export interface PlayerUIState {
   /** Current TrackPlayer duration */
   duration: number;
 
-  /** Whether mini player content should render (true when collapsed or animating) */
-  shouldRenderMini: boolean;
-  /** Whether expanded player content should render (true when expanded or animating) */
-  shouldRenderExpanded: boolean;
+  expanded: boolean;
 
   /* chapter state */
   chapters: Chapter[];
@@ -70,8 +67,7 @@ const initialState = {
   loadingNewMedia: false,
   position: 0,
   duration: 0,
-  shouldRenderMini: false,
-  shouldRenderExpanded: true,
+  expanded: true,
   chapters: [],
   currentChapter: undefined,
   previousChapterStartTime: 0,
@@ -113,11 +109,10 @@ export function resetPlayerUIState() {
   usePlayerUIState.setState(initialState);
 }
 
-export function setPlayerRenderState(
-  shouldRenderMini: boolean,
-  shouldRenderExpanded: boolean,
-) {
-  usePlayerUIState.setState({ shouldRenderMini, shouldRenderExpanded });
+export function setPlayerExpandedState(expanded: boolean) {
+  usePlayerUIState.setState({
+    expanded,
+  });
 }
 
 export function requestExpandPlayer() {

@@ -11,7 +11,6 @@ import {
 } from "@/services/playthrough-query-service";
 import { useDataVersion } from "@/stores/data-version";
 import { useDebug } from "@/stores/debug";
-import { usePlayerUIState as usePlayer } from "@/stores/player-ui-state";
 import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";
@@ -104,15 +103,10 @@ export function PlaythroughHistory({
  */
 function NowPlayingRow({ playthroughId }: { playthroughId: string }) {
   const debugModeEnabled = useDebug((state) => state.debugModeEnabled);
-  // Check if this screen is visible (not hidden behind expanded player)
-  const shouldRenderMini = usePlayer((state) => state.shouldRenderMini);
 
   const handleDebugTap = () => {
     router.push(`/playthrough-debug/${playthroughId}`);
   };
-
-  // Time info is only shown when visible (requires subscription to position updates)
-  const timeInfo = shouldRenderMini ? <NowPlayingTimeInfo /> : null;
 
   const rowContent = (
     <>
@@ -124,7 +118,7 @@ function NowPlayingRow({ playthroughId }: { playthroughId: string }) {
           <Text style={[styles.statusLabel, { color: Colors.zinc[100] }]}>
             Now Playing
           </Text>
-          {timeInfo}
+          <NowPlayingTimeInfo />
         </View>
         <Text style={styles.dateLabel}>Currently listening</Text>
       </View>

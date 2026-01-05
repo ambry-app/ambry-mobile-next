@@ -36,7 +36,7 @@ import { getMedia } from "@/services/library-service";
 import { useLibraryData } from "@/services/library-service";
 import {
   clearPendingExpand,
-  setPlayerRenderState,
+  setPlayerExpandedState,
   usePlayerUIState as usePlayer,
 } from "@/stores/player-ui-state";
 import { useScreen } from "@/stores/screen";
@@ -121,54 +121,29 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
 
   const streaming = useTrackPlayer((state) => state.streaming);
 
-  const {
-    loadingNewMedia,
-    shouldRenderMini,
-    shouldRenderExpanded,
-    pendingExpandPlayer,
-  } = usePlayer(
-    useShallow(
-      ({
-        loadingNewMedia,
-        shouldRenderMini,
-        shouldRenderExpanded,
-        pendingExpandPlayer,
-      }) => ({
-        loadingNewMedia,
-        shouldRenderMini,
-        shouldRenderExpanded,
-        pendingExpandPlayer,
-      }),
-    ),
+  const { loadingNewMedia, expanded, pendingExpandPlayer } = usePlayer(
+    useShallow(({ loadingNewMedia, expanded, pendingExpandPlayer }) => ({
+      loadingNewMedia,
+      expanded,
+      pendingExpandPlayer,
+    })),
   );
   const media = useLibraryData(() => getMedia(session, mediaId), [mediaId]);
 
   // Initialize expansion based on current store state to stay in sync on mount/resume
   // (useSharedValue only captures the initial value on first render)
-  const expansion = useSharedValue(shouldRenderExpanded ? 1.0 : 0.0);
+  const expansion = useSharedValue(expanded ? 1.0 : 0.0);
   const { screenHeight, screenWidth, shortScreen } = useScreen(
     (state) => state,
   );
   const whereItWas = useSharedValue(0);
   const onPanEndAction = useSharedValue<"none" | "expand" | "collapse">("none");
-
-  // Helper to set render state via scheduleOnRN (for use in worklets)
-  const setRenderBoth = useCallback(() => {
-    setPlayerRenderState(true, true);
-  }, []);
-
-  const setRenderExpanded = useCallback(() => {
-    setPlayerRenderState(false, true);
-  }, []);
-
-  const setRenderCollapsed = useCallback(() => {
-    setPlayerRenderState(true, false);
-  }, []);
+  const panGestureActive = useSharedValue(false);
 
   // Deferred expand: mount components first, then animate
   const expand = useCallback(() => {
     // If already expanded, just ensure animation is at 1.0
-    if (!shouldRenderMini && shouldRenderExpanded) {
+    if (expanded) {
       expansion.value = withTiming(1.0, {
         duration: PLAYER_EXPAND_ANIMATION_DURATION,
         easing: Easing.out(Easing.exp),
@@ -176,8 +151,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
       return;
     }
 
-    // Mount both first
-    setPlayerRenderState(true, true);
+    // setPlayerExpandedState(false);
 
     // Wait for React to render, then animate
     requestAnimationFrame(() => {
@@ -189,17 +163,17 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
         },
         (finished) => {
           if (finished) {
-            scheduleOnRN(setRenderExpanded);
+            scheduleOnRN(setPlayerExpandedState, true);
           }
         },
       );
     });
-  }, [expansion, shouldRenderMini, shouldRenderExpanded, setRenderExpanded]);
+  }, [expansion, expanded]);
 
   // Deferred collapse: mount components first, then animate
   const collapse = useCallback(() => {
     // If already collapsed, just ensure animation is at 0.0
-    if (shouldRenderMini && !shouldRenderExpanded) {
+    if (!expanded) {
       expansion.value = withTiming(0.0, {
         duration: PLAYER_EXPAND_ANIMATION_DURATION,
         easing: Easing.out(Easing.exp),
@@ -207,8 +181,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
       return;
     }
 
-    // Mount both first
-    setPlayerRenderState(true, true);
+    // setPlayerExpandedState(false);
 
     // Wait for React to render, then animate
     requestAnimationFrame(() => {
@@ -220,12 +193,12 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
         },
         (finished) => {
           if (finished) {
-            scheduleOnRN(setRenderCollapsed);
+            scheduleOnRN(setPlayerExpandedState, false);
           }
         },
       );
     });
-  }, [expansion, shouldRenderMini, shouldRenderExpanded, setRenderCollapsed]);
+  }, [expansion, expanded]);
 
   // Worklet versions for use in gesture handlers
   const expandWorklet = useCallback(() => {
@@ -238,12 +211,11 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
       },
       (finished) => {
         if (finished) {
-          scheduleOnRN(setRenderExpanded);
+          scheduleOnRN(setPlayerExpandedState, true);
         }
       },
     );
-  }, [expansion, setRenderExpanded]);
-
+  }, [expansion]);
   const collapseWorklet = useCallback(() => {
     "worklet";
     expansion.value = withTiming(
@@ -254,12 +226,11 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
       },
       (finished) => {
         if (finished) {
-          scheduleOnRN(setRenderCollapsed);
+          scheduleOnRN(setPlayerExpandedState, false);
         }
       },
     );
-  }, [expansion, setRenderCollapsed]);
-
+  }, [expansion]);
   // When a remote request to expand the player comes in, handle it.
   useEffect(() => {
     if (pendingExpandPlayer) {
@@ -280,12 +251,8 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
   };
 
   const panGesture = Gesture.Pan()
-    .onTouchesDown(() => {
-      // Pre-mount components early, before pan visually starts
-      // This gives React time to render before the gesture animation begins
-      scheduleOnRN(setRenderBoth);
-    })
     .onStart(() => {
+      panGestureActive.value = true;
       whereItWas.value = expansion.value;
     })
     .onUpdate((e) => {
@@ -304,17 +271,25 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
       if (e.velocityY > 300) onPanEndAction.value = "collapse";
     })
     .onEnd(() => {
+      panGestureActive.value = false;
       // Use worklet versions since we're already in 'both' state
       if (onPanEndAction.value === "expand") {
         expandWorklet();
       } else if (onPanEndAction.value === "collapse") {
         collapseWorklet();
       }
+    })
+    .onFinalize(() => {
+      panGestureActive.value = false;
     });
 
-  // Use shouldRenderExpanded to determine if player can be collapsed
+  const isScrubberPaused = useDerivedValue(
+    () => panGestureActive.value || expansion.value < 0.1,
+  );
+
+  // Use expanded to determine if player can be collapsed
   useBackHandler(() => {
-    if (shouldRenderExpanded && expansion.value > 0.5) {
+    if (expanded) {
       collapse();
       return true;
     }
@@ -529,8 +504,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
               playerContainerStyle,
             ]}
           >
-            {/* Mini progress bar - only when not fully expanded */}
-            {shouldRenderMini && <MiniProgressBar expansion={expansion} />}
+            <MiniProgressBar expansion={expansion} />
 
             {/* Blurred background - always render for smooth animation */}
             <Animated.View
@@ -581,61 +555,58 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
             <Animated.View
               style={[{ display: "flex", height: "100%" }, playerStyle]}
             >
-              {/* Top action bar - only when not fully collapsed */}
-              {shouldRenderExpanded && (
-                <Animated.View
-                  style={[
-                    {
+              <Animated.View
+                style={[
+                  {
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    overflow: "hidden",
+                    paddingHorizontal: 16,
+                    backgroundColor: debugBackground("teal"),
+                  },
+                  topActionBarStyle,
+                ]}
+              >
+                <IconButton
+                  size={24}
+                  icon="chevron-down"
+                  color={Colors.zinc[100]}
+                  onPress={() => collapse()}
+                />
+
+                {streaming !== undefined && (
+                  <View
+                    style={{
+                      alignSelf: "flex-end",
+                      paddingBottom: 4,
                       display: "flex",
                       flexDirection: "row",
                       alignItems: "center",
-                      justifyContent: "space-between",
-                      overflow: "hidden",
-                      paddingHorizontal: 16,
-                      backgroundColor: debugBackground("teal"),
-                    },
-                    topActionBarStyle,
-                  ]}
-                >
-                  <IconButton
-                    size={24}
-                    icon="chevron-down"
-                    color={Colors.zinc[100]}
-                    onPress={() => collapse()}
-                  />
+                      gap: 4,
+                    }}
+                  >
+                    <FontAwesome6
+                      size={12}
+                      name={streaming ? "cloud-arrow-down" : "download"}
+                      color={Colors.zinc[700]}
+                    />
+                    <Text style={{ color: Colors.zinc[700] }}>
+                      {streaming ? "streaming" : "downloaded"}
+                    </Text>
+                  </View>
+                )}
 
-                  {streaming !== undefined && (
-                    <View
-                      style={{
-                        alignSelf: "flex-end",
-                        paddingBottom: 4,
-                        display: "flex",
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                    >
-                      <FontAwesome6
-                        size={12}
-                        name={streaming ? "cloud-arrow-down" : "download"}
-                        color={Colors.zinc[700]}
-                      />
-                      <Text style={{ color: Colors.zinc[700] }}>
-                        {streaming ? "streaming" : "downloaded"}
-                      </Text>
-                    </View>
-                  )}
-
-                  <PlayerContextMenu
-                    session={session}
-                    playthrough={playthrough}
-                    bookTitle={media.book.title}
-                    authors={media.book.authors}
-                    narrators={media.narrators}
-                    onCollapse={collapse}
-                  />
-                </Animated.View>
-              )}
+                <PlayerContextMenu
+                  session={session}
+                  playthrough={playthrough}
+                  bookTitle={media.book.title}
+                  authors={media.book.authors}
+                  narrators={media.narrators}
+                  onCollapse={collapse}
+                />
+              </Animated.View>
 
               {/* Image row with mini controls */}
               <View
@@ -664,7 +635,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                 >
                   <Pressable
                     onPress={() => {
-                      if (shouldRenderMini) {
+                      if (!expanded) {
                         expand();
                       }
                     }}
@@ -686,105 +657,104 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                 </Animated.View>
 
                 {/* Mini controls - only when not fully expanded */}
-                {shouldRenderMini && (
-                  <Animated.View
-                    style={[
-                      {
-                        height: PLAYER_HEIGHT,
-                        display: "flex",
-                        flexDirection: "row",
-                        alignItems: "center",
-                        paddingLeft: 8,
-                        backgroundColor: debugBackground(Colors.red[900]),
-                      },
-                      miniControlsStyle,
-                    ]}
+                <Animated.View
+                  style={[
+                    {
+                      height: PLAYER_HEIGHT,
+                      display: "flex",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingLeft: 8,
+                      backgroundColor: debugBackground(Colors.red[900]),
+                    },
+                    miniControlsStyle,
+                  ]}
+                >
+                  <View
+                    style={{
+                      flexGrow: 1,
+                      flexShrink: 1,
+                      flexBasis: 0,
+                    }}
                   >
-                    <View
-                      style={{
-                        flexGrow: 1,
-                        flexShrink: 1,
-                        flexBasis: 0,
-                      }}
-                    >
-                      <Pressable onPress={() => expand()}>
-                        <BookDetailsText
-                          baseFontSize={14}
-                          title={media.book.title}
-                          authors={media.book.authors.map((a) => a.name)}
-                          narrators={media.narrators.map((n) => n.name)}
-                        />
-                      </Pressable>
-                    </View>
-                    <PlayButton size={32} color={Colors.zinc[100]} />
-                  </Animated.View>
-                )}
-              </View>
-
-              {/* Expanded content - only when not fully collapsed */}
-              {shouldRenderExpanded && (
-                <>
-                  {/* Info section with centered book details */}
-                  <Animated.View
-                    style={[
-                      {
-                        display: "flex",
-                        flexDirection: "row",
-                        backgroundColor: debugBackground("indigo"),
-                        paddingTop: 8,
-                      },
-                      infoStyle,
-                    ]}
-                  >
-                    <View style={{ width: "10%" }} />
-                    <View style={{ width: "80%" }}>
+                    <Pressable onPress={() => expand()}>
                       <BookDetailsText
-                        textStyle={{ textAlign: "center" }}
-                        baseFontSize={16}
-                        titleWeight={700}
+                        baseFontSize={14}
                         title={media.book.title}
                         authors={media.book.authors.map((a) => a.name)}
                         narrators={media.narrators.map((n) => n.name)}
                       />
-                    </View>
-                    <View style={{ width: "10%" }} />
-                  </Animated.View>
+                    </Pressable>
+                  </View>
+                  <PlayButton size={32} color={Colors.zinc[100]} />
+                </Animated.View>
+              </View>
 
-                  {/* Controls section */}
-                  <Animated.View
-                    style={[
-                      {
-                        display: "flex",
-                        flexGrow: 1,
-                        justifyContent: "space-between",
-                        paddingBottom: insets.bottom,
-                        backgroundColor: debugBackground("blue"),
-                      },
-                      controlsStyle,
-                    ]}
+              {/* Expanded content - only when not fully collapsed */}
+              <>
+                {/* Info section with centered book details */}
+                <Animated.View
+                  style={[
+                    {
+                      display: "flex",
+                      flexDirection: "row",
+                      backgroundColor: debugBackground("indigo"),
+                      paddingTop: 8,
+                    },
+                    infoStyle,
+                  ]}
+                >
+                  <View style={{ width: "10%" }} />
+                  <View style={{ width: "80%" }}>
+                    <BookDetailsText
+                      textStyle={{ textAlign: "center" }}
+                      baseFontSize={16}
+                      titleWeight={700}
+                      title={media.book.title}
+                      authors={media.book.authors.map((a) => a.name)}
+                      narrators={media.narrators.map((n) => n.name)}
+                    />
+                  </View>
+                  <View style={{ width: "10%" }} />
+                </Animated.View>
+
+                {/* Controls section */}
+                <Animated.View
+                  style={[
+                    {
+                      display: "flex",
+                      flexGrow: 1,
+                      justifyContent: "space-between",
+                      paddingBottom: insets.bottom,
+                      backgroundColor: debugBackground("blue"),
+                    },
+                    controlsStyle,
+                  ]}
+                >
+                  <View
+                    style={{
+                      paddingHorizontal: "10%",
+                      paddingTop: 16,
+                      display: "flex",
+                      justifyContent: "space-evenly",
+                      flexGrow: 1,
+                    }}
                   >
-                    <View
-                      style={{
-                        paddingHorizontal: "10%",
-                        paddingTop: 16,
-                        display: "flex",
-                        justifyContent: "space-evenly",
-                        flexGrow: 1,
-                      }}
-                    >
-                      <View style={{ display: "flex", gap: 16 }}>
-                        <PlayerSettingButtons />
-                        <PlayerProgressBar />
-                      </View>
-                      <View>
-                        <PlaybackControls />
-                        <ChapterControls />
-                      </View>
+                    <View style={{ display: "flex", gap: 16 }}>
+                      <PlayerSettingButtons />
+                      <PlayerProgressBar />
                     </View>
-                    <Scrubber playerPanGesture={panGesture} />
-                  </Animated.View>
-                </>
-              )}
+                    <View>
+                      <PlaybackControls />
+                      <ChapterControls />
+                    </View>
+                  </View>
+                  <Scrubber
+                    playerPanGesture={panGesture}
+                    isPaused={isScrubberPaused}
+                  />
+                </Animated.View>
+              </>
             </Animated.View>
           </Animated.View>
         </GestureDetector>
