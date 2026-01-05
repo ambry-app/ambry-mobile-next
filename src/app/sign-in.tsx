@@ -1,8 +1,9 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 import { FocusableTextInput, IconButton, Loading } from "@/components";
+import { getLatestProfile } from "@/db/server";
 import { CreateSessionErrorCode } from "@/graphql/api";
 import { ExecuteErrorCode } from "@/graphql/client/execute";
 import { signIn } from "@/services/auth-service";
@@ -26,6 +27,21 @@ export default function SignInRoute() {
   const { screenWidth } = useScreen();
   const logoWidth = screenWidth - 64;
   const logoHeight = logoWidth / 4.5;
+
+  useEffect(() => {
+    let unmounted = false;
+    async function getInitialValues() {
+      const latestProfile = await getLatestProfile();
+      if (!unmounted && latestProfile) {
+        setHost(latestProfile.url);
+        setEmail(latestProfile.userEmail);
+      }
+    }
+    getInitialValues();
+    return () => {
+      unmounted = true;
+    };
+  }, []);
 
   const doSignIn = useCallback(async () => {
     setIsLoading(true);
