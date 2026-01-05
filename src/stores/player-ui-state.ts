@@ -36,7 +36,6 @@ export interface PlayerUIState {
   position: number;
   /** Current TrackPlayer duration */
   duration: number;
-  /** Current TrackPlayer playback rate */
 
   /** Whether mini player content should render (true when collapsed or animating) */
   shouldRenderMini: boolean;

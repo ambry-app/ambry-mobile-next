@@ -15,10 +15,13 @@ export const PlayerProgressBar = memo(function PlayerProgressBar() {
 
   // Use seekPosition if available (during seek accumulation), otherwise use position
   const displayPosition = seekPosition ?? progress.position;
+  const displayPercent = seekPosition
+    ? (seekPosition / progress.duration) * 100
+    : progress.percent;
 
   return (
     <View>
-      <ProgressBar percent={progress.percent} />
+      <ProgressBar percent={displayPercent} />
       <View style={styles.timeDisplayRow}>
         <Text style={styles.timeDisplayText}>
           {secondsDisplay(displayPosition)}
@@ -30,7 +33,7 @@ export const PlayerProgressBar = memo(function PlayerProgressBar() {
           )}
         </Text>
         <Text style={[styles.timeDisplayText, styles.percentText]}>
-          {progress.percent.toFixed(1)}%
+          {displayPercent.toFixed(1)}%
         </Text>
       </View>
     </View>
