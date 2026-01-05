@@ -8,7 +8,6 @@ import {
   MediaContextMenu,
   PlayButton as PlayerPlayButton,
 } from "@/components";
-import { FINISH_PROMPT_THRESHOLD } from "@/constants";
 import { startDownload } from "@/services/download-service";
 import { MediaHeaderInfo } from "@/services/library-service";
 import {
@@ -17,11 +16,11 @@ import {
 } from "@/services/playback-controls";
 import {
   MediaPlaybackState,
+  shouldPromptForFinish,
   useMediaPlaybackState,
 } from "@/services/playthrough-query-service";
 import { useShelvedMedia } from "@/services/shelf-service";
 import { useDownloads } from "@/stores/downloads";
-import { getPlaythroughProgress } from "@/stores/player-ui-state";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";
 
@@ -179,7 +178,7 @@ function LoadMediaButton({
     // continuationAction set appropriately based on the logic here. If there
     // isn't a loaded playthrough, or it's < 95%, we perform the action here.
 
-    const playthroughProgress = getPlaythroughProgress();
+    const prompt = await shouldPromptForFinish(session);
 
     const action: PlaythroughAction =
       playbackState.type === "in_progress"
@@ -195,14 +194,11 @@ function LoadMediaButton({
             }
           : { type: "startFreshPlaythrough", mediaId: media.id };
 
-    if (
-      playthroughProgress &&
-      playthroughProgress.progressPercent >= FINISH_PROMPT_THRESHOLD
-    ) {
+    if (prompt.shouldPrompt) {
       router.navigate({
         pathname: "/mark-finished-prompt",
         params: {
-          playthroughId: playthroughProgress.loadedPlaythrough.playthroughId,
+          playthroughId: prompt.playthroughId,
           continuationAction: JSON.stringify(action),
         },
       });

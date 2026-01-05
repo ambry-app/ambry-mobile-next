@@ -3,7 +3,6 @@ import { Share } from "react-native";
 import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
 
-import { FINISH_PROMPT_THRESHOLD } from "@/constants";
 import {
   cancelDownload,
   removeDownload,
@@ -17,10 +16,12 @@ import {
   PlaythroughAction,
   startFreshPlaythrough,
 } from "@/services/playback-controls";
-import { useMediaPlaybackState } from "@/services/playthrough-query-service";
+import {
+  shouldPromptForFinish,
+  useMediaPlaybackState,
+} from "@/services/playthrough-query-service";
 import { useShelvedMedia } from "@/services/shelf-service";
 import { useDownloads } from "@/stores/downloads";
-import { getPlaythroughProgress } from "@/stores/player-ui-state";
 import { Session } from "@/types/session";
 
 import { MediaContextMenuImpl } from "./MediaContextMenuImpl";
@@ -41,13 +42,10 @@ export function MediaContextMenu({ media, session }: MediaContextMenuProps) {
     "saved",
   );
 
-  const onPlay = useCallback(() => {
-    const playthroughProgress = getPlaythroughProgress();
+  const onPlay = useCallback(async () => {
+    const prompt = await shouldPromptForFinish(session);
 
-    if (
-      playthroughProgress &&
-      playthroughProgress.progressPercent >= FINISH_PROMPT_THRESHOLD
-    ) {
+    if (prompt.shouldPrompt) {
       const action: PlaythroughAction = {
         type: "startFreshPlaythrough",
         mediaId: media.id,
@@ -56,7 +54,7 @@ export function MediaContextMenu({ media, session }: MediaContextMenuProps) {
       router.navigate({
         pathname: "/mark-finished-prompt",
         params: {
-          playthroughId: playthroughProgress.loadedPlaythrough.playthroughId,
+          playthroughId: prompt.playthroughId,
           continuationAction: JSON.stringify(action),
         },
       });
@@ -65,14 +63,11 @@ export function MediaContextMenu({ media, session }: MediaContextMenuProps) {
     }
   }, [session, media.id]);
 
-  const onResume = useCallback(() => {
+  const onResume = useCallback(async () => {
     if (playbackState.type === "in_progress") {
-      const playthroughProgress = getPlaythroughProgress();
+      const prompt = await shouldPromptForFinish(session);
 
-      if (
-        playthroughProgress &&
-        playthroughProgress.progressPercent >= FINISH_PROMPT_THRESHOLD
-      ) {
+      if (prompt.shouldPrompt) {
         const action: PlaythroughAction = {
           type: "continueExistingPlaythrough",
           playthroughId: playbackState.playthrough.id,
@@ -81,7 +76,7 @@ export function MediaContextMenu({ media, session }: MediaContextMenuProps) {
         router.navigate({
           pathname: "/mark-finished-prompt",
           params: {
-            playthroughId: playthroughProgress.loadedPlaythrough.playthroughId,
+            playthroughId: prompt.playthroughId,
             continuationAction: JSON.stringify(action),
           },
         });
@@ -91,17 +86,14 @@ export function MediaContextMenu({ media, session }: MediaContextMenuProps) {
     }
   }, [session, playbackState]);
 
-  const onResumeFromPrompt = useCallback(() => {
+  const onResumeFromPrompt = useCallback(async () => {
     if (
       playbackState.type === "finished" ||
       playbackState.type === "abandoned"
     ) {
-      const playthroughProgress = getPlaythroughProgress();
+      const shouldPrompt = await shouldPromptForFinish(session);
 
-      if (
-        playthroughProgress &&
-        playthroughProgress.progressPercent >= FINISH_PROMPT_THRESHOLD
-      ) {
+      if (shouldPrompt.shouldPrompt) {
         const action: PlaythroughAction = {
           type: "promptForResume",
           playthroughId: playbackState.playthrough.id,
@@ -110,7 +102,7 @@ export function MediaContextMenu({ media, session }: MediaContextMenuProps) {
         router.navigate({
           pathname: "/mark-finished-prompt",
           params: {
-            playthroughId: playthroughProgress.loadedPlaythrough.playthroughId,
+            playthroughId: shouldPrompt.playthroughId,
             continuationAction: JSON.stringify(action),
           },
         });
@@ -121,7 +113,7 @@ export function MediaContextMenu({ media, session }: MediaContextMenuProps) {
         });
       }
     }
-  }, [playbackState]);
+  }, [session, playbackState]);
 
   const onMarkAsFinished = useCallback(() => {
     if (

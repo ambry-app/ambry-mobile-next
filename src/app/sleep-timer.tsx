@@ -67,7 +67,7 @@ export default function SleepTimerRoute() {
           <View style={styles.sliderContainer}>
             <Slider
               value={sleepTimer}
-              minimumValue={60}
+              minimumValue={300}
               maximumValue={5400}
               step={300}
               thumbTintColor={Colors.lime[400]}

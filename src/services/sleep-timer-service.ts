@@ -49,6 +49,12 @@ export async function start() {
   clearTimerInterval();
   await resetTriggerTime();
 
+  const { sleepTimerEnabled } = useSleepTimer.getState();
+
+  if (!sleepTimerEnabled) {
+    return;
+  }
+
   console.debug("[SleepTimer] Starting timer check interval");
   sleepTimerCheckInterval = setInterval(checkTimer, SLEEP_TIMER_CHECK_INTERVAL);
 }

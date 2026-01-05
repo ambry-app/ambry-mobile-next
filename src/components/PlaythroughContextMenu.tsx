@@ -2,7 +2,6 @@ import { useCallback } from "react";
 import { Alert } from "react-native";
 import { router } from "expo-router";
 
-import { FINISH_PROMPT_THRESHOLD } from "@/constants";
 import {
   abandonPlaythrough,
   continueExistingPlaythrough,
@@ -11,8 +10,10 @@ import {
   PlaythroughAction,
   resumeAndLoadPlaythrough,
 } from "@/services/playback-controls";
-import { PlaythroughForMedia } from "@/services/playthrough-query-service";
-import { getPlaythroughProgress } from "@/stores/player-ui-state";
+import {
+  PlaythroughForMedia,
+  shouldPromptForFinish,
+} from "@/services/playthrough-query-service";
 import { Session } from "@/types/session";
 
 import { PlaythroughContextMenuImpl } from "./PlaythroughContextMenuImpl";
@@ -26,12 +27,9 @@ export function PlaythroughContextMenu({
   session,
   playthrough,
 }: PlaythroughContextMenuProps) {
-  const onResume = useCallback(() => {
-    const playthroughProgress = getPlaythroughProgress();
-    if (
-      playthroughProgress &&
-      playthroughProgress.progressPercent >= FINISH_PROMPT_THRESHOLD
-    ) {
+  const onResume = useCallback(async () => {
+    const prompt = await shouldPromptForFinish(session);
+    if (prompt.shouldPrompt) {
       const action: PlaythroughAction = {
         type: "continueExistingPlaythrough",
         playthroughId: playthrough.id,
@@ -40,7 +38,7 @@ export function PlaythroughContextMenu({
       router.navigate({
         pathname: "/mark-finished-prompt",
         params: {
-          playthroughId: playthroughProgress.loadedPlaythrough.playthroughId,
+          playthroughId: prompt.playthroughId,
           continuationAction: JSON.stringify(action),
         },
       });
@@ -49,12 +47,9 @@ export function PlaythroughContextMenu({
     }
   }, [session, playthrough.id]);
 
-  const onResumeFromPrevious = useCallback(() => {
-    const playthroughProgress = getPlaythroughProgress();
-    if (
-      playthroughProgress &&
-      playthroughProgress.progressPercent >= FINISH_PROMPT_THRESHOLD
-    ) {
+  const onResumeFromPrevious = useCallback(async () => {
+    const prompt = await shouldPromptForFinish(session);
+    if (prompt.shouldPrompt) {
       const action: PlaythroughAction = {
         type: "resumeAndLoadPlaythrough",
         playthroughId: playthrough.id,
@@ -63,7 +58,7 @@ export function PlaythroughContextMenu({
       router.navigate({
         pathname: "/mark-finished-prompt",
         params: {
-          playthroughId: playthroughProgress.loadedPlaythrough.playthroughId,
+          playthroughId: prompt.playthroughId,
           continuationAction: JSON.stringify(action),
         },
       });

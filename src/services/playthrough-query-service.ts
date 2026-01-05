@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from "react";
 
+import { FINISH_PROMPT_THRESHOLD } from "@/constants";
 import {
   type ActivePlaythrough,
   getFinishedOrAbandonedPlaythrough as getFinishedOrAbandonedFromDb,
@@ -221,4 +222,39 @@ export function usePlaythroughForPrompt(playthroughId: string) {
     return getPlaythroughById(session, playthroughId);
   }, [playthroughId]);
   return { playthrough, session };
+}
+
+type ShouldPromptForFinishResult =
+  | { shouldPrompt: true; playthroughId: string }
+  | { shouldPrompt: false };
+
+/**
+ * Determines if the user should be prompted to finish the active playthrough.
+ * This is based on whether the playback progress has crossed the defined
+ * threshold and if the playthrough is not already marked as finished.
+ */
+export async function shouldPromptForFinish(
+  session: Session,
+): Promise<ShouldPromptForFinishResult> {
+  const { position, duration, loadedPlaythrough } = usePlayerUIState.getState();
+
+  if (!loadedPlaythrough) return { shouldPrompt: false };
+
+  const playthrough = await getPlaythroughById(
+    session,
+    loadedPlaythrough.playthroughId,
+  );
+
+  if (!playthrough) return { shouldPrompt: false };
+
+  const progress = duration === 0 ? 0 : position / duration;
+
+  if (
+    progress >= FINISH_PROMPT_THRESHOLD &&
+    playthrough.status !== "finished"
+  ) {
+    return { shouldPrompt: true, playthroughId: playthrough.id };
+  } else {
+    return { shouldPrompt: false };
+  }
 }
