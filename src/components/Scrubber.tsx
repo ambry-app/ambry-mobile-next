@@ -385,10 +385,8 @@ export const Scrubber = memo(function Scrubber({
               duration: 400,
               easing: Easing.out(Easing.exp),
             },
-            (finished) => {
-              if (finished) {
-                isAnimatingUserSeek.value = false;
-              }
+            () => {
+              isAnimatingUserSeek.value = false;
             },
           );
         });
