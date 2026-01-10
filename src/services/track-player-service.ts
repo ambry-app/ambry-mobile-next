@@ -14,7 +14,8 @@ import * as TrackPlayer from "@/services/track-player-wrapper";
 import { useDataVersion } from "@/stores/data-version";
 import {
   initialState,
-  type PlayPauseCommand,
+  PlayPauseSource,
+  type PlayPauseSourceType,
   PlayPauseType,
   type ProgressWithPercent,
   type SeekSourceType,
@@ -42,19 +43,10 @@ import { getSession } from "./session-service";
 const log = logBase.extend("track-player-service");
 
 const PROGRESS_UPDATE_INTERVAL = 1000;
-const PLAY_PAUSE_FALLBACK_TIMEOUT_MS = 50;
 
 type PlayPauseDirection = "play" | "pause";
 
-type PendingPlayPauseFallback = {
-  direction: PlayPauseDirection;
-  timestamp: number;
-  position: number;
-  timer: NodeJS.Timeout;
-};
-
 let progressCheckInterval: NodeJS.Timeout | null = null;
-let pendingPlayPauseFallback: PendingPlayPauseFallback | null = null;
 let awaitingIsPlayingMatch: PlayPauseDirection | null = null;
 
 // =============================================================================
@@ -83,40 +75,58 @@ export async function initialize() {
 /**
  * Start playback.
  */
-export async function play() {
-  log.debug("play");
+export async function play(source: PlayPauseSourceType) {
+  log.debug(`play (source: ${source})`);
+
+  const { playthrough, playbackRate } = useTrackPlayer.getState();
+  if (!playthrough) {
+    log.warn("play() called with no playthrough loaded");
+    return;
+  }
 
   const { position } = getProgress();
   const timestamp = Date.now();
 
+  awaitingIsPlayingMatch = "play";
+
   await TrackPlayer.play();
 
-  useTrackPlayer.setState({
-    lastPlayPauseCommand: {
-      timestamp: timestamp,
-      type: PlayPauseType.PLAY,
-      at: position,
-    },
+  emitPlayPauseEvent({
+    direction: "play",
+    source,
+    timestamp,
+    position,
+    playbackRate,
+    playthroughId: playthrough.id,
   });
 }
 
 /**
  * Pause playback.
  */
-export async function pause() {
-  log.debug("pause");
+export async function pause(source: PlayPauseSourceType) {
+  log.debug(`pause (source: ${source})`);
+
+  const { playthrough, playbackRate } = useTrackPlayer.getState();
+  if (!playthrough) {
+    log.warn("pause() called with no playthrough loaded");
+    return;
+  }
 
   const { position } = getProgress();
   const timestamp = Date.now();
 
+  awaitingIsPlayingMatch = "pause";
+
   await TrackPlayer.pause();
 
-  useTrackPlayer.setState({
-    lastPlayPauseCommand: {
-      timestamp: timestamp,
-      type: PlayPauseType.PAUSE,
-      at: position,
-    },
+  emitPlayPauseEvent({
+    direction: "pause",
+    source,
+    timestamp,
+    position,
+    playbackRate,
+    playthroughId: playthrough.id,
   });
 }
 
@@ -124,36 +134,63 @@ export async function pause() {
  * Seek to a specific position in the track.
  *
  * This immediately updates the store's progress after seeking, and tracks the
- * seek event. Chapter state is also updated as needed.
+ * seek event with captured playthrough context. Chapter state is also updated.
  */
 export async function seekTo(position: number, source: SeekSourceType) {
   log.debug(`seekTo ${position.toFixed(1)}`);
 
+  const { playthrough, playbackRate } = useTrackPlayer.getState();
   const timestamp = Date.now();
 
   const beforeProgress = getProgress();
   await TrackPlayer.seekTo(position);
   const progress = await waitForSeekToComplete(position);
 
+  const lastSeek = playthrough
+    ? {
+        timestamp,
+        source,
+        playthroughId: playthrough.id,
+        playbackRate,
+        from: beforeProgress.position,
+        to: progress.position,
+      }
+    : null;
+
   useTrackPlayer.setState({
-    lastSeek: {
-      timestamp,
-      source,
-      from: beforeProgress.position,
-      to: progress.position,
-    },
+    lastSeek,
     ...buildNewProgress(progress),
   });
 }
 
 /**
  * Set the playback rate and update the store.
+ *
+ * Emits a lastRateChange event with captured playthrough context.
  */
 export async function setPlaybackRate(rate: number) {
   log.debug(`setPlaybackRate ${rate}`);
+
+  const {
+    playthrough,
+    progress,
+    playbackRate: previousRate,
+  } = useTrackPlayer.getState();
+
   await TrackPlayer.setRate(rate);
   const currentRate = await TrackPlayer.getRate();
-  useTrackPlayer.setState({ playbackRate: currentRate });
+
+  const lastRateChange = playthrough
+    ? {
+        timestamp: Date.now(),
+        playthroughId: playthrough.id,
+        position: progress.position,
+        previousRate,
+        newRate: currentRate,
+      }
+    : null;
+
+  useTrackPlayer.setState({ playbackRate: currentRate, lastRateChange });
 }
 
 // State Queries
@@ -333,12 +370,6 @@ function setupStoreSubscriptions() {
     (s) => s.isPlaying.playing,
     handleIsPlayingChanged,
   );
-
-  subscribeToChange(
-    useTrackPlayer,
-    (s) => s.lastPlayPauseCommand,
-    (command) => command && handleLastPlayPauseCommandChanged(command),
-  );
 }
 
 /**
@@ -428,6 +459,14 @@ function getCurrentAndPreviousChapter(
  */
 async function updatePlaythrough(session: Session, playthroughId: string) {
   const playthrough = await getPlaythrough(session, playthroughId);
+
+  const currentPlaythrough = getLoadedPlaythrough();
+  if (!currentPlaythrough || currentPlaythrough.id !== playthroughId) {
+    log.debug(
+      "updatePlaythrough: playthrough was unloaded during fetch, skipping update",
+    );
+    return;
+  }
 
   useTrackPlayer.setState({
     playthrough: {
@@ -662,22 +701,22 @@ async function waitForSeekToComplete(
 /**
  * Play/Pause Event Consolidation
  *
- * Produces canonical play/pause events by consolidating two signals: the
- * `lastPlayPauseCommand` (when we tell TrackPlayer to play/pause) and the
- * `isPlaying` state (when playback actually starts/stops).
+ * Produces canonical play/pause events by consolidating two signals: our
+ * play()/pause() functions and the `isPlaying` state changes (from TrackPlayer).
  *
  * This consolidation is necessary because play/pause can be triggered
  * externally (e.g. system interruptions, like RemoteDuck or a user manually
  * starting playback in another app) without going through our command
  * functions, especially on Android where the `RemoteDuck` TrackPlayer event is
- * currently broken. The service prefers command timing when available, falling
- * back to state change detection otherwise.
+ * currently broken.
  *
  * Deduplication strategy:
- * - When we emit from a command, we record the direction (play/pause)
- * - When isPlaying changes, if it matches the direction we're awaiting, we skip
+ * - play()/pause() set `awaitingIsPlayingMatch` BEFORE calling TrackPlayer
+ * - play()/pause() emit the event directly after calling TrackPlayer
+ * - When isPlaying changes, if it matches `awaitingIsPlayingMatch`, we skip
  *   (it's the result of our own command)
- * - If it doesn't match (or we're not awaiting), it's an external event
+ * - If it doesn't match (or we're not awaiting), it's an external event and
+ *   we emit immediately
  *
  * Consumers should subscribe to `lastPlayPause` in the track-player store for
  * the authoritative play/pause events.
@@ -687,15 +726,15 @@ async function waitForSeekToComplete(
  * Handle isPlaying state changes.
  *
  * When isPlaying changes and matches what we're awaiting from a command, we skip
- * (it's the result of our own command). Otherwise, it might be an external event.
+ * (it's the result of our own command). Otherwise, it's an external event and we
+ * emit immediately.
  */
 function handleIsPlayingChanged(isPlaying: boolean) {
+  const { progress, playthrough, playbackRate } = useTrackPlayer.getState();
   const direction: PlayPauseDirection = isPlaying ? "play" : "pause";
-  const timestamp = Date.now();
-  const position = useTrackPlayer.getState().progress.position;
 
   log.debug(
-    `isPlaying changed: ${direction} at ${position.toFixed(3)} (awaiting=${awaitingIsPlayingMatch})`,
+    `isPlaying changed: ${direction} at ${progress.position.toFixed(3)} (awaiting=${awaitingIsPlayingMatch})`,
   );
 
   if (awaitingIsPlayingMatch === direction) {
@@ -704,80 +743,29 @@ function handleIsPlayingChanged(isPlaying: boolean) {
     return;
   }
 
-  // State changed to a different direction than awaited (or not awaiting at all)
-  // This could be:
-  // 1. An external event (RemoteDuck, etc.) - no command will come
-  // 2. isPlaying changed BEFORE our command arrived - command will come shortly
-  // Start a fallback timer to handle case 1, which will be cancelled if case 2
-
-  if (pendingPlayPauseFallback?.timer) {
-    clearTimeout(pendingPlayPauseFallback.timer);
-  }
-
-  const timer = setTimeout(
-    () => onPlayPauseFallbackTimeout(),
-    PLAY_PAUSE_FALLBACK_TIMEOUT_MS,
-  );
-
-  pendingPlayPauseFallback = {
-    direction,
-    timestamp,
-    position,
-    timer,
-  };
-}
-
-/**
- * Handle lastPlayPauseCommand changes.
- *
- * When we receive a command, we emit immediately and set up to await the
- * corresponding isPlaying change (which we'll then skip).
- */
-function handleLastPlayPauseCommandChanged(command: PlayPauseCommand) {
-  const direction: PlayPauseDirection =
-    command.type === PlayPauseType.PLAY ? "play" : "pause";
-
-  log.debug(`lastPlayPauseCommand changed: ${direction}`);
-
-  if (pendingPlayPauseFallback?.timer) {
-    clearTimeout(pendingPlayPauseFallback.timer);
-    pendingPlayPauseFallback = null;
-  }
-
-  awaitingIsPlayingMatch = direction;
-
-  emitPlayPauseEvent({
-    direction,
-    timestamp: command.timestamp,
-    position: command.at,
-  });
-}
-
-/**
- * Handle fallback timeout - emit the pending event as an external event.
- */
-function onPlayPauseFallbackTimeout() {
-  if (!pendingPlayPauseFallback) {
-    log.warn("Fallback timeout fired but no pending fallback");
+  // No playthrough loaded - nothing to record
+  if (!playthrough) {
     return;
   }
 
-  const { direction, timestamp, position } = pendingPlayPauseFallback;
-
-  pendingPlayPauseFallback = null;
-  awaitingIsPlayingMatch = null;
-
+  // External event - emit immediately
   emitPlayPauseEvent({
     direction,
-    timestamp,
-    position,
+    source: PlayPauseSource.EXTERNAL,
+    timestamp: Date.now(),
+    position: progress.position,
+    playbackRate,
+    playthroughId: playthrough.id,
   });
 }
 
 type EmitPlayPauseParams = {
   direction: PlayPauseDirection;
+  source: PlayPauseSourceType;
   timestamp: number;
   position: number;
+  playbackRate: number;
+  playthroughId: string;
 };
 
 /**
@@ -785,7 +773,7 @@ type EmitPlayPauseParams = {
  */
 function emitPlayPauseEvent(params: EmitPlayPauseParams) {
   log.info(
-    `Emitting play/pause event: ${params.direction} at ${params.position.toFixed(3)}`,
+    `Emitting play/pause event: ${params.direction} at ${params.position.toFixed(3)} (source: ${params.source})`,
   );
 
   useTrackPlayer.setState({
@@ -793,7 +781,10 @@ function emitPlayPauseEvent(params: EmitPlayPauseParams) {
       timestamp: params.timestamp,
       type:
         params.direction === "play" ? PlayPauseType.PLAY : PlayPauseType.PAUSE,
+      source: params.source,
+      playthroughId: params.playthroughId,
       position: params.position,
+      playbackRate: params.playbackRate,
     },
   });
 }

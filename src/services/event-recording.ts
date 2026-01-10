@@ -21,7 +21,9 @@ import { getDeviceIdSync } from "@/stores/device";
 import { useSession } from "@/stores/session";
 import {
   PlayPauseEvent,
+  PlayPauseSource,
   PlayPauseType,
+  RateChange,
   Seek,
   SeekSource,
   useTrackPlayer,
@@ -30,14 +32,22 @@ import { randomUUID } from "@/utils/crypto";
 import { logBase } from "@/utils/logger";
 import { subscribeToChange } from "@/utils/subscribe";
 
+import { syncPlaythroughs } from "./sync-service";
+
 const log = logBase.extend("event-recording");
 
 let initialized = false;
 
+type PendingSeekEvent = {
+  from: number;
+  to: number;
+  timestamp: Date;
+  playthroughId: string;
+  playbackRate: number;
+};
+
 let seekEventTimer: NodeJS.Timeout | null = null;
-let seekEventFrom: number | null = null;
-let seekEventTo: number | null = null;
-let seekEventTimestamp: Date | null = null;
+let pendingSeekEvent: PendingSeekEvent | null = null;
 
 // =============================================================================
 // Public API
@@ -143,8 +153,8 @@ function setupStoreSubscriptions() {
 
   subscribeToChange(
     useTrackPlayer,
-    (s) => s.playbackRate,
-    handlePlaybackRateChange,
+    (s) => s.lastRateChange,
+    (event) => event && handleRateChangeEvent(event),
   );
 
   subscribeToChange(
@@ -155,81 +165,90 @@ function setupStoreSubscriptions() {
 }
 
 async function handlePlayPauseEvent(event: PlayPauseEvent) {
-  const { playthrough, playbackRate } = useTrackPlayer.getState();
-  if (!playthrough) return;
+  if (event.source === PlayPauseSource.INTERNAL) return;
 
   const session = useSession.getState().session;
   if (!session) return;
 
+  const { playthroughId, position, playbackRate } = event;
   const timestamp = new Date(event.timestamp);
   const eventType = event.type === PlayPauseType.PLAY ? "play" : "pause";
 
   await getDb().transaction(async (tx) => {
     await tx.insert(schema.playbackEvents).values({
       id: randomUUID(),
-      playthroughId: playthrough.id,
+      playthroughId,
       deviceId: getDeviceIdSync(),
       type: eventType,
       timestamp,
-      position: event.position,
+      position,
       playbackRate,
     });
 
     await updateStateCache(
-      playthrough.id,
-      event.position,
+      playthroughId,
+      position,
       playbackRate,
       timestamp,
       tx,
     );
   });
 
-  log.debug(
-    `Recorded ${eventType} event at position ${event.position.toFixed(1)}`,
-  );
+  log.debug(`Recorded ${eventType} event at position ${position.toFixed(1)}`);
+
+  if (event.type === PlayPauseType.PAUSE) {
+    syncPlaythroughs(session);
+  }
 }
 
-async function handlePlaybackRateChange(newRate: number, previousRate: number) {
-  const { playthrough, progress } = useTrackPlayer.getState();
-  if (!playthrough) return;
-
+async function handleRateChangeEvent(event: RateChange) {
   const session = useSession.getState().session;
   if (!session) return;
 
-  const now = new Date();
+  const { playthroughId, position, previousRate, newRate } = event;
+  const timestamp = new Date(event.timestamp);
 
   await getDb().transaction(async (tx) => {
     await tx.insert(schema.playbackEvents).values({
       id: randomUUID(),
-      playthroughId: playthrough.id,
+      playthroughId,
       deviceId: getDeviceIdSync(),
       type: "rate_change",
-      timestamp: now,
-      position: progress.position,
+      timestamp,
+      position,
       playbackRate: newRate,
       previousRate,
     });
 
-    await updateStateCache(playthrough.id, progress.position, newRate, now, tx);
+    await updateStateCache(playthroughId, position, newRate, timestamp, tx);
   });
 
-  log.debug(`Recorded rate change from ${previousRate} to ${newRate}`);
+  log.debug(
+    `Recorded rate change from ${previousRate.toFixed(2)} to ${newRate.toFixed(2)}`,
+  );
 }
 
 /**
  * Handle seek events from the store with debouncing.
  * Accumulates seeks within a window, recording the `from` of the first
- * seek and the `to` of the last seek.
+ * seek and the `to` of the last seek. Context (playthroughId, playbackRate)
+ * is captured from the first seek event.
  */
 function handleSeekEvent(seek: Seek) {
   if (seek.source === SeekSource.INTERNAL) return;
 
-  if (seekEventFrom === null) {
-    seekEventFrom = seek.from;
+  if (pendingSeekEvent) {
+    pendingSeekEvent.to = seek.to;
+    pendingSeekEvent.timestamp = new Date(seek.timestamp);
+  } else {
+    pendingSeekEvent = {
+      from: seek.from,
+      to: seek.to,
+      timestamp: new Date(seek.timestamp),
+      playthroughId: seek.playthroughId,
+      playbackRate: seek.playbackRate,
+    };
   }
-
-  seekEventTo = seek.to;
-  seekEventTimestamp = new Date(seek.timestamp);
 
   if (seekEventTimer) clearTimeout(seekEventTimer);
   seekEventTimer = setTimeout(flushSeekEvent, SEEK_EVENT_ACCUMULATION_WINDOW);
@@ -241,36 +260,21 @@ function handleSeekEvent(seek: Seek) {
 async function flushSeekEvent() {
   seekEventTimer = null;
 
-  if (
-    seekEventFrom === null ||
-    seekEventTo === null ||
-    seekEventTimestamp === null
-  ) {
-    return;
-  }
-
-  const { playthrough, playbackRate } = useTrackPlayer.getState();
-  if (!playthrough) {
-    resetSeekState();
-    return;
-  }
+  if (!pendingSeekEvent) return;
 
   const session = useSession.getState().session;
   if (!session) {
-    resetSeekState();
+    pendingSeekEvent = null;
     return;
   }
 
-  const fromPosition = seekEventFrom;
-  const toPosition = seekEventTo;
-  const timestamp = seekEventTimestamp;
+  const { from, to, timestamp, playthroughId, playbackRate } = pendingSeekEvent;
+  pendingSeekEvent = null;
 
-  resetSeekState();
-
-  const trivialSeek = Math.abs(toPosition - fromPosition) < 2;
+  const trivialSeek = Math.abs(to - from) < 2;
   if (trivialSeek) {
     log.debug(
-      `Skipping trivial seek from ${fromPosition.toFixed(1)} to ${toPosition.toFixed(1)}`,
+      `Skipping trivial seek from ${from.toFixed(1)} to ${to.toFixed(1)}`,
     );
     return;
   }
@@ -278,32 +282,18 @@ async function flushSeekEvent() {
   await getDb().transaction(async (tx) => {
     await tx.insert(schema.playbackEvents).values({
       id: randomUUID(),
-      playthroughId: playthrough.id,
+      playthroughId,
       deviceId: getDeviceIdSync(),
       type: "seek",
       timestamp,
-      position: toPosition,
+      position: to,
       playbackRate,
-      fromPosition,
-      toPosition,
+      fromPosition: from,
+      toPosition: to,
     });
 
-    await updateStateCache(
-      playthrough.id,
-      toPosition,
-      playbackRate,
-      timestamp,
-      tx,
-    );
+    await updateStateCache(playthroughId, to, playbackRate, timestamp, tx);
   });
 
-  log.debug(
-    `Recorded seek event from ${fromPosition.toFixed(1)} to ${toPosition.toFixed(1)}`,
-  );
-}
-
-function resetSeekState() {
-  seekEventFrom = null;
-  seekEventTo = null;
-  seekEventTimestamp = null;
+  log.debug(`Recorded seek event from ${from.toFixed(1)} to ${to.toFixed(1)}`);
 }

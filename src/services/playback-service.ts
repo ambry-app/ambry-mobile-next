@@ -4,11 +4,8 @@ import { seekImmediateNoLog, seekRelative } from "@/services/seek-service";
 import * as Player from "@/services/track-player-service";
 import * as TrackPlayer from "@/services/track-player-wrapper";
 import { initializeDevice } from "@/stores/device";
-import { useSession } from "@/stores/session";
-import { SeekSource } from "@/stores/track-player";
+import { PlayPauseSource, SeekSource } from "@/stores/track-player";
 import { Event } from "@/types/track-player";
-
-import { syncPlaythroughs } from "./sync-service";
 
 export const PlaybackService = async function () {
   console.debug("[TrackPlayer Service] Initializing");
@@ -120,25 +117,14 @@ export const PlaybackService = async function () {
   TrackPlayer.addEventListener(Event.RemotePause, async () => {
     console.debug("[TrackPlayer Service] RemotePause");
 
-    await Player.pause();
+    await Player.pause(PlayPauseSource.REMOTE);
     await seekImmediateNoLog(-PAUSE_REWIND_SECONDS);
-
-    const { session } = useSession.getState();
-
-    if (!session) {
-      console.warn(
-        "[PlaybackService] No session when handling remote pause, cannot sync",
-      );
-      return;
-    }
-
-    syncPlaythroughs(session);
   });
 
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
     console.debug("[TrackPlayer Service] RemotePlay");
 
-    await Player.play();
+    await Player.play(PlayPauseSource.REMOTE);
   });
 
   // TrackPlayer.addEventListener(Event.RemotePlayId, (args) => {

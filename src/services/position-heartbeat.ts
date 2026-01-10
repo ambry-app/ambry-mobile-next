@@ -9,7 +9,12 @@
 import { PROGRESS_SAVE_INTERVAL } from "@/constants";
 import { updateStateCache } from "@/db/playthroughs";
 import * as Player from "@/services/track-player-service";
-import { useTrackPlayer } from "@/stores/track-player";
+import {
+  PlayPauseEvent,
+  PlayPauseSource,
+  PlayPauseType,
+  useTrackPlayer,
+} from "@/stores/track-player";
 import { logBase } from "@/utils/logger";
 import { subscribeToChange } from "@/utils/subscribe";
 
@@ -57,16 +62,22 @@ export async function saveNow(): Promise<void> {
 function setupStoreSubscriptions() {
   subscribeToChange(
     useTrackPlayer,
-    (s) => s.isPlaying.playing,
-    handleIsPlayingChange,
+    (s) => s.lastPlayPause,
+    (event) => event && handlePlayPauseEvent(event),
   );
 }
 
 /**
- * Handle changes to isPlaying state. Starts or stops the heartbeat accordingly.
+ * Handle play/pause events. Starts or stops the heartbeat accordingly.
+ * Ignores INTERNAL events (e.g., during reload) to avoid unnecessary restarts.
  */
-function handleIsPlayingChange(isPlaying: boolean) {
-  if (isPlaying) {
+function handlePlayPauseEvent(event: PlayPauseEvent) {
+  if (event.source === PlayPauseSource.INTERNAL) {
+    log.debug("Ignoring INTERNAL play/pause event");
+    return;
+  }
+
+  if (event.type === PlayPauseType.PLAY) {
     start();
   } else {
     stop();

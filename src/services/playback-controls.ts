@@ -14,6 +14,7 @@ import {
   usePlayerUIState,
 } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
+import { PlayPauseSource } from "@/stores/track-player";
 import { Session } from "@/types/session";
 import { subscribeToChange } from "@/utils/subscribe";
 
@@ -21,7 +22,6 @@ import * as Lifecycle from "./playthrough-lifecycle";
 import * as Loader from "./playthrough-loader";
 import * as Heartbeat from "./position-heartbeat";
 import { seekImmediateNoLog } from "./seek-service";
-import { syncPlaythroughs } from "./sync-service";
 import * as Player from "./track-player-service";
 
 export type PlaythroughAction =
@@ -41,7 +41,7 @@ export type PlaythroughAction =
 export async function play() {
   const { position } = await Player.getAccurateProgress();
   console.debug("[Controls] Playing from position", position.toFixed(1));
-  await Player.play();
+  await Player.play(PlayPauseSource.USER);
 }
 
 /**
@@ -51,13 +51,8 @@ export async function play() {
 export async function pause() {
   const { position } = await Player.getAccurateProgress();
   console.debug("[Controls] Pausing at position", position.toFixed(1));
-  await Player.pause();
+  await Player.pause(PlayPauseSource.USER);
   await seekImmediateNoLog(-PAUSE_REWIND_SECONDS);
-
-  const session = useSession.getState().session;
-  if (session) {
-    syncPlaythroughs(session);
-  }
 }
 
 /**
@@ -160,6 +155,10 @@ export async function startFreshPlaythrough(session: Session, mediaId: string) {
 
 /**
  * Reload the currently loaded playthrough if it matches the given mediaId.
+ *
+ * This is used when switching between streaming and downloaded audio.
+ * The reload is "smooth" - no pause/play events are recorded and no seek-back
+ * happens. The player just switches to the new source at the same position.
  */
 export async function reloadCurrentPlaythroughIfMedia(
   session: Session,
@@ -171,19 +170,27 @@ export async function reloadCurrentPlaythroughIfMedia(
     return;
   }
 
+  const { playing } = Player.isPlaying();
+
   console.debug(
     "[Controls] Reloading current playthrough for media:",
     mediaId,
     "playthroughId:",
     loadedPlaythrough.id,
+    "wasPlaying:",
+    playing,
   );
 
-  await pauseIfPlaying();
-  await Heartbeat.saveNow();
+  if (playing) {
+    await Player.pause(PlayPauseSource.INTERNAL);
+  }
 
+  await Heartbeat.saveNow();
   await Loader.reloadPlaythroughById(session, loadedPlaythrough.id);
-  setLoadingNewMedia(false);
-  await play();
+
+  if (playing) {
+    await Player.play(PlayPauseSource.INTERNAL);
+  }
 }
 
 /**

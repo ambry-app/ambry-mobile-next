@@ -18,15 +18,20 @@ import {
 } from "@/db/settings";
 import * as Player from "@/services/track-player-service";
 import * as TrackPlayer from "@/services/track-player-wrapper";
-import { useSession } from "@/stores/session";
 import { setTriggerTime, useSleepTimer } from "@/stores/sleep-timer";
-import { Seek, SeekSource, useTrackPlayer } from "@/stores/track-player";
+import {
+  PlayPauseEvent,
+  PlayPauseSource,
+  PlayPauseType,
+  Seek,
+  SeekSource,
+  useTrackPlayer,
+} from "@/stores/track-player";
 import { Session } from "@/types/session";
 import { logBase } from "@/utils/logger";
 import { subscribeToChange } from "@/utils/subscribe";
 
 import { seekImmediateNoLog } from "./seek-service";
-import { syncPlaythroughs } from "./sync-service";
 
 const log = logBase.extend("sleep-timer-service");
 
@@ -120,8 +125,8 @@ function isInitialized() {
 function setupStoreSubscriptions() {
   subscribeToChange(
     useTrackPlayer,
-    (s) => s.isPlaying.playing,
-    handleIsPlayingChange,
+    (s) => s.lastPlayPause,
+    (event) => event && handlePlayPauseEvent(event),
   );
 
   subscribeToChange(
@@ -132,11 +137,16 @@ function setupStoreSubscriptions() {
 }
 
 /**
- * Handle changes to isPlaying state. Starts or stops the sleep timer
- * accordingly.
+ * Handle play/pause events. Starts or stops the sleep timer accordingly.
+ * Ignores INTERNAL events (e.g., during reload) to avoid unnecessary resets.
  */
-function handleIsPlayingChange(isPlaying: boolean) {
-  if (isPlaying) {
+function handlePlayPauseEvent(event: PlayPauseEvent) {
+  if (event.source === PlayPauseSource.INTERNAL) {
+    log.debug("Ignoring INTERNAL play/pause event");
+    return;
+  }
+
+  if (event.type === PlayPauseType.PLAY) {
     start();
   } else {
     stop();
@@ -245,13 +255,8 @@ async function checkTimer() {
     // Time's up - pause and reset
     log.debug("Triggering - pausing playback");
 
-    await Player.pause();
+    await Player.pause(PlayPauseSource.SLEEP_TIMER);
     seekImmediateNoLog(-SLEEP_TIMER_PAUSE_REWIND_SECONDS);
-
-    const session = useSession.getState().session;
-    if (session) {
-      syncPlaythroughs(session);
-    }
   } else if (timeRemaining <= SLEEP_TIMER_FADE_OUT_TIME) {
     // Fade volume in last 30 seconds
     const volume = timeRemaining / SLEEP_TIMER_FADE_OUT_TIME;

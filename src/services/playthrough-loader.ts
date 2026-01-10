@@ -25,12 +25,11 @@ import {
   resumePlaythrough as resumePlaythroughInDb,
   setActivePlaythroughIdForDevice,
 } from "@/db/playthroughs";
-import { useSession } from "@/stores/session";
-import { SeekSource } from "@/stores/track-player";
+import { PlayPauseSource } from "@/stores/track-player";
 import { Session } from "@/types/session";
 
 import * as EventRecording from "./event-recording";
-import { syncPlaythroughs } from "./sync-service";
+import { seekImmediateNoLog } from "./seek-service";
 import * as Player from "./track-player-service";
 
 // =============================================================================
@@ -214,18 +213,6 @@ async function pauseCurrentIfPlaying() {
   if (!isPlaying.playing) return;
 
   console.debug("[Loader] Pausing current playback before transition");
-  await Player.pause();
-
-  // Rewind slightly so the user has context when they resume
-  // (see PAUSE_REWIND_SECONDS in constants.ts for explanation)
-  const playbackRate = Player.getPlaybackRate();
-  const progress = await Player.getAccurateProgress();
-  let seekPosition = progress.position - PAUSE_REWIND_SECONDS * playbackRate;
-  seekPosition = Math.max(0, Math.min(seekPosition, progress.duration));
-  await Player.seekTo(seekPosition, SeekSource.INTERNAL);
-
-  const session = useSession.getState().session;
-  if (session) {
-    syncPlaythroughs(session);
-  }
+  await Player.pause(PlayPauseSource.USER);
+  await seekImmediateNoLog(-PAUSE_REWIND_SECONDS);
 }

@@ -36,6 +36,8 @@ export type SeekSourceType = (typeof SeekSource)[keyof typeof SeekSource];
 export type Seek = {
   timestamp: number;
   source: SeekSourceType;
+  playthroughId: string;
+  playbackRate: number;
   from: number;
   to: number;
 };
@@ -45,16 +47,32 @@ export const PlayPauseType = {
   PAUSE: "pause",
 } as const;
 
-export type PlayPauseCommand = {
-  timestamp: number;
-  type: (typeof PlayPauseType)[keyof typeof PlayPauseType];
-  at: number;
-};
+export const PlayPauseSource = {
+  USER: "user",
+  REMOTE: "remote",
+  SLEEP_TIMER: "sleep_timer",
+  INTERNAL: "internal",
+  EXTERNAL: "external",
+} as const;
+
+export type PlayPauseSourceType =
+  (typeof PlayPauseSource)[keyof typeof PlayPauseSource];
 
 export type PlayPauseEvent = {
   timestamp: number;
   type: (typeof PlayPauseType)[keyof typeof PlayPauseType];
+  source: PlayPauseSourceType;
+  playthroughId: string;
   position: number;
+  playbackRate: number;
+};
+
+export type RateChange = {
+  timestamp: number;
+  playthroughId: string;
+  position: number;
+  previousRate: number;
+  newRate: number;
 };
 
 export interface TrackPlayerState {
@@ -73,7 +91,7 @@ export interface TrackPlayerState {
   currentChapter: Chapter | null;
   previousChapter: Chapter | null;
   lastSeek: Seek | null;
-  lastPlayPauseCommand: PlayPauseCommand | null;
+  lastRateChange: RateChange | null;
   lastPlayPause: PlayPauseEvent | null;
 }
 
@@ -92,7 +110,7 @@ export const initialState = {
   currentChapter: null,
   previousChapter: null,
   lastSeek: null,
-  lastPlayPauseCommand: null,
+  lastRateChange: null,
   lastPlayPause: null,
 };
 
