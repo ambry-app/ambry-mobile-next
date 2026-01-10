@@ -807,7 +807,7 @@ describe("syncLibrary", () => {
 
 describe("syncPlaythroughs", () => {
   // Helper to create media in DB first (needed for FK constraints)
-  async function setupMediaInDb(db: ReturnType<typeof getDb>) {
+  async function setupMediaInDb(_db: ReturnType<typeof getDb>) {
     mockGetLibraryChangesSince.mockResolvedValueOnce({
       success: true,
       result: {

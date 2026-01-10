@@ -43,7 +43,7 @@ export function MediaContextMenu({ media, session }: MediaContextMenuProps) {
   );
 
   const onPlay = useCallback(async () => {
-    const prompt = await shouldPromptForFinish(session);
+    const prompt = await shouldPromptForFinish();
 
     if (prompt.shouldPrompt) {
       const action: PlaythroughAction = {
@@ -65,7 +65,7 @@ export function MediaContextMenu({ media, session }: MediaContextMenuProps) {
 
   const onResume = useCallback(async () => {
     if (playbackState.type === "in_progress") {
-      const prompt = await shouldPromptForFinish(session);
+      const prompt = await shouldPromptForFinish();
 
       if (prompt.shouldPrompt) {
         const action: PlaythroughAction = {
@@ -91,7 +91,7 @@ export function MediaContextMenu({ media, session }: MediaContextMenuProps) {
       playbackState.type === "finished" ||
       playbackState.type === "abandoned"
     ) {
-      const shouldPrompt = await shouldPromptForFinish(session);
+      const shouldPrompt = await shouldPromptForFinish();
 
       if (shouldPrompt.shouldPrompt) {
         const action: PlaythroughAction = {
@@ -113,7 +113,7 @@ export function MediaContextMenu({ media, session }: MediaContextMenuProps) {
         });
       }
     }
-  }, [session, playbackState]);
+  }, [playbackState]);
 
   const onMarkAsFinished = useCallback(() => {
     if (

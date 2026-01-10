@@ -46,7 +46,7 @@ export async function getSeriesWithBooks(
   return series.map((series) => ({
     ...series,
     seriesBooks: seriesBooksBySeriesId[series.id]!.map(
-      ({ seriesId, ...seriesBook }) => ({
+      ({ seriesId: _seriesId, ...seriesBook }) => ({
         ...seriesBook,
         book: {
           ...seriesBook.book,

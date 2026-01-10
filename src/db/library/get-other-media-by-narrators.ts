@@ -180,5 +180,7 @@ async function getMediaForNarrator(
     )
     .limit(limit);
 
-  return results.map(({ authorIds, seriesIds, ...rest }) => rest);
+  return results.map(
+    ({ authorIds: _authorIds, seriesIds: _seriesIds, ...rest }) => rest,
+  );
 }

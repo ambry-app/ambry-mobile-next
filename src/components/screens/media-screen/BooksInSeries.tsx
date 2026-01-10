@@ -26,7 +26,7 @@ export function BooksInSeries(props: BooksInSeriesProps) {
   const seriesList = useLibraryData(() =>
     getSeriesWithBooks(
       session,
-      media.book.series.map(({ bookNumber, ...rest }) => rest),
+      media.book.series.map(({ bookNumber: _bookNumber, ...rest }) => rest),
       HORIZONTAL_LIST_LIMIT,
     ),
   );

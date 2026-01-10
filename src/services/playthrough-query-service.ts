@@ -181,9 +181,7 @@ type ShouldPromptForFinishResult =
  * This is based on whether the playback progress has crossed the defined
  * threshold and if the playthrough is not already marked as finished.
  */
-export async function shouldPromptForFinish(
-  session: Session,
-): Promise<ShouldPromptForFinishResult> {
+export async function shouldPromptForFinish(): Promise<ShouldPromptForFinishResult> {
   const playthrough = Player.getLoadedPlaythrough();
   const progress = Player.getProgress();
 

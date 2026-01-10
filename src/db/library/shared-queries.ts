@@ -43,7 +43,7 @@ export async function getAuthorsForBooks(session: Session, bookIds: string[]) {
   return groupMapBy(
     authors,
     (author) => author.bookId,
-    ({ bookId, ...author }) => author,
+    ({ bookId: _bookId, ...author }) => author,
   );
 }
 
@@ -85,7 +85,7 @@ export async function getMediaForBooks(session: Session, bookIds: string[]) {
   return groupMapBy(
     media,
     (media) => media.bookId,
-    ({ bookId, ...media }) => media,
+    ({ bookId: _bookId, ...media }) => media,
   );
 }
 
@@ -129,7 +129,7 @@ export async function getNarratorsForMedia(
   return groupMapBy(
     narrators,
     (narrator) => narrator.mediaId,
-    ({ mediaId, ...narrator }) => narrator,
+    ({ mediaId: _mediaId, ...narrator }) => narrator,
   );
 }
 

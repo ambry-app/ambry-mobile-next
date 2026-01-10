@@ -178,7 +178,7 @@ function LoadMediaButton({
     // continuationAction set appropriately based on the logic here. If there
     // isn't a loaded playthrough, or it's < 95%, we perform the action here.
 
-    const prompt = await shouldPromptForFinish(session);
+    const prompt = await shouldPromptForFinish();
 
     const action: PlaythroughAction =
       playbackState.type === "in_progress"
@@ -192,7 +192,10 @@ function LoadMediaButton({
               type: "promptForResume",
               playthroughId: playbackState.playthrough.id,
             }
-          : { type: "startFreshPlaythrough", mediaId: media.id };
+          : {
+              type: "startFreshPlaythrough",
+              mediaId: media.id,
+            };
 
     if (prompt.shouldPrompt) {
       router.navigate({

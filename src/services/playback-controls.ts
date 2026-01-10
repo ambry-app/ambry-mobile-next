@@ -19,7 +19,7 @@ import * as Heartbeat from "./position-heartbeat";
 import * as Player from "./track-player-service";
 
 export type PlaythroughAction =
-  | { type: "unloadPlayer" } // FIXME: renamed to unloadPlaythrough
+  | { type: "unloadPlaythrough" }
   | { type: "continueExistingPlaythrough"; playthroughId: string }
   | { type: "startFreshPlaythrough"; mediaId: string }
   | { type: "resumeAndLoadPlaythrough"; playthroughId: string }
@@ -148,7 +148,7 @@ export async function applyPlaythroughAction(
   action: PlaythroughAction,
 ) {
   switch (action.type) {
-    case "unloadPlayer":
+    case "unloadPlaythrough":
       await unloadPlaythrough(session);
       break;
     case "continueExistingPlaythrough":
@@ -163,6 +163,8 @@ export async function applyPlaythroughAction(
     case "promptForResume":
       // No-op: handled by UI
       break;
+    default:
+      const _exhaustive: never = action;
   }
 }
 

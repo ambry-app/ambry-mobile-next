@@ -138,5 +138,5 @@ async function getBooksForAuthor(
     .orderBy(desc(schema.books.published))
     .limit(limit);
 
-  return results.map(({ seriesIds, ...rest }) => rest);
+  return results.map(({ seriesIds: _seriesIds, ...rest }) => rest);
 }

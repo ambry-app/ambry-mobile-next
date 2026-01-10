@@ -45,6 +45,14 @@ module.exports = defineConfig([
       "prettier/prettier": "error",
       "@typescript-eslint/no-deprecated": "warn",
 
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+        },
+      ],
+
       // Import sorting: auto-fixable, separates external from internal
       "simple-import-sort/imports": [
         "error",
@@ -119,7 +127,10 @@ module.exports = defineConfig([
   },
   // Allow the wrapper file to import from react-native-track-player
   {
-    files: ["src/services/track-player-wrapper.ts", "src/types/track-player.ts"],
+    files: [
+      "src/services/track-player-wrapper.ts",
+      "src/types/track-player.ts",
+    ],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -135,5 +146,5 @@ module.exports = defineConfig([
       ],
     },
   },
-  globalIgnores(["**/expo-env.d.ts", "src/graphql/client/*"])
+  globalIgnores(["**/expo-env.d.ts", "src/graphql/client/*"]),
 ]);

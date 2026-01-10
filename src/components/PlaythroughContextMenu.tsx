@@ -28,7 +28,7 @@ export function PlaythroughContextMenu({
   playthrough,
 }: PlaythroughContextMenuProps) {
   const onResume = useCallback(async () => {
-    const prompt = await shouldPromptForFinish(session);
+    const prompt = await shouldPromptForFinish();
     if (prompt.shouldPrompt) {
       const action: PlaythroughAction = {
         type: "continueExistingPlaythrough",
@@ -48,7 +48,7 @@ export function PlaythroughContextMenu({
   }, [session, playthrough.id]);
 
   const onResumeFromPrevious = useCallback(async () => {
-    const prompt = await shouldPromptForFinish(session);
+    const prompt = await shouldPromptForFinish();
     if (prompt.shouldPrompt) {
       const action: PlaythroughAction = {
         type: "resumeAndLoadPlaythrough",

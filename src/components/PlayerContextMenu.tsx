@@ -63,14 +63,16 @@ export function PlayerContextMenu({
   );
 
   const handleUnloadPlayer = useCallback(async () => {
-    const prompt = await shouldPromptForFinish(session);
+    const prompt = await shouldPromptForFinish();
 
     if (prompt.shouldPrompt) {
       router.navigate({
         pathname: "/mark-finished-prompt",
         params: {
           playthroughId: prompt.playthroughId,
-          continuationAction: JSON.stringify({ type: "unloadPlayer" }),
+          continuationAction: JSON.stringify({
+            type: "unloadPlaythrough",
+          }),
         },
       });
     } else {
