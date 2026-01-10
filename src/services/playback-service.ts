@@ -1,5 +1,4 @@
 import { PAUSE_REWIND_SECONDS } from "@/constants";
-import * as EventRecording from "@/services/event-recording";
 import * as Lifecycle from "@/services/playthrough-lifecycle";
 import { seekImmediateNoLog, seekRelative } from "@/services/seek-service";
 import * as Player from "@/services/track-player-service";
@@ -64,15 +63,6 @@ export const PlaybackService = async function () {
       return;
     }
 
-    const playbackRate = Player.getPlaybackRate();
-    const progress = await Player.getAccurateProgress();
-
-    await EventRecording.recordPauseEvent(
-      loadedPlaythrough.id,
-      progress.duration,
-      playbackRate,
-    );
-
     // Auto-finish the playthrough
     console.debug(
       "[PlaybackService] Playback ended, auto-finishing playthrough",
@@ -133,24 +123,6 @@ export const PlaybackService = async function () {
     await Player.pause();
     await seekImmediateNoLog(-PAUSE_REWIND_SECONDS);
 
-    const loadedPlaythrough = Player.getLoadedPlaythrough();
-
-    if (!loadedPlaythrough) {
-      console.warn(
-        "[PlaybackService] No loaded playthrough when handling remote pause",
-      );
-      return;
-    }
-
-    const playbackRate = Player.getPlaybackRate();
-    const progress = await Player.getAccurateProgress();
-
-    await EventRecording.recordPauseEvent(
-      loadedPlaythrough.id,
-      progress.position,
-      playbackRate,
-    );
-
     const { session } = useSession.getState();
 
     if (!session) {
@@ -167,24 +139,6 @@ export const PlaybackService = async function () {
     console.debug("[TrackPlayer Service] RemotePlay");
 
     await Player.play();
-
-    const loadedPlaythrough = Player.getLoadedPlaythrough();
-
-    if (!loadedPlaythrough) {
-      console.warn(
-        "[PlaybackService] No loaded playthrough when handling remote play",
-      );
-      return;
-    }
-
-    const playbackRate = Player.getPlaybackRate();
-    const progress = await Player.getAccurateProgress();
-
-    await EventRecording.recordPlayEvent(
-      loadedPlaythrough.id,
-      progress.position,
-      playbackRate,
-    );
   });
 
   // TrackPlayer.addEventListener(Event.RemotePlayId, (args) => {

@@ -218,26 +218,11 @@ async function pauseCurrentIfPlaying() {
 
   // Rewind slightly so the user has context when they resume
   // (see PAUSE_REWIND_SECONDS in constants.ts for explanation)
-
   const playbackRate = Player.getPlaybackRate();
   const progress = await Player.getAccurateProgress();
   let seekPosition = progress.position - PAUSE_REWIND_SECONDS * playbackRate;
   seekPosition = Math.max(0, Math.min(seekPosition, progress.duration));
   await Player.seekTo(seekPosition, SeekSource.INTERNAL);
-
-  const loadedPlaythrough = Player.getLoadedPlaythrough();
-
-  if (loadedPlaythrough) {
-    try {
-      await EventRecording.recordPauseEvent(
-        loadedPlaythrough.id,
-        seekPosition, // Use rewound position
-        playbackRate,
-      );
-    } catch (error) {
-      console.warn("[Loader] Error recording pause event:", error);
-    }
-  }
 
   const session = useSession.getState().session;
   if (session) {

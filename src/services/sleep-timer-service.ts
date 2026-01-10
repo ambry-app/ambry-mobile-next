@@ -25,7 +25,6 @@ import { Session } from "@/types/session";
 import { logBase } from "@/utils/logger";
 import { subscribeToChange } from "@/utils/subscribe";
 
-import * as EventRecording from "./event-recording";
 import { seekImmediateNoLog } from "./seek-service";
 import { syncPlaythroughs } from "./sync-service";
 
@@ -246,23 +245,8 @@ async function checkTimer() {
     // Time's up - pause and reset
     log.debug("Triggering - pausing playback");
 
-    const loadedPlaythrough = Player.getLoadedPlaythrough();
-    const playbackRate = Player.getPlaybackRate();
-
-    // FIXME:
-    // We have to re-implement most of the pause logic from player-controls here
     await Player.pause();
-
     seekImmediateNoLog(-SLEEP_TIMER_PAUSE_REWIND_SECONDS);
-
-    if (loadedPlaythrough) {
-      const { position } = await Player.getAccurateProgress();
-      EventRecording.recordPauseEvent(
-        loadedPlaythrough.id,
-        position,
-        playbackRate,
-      );
-    }
 
     const session = useSession.getState().session;
     if (session) {

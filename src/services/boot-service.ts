@@ -11,6 +11,7 @@ import { registerBackgroundSyncTask } from "@/services/background-sync-service";
 import { initializeDataVersion } from "@/services/data-version-service";
 import { useDatabaseMigrations } from "@/services/db-service";
 import { initializeDownloads } from "@/services/download-service";
+import { initialize as initializeEventRecording } from "@/services/event-recording";
 import { initialize as initializePlayPauseEventService } from "@/services/play-pause-event-service";
 import { initializePlayer } from "@/services/playback-controls";
 import { initialize as initializeHeartbeat } from "@/services/position-heartbeat";
@@ -75,6 +76,7 @@ export function useAppBoot() {
       await initializeSleepTimer(session);
       await initializeHeartbeat();
       await initializePlayPauseEventService();
+      await initializeEventRecording();
 
       await registerBackgroundSyncTask();
 

@@ -17,7 +17,6 @@ import { useSession } from "@/stores/session";
 import { Session } from "@/types/session";
 import { subscribeToChange } from "@/utils/subscribe";
 
-import * as EventRecording from "./event-recording";
 import * as Lifecycle from "./playthrough-lifecycle";
 import * as Loader from "./playthrough-loader";
 import * as Heartbeat from "./position-heartbeat";
@@ -43,22 +42,6 @@ export async function play() {
   const { position } = await Player.getAccurateProgress();
   console.debug("[Controls] Playing from position", position.toFixed(1));
   await Player.play();
-
-  const loadedPlaythrough = Player.getLoadedPlaythrough();
-  if (loadedPlaythrough) {
-    try {
-      const { position } = await Player.getAccurateProgress();
-      const rate = Player.getPlaybackRate();
-
-      await EventRecording.recordPlayEvent(
-        loadedPlaythrough.id,
-        position,
-        rate,
-      );
-    } catch (error) {
-      console.warn("[Controls] Error recording play event:", error);
-    }
-  }
 }
 
 /**
@@ -70,22 +53,6 @@ export async function pause() {
   console.debug("[Controls] Pausing at position", position.toFixed(1));
   await Player.pause();
   await seekImmediateNoLog(-PAUSE_REWIND_SECONDS);
-
-  const loadedPlaythrough = Player.getLoadedPlaythrough();
-  const playbackRate = Player.getPlaybackRate();
-
-  if (loadedPlaythrough) {
-    try {
-      const { position } = await Player.getAccurateProgress();
-      await EventRecording.recordPauseEvent(
-        loadedPlaythrough.id,
-        position,
-        playbackRate,
-      );
-    } catch (error) {
-      console.warn("[Controls] Error recording pause event:", error);
-    }
-  }
 
   const session = useSession.getState().session;
   if (session) {
@@ -108,24 +75,7 @@ export async function pauseIfPlaying() {
  * Set the playback rate.
  */
 export async function setPlaybackRate(playbackRate: number) {
-  const previousRate = Player.getPlaybackRate();
-
   await Player.setPlaybackRate(playbackRate);
-
-  const loadedPlaythrough = Player.getLoadedPlaythrough();
-  if (loadedPlaythrough) {
-    try {
-      const { position } = await Player.getAccurateProgress();
-      await EventRecording.recordRateChangeEvent(
-        loadedPlaythrough.id,
-        position,
-        playbackRate,
-        previousRate,
-      );
-    } catch (error) {
-      console.warn("[Controls] Error recording rate change:", error);
-    }
-  }
 }
 
 // =============================================================================
@@ -295,7 +245,7 @@ export async function finishPlaythrough(
   const isLoaded = loadedPlaythrough?.id === playthroughId;
 
   if (isLoaded) {
-    await pauseAndRecordEvent();
+    await pauseIfPlaying();
   }
 
   await Lifecycle.finishPlaythrough(session, playthroughId);
@@ -316,7 +266,7 @@ export async function abandonPlaythrough(
   const isLoaded = loadedPlaythrough?.id === playthroughId;
 
   if (isLoaded) {
-    await pauseAndRecordEvent();
+    await pauseIfPlaying();
   }
 
   await Lifecycle.abandonPlaythrough(session, playthroughId);
@@ -337,45 +287,12 @@ export async function deletePlaythrough(
   const isLoaded = loadedPlaythrough?.id === playthroughId;
 
   if (isLoaded) {
-    await pauseAndRecordEvent();
+    await pauseIfPlaying();
     await tryUnloadPlayer();
   }
 
   await deletePlaythroughDb(session, playthroughId);
   bumpPlaythroughDataVersion();
-}
-
-/**
- * Pause playback (if playing) and record the pause event, waiting for it to complete.
- * Use this when you need to ensure the pause event is recorded before
- * performing other operations (like marking a playthrough as finished/abandoned).
- *
- * Only records a pause event if audio is actually playing. If already paused,
- * this is a no-op (the pause event was already recorded when playback stopped).
- *
- * Returns true if a pause was recorded, false if already paused.
- */
-async function pauseAndRecordEvent() {
-  const loadedPlaythrough = Player.getLoadedPlaythrough();
-  const playbackRate = Player.getPlaybackRate();
-
-  if (!loadedPlaythrough) return;
-
-  const { playing } = Player.isPlaying();
-  if (!playing) {
-    console.debug("[Controls] pauseAndRecordEvent: not playing, skipping");
-    return;
-  }
-
-  await Player.pause();
-  const { position } = await Player.getAccurateProgress();
-  await EventRecording.recordPauseEvent(
-    loadedPlaythrough.id,
-    position,
-    playbackRate,
-  );
-  console.debug("[Controls] pauseAndRecordEvent completed");
-  return;
 }
 
 /**

@@ -12,6 +12,12 @@
  * currently broken. The service prefers command timing when available, falling
  * back to state change detection otherwise.
  *
+ * Deduplication strategy:
+ * - When we emit from a command, we record the direction (play/pause)
+ * - When isPlaying changes, if it matches the direction we're awaiting, we skip
+ *   (it's the result of our own command)
+ * - If it doesn't match (or we're not awaiting), it's an external event
+ *
  * Consumers should subscribe to `lastPlayPause` in the track-player store for
  * the authoritative play/pause events.
  */
@@ -30,8 +36,10 @@ const log = logBase.extend("play-pause-event-service");
 
 const FALLBACK_TIMEOUT_MS = 50;
 
+type Direction = "play" | "pause";
+
 type PendingFallback = {
-  direction: "play" | "pause";
+  direction: Direction;
   timestamp: number;
   position: number;
   timer: NodeJS.Timeout;
@@ -39,12 +47,14 @@ type PendingFallback = {
 
 let pendingFallback: PendingFallback | null = null;
 
+let awaitingIsPlayingMatch: Direction | null = null;
+
 // =============================================================================
 // Public API
 // =============================================================================
 
 /**
- * Initialize the accurate play-pause service.
+ * Initialize the play-pause event service.
  */
 export async function initialize() {
   if (initialized) {
@@ -77,11 +87,25 @@ function setupStoreSubscriptions() {
 }
 
 function handleIsPlayingChanged(isPlaying: boolean) {
-  const direction = isPlaying ? "play" : "pause";
+  const direction: Direction = isPlaying ? "play" : "pause";
   const timestamp = Date.now();
   const position = useTrackPlayer.getState().progress.position;
 
-  log.debug(`isPlaying changed: ${direction} at ${position}`);
+  log.debug(
+    `isPlaying changed: ${direction} at ${position.toFixed(3)} (awaiting=${awaitingIsPlayingMatch})`,
+  );
+
+  if (awaitingIsPlayingMatch === direction) {
+    log.debug(`Skipping - matches awaited direction from command`);
+    awaitingIsPlayingMatch = null;
+    return;
+  }
+
+  // State changed to a different direction than awaited (or not awaiting at all)
+  // This could be:
+  // 1. An external event (RemoteDuck, etc.) - no command will come
+  // 2. isPlaying changed BEFORE our command arrived - command will come shortly
+  // Start a fallback timer to handle case 1, which will be cancelled if case 2
 
   if (pendingFallback?.timer) {
     clearTimeout(pendingFallback.timer);
@@ -98,23 +122,23 @@ function handleIsPlayingChanged(isPlaying: boolean) {
 }
 
 function handleLastPlayPauseCommandChanged(command: PlayPauseCommand) {
-  const direction = command.type === PlayPauseType.PLAY ? "play" : "pause";
+  const direction: Direction =
+    command.type === PlayPauseType.PLAY ? "play" : "pause";
 
   log.debug(`lastPlayPauseCommand changed: ${direction}`);
-
-  const hadPendingFallback = pendingFallback !== null;
 
   if (pendingFallback?.timer) {
     clearTimeout(pendingFallback.timer);
     pendingFallback = null;
   }
 
+  awaitingIsPlayingMatch = direction;
+
   emit({
     direction,
     timestamp: command.timestamp,
     position: command.at,
     source: "command",
-    hadPendingFallback,
   });
 }
 
@@ -127,27 +151,26 @@ function onFallbackTimeout() {
   const { direction, timestamp, position } = pendingFallback;
 
   pendingFallback = null;
+  awaitingIsPlayingMatch = null;
 
   emit({
     direction,
     timestamp,
     position,
     source: "fallback",
-    hadPendingFallback: true,
   });
 }
 
 type EmitParams = {
-  direction: "play" | "pause";
+  direction: Direction;
   timestamp: number;
   position: number;
   source: "command" | "fallback";
-  hadPendingFallback: boolean;
 };
 
 function emit(params: EmitParams) {
   log.info(
-    `Emitting play/pause event: ${params.direction} at ${params.position} from ${params.source}`,
+    `Emitting play/pause event: ${params.direction} at ${params.position.toFixed(3)} from ${params.source}`,
   );
 
   useTrackPlayer.setState({
