@@ -135,7 +135,6 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
   );
   const whereItWas = useSharedValue(0);
   const onPanEndAction = useSharedValue<"none" | "expand" | "collapse">("none");
-  const panGestureActive = useSharedValue(false);
 
   // Deferred expand: mount components first, then animate
   const expand = useCallback(() => {
@@ -249,7 +248,6 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
 
   const panGesture = Gesture.Pan()
     .onStart(() => {
-      panGestureActive.value = true;
       whereItWas.value = expansion.value;
     })
     .onUpdate((e) => {
@@ -268,20 +266,16 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
       if (e.velocityY > 300) onPanEndAction.value = "collapse";
     })
     .onEnd(() => {
-      panGestureActive.value = false;
       // Use worklet versions since we're already in 'both' state
       if (onPanEndAction.value === "expand") {
         expandWorklet();
       } else if (onPanEndAction.value === "collapse") {
         collapseWorklet();
       }
-    })
-    .onFinalize(() => {
-      panGestureActive.value = false;
     });
 
-  const isScrubberPaused = useDerivedValue(
-    () => panGestureActive.value || expansion.value < 0.1,
+  const isScrubberAnimationSuspended = useDerivedValue(
+    () => expansion.value < 0.9,
   );
 
   // Use expanded to determine if player can be collapsed
@@ -748,7 +742,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                   </View>
                   <Scrubber
                     playerPanGesture={panGesture}
-                    isPaused={isScrubberPaused}
+                    animationSuspended={isScrubberAnimationSuspended}
                   />
                 </Animated.View>
               </>

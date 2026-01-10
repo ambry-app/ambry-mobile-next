@@ -157,20 +157,22 @@ const Markers = memo(function Markers({ markers }: MarkersProps) {
 
 export const Scrubber = memo(function Scrubber({
   playerPanGesture,
-  isPaused,
+  animationSuspended,
 }: {
   playerPanGesture: PanGesture;
-  isPaused: SharedValue<boolean>;
+  animationSuspended: SharedValue<boolean>;
 }) {
   const { playing } = useTrackPlayer((state) => state.isPlaying);
   const playbackRate = useTrackPlayer((state) => state.playbackRate);
   const chapters = useTrackPlayer((state) => state.chapters);
   const duration = useTrackPlayer((state) => state.progress.duration);
   const lastSeek = useTrackPlayer((state) => state.lastSeek);
+  const playthroughId = useTrackPlayer((state) => state.playthrough?.id);
   const markers = chapters?.map((chapter) => chapter.startTime) || [];
-
-  const initialPosition = useRef(Player.getProgress().position);
-  const translateX = useSharedValue(timeToTranslateX(initialPosition.current));
+  const translateX = useSharedValue(
+    timeToTranslateX(Player.getProgress().position),
+  );
+  const lastHandledSeekTimestamp = useRef(0);
   const [isScrubbing, setIsScrubbing] = useIsScrubbing();
   const maxTranslateX = timeToTranslateX(duration);
   const startX = useSharedValue(0);
@@ -179,18 +181,24 @@ export const Scrubber = memo(function Scrubber({
   const timecodeOpacity = useSharedValue(0);
   const lastTimestamp = useSharedValue(0);
 
-  // Correct initial translateX value once on mount
+  // Snap to new position when playthrough changes
   useEffect(() => {
-    const setAccurateInitialPosition = async () => {
+    if (!playthroughId) return;
+
+    const snapToPosition = async () => {
       try {
         const { position } = await Player.getAccurateProgress();
-        translateX.value = timeToTranslateX(position);
+        scheduleOnUI(() => {
+          "worklet";
+          translateX.value = timeToTranslateX(position);
+        });
       } catch (e) {
-        console.warn("[Scrubber] Error getting accurate initial progress:", e);
+        console.warn("[Scrubber] Error snapping to playthrough position:", e);
       }
     };
-    setAccurateInitialPosition();
-  }, [translateX]);
+
+    snapToPosition();
+  }, [playthroughId, translateX]);
 
   const panGestureHandler = Gesture.Pan()
     .blocksExternalGesture(playerPanGesture)
@@ -343,7 +351,7 @@ export const Scrubber = memo(function Scrubber({
       !playing ||
       isScrubbing ||
       isAnimatingUserSeek.value ||
-      isPaused.value
+      animationSuspended.value
     ) {
       lastTimestamp.value = 0;
       return;
@@ -367,20 +375,38 @@ export const Scrubber = memo(function Scrubber({
     // Don't run this if there's no seek event
     if (!lastSeek) return;
 
+    // Don't re-animate for the same seek (effect may re-run due to other deps)
+    if (lastSeek.timestamp === lastHandledSeekTimestamp.current) return;
+
     // Don't run if the seek wasn't from an external source
     if (lastSeek.source === SeekSource.SCRUBBER) return;
 
     // Don't animate while scrubbing (user is controlling the position)
     if (isScrubbing) return;
 
+    // Mark this seek as handled
+    lastHandledSeekTimestamp.current = lastSeek.timestamp;
+
     const animateToNewPosition = async () => {
       try {
-        const { position } = await Player.getAccurateProgress();
+        const { position, duration: currentDuration } =
+          await Player.getAccurateProgress();
+
+        // When playing, account for the animation duration - animate to where
+        // playback will be when the animation completes, not where it is now
+        const animationDurationSeconds = 0.4;
+        const targetPosition = playing
+          ? Math.min(
+              position + animationDurationSeconds * playbackRate,
+              currentDuration,
+            )
+          : position;
+
         scheduleOnUI(() => {
           "worklet";
           isAnimatingUserSeek.value = true;
           translateX.value = withTiming(
-            timeToTranslateX(position),
+            timeToTranslateX(targetPosition),
             {
               duration: 400,
               easing: Easing.out(Easing.exp),
@@ -400,16 +426,23 @@ export const Scrubber = memo(function Scrubber({
     };
 
     animateToNewPosition();
-  }, [isScrubbing, translateX, isAnimatingUserSeek, lastSeek]);
+  }, [
+    isScrubbing,
+    translateX,
+    isAnimatingUserSeek,
+    lastSeek,
+    playing,
+    playbackRate,
+  ]);
 
-  // Periodic drift correction - check every 2 seconds without causing re-renders
+  // Periodic drift correction - check every 5 seconds without causing re-renders
   // Only runs while playing and not scrubbing
   useEffect(() => {
     // Don't run drift correction while scrubbing or paused
     if (isScrubbing || !playing) return;
 
     const checkDrift = async () => {
-      if (isAnimatingUserSeek.value || isPaused.value) return;
+      if (isAnimatingUserSeek.value || animationSuspended.value) return;
 
       try {
         const { position } = await Player.getAccurateProgress();
@@ -433,11 +466,17 @@ export const Scrubber = memo(function Scrubber({
     // Check immediately on mount/state change
     checkDrift();
 
-    // Then check periodically (every 2 seconds is plenty for drift correction)
+    // Then check periodically
     const intervalId = setInterval(checkDrift, DRIFT_CORRECTION_INTERVAL);
 
     return () => clearInterval(intervalId);
-  }, [isScrubbing, playing, translateX, isAnimatingUserSeek, isPaused]);
+  }, [
+    isScrubbing,
+    playing,
+    translateX,
+    isAnimatingUserSeek,
+    animationSuspended,
+  ]);
 
   // When un-paused, immediately sync to the correct position
   const syncPosition = useCallback(async () => {
@@ -449,13 +488,13 @@ export const Scrubber = memo(function Scrubber({
   }, [translateX]);
 
   useAnimatedReaction(
-    () => isPaused.value,
+    () => animationSuspended.value,
     (paused, wasPaused) => {
       if (wasPaused === true && paused === false) {
         scheduleOnRN(syncPosition);
       }
     },
-    [isPaused, syncPosition],
+    [animationSuspended, syncPosition],
   );
 
   return (
