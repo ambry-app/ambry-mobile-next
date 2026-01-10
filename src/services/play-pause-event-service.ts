@@ -22,6 +22,7 @@ import {
   useTrackPlayer,
 } from "@/stores/track-player";
 import { logBase } from "@/utils/logger";
+import { subscribeToChange } from "@/utils/subscribe";
 
 let initialized = false;
 
@@ -62,19 +63,17 @@ export async function initialize() {
 // =============================================================================
 
 function setupStoreSubscriptions() {
-  useTrackPlayer.subscribe((state, prevState) => {
-    if (state.isPlaying.playing !== prevState.isPlaying.playing) {
-      handleIsPlayingChanged(state.isPlaying.playing);
-    }
+  subscribeToChange(
+    useTrackPlayer,
+    (s) => s.isPlaying.playing,
+    handleIsPlayingChanged,
+  );
 
-    if (
-      state.lastPlayPauseCommand &&
-      state.lastPlayPauseCommand.timestamp !==
-        prevState.lastPlayPauseCommand?.timestamp
-    ) {
-      handleLastPlayPauseCommandChanged(state.lastPlayPauseCommand);
-    }
-  });
+  subscribeToChange(
+    useTrackPlayer,
+    (s) => s.lastPlayPauseCommand,
+    (command) => command && handleLastPlayPauseCommandChanged(command),
+  );
 }
 
 function handleIsPlayingChanged(isPlaying: boolean) {

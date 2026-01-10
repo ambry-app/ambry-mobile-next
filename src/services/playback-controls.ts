@@ -15,6 +15,7 @@ import {
 } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
 import { Session } from "@/types/session";
+import { subscribeToChange } from "@/utils/subscribe";
 
 import * as EventRecording from "./event-recording";
 import * as Lifecycle from "./playthrough-lifecycle";
@@ -433,11 +434,15 @@ export function expandPlayerAndWait(): Promise<void> {
 // =============================================================================
 
 // Subscribe to session changes - when signed out, clean up the player
-useSession.subscribe((state, prevState) => {
-  if (prevState.session && !state.session) {
-    console.debug("[Controls] Session signed out, cleaning up player");
-    forceUnloadPlayer().catch((error) => {
-      console.warn("[Controls] Error during session cleanup:", error);
-    });
-  }
-});
+subscribeToChange(
+  useSession,
+  (s) => s.session,
+  (session, prevSession) => {
+    if (prevSession && !session) {
+      console.debug("[Controls] Session signed out, cleaning up player");
+      forceUnloadPlayer().catch((error) => {
+        console.warn("[Controls] Error during session cleanup:", error);
+      });
+    }
+  },
+);

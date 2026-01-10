@@ -11,6 +11,7 @@ import { updateStateCache } from "@/db/playthroughs";
 import * as Player from "@/services/track-player-service";
 import { useTrackPlayer } from "@/stores/track-player";
 import { logBase } from "@/utils/logger";
+import { subscribeToChange } from "@/utils/subscribe";
 
 const log = logBase.extend("position-heartbeat");
 
@@ -54,11 +55,11 @@ export async function saveNow(): Promise<void> {
  * heartbeat based on playback state changes.
  */
 function setupStoreSubscriptions() {
-  useTrackPlayer.subscribe((state, prevState) => {
-    if (state.isPlaying.playing !== prevState.isPlaying.playing) {
-      handleIsPlayingChange(state.isPlaying.playing);
-    }
-  });
+  subscribeToChange(
+    useTrackPlayer,
+    (s) => s.isPlaying.playing,
+    handleIsPlayingChange,
+  );
 }
 
 /**

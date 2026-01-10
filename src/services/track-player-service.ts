@@ -34,6 +34,7 @@ import {
 } from "@/types/track-player";
 import { documentDirectoryFilePath } from "@/utils";
 import { logBase } from "@/utils/logger";
+import { subscribeToChange } from "@/utils/subscribe";
 
 import { getSession } from "./session-service";
 
@@ -301,18 +302,18 @@ function setupTrackPlayerListeners() {
  * when it changes.
  */
 function setupStoreSubscriptions() {
-  useDataVersion.subscribe((state, prevState) => {
-    if (state.playthroughDataVersion === prevState.playthroughDataVersion)
-      // no change
-      return;
+  subscribeToChange(
+    useDataVersion,
+    (s) => s.playthroughDataVersion,
+    () => {
+      const session = getSession();
+      const loadedPlaythrough = getLoadedPlaythrough();
 
-    const session = getSession();
-    const loadedPlaythrough = getLoadedPlaythrough();
+      if (!loadedPlaythrough) return;
 
-    if (!loadedPlaythrough) return;
-
-    updatePlaythrough(session, loadedPlaythrough.id);
-  });
+      updatePlaythrough(session, loadedPlaythrough.id);
+    },
+  );
 }
 
 /**

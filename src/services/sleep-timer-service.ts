@@ -23,6 +23,7 @@ import { setTriggerTime, useSleepTimer } from "@/stores/sleep-timer";
 import { Seek, SeekSource, useTrackPlayer } from "@/stores/track-player";
 import { Session } from "@/types/session";
 import { logBase } from "@/utils/logger";
+import { subscribeToChange } from "@/utils/subscribe";
 
 import * as EventRecording from "./event-recording";
 import { seekImmediateNoLog } from "./seek-service";
@@ -118,18 +119,17 @@ function isInitialized() {
  * timer based on playback state changes.
  */
 function setupStoreSubscriptions() {
-  useTrackPlayer.subscribe((state, prevState) => {
-    if (state.isPlaying.playing !== prevState.isPlaying.playing) {
-      handleIsPlayingChange(state.isPlaying.playing);
-    }
+  subscribeToChange(
+    useTrackPlayer,
+    (s) => s.isPlaying.playing,
+    handleIsPlayingChange,
+  );
 
-    if (
-      state.lastSeek &&
-      state.lastSeek.timestamp !== prevState.lastSeek?.timestamp
-    ) {
-      handleSeek(state.lastSeek);
-    }
-  });
+  subscribeToChange(
+    useTrackPlayer,
+    (s) => s.lastSeek,
+    (seek) => seek && handleSeek(seek),
+  );
 }
 
 /**
