@@ -150,6 +150,22 @@ export async function pause(
 }
 
 /**
+ * Pause playback if currently playing. No-op if not playing.
+ *
+ * @param source - The source of the pause action
+ * @param rewindSeconds - Optional seconds to rewind after pausing (multiplied by playback rate)
+ */
+export async function pauseIfPlaying(
+  source: PlayPauseSourceType,
+  rewindSeconds?: number,
+) {
+  const { playing } = isPlaying();
+  if (playing) {
+    await pause(source, rewindSeconds);
+  }
+}
+
+/**
  * Seek to a specific position in the track.
  *
  * This immediately updates the store's progress after seeking, and tracks the

@@ -38,15 +38,8 @@ async function play() {
   await Player.play(PlayPauseSource.USER);
 }
 
-async function pause() {
-  await Player.pause(PlayPauseSource.USER, PAUSE_REWIND_SECONDS);
-}
-
 async function pauseIfPlaying() {
-  const { playing } = Player.isPlaying();
-  if (playing) {
-    await pause();
-  }
+  await Player.pauseIfPlaying(PlayPauseSource.USER, PAUSE_REWIND_SECONDS);
 }
 
 // =============================================================================

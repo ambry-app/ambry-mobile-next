@@ -203,14 +203,6 @@ export async function clearActivePlaythrough(session: Session): Promise<void> {
 // Internal Helpers
 // =============================================================================
 
-/**
- * Pause current playback if playing and record the pause event.
- * No-op if nothing is playing.
- */
 async function pauseCurrentIfPlaying() {
-  const isPlaying = Player.isPlaying();
-  if (!isPlaying.playing) return;
-
-  console.debug("[Loader] Pausing current playback before transition");
-  await Player.pause(PlayPauseSource.USER, PAUSE_REWIND_SECONDS);
+  await Player.pauseIfPlaying(PlayPauseSource.USER, PAUSE_REWIND_SECONDS);
 }
