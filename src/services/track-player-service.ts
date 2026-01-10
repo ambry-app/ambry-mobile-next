@@ -18,6 +18,7 @@ import {
   type PlayPauseSourceType,
   PlayPauseType,
   type ProgressWithPercent,
+  SeekSource,
   type SeekSourceType,
   useTrackPlayer,
 } from "@/stores/track-player";
@@ -84,7 +85,7 @@ export async function play(source: PlayPauseSourceType) {
     return;
   }
 
-  const { position } = getProgress();
+  const { position } = await getAccurateProgress();
   const timestamp = Date.now();
 
   awaitingIsPlayingMatch = "play";
@@ -103,9 +104,15 @@ export async function play(source: PlayPauseSourceType) {
 
 /**
  * Pause playback.
+ *
+ * @param source - The source of the pause action
+ * @param rewindSeconds - Optional seconds to rewind after pausing (multiplied by playback rate)
  */
-export async function pause(source: PlayPauseSourceType) {
-  log.debug(`pause (source: ${source})`);
+export async function pause(
+  source: PlayPauseSourceType,
+  rewindSeconds?: number,
+) {
+  log.debug(`pause (source: ${source}, rewind: ${rewindSeconds ?? 0}s)`);
 
   const { playthrough, playbackRate } = useTrackPlayer.getState();
   if (!playthrough) {
@@ -113,7 +120,7 @@ export async function pause(source: PlayPauseSourceType) {
     return;
   }
 
-  const { position } = getProgress();
+  const { position, duration } = await getAccurateProgress();
   const timestamp = Date.now();
 
   awaitingIsPlayingMatch = "pause";
@@ -128,6 +135,18 @@ export async function pause(source: PlayPauseSourceType) {
     playbackRate,
     playthroughId: playthrough.id,
   });
+
+  if (rewindSeconds) {
+    const rewindAmount = rewindSeconds * playbackRate;
+    const newPosition = Math.max(
+      0,
+      Math.min(position - rewindAmount, duration),
+    );
+    log.debug(
+      `Rewinding from ${position.toFixed(1)} to ${newPosition.toFixed(1)}`,
+    );
+    await seekTo(newPosition, SeekSource.INTERNAL);
+  }
 }
 
 /**

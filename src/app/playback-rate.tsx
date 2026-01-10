@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Slider from "@react-native-community/slider";
 
 import { Button, IconButton } from "@/components";
-import { setPlaybackRate } from "@/services/playback-controls";
+import * as Player from "@/services/track-player-service";
 import { useSession } from "@/stores/session";
 import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";
@@ -24,7 +24,7 @@ export default function PlaybackRateRoute() {
 
   const setPlaybackRateAndDisplay = useCallback((value: number) => {
     setDisplayPlaybackRate(value);
-    setPlaybackRate(value);
+    Player.setPlaybackRate(value);
   }, []);
 
   if (!session) return null;

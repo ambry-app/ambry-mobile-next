@@ -29,7 +29,6 @@ import { PlayPauseSource } from "@/stores/track-player";
 import { Session } from "@/types/session";
 
 import * as EventRecording from "./event-recording";
-import { seekImmediateNoLog } from "./seek-service";
 import * as Player from "./track-player-service";
 
 // =============================================================================
@@ -213,6 +212,5 @@ async function pauseCurrentIfPlaying() {
   if (!isPlaying.playing) return;
 
   console.debug("[Loader] Pausing current playback before transition");
-  await Player.pause(PlayPauseSource.USER);
-  await seekImmediateNoLog(-PAUSE_REWIND_SECONDS);
+  await Player.pause(PlayPauseSource.USER, PAUSE_REWIND_SECONDS);
 }

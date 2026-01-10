@@ -31,8 +31,6 @@ import { Session } from "@/types/session";
 import { logBase } from "@/utils/logger";
 import { subscribeToChange } from "@/utils/subscribe";
 
-import { seekImmediateNoLog } from "./seek-service";
-
 const log = logBase.extend("sleep-timer-service");
 
 const SLEEP_TIMER_CHECK_INTERVAL = 1000;
@@ -255,8 +253,10 @@ async function checkTimer() {
     // Time's up - pause and reset
     log.debug("Triggering - pausing playback");
 
-    await Player.pause(PlayPauseSource.SLEEP_TIMER);
-    seekImmediateNoLog(-SLEEP_TIMER_PAUSE_REWIND_SECONDS);
+    await Player.pause(
+      PlayPauseSource.SLEEP_TIMER,
+      SLEEP_TIMER_PAUSE_REWIND_SECONDS,
+    );
   } else if (timeRemaining <= SLEEP_TIMER_FADE_OUT_TIME) {
     // Fade volume in last 30 seconds
     const volume = timeRemaining / SLEEP_TIMER_FADE_OUT_TIME;

@@ -1,12 +1,21 @@
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 
-import { pause, play } from "@/services/playback-controls";
-import { useTrackPlayer } from "@/stores/track-player";
+import { PAUSE_REWIND_SECONDS } from "@/constants";
+import * as Player from "@/services/track-player-service";
+import { PlayPauseSource, useTrackPlayer } from "@/stores/track-player";
 import { State } from "@/types/track-player";
 import { useDebounce } from "@/utils/hooks";
 
 import { IconButton } from "./IconButton";
 import { Loading } from "./Loading";
+
+function play() {
+  Player.play(PlayPauseSource.USER);
+}
+
+function pause() {
+  Player.pause(PlayPauseSource.USER, PAUSE_REWIND_SECONDS);
+}
 
 type PlayButtonProps = {
   size: number;

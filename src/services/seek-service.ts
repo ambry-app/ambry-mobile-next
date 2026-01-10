@@ -9,7 +9,7 @@
 
 import { SEEK_ACCUMULATION_WINDOW } from "@/constants";
 import { clearSeekingState, setSeekingState } from "@/stores/seek-ui-state";
-import { SeekSource, SeekSourceType } from "@/stores/track-player";
+import { SeekSourceType } from "@/stores/track-player";
 
 import * as Player from "./track-player-service";
 
@@ -78,34 +78,6 @@ export async function seekRelative(amount: number, source: SeekSourceType) {
 
   // Trigger apply timer
   restartTimer(source);
-}
-
-// FIXME: not sure what to do about this one
-/**
- * Seek by a small amount without creating a seek record.
- * Used for the rewind-on-pause feature.
- */
-export async function seekImmediateNoLog(amount: number) {
-  if (isApplying) return;
-  isApplying = true;
-
-  const { position, duration } = await Player.getAccurateProgress();
-  const playbackRate = Player.getPlaybackRate();
-
-  let newPosition = position + amount * playbackRate;
-  newPosition = Math.max(0, Math.min(newPosition, duration));
-
-  console.debug(
-    "[Seek] Seeking from",
-    position,
-    "to",
-    newPosition,
-    "without logging",
-  );
-
-  await Player.seekTo(newPosition, SeekSource.INTERNAL);
-
-  isApplying = false;
 }
 
 // ============================================================================

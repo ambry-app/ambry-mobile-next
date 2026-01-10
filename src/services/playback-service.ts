@@ -1,6 +1,6 @@
 import { PAUSE_REWIND_SECONDS } from "@/constants";
 import * as Lifecycle from "@/services/playthrough-lifecycle";
-import { seekImmediateNoLog, seekRelative } from "@/services/seek-service";
+import { seekRelative } from "@/services/seek-service";
 import * as Player from "@/services/track-player-service";
 import * as TrackPlayer from "@/services/track-player-wrapper";
 import { initializeDevice } from "@/stores/device";
@@ -117,8 +117,7 @@ export const PlaybackService = async function () {
   TrackPlayer.addEventListener(Event.RemotePause, async () => {
     console.debug("[TrackPlayer Service] RemotePause");
 
-    await Player.pause(PlayPauseSource.REMOTE);
-    await seekImmediateNoLog(-PAUSE_REWIND_SECONDS);
+    await Player.pause(PlayPauseSource.REMOTE, PAUSE_REWIND_SECONDS);
   });
 
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {

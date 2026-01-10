@@ -21,7 +21,6 @@ import { subscribeToChange } from "@/utils/subscribe";
 import * as Lifecycle from "./playthrough-lifecycle";
 import * as Loader from "./playthrough-loader";
 import * as Heartbeat from "./position-heartbeat";
-import { seekImmediateNoLog } from "./seek-service";
 import * as Player from "./track-player-service";
 
 export type PlaythroughAction =
@@ -32,45 +31,22 @@ export type PlaythroughAction =
   | { type: "promptForResume"; playthroughId: string };
 
 // =============================================================================
-// Public Playback Actions (Play, Pause, Rate)
+// Internal Playback Helpers
 // =============================================================================
 
-/**
- * Start or resume playback.
- */
-export async function play() {
-  const { position } = await Player.getAccurateProgress();
-  console.debug("[Controls] Playing from position", position.toFixed(1));
+async function play() {
   await Player.play(PlayPauseSource.USER);
 }
 
-/**
- * Pause playback.
- * Rewinds slightly for context.
- */
-export async function pause() {
-  const { position } = await Player.getAccurateProgress();
-  console.debug("[Controls] Pausing at position", position.toFixed(1));
-  await Player.pause(PlayPauseSource.USER);
-  await seekImmediateNoLog(-PAUSE_REWIND_SECONDS);
+async function pause() {
+  await Player.pause(PlayPauseSource.USER, PAUSE_REWIND_SECONDS);
 }
 
-/**
- * Pause playback only if it is currently playing.
- * Useful for pre-loading actions to avoid firing unnecessary pause events.
- */
-export async function pauseIfPlaying() {
+async function pauseIfPlaying() {
   const { playing } = Player.isPlaying();
   if (playing) {
     await pause();
   }
-}
-
-/**
- * Set the playback rate.
- */
-export async function setPlaybackRate(playbackRate: number) {
-  await Player.setPlaybackRate(playbackRate);
 }
 
 // =============================================================================
@@ -93,7 +69,6 @@ export async function initializePlayer(session: Session) {
 
   // Try to load the stored active playthrough if no track was pre-loaded
   await Loader.loadActivePlaythroughIntoPlayer(session);
-  setLoadingNewMedia(false);
 }
 
 /**
