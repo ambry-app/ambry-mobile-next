@@ -57,15 +57,15 @@ export function useAppBoot() {
         return;
       }
 
-      log.debug("Starting");
+      log.info("Starting boot sequence");
 
       await initializeDevice();
       const { needsInitialSync } = await initializeDataVersion(session);
 
       if (needsInitialSync) {
-        log.debug("Initial sync...");
+        log.info("Starting initial sync");
         await sync(session);
-        log.debug("Initial sync complete");
+        log.info("Initial sync complete");
       }
       setInitialSyncComplete(true);
 
@@ -78,7 +78,8 @@ export function useAppBoot() {
 
       await registerBackgroundSyncTask();
 
-      log.debug("Complete");
+      log.info("Boot sequence complete");
+
       setIsReady(true);
     }
 

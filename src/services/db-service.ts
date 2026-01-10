@@ -6,7 +6,10 @@ import {
   migrateFromPlayerStateToPlaythrough,
   needsPlayerStateMigration,
 } from "@/db/migration-player-state";
+import { logBase } from "@/utils/logger";
 import migrations from "@drizzle/migrations";
+
+const log = logBase.extend("db-service");
 
 /**
  * Hook that handles all database migrations:
@@ -35,16 +38,16 @@ export function useDatabaseMigrations() {
       try {
         // PlayerState → Playthrough migration
         if (await needsPlayerStateMigration()) {
-          console.debug("[DBService] Running PlayerState migration...");
+          log.info("Running PlayerState migration...");
           await migrateFromPlayerStateToPlaythrough();
-          console.debug("[DBService] PlayerState migration complete");
+          log.info("PlayerState migration complete");
         }
 
         // Future one-off migrations can be added here
 
         setDataMigrationsComplete(true);
       } catch (e) {
-        console.error("[DBService] Data migration error", e);
+        log.error("Data migration error", e);
         setDataMigrationError(
           e instanceof Error ? e : new Error("Data migration failed"),
         );

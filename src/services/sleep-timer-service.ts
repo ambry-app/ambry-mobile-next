@@ -31,7 +31,7 @@ import { Session } from "@/types/session";
 import { logBase } from "@/utils/logger";
 import { subscribeToChange } from "@/utils/subscribe";
 
-const log = logBase.extend("sleep-timer-service");
+const log = logBase.extend("sleep-timer");
 
 const SLEEP_TIMER_CHECK_INTERVAL = 1000;
 let sleepTimerCheckInterval: NodeJS.Timeout | null = null;
@@ -251,7 +251,7 @@ async function checkTimer() {
 
   if (timeRemaining <= 0) {
     // Time's up - pause and reset
-    log.debug("Triggering - pausing playback");
+    log.info("Triggering - pausing playback");
 
     await Player.pause(
       PlayPauseSource.SLEEP_TIMER,

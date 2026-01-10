@@ -126,7 +126,7 @@ export async function recordStartEvent(playthroughId: string) {
     timestamp: now,
   });
 
-  log.debug("Recorded start event");
+  log.info("Recorded start event");
 }
 
 /**
@@ -143,7 +143,7 @@ export async function recordFinishEvent(playthroughId: string) {
     timestamp: now,
   });
 
-  log.debug("Recorded finish event");
+  log.info("Recorded finish event");
 }
 
 /**
@@ -160,7 +160,7 @@ export async function recordAbandonEvent(playthroughId: string) {
     timestamp: now,
   });
 
-  log.debug("Recorded abandon event");
+  log.info("Recorded abandon event");
 }
 
 /**
@@ -177,7 +177,7 @@ export async function recordResumeEvent(playthroughId: string) {
     timestamp: now,
   });
 
-  log.debug("Recorded resume event");
+  log.info("Recorded resume event");
 }
 
 // =============================================================================
@@ -328,7 +328,7 @@ async function flushPlayPauseEvent() {
     );
   });
 
-  log.debug(`Recorded ${eventType} event at position ${position.toFixed(1)}`);
+  log.info(`Recorded ${eventType} event at position ${position.toFixed(1)}`);
 
   if (finalState === PlayPauseType.PAUSE) {
     syncPlaythroughs(session);
@@ -411,7 +411,7 @@ async function flushRateChangeEvent() {
     await updateStateCache(playthroughId, position, newRate, timestamp, tx);
   });
 
-  log.debug(
+  log.info(
     `Recorded rate change from ${previousRate.toFixed(2)} to ${newRate.toFixed(2)}`,
   );
 }
@@ -491,5 +491,5 @@ async function flushSeekEvent() {
     await updateStateCache(playthroughId, to, playbackRate, timestamp, tx);
   });
 
-  log.debug(`Recorded seek event from ${from.toFixed(1)} to ${to.toFixed(1)}`);
+  log.info(`Recorded seek event from ${from.toFixed(1)} to ${to.toFixed(1)}`);
 }

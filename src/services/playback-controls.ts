@@ -12,11 +12,14 @@ import {
 import { useSession } from "@/stores/session";
 import { PlayPauseSource } from "@/stores/track-player";
 import { Session } from "@/types/session";
+import { logBase } from "@/utils/logger";
 import { subscribeToChange } from "@/utils/subscribe";
 
 import * as Operations from "./playthrough-operations";
 import * as Heartbeat from "./position-heartbeat";
 import * as Player from "./track-player-service";
+
+const log = logBase.extend("playback-controls");
 
 export type PlaythroughAction =
   | { type: "unloadPlaythrough" }
@@ -35,11 +38,11 @@ export type PlaythroughAction =
  */
 export async function initializePlayer(session: Session) {
   if (usePlayerUIState.getState().initialized) {
-    console.debug("[Controls] Player already initialized, skipping");
+    log.info("Player already initialized, skipping");
     return;
   }
 
-  console.debug("[Controls] Initializing player");
+  log.info("Initializing player");
 
   usePlayerUIState.setState({ initialized: true });
 
@@ -54,7 +57,7 @@ export async function continueExistingPlaythrough(
   session: Session,
   playthroughId: string,
 ) {
-  console.debug("[Controls] Continuing existing playthrough:", playthroughId);
+  log.info("Continuing existing playthrough:", playthroughId);
 
   await pauseIfPlaying();
   setLoadingNewMedia(true);
@@ -70,7 +73,7 @@ export async function continueExistingPlaythrough(
  * Start a fresh playthrough for media with no existing playthrough.
  */
 export async function startFreshPlaythrough(session: Session, mediaId: string) {
-  console.debug("[Controls] Starting fresh playthrough for media:", mediaId);
+  log.info("Starting fresh playthrough for media:", mediaId);
 
   await pauseIfPlaying();
   setLoadingNewMedia(true);
@@ -101,13 +104,8 @@ export async function reloadCurrentPlaythroughIfMedia(
 
   const { playing } = Player.isPlaying();
 
-  console.debug(
-    "[Controls] Reloading current playthrough for media:",
-    mediaId,
-    "playthroughId:",
-    loadedPlaythrough.id,
-    "wasPlaying:",
-    playing,
+  log.info(
+    `Reloading current playthrough for media: ${mediaId}, playthroughId: ${loadedPlaythrough.id}, wasPlaying: ${playing}`,
   );
 
   if (playing) {
@@ -129,7 +127,7 @@ export async function resumeAndLoadPlaythrough(
   session: Session,
   playthroughId: string,
 ) {
-  console.debug("[Controls] Resuming playthrough:", playthroughId);
+  log.info("Resuming playthrough:", playthroughId);
 
   await pauseIfPlaying();
   setLoadingNewMedia(true);
@@ -308,9 +306,9 @@ subscribeToChange(
   (s) => s.session,
   (session, prevSession) => {
     if (prevSession && !session) {
-      console.debug("[Controls] Session signed out, cleaning up player");
+      log.info("Session signed out, cleaning up player");
       forceUnloadPlayer().catch((error) => {
-        console.warn("[Controls] Error during session cleanup:", error);
+        log.warn("Error during session cleanup:", error);
       });
     }
   },

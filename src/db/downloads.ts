@@ -4,6 +4,9 @@ import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
 import { Session } from "@/types/session";
 import { requireValue } from "@/utils";
+import { logBase } from "@/utils/logger";
+
+const log = logBase.extend("db-downloads");
 
 /**
  * Retrieves all download records associated with the given session.
@@ -111,7 +114,7 @@ export async function updateDownload(
  * @returns A promise that resolves when the deletion is complete.
  */
 export async function deleteDownload(session: Session, mediaId: string) {
-  console.debug("[Downloads] Deleting download from database", mediaId);
+  log.debug("Deleting download from database", mediaId);
   await getDb()
     .delete(schema.downloads)
     .where(

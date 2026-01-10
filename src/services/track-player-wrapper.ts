@@ -22,27 +22,27 @@ const log = logBase.extend("track-player-wrapper");
 // =============================================================================
 
 export async function play() {
-  log.trace("play");
+  log.silly("play");
   return TrackPlayer.play();
 }
 
 export async function pause() {
-  log.trace("pause");
+  log.silly("pause");
   return TrackPlayer.pause();
 }
 
 export async function seekTo(position: number) {
-  log.trace(`seekTo ${position.toFixed(1)}`);
+  log.silly(`seekTo ${position.toFixed(1)}`);
   return TrackPlayer.seekTo(position);
 }
 
 export async function setRate(rate: number) {
-  log.trace(`setRate ${rate}`);
+  log.silly(`setRate ${rate}`);
   return TrackPlayer.setRate(rate);
 }
 
 export async function setVolume(volume: number) {
-  log.trace(`setVolume ${volume}`);
+  log.silly(`setVolume ${volume}`);
   return TrackPlayer.setVolume(volume);
 }
 
@@ -51,12 +51,12 @@ export async function setVolume(volume: number) {
 // =============================================================================
 
 export async function reset() {
-  log.trace("reset");
+  log.silly("reset");
   return TrackPlayer.reset();
 }
 
 export async function add(track: AddTrack) {
-  log.trace(`add ${track.title}`);
+  log.silly(`add ${track.title}`);
   return TrackPlayer.add(track);
 }
 
@@ -65,22 +65,22 @@ export async function add(track: AddTrack) {
 // =============================================================================
 
 export async function getProgress(): Promise<Progress> {
-  log.trace("getProgress");
+  log.silly("getProgress");
   return TrackPlayer.getProgress();
 }
 
 export async function getRate(): Promise<number> {
-  log.trace("getRate");
+  log.silly("getRate");
   return TrackPlayer.getRate();
 }
 
 export async function getPlaybackState(): Promise<PlaybackState> {
-  log.trace("getPlaybackState");
+  log.silly("getPlaybackState");
   return TrackPlayer.getPlaybackState();
 }
 
 export async function getPlayWhenReady(): Promise<boolean> {
-  log.trace("getPlayWhenReady");
+  log.silly("getPlayWhenReady");
   return TrackPlayer.getPlayWhenReady();
 }
 
@@ -92,7 +92,7 @@ export function addEventListener<T extends Event>(
   event: T,
   handler: Parameters<typeof TrackPlayer.addEventListener<T>>[1],
 ) {
-  log.trace(`addEventListener ${event}`);
+  log.silly(`addEventListener ${event}`);
   return TrackPlayer.addEventListener(event, handler);
 }
 
@@ -103,20 +103,20 @@ export function addEventListener<T extends Event>(
 export async function setupPlayer(
   options: Parameters<typeof TrackPlayer.setupPlayer>[0],
 ) {
-  log.trace("setupPlayer");
+  log.silly("setupPlayer");
   return TrackPlayer.setupPlayer(options);
 }
 
 export async function updateOptions(
   options: Parameters<typeof TrackPlayer.updateOptions>[0],
 ) {
-  log.trace("updateOptions");
+  log.silly("updateOptions");
   return TrackPlayer.updateOptions(options);
 }
 
 export function registerPlaybackService(
   factory: () => () => Promise<void>,
 ): void {
-  log.trace("registerPlaybackService");
+  log.silly("registerPlaybackService");
   TrackPlayer.registerPlaybackService(factory);
 }

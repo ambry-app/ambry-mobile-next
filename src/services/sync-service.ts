@@ -29,8 +29,11 @@ import { getDeviceInfo } from "@/stores/device";
 import { clearSession, useSession } from "@/stores/session";
 import { DeviceInfo } from "@/types/device-info";
 import { Session } from "@/types/session";
+import { logBase } from "@/utils/logger";
 
 import { performWalCheckpoint } from "./db-service";
+
+const log = logBase.extend("sync-service");
 
 // =============================================================================
 // Error Logging
@@ -39,14 +42,14 @@ import { performWalCheckpoint } from "./db-service";
 function logGQLError(error: ExecuteAuthenticatedError, context: string) {
   switch (error.code) {
     case ExecuteAuthenticatedErrorCode.UNAUTHORIZED:
-      console.warn(`[${context}] unauthorized, signing out...`);
+      log.warn(`${context} unauthorized, signing out...`);
       break;
     case ExecuteAuthenticatedErrorCode.NETWORK_ERROR:
-      console.error(`[${context}] network error, we'll try again later`);
+      log.error(`${context} network error, we'll try again later`);
       break;
     case ExecuteAuthenticatedErrorCode.SERVER_ERROR:
     case ExecuteAuthenticatedErrorCode.GQL_ERROR:
-      console.error(`[${context}] server error, we'll try again later`);
+      log.error(`${context} server error, we'll try again later`);
       break;
   }
 }
@@ -56,7 +59,7 @@ function logGQLError(error: ExecuteAuthenticatedError, context: string) {
 // =============================================================================
 
 export async function syncLibrary(session: Session): Promise<void> {
-  console.debug("[SyncLibrary] syncing library...");
+  log.debug("Syncing library");
 
   // 1. Get last sync info from DB
   const syncInfo = await getLastLibrarySyncInfo(session);
@@ -65,7 +68,7 @@ export async function syncLibrary(session: Session): Promise<void> {
   const result = await getLibraryChangesSince(session, syncInfo.lastSyncTime);
 
   if (!result.success) {
-    logGQLError(result.error, "[SyncLibrary]");
+    logGQLError(result.error, "syncLibrary:");
 
     if (result.error.code === ExecuteAuthenticatedErrorCode.UNAUTHORIZED) {
       clearSession();
@@ -76,7 +79,7 @@ export async function syncLibrary(session: Session): Promise<void> {
   const changes = result.result;
 
   if (!changes) {
-    console.debug("[SyncLibrary] no changes to apply");
+    log.info("No library changes to apply");
     return;
   }
 
@@ -92,7 +95,7 @@ export async function syncLibrary(session: Session): Promise<void> {
     setLibraryDataVersion(newDataAsOf);
   }
 
-  console.debug("[SyncLibrary] library sync complete");
+  log.debug("Library sync complete");
 }
 
 // =============================================================================
@@ -126,7 +129,7 @@ export async function syncPlaythroughs(
   session: Session,
   deviceInfoOverride?: DeviceInfo,
 ): Promise<void> {
-  console.debug("[SyncPlaythroughs] starting...");
+  log.debug("Syncing playthroughs");
 
   // 1. Get unsynced data from DB
   const deviceInfo = deviceInfoOverride ?? (await getDeviceInfo());
@@ -169,7 +172,7 @@ export async function syncPlaythroughs(
   const result = await syncProgress(session, input);
 
   if (!result.success) {
-    logGQLError(result.error, "[SyncPlaythroughs]");
+    logGQLError(result.error, "syncPlaythroughs:");
     if (result.error.code === ExecuteAuthenticatedErrorCode.UNAUTHORIZED) {
       clearSession();
     }
@@ -178,7 +181,7 @@ export async function syncPlaythroughs(
 
   const syncResult = result.result.syncProgress;
   if (!syncResult) {
-    console.debug("[SyncPlaythroughs] no sync result returned");
+    log.info("No playthrough sync result returned");
     return;
   }
 
@@ -193,7 +196,7 @@ export async function syncPlaythroughs(
   // 5. Notify UI that playthrough data changed
   bumpPlaythroughDataVersion();
 
-  console.debug("[SyncPlaythroughs] playthrough sync complete");
+  log.debug("Playthroughs sync complete");
   return;
 }
 
@@ -220,30 +223,30 @@ export function useForegroundSync(appState: AppStateStatus) {
 
     const performSync = async () => {
       if (!session) {
-        console.debug("[ForegroundSync] No session available, skipping sync");
+        log.debug("ForegroundSync: No session available, skipping sync");
         return;
       }
 
       try {
         await sync(session);
 
-        console.debug("[ForegroundSync] performing WAL checkpoint");
+        log.debug("ForegroundSync: performing WAL checkpoint");
         performWalCheckpoint();
 
-        console.debug("[ForegroundSync] completed successfully");
+        log.info("ForegroundSync: completed successfully");
       } catch (error) {
-        console.error("[ForegroundSync] failed:", error);
+        log.error("ForegroundSync: failed:", error);
       }
     };
 
     if (session && appState === "active") {
-      console.debug("[ForegroundSync] starting periodic sync");
+      log.debug("ForegroundSync: starting periodic sync");
       intervalId = setInterval(performSync, FOREGROUND_SYNC_INTERVAL);
     }
 
     return () => {
       if (intervalId) {
-        console.debug("[ForegroundSync] clearing periodic sync");
+        log.debug("ForegroundSync: clearing periodic sync");
         clearInterval(intervalId);
       }
     };
@@ -261,7 +264,7 @@ export function usePullToRefresh(session: Session) {
     try {
       await sync(session);
     } catch (error) {
-      console.error("[Pull-to-refresh] sync error:", error);
+      log.error("Pull-to-refresh sync error:", error);
     } finally {
       setRefreshing(false);
     }

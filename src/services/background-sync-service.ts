@@ -3,30 +3,33 @@ import * as TaskManager from "expo-task-manager";
 
 import { getExpoDb } from "@/db/db";
 import { useSession } from "@/stores/session";
+import { logBase } from "@/utils/logger";
 
 import { sync } from "./sync-service";
+
+const log = logBase.extend("background-sync");
 
 const BACKGROUND_SYNC_TASK_NAME = "ambry-background-sync";
 
 TaskManager.defineTask(BACKGROUND_SYNC_TASK_NAME, async () => {
-  console.debug("[BackgroundSync] started");
+  log.info("started");
 
   const session = useSession.getState().session;
   if (!session) {
-    console.debug("[BackgroundSync] No session available, skipping sync");
+    log.info("No session available, skipping sync");
     return BackgroundTask.BackgroundTaskResult.Success;
   }
 
   try {
     await sync(session);
 
-    console.debug("[BackgroundSync] performing WAL checkpoint");
+    log.info("performing WAL checkpoint");
     getExpoDb().execSync("PRAGMA wal_checkpoint(PASSIVE);");
 
-    console.debug("[BackgroundSync] completed successfully");
+    log.info("completed successfully");
     return BackgroundTask.BackgroundTaskResult.Success;
   } catch (error) {
-    console.error("[BackgroundSync] failed:", error);
+    log.error("failed:", error);
     return BackgroundTask.BackgroundTaskResult.Failed;
   }
 });
@@ -41,20 +44,20 @@ export async function registerBackgroundSyncTask() {
       await BackgroundTask.registerTaskAsync(BACKGROUND_SYNC_TASK_NAME, {
         minimumInterval: 15,
       });
-      console.debug("[BackgroundSync] registered");
+      log.info("registered");
     } else {
-      console.debug("[BackgroundSync] already registered");
+      log.info("already registered");
     }
   } catch (error) {
-    console.error("[BackgroundSync] failed to register:", error);
+    log.error("failed to register:", error);
   }
 }
 
 export async function unregisterBackgroundSyncTask() {
   try {
     await BackgroundTask.unregisterTaskAsync(BACKGROUND_SYNC_TASK_NAME);
-    console.debug("[BackgroundSync] unregistered");
+    log.info("unregistered");
   } catch (error) {
-    console.error("[BackgroundSync] failed to unregister:", error);
+    log.error("failed to unregister:", error);
   }
 }

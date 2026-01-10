@@ -8,6 +8,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, AppStateStatus, BackHandler } from "react-native";
 import { router } from "expo-router";
 
+import { logBase } from "@/utils/logger";
+
+const log = logBase.extend("app-state");
+
 // =============================================================================
 // useDebounce
 // =============================================================================
@@ -63,7 +67,7 @@ export function useAppState() {
 
   useEffect(() => {
     const onChange = async (newAppState: AppStateStatus) => {
-      console.debug("[AppState] changed to", newAppState);
+      log.debug("Changed to", newAppState);
       setAppState(newAppState);
     };
 

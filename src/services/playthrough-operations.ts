@@ -27,10 +27,13 @@ import {
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
 import { useSession } from "@/stores/session";
 import { Session } from "@/types/session";
+import { logBase } from "@/utils/logger";
 
 import * as EventRecording from "./event-recording";
 import { syncPlaythroughs } from "./sync-service";
 import * as Player from "./track-player-service";
+
+const log = logBase.extend("playthrough-ops");
 
 // =============================================================================
 // Starting Operations
@@ -133,11 +136,11 @@ export async function finishPlaythrough(
 ): Promise<void> {
   const resolvedSession = session ?? useSession.getState().session;
   if (!resolvedSession) {
-    console.warn("[Operations] No session, cannot finish playthrough");
+    log.warn("No session, cannot finish playthrough");
     return;
   }
 
-  console.debug("[Operations] Finishing playthrough:", playthroughId);
+  log.info("Finishing playthrough:", playthroughId);
 
   // Record the finish lifecycle event
   await EventRecording.recordFinishEvent(playthroughId);
@@ -176,11 +179,11 @@ export async function abandonPlaythrough(
 ): Promise<void> {
   const resolvedSession = session ?? useSession.getState().session;
   if (!resolvedSession) {
-    console.warn("[Operations] No session, cannot abandon playthrough");
+    log.warn("No session, cannot abandon playthrough");
     return;
   }
 
-  console.debug("[Operations] Abandoning playthrough:", playthroughId);
+  log.info("Abandoning playthrough:", playthroughId);
 
   // Record the abandon lifecycle event
   await EventRecording.recordAbandonEvent(playthroughId);
@@ -215,7 +218,7 @@ export async function deletePlaythrough(
   session: Session,
   playthroughId: string,
 ): Promise<void> {
-  console.debug("[Operations] Deleting playthrough:", playthroughId);
+  log.info("Deleting playthrough:", playthroughId);
 
   // Delete from database
   await deletePlaythroughDb(session, playthroughId);
@@ -248,7 +251,7 @@ export async function loadActivePlaythroughIntoPlayer(
   const storedPlaythroughId = await getActivePlaythroughIdForDevice(session);
 
   if (!storedPlaythroughId) {
-    console.debug("[Operations] No active playthrough stored for this device");
+    log.info("No active playthrough stored for this device");
     return;
   }
 
@@ -259,21 +262,15 @@ export async function loadActivePlaythroughIntoPlayer(
   );
 
   if (playthrough.status !== "in_progress") {
-    console.debug(
-      "[Operations] Stored playthrough is not in_progress (status:",
-      playthrough.status,
-      "), clearing:",
-      storedPlaythroughId,
+    log.debug(
+      `Stored playthrough is not in_progress (status: ${playthrough.status}), clearing: ${storedPlaythroughId}`,
     );
     await clearActivePlaythroughIdForDevice(session);
     return;
   }
 
-  console.debug(
-    "[Operations] Loading stored active playthrough:",
-    playthrough.id,
-    "mediaId:",
-    playthrough.media.id,
+  log.info(
+    `Loading stored active playthrough: ${playthrough.id}, mediaId: ${playthrough.media.id}`,
   );
 
   await Player.loadPlaythroughIntoPlayer(session, playthrough);
@@ -291,7 +288,7 @@ export async function reloadPlaythroughById(
   session: Session,
   playthroughId: string,
 ): Promise<void> {
-  console.debug("[Operations] Reloading playthrough by ID:", playthroughId);
+  log.info("Reloading playthrough by ID:", playthroughId);
 
   const playthrough = await getPlaythroughWithMedia(session, playthroughId);
 

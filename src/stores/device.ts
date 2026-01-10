@@ -5,6 +5,9 @@ import { create } from "zustand";
 
 import { DeviceInfo } from "@/types/device-info";
 import { randomUUID } from "@/utils/crypto";
+import { logBase } from "@/utils/logger";
+
+const log = logBase.extend("device");
 
 const DEVICE_ID_KEY = "Ambry_deviceId";
 
@@ -27,11 +30,11 @@ export const useDevice = create<DeviceState>(() => initialDeviceState);
  */
 export async function initializeDevice() {
   if (useDevice.getState().initialized) {
-    console.debug("[Device] Already initialized, skipping");
+    log.debug("Already initialized, skipping");
     return;
   }
 
-  console.debug("[Device] Initializing");
+  log.debug("Initializing");
 
   // Get or create device ID
   let deviceId = await SecureStore.getItemAsync(DEVICE_ID_KEY);
@@ -39,9 +42,9 @@ export async function initializeDevice() {
   if (!deviceId) {
     deviceId = randomUUID();
     await SecureStore.setItemAsync(DEVICE_ID_KEY, deviceId);
-    console.debug("[Device] Generated new device ID:", deviceId);
+    log.debug("Generated new device ID:", deviceId);
   } else {
-    console.debug("[Device] Retrieved existing device ID:", deviceId);
+    log.debug("Retrieved existing device ID:", deviceId);
   }
 
   const deviceInfo: DeviceInfo = {

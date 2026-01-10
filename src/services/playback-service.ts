@@ -6,156 +6,155 @@ import * as TrackPlayer from "@/services/track-player-wrapper";
 import { initializeDevice } from "@/stores/device";
 import { PlayPauseSource, SeekSource } from "@/stores/track-player";
 import { Event } from "@/types/track-player";
+import { logBase } from "@/utils/logger";
+
+const log = logBase.extend("playback-service");
 
 export const PlaybackService = async function () {
-  console.debug("[TrackPlayer Service] Initializing");
+  log.info("Initializing");
 
   // TrackPlayer Events
 
   // TrackPlayer.addEventListener(Event.AndroidConnectorConnected, (args) => {
-  //   console.debug("[TrackPlayer Service] AndroidConnectorConnected", args);
+  //   log.debug("AndroidConnectorConnected", args);
   // });
 
   // TrackPlayer.addEventListener(Event.AndroidConnectorDisconnected, (args) => {
-  //   console.debug("[TrackPlayer Service] AndroidConnectorDisconnected", args);
+  //   log.debug("AndroidConnectorDisconnected", args);
   // });
 
   // TrackPlayer.addEventListener(Event.MetadataChapterReceived, (args) => {
-  //   console.debug("[TrackPlayer Service] MetadataChapterReceived", args);
+  //   log.debug("MetadataChapterReceived", args);
   // });
 
   // TrackPlayer.addEventListener(Event.MetadataCommonReceived, (args) => {
-  //   console.debug("[TrackPlayer Service] MetadataCommonReceived", args);
+  //   log.debug("MetadataCommonReceived", args);
   // });
 
   // TrackPlayer.addEventListener(Event.MetadataTimedReceived, (args) => {
-  //   console.debug("[TrackPlayer Service] MetadataTimedReceived", args);
+  //   log.debug("MetadataTimedReceived", args);
   // });
 
   // TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (args) => {
-  //   console.debug("[TrackPlayer Service] PlaybackActiveTrackChanged", args);
+  //   log.debug("PlaybackActiveTrackChanged", args);
   // });
 
   // TrackPlayer.addEventListener(Event.PlaybackError, (args) => {
-  //   console.debug("[TrackPlayer Service] PlaybackError", args);
+  //   log.debug("PlaybackError", args);
   // });
 
   // TrackPlayer.addEventListener(Event.PlaybackPlayWhenReadyChanged, (args) => {
-  //   console.debug("[TrackPlayer Service] PlaybackPlayWhenReadyChanged", args);
+  //   log.debug("PlaybackPlayWhenReadyChanged", args);
   // });
 
   // TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (args) => {
-  //   console.debug("[TrackPlayer Service] PlaybackProgressUpdated", args);
+  //   log.debug("PlaybackProgressUpdated", args);
   // });
 
   TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async () => {
-    console.debug("[TrackPlayer Service] PlaybackQueueEnded");
+    log.debug("PlaybackQueueEnded");
 
     const loadedPlaythrough = Player.getLoadedPlaythrough();
 
     if (!loadedPlaythrough) {
-      console.warn(
-        "[PlaybackService] No loaded playthrough when handling queue end",
-      );
+      log.warn("No loaded playthrough when handling queue end");
       return;
     }
 
     // Auto-finish the playthrough
-    console.debug(
-      "[PlaybackService] Playback ended, auto-finishing playthrough",
-    );
+    log.info("Playback ended, auto-finishing playthrough");
     await Operations.finishPlaythrough(null, loadedPlaythrough.id);
   });
 
   // TrackPlayer.addEventListener(Event.PlaybackResume, (args) => {
-  //   console.debug("[TrackPlayer Service] PlaybackResume", args);
+  //   log.debug("PlaybackResume", args);
   // });
 
   // TrackPlayer.addEventListener(Event.PlaybackState, (args) => {
-  //   console.debug("[TrackPlayer Service] PlaybackState", args);
+  //   log.debug("PlaybackState", args);
   // });
 
   // TrackPlayer.addEventListener(Event.PlayerError, (args) => {
-  //   console.debug("[TrackPlayer Service] PlayerError", args);
+  //   log.debug("PlayerError", args);
   // });
 
   // TrackPlayer.addEventListener(Event.RemoteBookmark, () => {
-  //   console.debug("[TrackPlayer Service] RemoteBookmark");
+  //   log.debug("RemoteBookmark");
   // });
 
   // TrackPlayer.addEventListener(Event.RemoteDislike, () => {
-  //   console.debug("[TrackPlayer Service] RemoteDislike");
+  //   log.debug("RemoteDislike");
   // });
 
   // FIXME: this event doesn't seem to work on Android
   TrackPlayer.addEventListener(Event.RemoteDuck, (args) => {
-    console.debug("[TrackPlayer Service] RemoteDuck", args);
+    log.debug("RemoteDuck", args);
   });
 
   TrackPlayer.addEventListener(Event.RemoteJumpBackward, async (args) => {
-    console.debug("[TrackPlayer Service] RemoteJumpBackward", args);
+    log.debug("RemoteJumpBackward", args);
     const { interval } = args;
 
     seekRelative(-interval, SeekSource.REMOTE);
   });
 
   TrackPlayer.addEventListener(Event.RemoteJumpForward, async (args) => {
-    console.debug("[TrackPlayer Service] RemoteJumpForward", args);
+    log.debug("RemoteJumpForward", args);
     const { interval } = args;
 
     seekRelative(interval, SeekSource.REMOTE);
   });
 
   // TrackPlayer.addEventListener(Event.RemoteLike, () => {
-  //   console.debug("[TrackPlayer Service] RemoteLike");
+  //   log.debug("RemoteLike");
   // });
 
   // TrackPlayer.addEventListener(Event.RemoteNext, () => {
-  //   console.debug("[TrackPlayer Service] RemoteNext");
+  //   log.debug("RemoteNext");
   // });
 
   TrackPlayer.addEventListener(Event.RemotePause, async () => {
-    console.debug("[TrackPlayer Service] RemotePause");
+    log.debug("RemotePause");
 
     await Player.pause(PlayPauseSource.REMOTE, PAUSE_REWIND_SECONDS);
   });
 
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
-    console.debug("[TrackPlayer Service] RemotePlay");
+    log.debug("RemotePlay");
 
     await Player.play(PlayPauseSource.REMOTE);
   });
 
   // TrackPlayer.addEventListener(Event.RemotePlayId, (args) => {
-  //   console.debug("[TrackPlayer Service] RemotePlayId", args);
+  //   log.debug("RemotePlayId", args);
   // });
 
   // TrackPlayer.addEventListener(Event.RemotePlayPause, () => {
-  //   console.debug("[TrackPlayer Service] RemotePlayPause");
+  //   log.debug("RemotePlayPause");
   // });
 
   // TrackPlayer.addEventListener(Event.RemotePlaySearch, (args) => {
-  //   console.debug("[TrackPlayer Service] RemotePlaySearch", args);
+  //   log.debug("RemotePlaySearch", args);
   // });
 
   // TrackPlayer.addEventListener(Event.RemotePrevious, () => {
-  //   console.debug("[TrackPlayer Service] RemotePrevious");
+  //   log.debug("RemotePrevious");
   // });
 
   // TrackPlayer.addEventListener(Event.RemoteSeek, (args) => {
-  //   console.debug("[TrackPlayer Service] RemoteSeek", args);
+  //   log.debug("RemoteSeek", args);
   // });
 
   // TrackPlayer.addEventListener(Event.RemoteSetRating, (args) => {
-  //   console.debug("[TrackPlayer Service] RemoteSetRating", args);
+  //   log.debug("RemoteSetRating", args);
   // });
 
   // TrackPlayer.addEventListener(Event.RemoteSkip, (args) => {
-  //   console.debug("[TrackPlayer Service] RemoteSkip", args);
+  //   log.debug("RemoteSkip", args);
   // });
 
   // TrackPlayer.addEventListener(Event.RemoteStop, () => {
-  //   console.debug("[TrackPlayer Service] RemoteStop");
+  //   log.debug("RemoteStop");
   // });
 
   // Initialize services

@@ -246,7 +246,7 @@ export function getLoadedPlaythrough() {
  * `getAccurateProgress` instead.
  */
 export function getProgress() {
-  log.trace("getProgress");
+  log.silly("getProgress");
   const { progress } = useTrackPlayer.getState();
   return progress;
 }
@@ -257,7 +257,7 @@ export function getProgress() {
  * This bypasses the store to ensure we get the most up-to-date progress.
  */
 export async function getAccurateProgress() {
-  log.trace("getAccurateProgress");
+  log.silly("getAccurateProgress");
   return getProgressWithPercent();
 }
 
@@ -306,7 +306,7 @@ export async function loadPlaythroughIntoPlayer(
   session: Session,
   playthrough: PlaythroughWithMedia,
 ): Promise<void> {
-  log.debug(`Loading playthrough into player ${playthrough.id}`);
+  log.info(`Loading playthrough into player ${playthrough.id}`);
 
   awaitingIsPlayingMatch = null;
 
@@ -811,7 +811,7 @@ type EmitPlayPauseParams = {
  */
 function emitPlayPauseEvent(params: EmitPlayPauseParams) {
   log.info(
-    `Emitting play/pause event: ${params.direction} at ${params.position.toFixed(3)} (source: ${params.source})`,
+    `${params.direction} at ${params.position.toFixed(3)} (source: ${params.source})`,
   );
 
   useTrackPlayer.setState({
@@ -829,5 +829,5 @@ function emitPlayPauseEvent(params: EmitPlayPauseParams) {
 
 // Debug: Log state changes
 useTrackPlayer.subscribe((state) => {
-  log.trace(`State changed: ${JSON.stringify(state, null, 2)}`);
+  log.silly(`State changed: ${JSON.stringify(state, null, 2)}`);
 });

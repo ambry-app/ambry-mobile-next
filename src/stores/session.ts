@@ -3,6 +3,9 @@ import { create } from "zustand";
 import { createJSONStorage, persist, StateStorage } from "zustand/middleware";
 
 import { Session } from "@/types/session";
+import { logBase } from "@/utils/logger";
+
+const log = logBase.extend("session");
 
 const AUTH_STORAGE_KEY = "Ambry_userSessionV2";
 
@@ -46,6 +49,6 @@ export const useSession = create<SessionState>()(
  * with the current token, meaning we've been signed out server-side.
  */
 export function clearSession() {
-  console.debug("[Session] Clearing session");
+  log.info("Clearing session");
   useSession.setState({ session: null });
 }

@@ -122,5 +122,5 @@ async function save(): Promise<void> {
 
   await updateStateCache(currentPlaythroughId, position, currentPlaybackRate);
 
-  log.debug(`Saved position: ${position.toFixed(1)}`);
+  log.info(`Saved position: ${position.toFixed(1)}`);
 }

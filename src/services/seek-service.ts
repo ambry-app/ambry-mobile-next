@@ -10,8 +10,11 @@
 import { SEEK_ACCUMULATION_WINDOW } from "@/constants";
 import { clearSeekingState, setSeekingState } from "@/stores/seek-ui-state";
 import { SeekSourceType } from "@/stores/track-player";
+import { logBase } from "@/utils/logger";
 
 import * as Player from "./track-player-service";
+
+const log = logBase.extend("seek-service");
 
 let seekTimer: NodeJS.Timeout | null = null;
 
@@ -118,7 +121,7 @@ async function applyAccumulatedSeek(source: SeekSourceType) {
   const { duration } = Player.getProgress();
   const positionToApply = Math.max(0, Math.min(targetPosition, duration));
 
-  console.debug("[Seek] Applying seek to", positionToApply.toFixed(1));
+  log.debug(`Applying seek to ${positionToApply.toFixed(1)}`);
 
   await Player.seekTo(positionToApply, source);
 

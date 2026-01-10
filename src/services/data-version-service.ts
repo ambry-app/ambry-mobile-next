@@ -5,6 +5,9 @@ import { getServerSyncTimestamps } from "@/db/sync-helpers";
 import { setLibraryDataVersion, useDataVersion } from "@/stores/data-version";
 import { useSession } from "@/stores/session";
 import { Session } from "@/types/session";
+import { logBase } from "@/utils/logger";
+
+const log = logBase.extend("data-version");
 
 /**
  * Gets the library data version (last sync timestamp) for a session.
@@ -26,11 +29,11 @@ export async function initializeDataVersion(
   session: Session,
 ): Promise<{ needsInitialSync: boolean }> {
   if (useDataVersion.getState().initialized) {
-    console.debug("[DataVersion] Already initialized, skipping");
+    log.debug("Already initialized, skipping");
     return { needsInitialSync: false }; // Already synced if we're initialized
   }
 
-  console.debug("[DataVersion] Initializing");
+  log.debug("Initializing");
 
   const { lastSyncTime, libraryDataVersion } =
     await getServerSyncTimestamps(session);
@@ -57,7 +60,7 @@ export function useRefreshLibraryDataVersion(appState: AppStateStatus) {
   useEffect(() => {
     const run = async () => {
       if (session && appState === "active") {
-        console.debug("[AppState] reloading library data version");
+        log.debug("Reloading library data version on app state change");
         const libraryDataVersion = await getLibraryDataVersion(session);
         if (libraryDataVersion) setLibraryDataVersion(libraryDataVersion);
       }

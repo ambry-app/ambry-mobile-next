@@ -1,7 +1,10 @@
 import { SeekSource } from "@/stores/track-player";
+import { logBase } from "@/utils/logger";
 
 import { seekTo } from "./seek-service";
 import * as Player from "./track-player-service";
+
+const log = logBase.extend("chapter-service");
 
 /**
  * Skip to the end of the current chapter. If it's the last chapter, it will
@@ -15,6 +18,7 @@ export function skipToEndOfChapter() {
   const { duration } = Player.getProgress();
   const newPosition = currentChapter.endTime ?? duration;
 
+  log.info(`Skipping to end of chapter: ${newPosition.toFixed(1)}`);
   return seekTo(newPosition, SeekSource.CHAPTER);
 }
 
@@ -41,5 +45,6 @@ export function skipToBeginningOfChapter() {
     ? (previousChapter?.startTime ?? 0)
     : currentChapter.startTime;
 
+  log.info(`Skipping to beginning of chapter: ${newPosition.toFixed(1)}`);
   return seekTo(newPosition, SeekSource.CHAPTER);
 }

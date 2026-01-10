@@ -11,6 +11,9 @@ import * as schema from "@/db/schema";
 import { Thumbnails } from "@/db/schema";
 import { Session } from "@/types/session";
 import { groupBy } from "@/utils/group-by";
+import { logBase } from "@/utils/logger";
+
+const log = logBase.extend("db-sync");
 
 // =============================================================================
 // Library Sync - DB Operations
@@ -166,7 +169,7 @@ export async function applyLibraryChanges(
   changes: LibraryChangesInput,
   previousSyncInfo: LibrarySyncInfo,
 ): Promise<ApplyLibraryChangesResult> {
-  console.debug("[SyncLibrary] applying library changes...");
+  log.info("applying library changes...");
 
   const peopleValues = changes.peopleChangedSince.map((person) => {
     return {
@@ -326,7 +329,7 @@ export async function applyLibraryChanges(
 
   await getDb().transaction(async (tx) => {
     if (peopleValues.length !== 0) {
-      console.debug("[SyncDown] inserting", peopleValues.length, "people...");
+      log.debug("inserting", peopleValues.length, "people...");
       await tx
         .insert(schema.people)
         .values(peopleValues)
@@ -339,11 +342,11 @@ export async function applyLibraryChanges(
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[SyncDown] people inserted");
+      log.debug("people inserted");
     }
 
     if (authorValues.length !== 0) {
-      console.debug("[SyncDown] inserting", authorValues.length, "authors...");
+      log.debug("inserting", authorValues.length, "authors...");
       await tx
         .insert(schema.authors)
         .values(authorValues)
@@ -354,15 +357,11 @@ export async function applyLibraryChanges(
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[SyncDown] authors inserted");
+      log.debug("authors inserted");
     }
 
     if (narratorValues.length !== 0) {
-      console.debug(
-        "[SyncDown] inserting",
-        narratorValues.length,
-        "narrators...",
-      );
+      log.debug(`inserting ${narratorValues.length} narrators...`);
       await tx
         .insert(schema.narrators)
         .values(narratorValues)
@@ -373,11 +372,11 @@ export async function applyLibraryChanges(
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[SyncDown] narrators inserted");
+      log.debug("narrators inserted");
     }
 
     if (booksValues.length !== 0) {
-      console.debug("[SyncDown] inserting", booksValues.length, "books...");
+      log.debug("inserting", booksValues.length, "books...");
       await tx
         .insert(schema.books)
         .values(booksValues)
@@ -390,15 +389,11 @@ export async function applyLibraryChanges(
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[SyncDown] books inserted");
+      log.debug("books inserted");
     }
 
     if (bookAuthorsValues.length !== 0) {
-      console.debug(
-        "[SyncDown] inserting",
-        bookAuthorsValues.length,
-        "book authors...",
-      );
+      log.debug(`inserting ${bookAuthorsValues.length} book authors...`);
       await tx
         .insert(schema.bookAuthors)
         .values(bookAuthorsValues)
@@ -408,11 +403,11 @@ export async function applyLibraryChanges(
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[SyncDown] book authors inserted");
+      log.debug("book authors inserted");
     }
 
     if (seriesValues.length !== 0) {
-      console.debug("[SyncDown] inserting", seriesValues.length, "series...");
+      log.debug("inserting", seriesValues.length, "series...");
       await tx
         .insert(schema.series)
         .values(seriesValues)
@@ -423,15 +418,11 @@ export async function applyLibraryChanges(
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[SyncDown] series inserted");
+      log.debug("series inserted");
     }
 
     if (seriesBooksValues.length !== 0) {
-      console.debug(
-        "[SyncDown] inserting",
-        seriesBooksValues.length,
-        "series books...",
-      );
+      log.debug(`inserting ${seriesBooksValues.length} series books...`);
       await tx
         .insert(schema.seriesBooks)
         .values(seriesBooksValues)
@@ -442,11 +433,11 @@ export async function applyLibraryChanges(
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[SyncDown] series books inserted");
+      log.debug("series books inserted");
     }
 
     if (mediaValues.length !== 0) {
-      console.debug("[SyncDown] inserting", mediaValues.length, "media...");
+      log.debug("inserting", mediaValues.length, "media...");
       await tx
         .insert(schema.media)
         .values(mediaValues)
@@ -472,15 +463,11 @@ export async function applyLibraryChanges(
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[SyncDown] media inserted");
+      log.debug("media inserted");
     }
 
     if (mediaNarratorsValues.length !== 0) {
-      console.debug(
-        "[SyncDown] inserting",
-        mediaNarratorsValues.length,
-        "media narrators...",
-      );
+      log.debug(`inserting ${mediaNarratorsValues.length} media narrators...`);
       await tx
         .insert(schema.mediaNarrators)
         .values(mediaNarratorsValues)
@@ -490,20 +477,18 @@ export async function applyLibraryChanges(
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[SyncDown] media narrators inserted");
+      log.debug("media narrators inserted");
     }
 
     for (const [deletionType, table] of Object.entries(deletionsTables)) {
       if (deletionIds[deletionType]) {
-        console.debug(
-          "[SyncDown] deleting",
-          deletionIds[deletionType].length,
-          deletionType,
+        log.debug(
+          `deleting ${deletionIds[deletionType].length} ${deletionType}`,
         );
         await tx
           .delete(table)
           .where(inArray(table.id, deletionIds[deletionType]));
-        console.debug("[SyncDown] deleted", deletionType);
+        log.debug(`deleted ${deletionType}`);
       }
     }
 
@@ -523,7 +508,7 @@ export async function applyLibraryChanges(
       });
   });
 
-  console.debug("[SyncLibrary] library changes applied");
+  log.info("library changes applied");
   return { newDataAsOf };
 }
 
@@ -572,12 +557,8 @@ export async function getPlaythroughSyncData(
     ),
   });
 
-  console.debug(
-    "[SyncPlaythroughs] found",
-    unsyncedPlaythroughs.length,
-    "unsynced playthroughs,",
-    unsyncedEvents.length,
-    "unsynced events",
+  log.debug(
+    `found ${unsyncedPlaythroughs.length} unsynced playthroughs, ${unsyncedEvents.length} unsynced events`,
   );
 
   return {
@@ -759,11 +740,7 @@ export async function applyPlaythroughSyncResult(
       });
   });
 
-  console.debug(
-    "[SyncPlaythroughs] complete - received",
-    syncResult.playthroughs.length,
-    "playthroughs,",
-    syncResult.events.length,
-    "events",
+  log.info(
+    `Playthrough sync applied - received ${syncResult.playthroughs.length} playthroughs, ${syncResult.events.length} events`,
   );
 }

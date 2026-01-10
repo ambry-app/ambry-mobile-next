@@ -24,6 +24,9 @@ import { seekTo } from "@/services/seek-service";
 import * as Player from "@/services/track-player-service";
 import { SeekSource, useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";
+import { logBase } from "@/utils/logger";
+
+const log = logBase.extend("scrubber");
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
@@ -193,7 +196,7 @@ export const Scrubber = memo(function Scrubber({
           translateX.value = timeToTranslateX(position);
         });
       } catch (e) {
-        console.warn("[Scrubber] Error snapping to playthrough position:", e);
+        log.warn("Error snapping to playthrough position:", e);
       }
     };
 
@@ -418,10 +421,7 @@ export const Scrubber = memo(function Scrubber({
         });
       } catch (e) {
         // Player might not be ready, ignore
-        console.warn(
-          "[Scrubber] Error getting progress for seek animation:",
-          e,
-        );
+        log.warn("Error getting progress for seek animation:", e);
       }
     };
 
@@ -451,10 +451,8 @@ export const Scrubber = memo(function Scrubber({
 
         // Snap if drifted more than 500ms
         if (drift > 0.5) {
-          console.debug(
-            `[Scrubber] drift detected: ${drift.toFixed(
-              2,
-            )}s, correcting animation position.`,
+          log.debug(
+            `Drift detected: ${drift.toFixed(2)}s, correcting animation position.`,
           );
           translateX.value = timeToTranslateX(position);
         }
