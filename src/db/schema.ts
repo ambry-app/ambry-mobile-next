@@ -427,13 +427,13 @@ export const playthroughs = sqliteTable(
     })
       .notNull()
       .default("in_progress"),
-    startedAt: integer("started_at", { mode: "timestamp" }).notNull(),
-    finishedAt: integer("finished_at", { mode: "timestamp" }),
-    abandonedAt: integer("abandoned_at", { mode: "timestamp" }),
-    deletedAt: integer("deleted_at", { mode: "timestamp" }),
-    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
-    syncedAt: integer("synced_at", { mode: "timestamp" }),
+    startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull(),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+    abandonedAt: integer("abandoned_at", { mode: "timestamp_ms" }),
+    deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+    syncedAt: integer("synced_at", { mode: "timestamp_ms" }),
   },
   (table) => [
     primaryKey({ columns: [table.url, table.id] }),
@@ -484,7 +484,7 @@ export const playbackEvents = sqliteTable(
         "resume",
       ],
     }).notNull(),
-    timestamp: integer("timestamp", { mode: "timestamp" }).notNull(),
+    timestamp: integer("timestamp", { mode: "timestamp_ms" }).notNull(),
     // position/playbackRate required for playback events, null for lifecycle events
     position: real("position"),
     playbackRate: real("playback_rate"),
@@ -493,7 +493,7 @@ export const playbackEvents = sqliteTable(
     toPosition: real("to_position"),
     // rate_change only
     previousRate: real("previous_rate"),
-    syncedAt: integer("synced_at", { mode: "timestamp" }),
+    syncedAt: integer("synced_at", { mode: "timestamp_ms" }),
   },
   (table) => [
     index("playback_events_playthrough_timestamp_idx").on(
@@ -516,9 +516,9 @@ export const playthroughStateCache = sqliteTable("playthrough_state_cache", {
   playthroughId: text("playthrough_id").primaryKey(),
   currentPosition: real("current_position").notNull(),
   currentRate: real("current_rate").notNull(),
-  lastEventAt: integer("last_event_at", { mode: "timestamp" }).notNull(),
+  lastEventAt: integer("last_event_at", { mode: "timestamp_ms" }).notNull(),
   totalListeningTime: real("total_listening_time"),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
 export const playthroughStateCacheRelations = relations(

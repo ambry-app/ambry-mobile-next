@@ -719,8 +719,8 @@ export async function applyPlaythroughSyncResult(
       if (event.position != null && event.playbackRate != null) {
         const now = new Date();
         const lastEventAt = new Date(event.timestamp);
-        // Convert to Unix timestamp (seconds) for SQLite integer comparison
-        const lastEventAtUnix = Math.floor(lastEventAt.getTime() / 1000);
+        // Convert to Unix timestamp (milliseconds) for SQLite integer comparison
+        const lastEventAtMs = lastEventAt.getTime();
 
         await tx
           .insert(schema.playthroughStateCache)
@@ -736,7 +736,7 @@ export async function applyPlaythroughSyncResult(
             set: {
               currentPosition: event.position,
               currentRate: event.playbackRate,
-              lastEventAt: sql`MAX(${schema.playthroughStateCache.lastEventAt}, ${lastEventAtUnix})`,
+              lastEventAt: sql`MAX(${schema.playthroughStateCache.lastEventAt}, ${lastEventAtMs})`,
               updatedAt: now,
             },
           });
