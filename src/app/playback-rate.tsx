@@ -2,41 +2,64 @@ import { useCallback, useEffect, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Slider from "@react-native-community/slider";
+import { useLocalSearchParams } from "expo-router";
 
 import { Button } from "@/components/Button";
 import { IconButton } from "@/components/IconButton";
+import { setPreferredPlaybackRate } from "@/services/preferred-playback-rate-service";
 import * as Player from "@/services/track-player-service";
+import { usePreferredPlaybackRate } from "@/stores/preferred-playback-rate";
 import { useSession } from "@/stores/session";
 import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles/colors";
 import { formatPlaybackRate } from "@/utils/rate";
 import { secondsDisplay } from "@/utils/time";
 
+type PlaybackRateMode = "player" | "settings";
+
 export default function PlaybackRateRoute() {
   const { bottom } = useSafeAreaInsets();
+  const { mode } = useLocalSearchParams<{ mode?: PlaybackRateMode }>();
+  const isSettingsMode = mode === "settings";
+
   const session = useSession((state) => state.session);
-  const playbackRate = useTrackPlayer((state) => state.playbackRate);
+
+  const playerRate = useTrackPlayer((state) => state.playbackRate);
+  const preferredRate = usePreferredPlaybackRate(
+    (state) => state.preferredPlaybackRate,
+  );
+  const currentRate = isSettingsMode ? preferredRate : playerRate;
+
   const progress = useTrackPlayer((state) => state.progress);
 
-  const [displayPlaybackRate, setDisplayPlaybackRate] = useState(1.0);
+  const [displayPlaybackRate, setDisplayPlaybackRate] = useState(currentRate);
 
   useEffect(() => {
-    setDisplayPlaybackRate(playbackRate);
-  }, [playbackRate]);
+    setDisplayPlaybackRate(currentRate);
+  }, [currentRate]);
 
-  const setPlaybackRateAndDisplay = useCallback((value: number) => {
-    setDisplayPlaybackRate(value);
-    Player.setPlaybackRate(value);
-  }, []);
+  const setPlaybackRateAndDisplay = useCallback(
+    (value: number) => {
+      setDisplayPlaybackRate(value);
+      if (isSettingsMode && session) {
+        setPreferredPlaybackRate(session, value);
+      } else {
+        Player.setPlaybackRate(value);
+      }
+    },
+    [isSettingsMode, session],
+  );
 
   if (!session) return null;
+
+  const title = isSettingsMode ? "Default Playback Speed" : "Playback Speed";
 
   return (
     <View style={{ paddingBottom: Platform.OS === "android" ? bottom : 0 }}>
       {Platform.OS === "android" && <View style={styles.handle} />}
       <View style={styles.container}>
         <Text style={styles.title}>
-          Playback Speed: {formatPlaybackRate(displayPlaybackRate)}×
+          {title}: {formatPlaybackRate(displayPlaybackRate)}×
         </Text>
 
         <View style={styles.sliderRowContainer}>
@@ -45,14 +68,14 @@ export default function PlaybackRateRoute() {
             color={Colors.zinc[100]}
             size={16}
             onPress={() => {
-              const newPlaybackRate = Math.max(0.5, playbackRate - 0.05);
+              const newPlaybackRate = Math.max(0.5, currentRate - 0.05);
               setPlaybackRateAndDisplay(parseFloat(newPlaybackRate.toFixed(2)));
             }}
             style={styles.plusMinusButton}
           />
           <View style={styles.sliderContainer}>
             <Slider
-              value={playbackRate}
+              value={currentRate}
               minimumValue={0.5}
               maximumValue={3.0}
               step={0.05}
@@ -72,7 +95,7 @@ export default function PlaybackRateRoute() {
             color={Colors.zinc[100]}
             size={16}
             onPress={() => {
-              const newPlaybackRate = Math.min(3.0, playbackRate + 0.05);
+              const newPlaybackRate = Math.min(3.0, currentRate + 0.05);
               setPlaybackRateAndDisplay(parseFloat(newPlaybackRate.toFixed(2)));
             }}
             style={styles.plusMinusButton}
@@ -107,13 +130,15 @@ export default function PlaybackRateRoute() {
           />
         </View>
 
-        <Text style={styles.timeLeftText}>
-          Finish in{" "}
-          {secondsDisplay(
-            Math.max(progress.duration - progress.position, 0) /
-              displayPlaybackRate,
-          )}
-        </Text>
+        {!isSettingsMode && (
+          <Text style={styles.timeLeftText}>
+            Finish in{" "}
+            {secondsDisplay(
+              Math.max(progress.duration - progress.position, 0) /
+                displayPlaybackRate,
+            )}
+          </Text>
+        )}
       </View>
     </View>
   );

@@ -14,6 +14,7 @@ import { initializeDownloads } from "@/services/download-service";
 import { initialize as initializeEventRecording } from "@/services/event-recording";
 import { initializePlayer } from "@/services/playback-controls";
 import { initialize as initializeHeartbeat } from "@/services/position-heartbeat";
+import { initialize as initializePreferredPlaybackRate } from "@/services/preferred-playback-rate-service";
 import { initialize as initializeSleepTimer } from "@/services/sleep-timer-service";
 import { sync } from "@/services/sync-service";
 import { initialize as initializeTrackPlayer } from "@/services/track-player-service";
@@ -33,9 +34,10 @@ const log = logBase.extend("boot-service");
  * 4. Initialize data version store
  * 5. Initialize downloads store
  * 6. Initialize sleep timer store
- * 7. Initial sync if needed
- * 8. Initialize player
- * 9. Register background sync task
+ * 7. Initialize preferred playback rate store
+ * 8. Initial sync if needed
+ * 9. Initialize player
+ * 10. Register background sync task
  *
  * @returns isReady - true when boot is complete
  * @returns migrationError - Error if migrations failed
@@ -73,6 +75,7 @@ export function useAppBoot() {
       await initializeTrackPlayer();
       await initializePlayer(session);
       await initializeSleepTimer(session);
+      await initializePreferredPlaybackRate(session);
       await initializeHeartbeat();
       await initializeEventRecording();
 
