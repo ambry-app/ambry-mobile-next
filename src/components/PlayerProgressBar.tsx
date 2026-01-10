@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { usePlayerUIState } from "@/stores/player-ui-state";
+import { useSeekUIState } from "@/stores/seek-ui-state";
 import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";
 import { secondsDisplay } from "@/utils";
@@ -9,7 +9,7 @@ import { secondsDisplay } from "@/utils";
 import { ProgressBar } from "./ProgressBar";
 
 export const PlayerProgressBar = memo(function PlayerProgressBar() {
-  const seekPosition = usePlayerUIState((state) => state.seekPosition);
+  const seekPosition = useSeekUIState((state) => state.seekPosition);
   const progress = useTrackPlayer((state) => state.progress);
   const playbackRate = useTrackPlayer((state) => state.playbackRate);
 

@@ -40,6 +40,7 @@ import {
   usePlayerUIState,
 } from "@/stores/player-ui-state";
 import { useScreen } from "@/stores/screen";
+import { useSeekUIState } from "@/stores/seek-ui-state";
 import { LoadedPlaythrough, useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";
@@ -60,7 +61,7 @@ const MiniProgressBar = memo(function MiniProgressBar({
 }: {
   expansion: SharedValue<number>;
 }) {
-  const seekPosition = usePlayerUIState((state) => state.seekPosition);
+  const seekPosition = useSeekUIState((state) => state.seekPosition);
   const progress = useTrackPlayer((state) => state.progress);
 
   // Use seekPosition if available (during seek accumulation), otherwise use position

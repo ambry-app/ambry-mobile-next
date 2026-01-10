@@ -3,10 +3,12 @@
  *
  * Handles user-initiated seeking (scrubbing and button-based) with accumulation
  * and delay so as to not overwhelm the audio player with rapid seek commands.
+ *
+ * This service owns the seek-ui-state store.
  */
 
 import { SEEK_ACCUMULATION_WINDOW } from "@/constants";
-import { usePlayerUIState } from "@/stores/player-ui-state";
+import { clearSeekingState, setSeekingState } from "@/stores/seek-ui-state";
 import { SeekSource, SeekSourceType } from "@/stores/track-player";
 
 import * as Player from "./track-player-service";
@@ -162,7 +164,7 @@ function updateSeekUI(
   diff: number,
   direction: "left" | "right" | null = null,
 ) {
-  usePlayerUIState.setState({
+  setSeekingState({
     userIsSeeking: true,
     seekPosition: newPosition,
     seekEffectiveDiff: diff,
@@ -174,11 +176,5 @@ function updateSeekUI(
  * Clear the UI-specific seeking state from the Zustand store.
  */
 function clearSeekUI() {
-  usePlayerUIState.setState({
-    userIsSeeking: false,
-    seekIsApplying: false,
-    seekPosition: null,
-    seekEffectiveDiff: null,
-    seekLastDirection: null,
-  });
+  clearSeekingState();
 }

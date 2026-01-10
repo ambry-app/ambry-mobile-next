@@ -8,13 +8,13 @@ import Animated, {
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 
-import { usePlayerUIState as usePlayer } from "@/stores/player-ui-state";
+import { useSeekUIState } from "@/stores/seek-ui-state";
 import { Colors } from "@/styles";
 import { secondsDisplayMinutesOnly } from "@/utils";
 
 export function SeekIndicator() {
-  const seekEffectiveDiff = usePlayer((state) => state.seekEffectiveDiff);
-  const seekLastDirection = usePlayer((state) => state.seekLastDirection);
+  const seekEffectiveDiff = useSeekUIState((state) => state.seekEffectiveDiff);
+  const seekLastDirection = useSeekUIState((state) => state.seekLastDirection);
 
   const [displayValue, setDisplayValue] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);

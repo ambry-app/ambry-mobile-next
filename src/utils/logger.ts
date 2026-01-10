@@ -24,7 +24,6 @@ export const logBase = logger.createLogger({
       "boot-service": "red",
       "sleep-timer-service": "black",
       "position-heartbeat": "grey",
-      "play-pause-event-service": "cyan",
       "event-recording": "green",
     },
   },

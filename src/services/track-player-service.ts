@@ -14,6 +14,7 @@ import * as TrackPlayer from "@/services/track-player-wrapper";
 import { useDataVersion } from "@/stores/data-version";
 import {
   initialState,
+  type PlayPauseCommand,
   PlayPauseType,
   type ProgressWithPercent,
   type SeekSourceType,
@@ -41,7 +42,20 @@ import { getSession } from "./session-service";
 const log = logBase.extend("track-player-service");
 
 const PROGRESS_UPDATE_INTERVAL = 1000;
+const PLAY_PAUSE_FALLBACK_TIMEOUT_MS = 50;
+
+type PlayPauseDirection = "play" | "pause";
+
+type PendingPlayPauseFallback = {
+  direction: PlayPauseDirection;
+  timestamp: number;
+  position: number;
+  timer: NodeJS.Timeout;
+};
+
 let progressCheckInterval: NodeJS.Timeout | null = null;
+let pendingPlayPauseFallback: PendingPlayPauseFallback | null = null;
+let awaitingIsPlayingMatch: PlayPauseDirection | null = null;
 
 // =============================================================================
 // Public API
@@ -298,8 +312,7 @@ function setupTrackPlayerListeners() {
 }
 
 /**
- * Subscribes to the data version store to reactively update playthrough data
- * when it changes.
+ * Subscribes to stores to keep data in sync.
  */
 function setupStoreSubscriptions() {
   subscribeToChange(
@@ -313,6 +326,18 @@ function setupStoreSubscriptions() {
 
       updatePlaythrough(session, loadedPlaythrough.id);
     },
+  );
+
+  subscribeToChange(
+    useTrackPlayer,
+    (s) => s.isPlaying.playing,
+    handleIsPlayingChanged,
+  );
+
+  subscribeToChange(
+    useTrackPlayer,
+    (s) => s.lastPlayPauseCommand,
+    (command) => command && handleLastPlayPauseCommandChanged(command),
   );
 }
 
@@ -632,6 +657,145 @@ async function waitForSeekToComplete(
     `waitForSeekToComplete timed out. Expected: ${expectedPosition.toFixed(2)} Got: ${progress.position.toFixed(2)}`,
   );
   return progress;
+}
+
+/**
+ * Play/Pause Event Consolidation
+ *
+ * Produces canonical play/pause events by consolidating two signals: the
+ * `lastPlayPauseCommand` (when we tell TrackPlayer to play/pause) and the
+ * `isPlaying` state (when playback actually starts/stops).
+ *
+ * This consolidation is necessary because play/pause can be triggered
+ * externally (e.g. system interruptions, like RemoteDuck or a user manually
+ * starting playback in another app) without going through our command
+ * functions, especially on Android where the `RemoteDuck` TrackPlayer event is
+ * currently broken. The service prefers command timing when available, falling
+ * back to state change detection otherwise.
+ *
+ * Deduplication strategy:
+ * - When we emit from a command, we record the direction (play/pause)
+ * - When isPlaying changes, if it matches the direction we're awaiting, we skip
+ *   (it's the result of our own command)
+ * - If it doesn't match (or we're not awaiting), it's an external event
+ *
+ * Consumers should subscribe to `lastPlayPause` in the track-player store for
+ * the authoritative play/pause events.
+ */
+
+/**
+ * Handle isPlaying state changes.
+ *
+ * When isPlaying changes and matches what we're awaiting from a command, we skip
+ * (it's the result of our own command). Otherwise, it might be an external event.
+ */
+function handleIsPlayingChanged(isPlaying: boolean) {
+  const direction: PlayPauseDirection = isPlaying ? "play" : "pause";
+  const timestamp = Date.now();
+  const position = useTrackPlayer.getState().progress.position;
+
+  log.debug(
+    `isPlaying changed: ${direction} at ${position.toFixed(3)} (awaiting=${awaitingIsPlayingMatch})`,
+  );
+
+  if (awaitingIsPlayingMatch === direction) {
+    log.debug(`Skipping - matches awaited direction from command`);
+    awaitingIsPlayingMatch = null;
+    return;
+  }
+
+  // State changed to a different direction than awaited (or not awaiting at all)
+  // This could be:
+  // 1. An external event (RemoteDuck, etc.) - no command will come
+  // 2. isPlaying changed BEFORE our command arrived - command will come shortly
+  // Start a fallback timer to handle case 1, which will be cancelled if case 2
+
+  if (pendingPlayPauseFallback?.timer) {
+    clearTimeout(pendingPlayPauseFallback.timer);
+  }
+
+  const timer = setTimeout(
+    () => onPlayPauseFallbackTimeout(),
+    PLAY_PAUSE_FALLBACK_TIMEOUT_MS,
+  );
+
+  pendingPlayPauseFallback = {
+    direction,
+    timestamp,
+    position,
+    timer,
+  };
+}
+
+/**
+ * Handle lastPlayPauseCommand changes.
+ *
+ * When we receive a command, we emit immediately and set up to await the
+ * corresponding isPlaying change (which we'll then skip).
+ */
+function handleLastPlayPauseCommandChanged(command: PlayPauseCommand) {
+  const direction: PlayPauseDirection =
+    command.type === PlayPauseType.PLAY ? "play" : "pause";
+
+  log.debug(`lastPlayPauseCommand changed: ${direction}`);
+
+  if (pendingPlayPauseFallback?.timer) {
+    clearTimeout(pendingPlayPauseFallback.timer);
+    pendingPlayPauseFallback = null;
+  }
+
+  awaitingIsPlayingMatch = direction;
+
+  emitPlayPauseEvent({
+    direction,
+    timestamp: command.timestamp,
+    position: command.at,
+  });
+}
+
+/**
+ * Handle fallback timeout - emit the pending event as an external event.
+ */
+function onPlayPauseFallbackTimeout() {
+  if (!pendingPlayPauseFallback) {
+    log.warn("Fallback timeout fired but no pending fallback");
+    return;
+  }
+
+  const { direction, timestamp, position } = pendingPlayPauseFallback;
+
+  pendingPlayPauseFallback = null;
+  awaitingIsPlayingMatch = null;
+
+  emitPlayPauseEvent({
+    direction,
+    timestamp,
+    position,
+  });
+}
+
+type EmitPlayPauseParams = {
+  direction: PlayPauseDirection;
+  timestamp: number;
+  position: number;
+};
+
+/**
+ * Emit a canonical play/pause event to the store.
+ */
+function emitPlayPauseEvent(params: EmitPlayPauseParams) {
+  log.info(
+    `Emitting play/pause event: ${params.direction} at ${params.position.toFixed(3)}`,
+  );
+
+  useTrackPlayer.setState({
+    lastPlayPause: {
+      timestamp: params.timestamp,
+      type:
+        params.direction === "play" ? PlayPauseType.PLAY : PlayPauseType.PAUSE,
+      position: params.position,
+    },
+  });
 }
 
 // Debug: Log state changes
