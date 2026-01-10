@@ -18,6 +18,7 @@ import {
   type PlayPauseSourceType,
   PlayPauseType,
   type ProgressWithPercent,
+  resetForTesting as resetTrackPlayerStore,
   SeekSource,
   type SeekSourceType,
   useTrackPlayer,
@@ -49,6 +50,8 @@ type PlayPauseDirection = "play" | "pause";
 
 let progressCheckInterval: NodeJS.Timeout | null = null;
 let awaitingIsPlayingMatch: PlayPauseDirection | null = null;
+
+let unsubscribeFunctions: (() => void)[] = [];
 
 // =============================================================================
 // Public API
@@ -391,23 +394,27 @@ function setupTrackPlayerListeners() {
  * Subscribes to stores to keep data in sync.
  */
 function setupStoreSubscriptions() {
-  subscribeToChange(
-    useDataVersion,
-    (s) => s.playthroughDataVersion,
-    () => {
-      const session = getSession();
-      const loadedPlaythrough = getLoadedPlaythrough();
+  unsubscribeFunctions.push(
+    subscribeToChange(
+      useDataVersion,
+      (s) => s.playthroughDataVersion,
+      () => {
+        const session = getSession();
+        const loadedPlaythrough = getLoadedPlaythrough();
 
-      if (!loadedPlaythrough) return;
+        if (!loadedPlaythrough) return;
 
-      updatePlaythrough(session, loadedPlaythrough.id);
-    },
+        updatePlaythrough(session, loadedPlaythrough.id);
+      },
+    ),
   );
 
-  subscribeToChange(
-    useTrackPlayer,
-    (s) => s.isPlaying.playing,
-    handleIsPlayingChanged,
+  unsubscribeFunctions.push(
+    subscribeToChange(
+      useTrackPlayer,
+      (s) => s.isPlaying.playing,
+      handleIsPlayingChanged,
+    ),
   );
 }
 
@@ -832,3 +839,29 @@ function emitPlayPauseEvent(params: EmitPlayPauseParams) {
 useTrackPlayer.subscribe((state) => {
   log.silly(`State changed: ${JSON.stringify(state, null, 2)}`);
 });
+
+// =============================================================================
+// Testing Helpers
+// =============================================================================
+
+/**
+ * Reset all module-level state for testing.
+ * This cleans up subscriptions and resets state to allow fresh initialization.
+ */
+export function resetForTesting() {
+  // Clear intervals
+  if (progressCheckInterval) {
+    clearInterval(progressCheckInterval);
+    progressCheckInterval = null;
+  }
+
+  // Reset module state
+  awaitingIsPlayingMatch = null;
+
+  // Unsubscribe from all subscriptions
+  unsubscribeFunctions.forEach((unsubscribe) => unsubscribe());
+  unsubscribeFunctions = [];
+
+  // Reset store
+  resetTrackPlayerStore();
+}

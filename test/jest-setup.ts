@@ -127,10 +127,20 @@ export const mockTrackPlayerSeekTo = jest.fn(async (pos: number) => {
 export const mockTrackPlayerPlay = jest.fn(async () => {
   trackPlayerState.playWhenReady = true;
   trackPlayerState.playbackState = "playing";
+  // Emit events like the real native module does
+  emitTrackPlayerEvent("playback-play-when-ready-changed", {
+    playWhenReady: true,
+  });
+  emitTrackPlayerEvent("playback-state", { state: "playing" });
 });
 export const mockTrackPlayerPause = jest.fn(async () => {
   trackPlayerState.playWhenReady = false;
   trackPlayerState.playbackState = "paused";
+  // Emit events like the real native module does
+  emitTrackPlayerEvent("playback-play-when-ready-changed", {
+    playWhenReady: false,
+  });
+  emitTrackPlayerEvent("playback-state", { state: "paused" });
 });
 export const mockTrackPlayerSetRate = jest.fn(async (rate: number) => {
   trackPlayerState.rate = rate;

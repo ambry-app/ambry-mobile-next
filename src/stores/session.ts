@@ -13,6 +13,10 @@ interface SessionState {
   session: Session | null;
 }
 
+export const initialSessionState: SessionState = {
+  session: null,
+};
+
 // Custom storage interface for Expo SecureStore
 const secureStorage: StateStorage = {
   getItem: (name: string): string | null => {
@@ -51,4 +55,11 @@ export const useSession = create<SessionState>()(
 export function clearSession() {
   log.info("Clearing session");
   useSession.setState({ session: null });
+}
+
+/**
+ * Reset store to initial state for testing.
+ */
+export function resetForTesting() {
+  useSession.setState(initialSessionState, true);
 }

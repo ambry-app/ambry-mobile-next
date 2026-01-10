@@ -84,3 +84,10 @@ export async function getDeviceInfo(): Promise<DeviceInfo> {
   }
   return useDevice.getState().deviceInfo!;
 }
+
+/**
+ * Reset store to initial state for testing.
+ */
+export function resetForTesting() {
+  useDevice.setState(initialDeviceState, true);
+}

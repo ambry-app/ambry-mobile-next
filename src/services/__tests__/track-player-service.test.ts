@@ -7,22 +7,21 @@
  * The real track-player store, database code, and service logic runs.
  */
 
-import type { PlaythroughWithMedia } from "@/db/playthroughs";
+import { getPlaythroughWithMedia } from "@/db/playthroughs";
 import * as trackPlayerService from "@/services/track-player-service";
 import {
-  initialState,
   PlayPauseSource,
   PlayPauseType,
+  resetForTesting as resetTrackPlayerStore,
   SeekSource,
   useTrackPlayer,
 } from "@/stores/track-player";
 import { State } from "@/types/track-player";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
-  createBook,
+  createDownload,
   createMedia,
   createPlaythrough,
-  createPlaythroughStateCache,
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
 import {
@@ -33,24 +32,17 @@ import {
   resetTrackPlayerFake,
   trackPlayerFake,
 } from "@test/jest-setup";
-import { resetStoreBeforeEach } from "@test/store-test-utils";
 
 // Set up fresh test DB
 const { getDb } = setupTestDatabase();
 
-// Reset store state before each test
-resetStoreBeforeEach(useTrackPlayer, {
-  initialized: false,
-  ...initialState,
-});
-
 const session = DEFAULT_TEST_SESSION;
 
 /**
- * Helper to create a PlaythroughWithMedia object for testing.
- * This mirrors the shape returned by getPlaythroughWithMedia().
+ * Helper to create test data and get a PlaythroughWithMedia via the real query.
+ * Uses factories for test data, then queries with getPlaythroughWithMedia.
  */
-async function createPlaythroughWithMedia(
+async function createTestPlaythrough(
   overrides: {
     position?: number;
     rate?: number;
@@ -63,12 +55,8 @@ async function createPlaythroughWithMedia(
     downloaded?: boolean;
     duration?: string;
   } = {},
-): Promise<PlaythroughWithMedia> {
+) {
   const db = getDb();
-
-  const book = await createBook(db, {
-    title: "Test Book",
-  });
 
   const chapters = overrides.chapters ?? [
     { id: "ch-1", title: "Chapter 1", startTime: 0, endTime: 100 },
@@ -77,7 +65,6 @@ async function createPlaythroughWithMedia(
   ];
 
   const media = await createMedia(db, {
-    bookId: book.id,
     duration: overrides.duration ?? "300.0",
     chapters,
     hlsPath: "/audio/test/hls.m3u8",
@@ -87,66 +74,23 @@ async function createPlaythroughWithMedia(
   const playthrough = await createPlaythrough(db, {
     mediaId: media.id,
     status: "in_progress",
+    position: overrides.position,
+    rate: overrides.rate,
   });
 
-  if (overrides.position !== undefined || overrides.rate !== undefined) {
-    await createPlaythroughStateCache(db, {
-      playthroughId: playthrough.id,
-      currentPosition: overrides.position ?? 0,
-      currentRate: overrides.rate ?? 1.0,
-    });
+  if (overrides.downloaded) {
+    await createDownload(db, { mediaId: media.id });
   }
 
-  // Build the PlaythroughWithMedia shape
-  const bookWithAuthors = await db.query.books.findFirst({
-    where: (b, { eq }) => eq(b.id, book.id),
-    with: {
-      bookAuthors: {
-        with: {
-          author: true,
-        },
-      },
-    },
-  });
-
-  const stateCache = await db.query.playthroughStateCache.findFirst({
-    where: (c, { eq }) => eq(c.playthroughId, playthrough.id),
-  });
-
-  // Cast to PlaythroughWithMedia - we only include fields used by the service
-  return {
-    ...playthrough,
-    stateCache: stateCache ?? null,
-    media: {
-      id: media.id,
-      thumbnails: media.thumbnails,
-      mpdPath: media.mpdPath,
-      hlsPath: media.hlsPath,
-      duration: media.duration,
-      chapters: media.chapters,
-      download: overrides.downloaded
-        ? { status: "ready" as const, filePath: "test.mp4", thumbnails: null }
-        : null,
-      book: {
-        id: bookWithAuthors!.id,
-        title: bookWithAuthors!.title,
-        bookAuthors: bookWithAuthors!.bookAuthors.map((ba) => ({
-          id: ba.id,
-          author: {
-            id: ba.author.id,
-            name: ba.author.name,
-            person: { id: ba.author.personId },
-          },
-        })),
-      },
-    },
-  } as PlaythroughWithMedia;
+  // Use the real query to get the PlaythroughWithMedia shape
+  return getPlaythroughWithMedia(session, playthrough.id);
 }
 
 describe("track-player-service", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetTrackPlayerFake();
+    resetTrackPlayerStore();
     // Fake starts empty - loadPlaythroughIntoPlayer will set up state naturally
     // via add() -> seekTo() -> setRate(), just like the real TrackPlayer
   });
@@ -171,7 +115,7 @@ describe("track-player-service", () => {
 
   describe("loadPlaythroughIntoPlayer", () => {
     it("loads playthrough and sets store state", async () => {
-      const playthrough = await createPlaythroughWithMedia({
+      const playthrough = await createTestPlaythrough({
         position: 50,
         rate: 1.5,
       });
@@ -205,7 +149,7 @@ describe("track-player-service", () => {
     });
 
     it("sets streaming to false when media is downloaded", async () => {
-      const playthrough = await createPlaythroughWithMedia({
+      const playthrough = await createTestPlaythrough({
         downloaded: true,
       });
 
@@ -217,7 +161,7 @@ describe("track-player-service", () => {
 
   describe("play", () => {
     it("emits play event with correct state", async () => {
-      const playthrough = await createPlaythroughWithMedia({ position: 50 });
+      const playthrough = await createTestPlaythrough({ position: 50 });
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       await trackPlayerService.play(PlayPauseSource.USER);
@@ -240,7 +184,7 @@ describe("track-player-service", () => {
 
   describe("pause", () => {
     it("emits pause event with correct state", async () => {
-      const playthrough = await createPlaythroughWithMedia({ position: 75 });
+      const playthrough = await createTestPlaythrough({ position: 75 });
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       await trackPlayerService.pause(PlayPauseSource.USER);
@@ -252,7 +196,7 @@ describe("track-player-service", () => {
     });
 
     it("rewinds after pause when rewindSeconds provided", async () => {
-      const playthrough = await createPlaythroughWithMedia({ position: 100 });
+      const playthrough = await createTestPlaythrough({ position: 100 });
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       await trackPlayerService.pause(PlayPauseSource.SLEEP_TIMER, 10);
@@ -262,7 +206,7 @@ describe("track-player-service", () => {
     });
 
     it("rewinds accounting for playback rate", async () => {
-      const playthrough = await createPlaythroughWithMedia({
+      const playthrough = await createTestPlaythrough({
         position: 100,
         rate: 2.0,
       });
@@ -284,7 +228,7 @@ describe("track-player-service", () => {
 
   describe("pauseIfPlaying", () => {
     it("pauses when currently playing", async () => {
-      const playthrough = await createPlaythroughWithMedia({ position: 50 });
+      const playthrough = await createTestPlaythrough({ position: 50 });
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       // Simulate playing state
@@ -301,7 +245,7 @@ describe("track-player-service", () => {
     });
 
     it("does nothing when not playing", async () => {
-      const playthrough = await createPlaythroughWithMedia({ position: 50 });
+      const playthrough = await createTestPlaythrough({ position: 50 });
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       // Ensure not playing (default state)
@@ -318,7 +262,7 @@ describe("track-player-service", () => {
 
   describe("seekTo", () => {
     it("updates store with lastSeek event", async () => {
-      const playthrough = await createPlaythroughWithMedia({ position: 50 });
+      const playthrough = await createTestPlaythrough({ position: 50 });
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       await trackPlayerService.seekTo(150, SeekSource.SCRUBBER);
@@ -333,7 +277,7 @@ describe("track-player-service", () => {
 
     it("updates progress after seeking", async () => {
       // Start at 0
-      const playthrough = await createPlaythroughWithMedia();
+      const playthrough = await createTestPlaythrough();
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       // seekTo will automatically update fake position to 200
@@ -345,7 +289,7 @@ describe("track-player-service", () => {
     });
 
     it("updates current chapter when seeking to different chapter", async () => {
-      const playthrough = await createPlaythroughWithMedia({ position: 50 });
+      const playthrough = await createTestPlaythrough({ position: 50 });
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
       expect(useTrackPlayer.getState().currentChapter?.title).toBe("Chapter 1");
 
@@ -372,7 +316,7 @@ describe("track-player-service", () => {
 
   describe("setPlaybackRate", () => {
     it("updates rate and emits lastRateChange", async () => {
-      const playthrough = await createPlaythroughWithMedia({ position: 50 });
+      const playthrough = await createTestPlaythrough({ position: 50 });
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       await trackPlayerService.setPlaybackRate(1.5);
@@ -400,7 +344,7 @@ describe("track-player-service", () => {
       expect(trackPlayerService.getLoadedPlaythrough()).toBeUndefined();
 
       // Default position 0
-      const playthrough = await createPlaythroughWithMedia();
+      const playthrough = await createTestPlaythrough();
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       const loaded = trackPlayerService.getLoadedPlaythrough();
@@ -409,7 +353,7 @@ describe("track-player-service", () => {
     });
 
     it("getProgress returns progress from store", async () => {
-      const playthrough = await createPlaythroughWithMedia({ position: 123 });
+      const playthrough = await createTestPlaythrough({ position: 123 });
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       const progress = trackPlayerService.getProgress();
@@ -431,7 +375,7 @@ describe("track-player-service", () => {
     });
 
     it("getCurrentChapter returns current chapter from store", async () => {
-      const playthrough = await createPlaythroughWithMedia({ position: 150 });
+      const playthrough = await createTestPlaythrough({ position: 150 });
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       const chapter = trackPlayerService.getCurrentChapter();
@@ -439,7 +383,7 @@ describe("track-player-service", () => {
     });
 
     it("getPreviousChapter returns previous chapter from store", async () => {
-      const playthrough = await createPlaythroughWithMedia({ position: 150 });
+      const playthrough = await createTestPlaythrough({ position: 150 });
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       const chapter = trackPlayerService.getPreviousChapter();
@@ -465,7 +409,7 @@ describe("track-player-service", () => {
 
   describe("unload", () => {
     it("resets store to initial state", async () => {
-      const playthrough = await createPlaythroughWithMedia({ position: 100 });
+      const playthrough = await createTestPlaythrough({ position: 100 });
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       // Verify state is set
@@ -485,7 +429,7 @@ describe("track-player-service", () => {
   describe("chapter navigation", () => {
     it("handles media with no chapters", async () => {
       // No chapters, position doesn't matter for chapter lookup
-      const playthrough = await createPlaythroughWithMedia({
+      const playthrough = await createTestPlaythrough({
         chapters: [],
         position: 50,
       });
@@ -498,7 +442,7 @@ describe("track-player-service", () => {
     });
 
     it("sets previousChapter to null for first chapter", async () => {
-      const playthrough = await createPlaythroughWithMedia({ position: 10 });
+      const playthrough = await createTestPlaythrough({ position: 10 });
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       expect(useTrackPlayer.getState().currentChapter?.title).toBe("Chapter 1");
@@ -506,7 +450,7 @@ describe("track-player-service", () => {
     });
 
     it("correctly identifies last chapter (with null endTime)", async () => {
-      const playthrough = await createPlaythroughWithMedia({ position: 250 });
+      const playthrough = await createTestPlaythrough({ position: 250 });
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       expect(useTrackPlayer.getState().currentChapter?.title).toBe("Chapter 3");
@@ -518,7 +462,7 @@ describe("track-player-service", () => {
 
   describe("play/pause event sources", () => {
     it("records USER source correctly", async () => {
-      const playthrough = await createPlaythroughWithMedia();
+      const playthrough = await createTestPlaythrough();
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       await trackPlayerService.play(PlayPauseSource.USER);
@@ -533,7 +477,7 @@ describe("track-player-service", () => {
     });
 
     it("records REMOTE source correctly", async () => {
-      const playthrough = await createPlaythroughWithMedia();
+      const playthrough = await createTestPlaythrough();
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       await trackPlayerService.play(PlayPauseSource.REMOTE);
@@ -543,7 +487,7 @@ describe("track-player-service", () => {
     });
 
     it("records SLEEP_TIMER source correctly", async () => {
-      const playthrough = await createPlaythroughWithMedia();
+      const playthrough = await createTestPlaythrough();
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       await trackPlayerService.pause(PlayPauseSource.SLEEP_TIMER);

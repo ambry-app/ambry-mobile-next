@@ -11,7 +11,6 @@ import {
   createMedia,
   createMediaNarrator,
   createPlaythrough,
-  createPlaythroughStateCache,
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
 
@@ -118,14 +117,11 @@ describe("getPlaythroughsPage", () => {
 
     const book = await createBook(db);
     const media = await createMedia(db, { bookId: book.id });
-    const playthrough = await createPlaythrough(db, {
+    await createPlaythrough(db, {
       mediaId: media.id,
       status: "in_progress",
-    });
-    await createPlaythroughStateCache(db, {
-      playthroughId: playthrough.id,
-      currentPosition: 1234,
-      currentRate: 1.5,
+      position: 1234,
+      rate: 1.5,
       lastEventAt: new Date("2024-01-15T10:30:00Z"),
     });
 
@@ -217,30 +213,21 @@ describe("getPlaythroughsPage", () => {
     const media = await createMedia(db, { bookId: book.id });
 
     // Create playthroughs with state caches that have different lastEventAt values
-    const pt1 = await createPlaythrough(db, {
+    await createPlaythrough(db, {
       mediaId: media.id,
       status: "in_progress",
-    });
-    await createPlaythroughStateCache(db, {
-      playthroughId: pt1.id,
       lastEventAt: new Date("2024-01-01"),
     });
 
-    const pt2 = await createPlaythrough(db, {
+    await createPlaythrough(db, {
       mediaId: media.id,
       status: "in_progress",
-    });
-    await createPlaythroughStateCache(db, {
-      playthroughId: pt2.id,
       lastEventAt: new Date("2024-03-01"),
     });
 
-    const pt3 = await createPlaythrough(db, {
+    await createPlaythrough(db, {
       mediaId: media.id,
       status: "in_progress",
-    });
-    await createPlaythroughStateCache(db, {
-      playthroughId: pt3.id,
       lastEventAt: new Date("2024-02-01"),
     });
 
@@ -263,30 +250,21 @@ describe("getPlaythroughsPage", () => {
     const media = await createMedia(db, { bookId: book.id });
 
     // Create playthroughs with state caches
-    const pt1 = await createPlaythrough(db, {
+    await createPlaythrough(db, {
       mediaId: media.id,
       status: "in_progress",
-    });
-    await createPlaythroughStateCache(db, {
-      playthroughId: pt1.id,
       lastEventAt: new Date("2024-03-01"),
     });
 
-    const pt2 = await createPlaythrough(db, {
+    await createPlaythrough(db, {
       mediaId: media.id,
       status: "in_progress",
-    });
-    await createPlaythroughStateCache(db, {
-      playthroughId: pt2.id,
       lastEventAt: new Date("2024-02-01"),
     });
 
-    const pt3 = await createPlaythrough(db, {
+    await createPlaythrough(db, {
       mediaId: media.id,
       status: "in_progress",
-    });
-    await createPlaythroughStateCache(db, {
-      playthroughId: pt3.id,
       lastEventAt: new Date("2024-01-01"),
     });
 

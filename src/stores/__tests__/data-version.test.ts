@@ -2,20 +2,21 @@ import * as schema from "@/db/schema";
 import { initializeDataVersion } from "@/services/data-version-service";
 import {
   bumpPlaythroughDataVersion,
-  initialDataVersionState,
+  resetForTesting,
   setLibraryDataVersion,
   useDataVersion,
 } from "@/stores/data-version";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { createSyncedServer, DEFAULT_TEST_SESSION } from "@test/factories";
-import { resetStoreBeforeEach } from "@test/store-test-utils";
 
 const { getDb } = setupTestDatabase();
 
 const session = DEFAULT_TEST_SESSION;
 
 describe("data-version store", () => {
-  resetStoreBeforeEach(useDataVersion, initialDataVersionState);
+  beforeEach(() => {
+    resetForTesting();
+  });
 
   describe("initializeDataVersion", () => {
     it("sets initialized to true after initialization", async () => {

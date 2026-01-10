@@ -21,10 +21,12 @@ export interface DownloadsState {
   downloads: Record<string, Download>;
 }
 
-export const useDownloads = create<DownloadsState>(() => ({
+export const initialDownloadsState: DownloadsState = {
   initialized: false,
   downloads: {},
-}));
+};
+
+export const useDownloads = create<DownloadsState>(() => initialDownloadsState);
 
 export function addOrUpdateDownload(download: Download) {
   useDownloads.setState((state) => ({
@@ -84,4 +86,11 @@ export function setDownloadResumable(
       },
     };
   });
+}
+
+/**
+ * Reset store to initial state for testing.
+ */
+export function resetForTesting() {
+  useDownloads.setState(initialDownloadsState, true);
 }

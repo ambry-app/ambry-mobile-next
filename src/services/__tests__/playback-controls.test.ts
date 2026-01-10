@@ -15,13 +15,25 @@ import {
   setActivePlaythroughIdForDevice,
 } from "@/db/playthroughs";
 import * as playbackControls from "@/services/playback-controls";
-import { useDataVersion } from "@/stores/data-version";
-import { initialDeviceState, useDevice } from "@/stores/device";
-import { usePlayerUIState } from "@/stores/player-ui-state";
-import { useSession } from "@/stores/session";
 import {
-  initialState as trackPlayerInitialState,
+  resetForTesting as resetDataVersionStore,
+  useDataVersion,
+} from "@/stores/data-version";
+import {
+  resetForTesting as resetDeviceStore,
+  useDevice,
+} from "@/stores/device";
+import {
+  resetForTesting as resetPlayerUIStore,
+  usePlayerUIState,
+} from "@/stores/player-ui-state";
+import {
+  resetForTesting as resetSessionStore,
+  useSession,
+} from "@/stores/session";
+import {
   PlayPauseType,
+  resetForTesting as resetTrackPlayerStore,
   useTrackPlayer,
 } from "@/stores/track-player";
 import { setupTestDatabase } from "@test/db-test-utils";
@@ -30,41 +42,13 @@ import {
   createLocalUserSettings,
   createMedia,
   createPlaythrough,
-  createPlaythroughStateCache,
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
 import { installFetchMock, mockGraphQL } from "@test/fetch-mock";
 import { resetTrackPlayerFake } from "@test/jest-setup";
-import { resetStoreBeforeEach } from "@test/store-test-utils";
 
 // Set up fresh test DB
 const { getDb } = setupTestDatabase();
-
-// Reset stores before each test
-resetStoreBeforeEach(useTrackPlayer, {
-  initialized: false,
-  ...trackPlayerInitialState,
-});
-
-resetStoreBeforeEach(useSession, {
-  session: null,
-});
-
-resetStoreBeforeEach(useDevice, initialDeviceState);
-
-resetStoreBeforeEach(usePlayerUIState, {
-  initialized: false,
-  loadingNewMedia: false,
-  expanded: true,
-  pendingExpandPlayer: false,
-});
-
-resetStoreBeforeEach(useDataVersion, {
-  initialized: false,
-  libraryDataVersion: null,
-  playthroughDataVersion: 0,
-  shelfDataVersion: 0,
-});
 
 const session = DEFAULT_TEST_SESSION;
 
@@ -110,15 +94,9 @@ async function createFullPlaythroughSetup(
   const playthrough = await createPlaythrough(db, {
     mediaId: media.id,
     status: options.status ?? "in_progress",
+    position: options.position,
+    rate: options.rate,
   });
-
-  if (options.position !== undefined || options.rate !== undefined) {
-    await createPlaythroughStateCache(db, {
-      playthroughId: playthrough.id,
-      currentPosition: options.position ?? 0,
-      currentRate: options.rate ?? 1.0,
-    });
-  }
 
   // Create user settings for active playthrough storage
   await createLocalUserSettings(db);
@@ -131,6 +109,11 @@ describe("playback-controls", () => {
     jest.useFakeTimers();
     jest.clearAllMocks();
     resetTrackPlayerFake();
+    resetTrackPlayerStore();
+    resetSessionStore();
+    resetDeviceStore();
+    resetPlayerUIStore();
+    resetDataVersionStore();
     setupSessionAndDevice();
 
     // Mock fetch for sync operations

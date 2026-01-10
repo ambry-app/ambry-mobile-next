@@ -1,18 +1,12 @@
 import { fireEvent, render } from "@testing-library/react-native";
 
 import { MeasureScreenHeight } from "@/components/MeasureScreenHeight";
-import { useScreen } from "@/stores/screen";
-import { resetStoreBeforeEach } from "@test/store-test-utils";
-
-const initialState = {
-  screenHeight: 0,
-  screenWidth: 0,
-  shortScreen: false,
-};
-
-resetStoreBeforeEach(useScreen, initialState);
+import { resetForTesting, useScreen } from "@/stores/screen";
 
 describe("MeasureScreenHeight", () => {
+  beforeEach(() => {
+    resetForTesting();
+  });
   it("updates store dimensions on layout", () => {
     const { getByTestId } = render(<MeasureScreenHeight testID="measure" />);
 

@@ -1,20 +1,18 @@
 import {
   addOrUpdateDownload,
   Download,
+  initialDownloadsState,
   removeDownloadFromStore,
+  resetForTesting,
   setDownloadProgress,
   setDownloadResumable,
   useDownloads,
 } from "@/stores/downloads";
-import { resetStoreBeforeEach } from "@test/store-test-utils";
 
 describe("downloads store", () => {
-  // Reset store state before each test
-  const initialState = {
-    initialized: false,
-    downloads: {},
-  };
-  resetStoreBeforeEach(useDownloads, initialState);
+  beforeEach(() => {
+    resetForTesting();
+  });
 
   describe("addOrUpdateDownload", () => {
     it("adds a new download to the store", () => {
@@ -31,7 +29,7 @@ describe("downloads store", () => {
 
     it("updates an existing download", () => {
       useDownloads.setState({
-        ...initialState,
+        ...initialDownloadsState,
         downloads: {
           media1: {
             mediaId: "media1",
@@ -57,7 +55,7 @@ describe("downloads store", () => {
   describe("removeDownloadFromStore", () => {
     it("removes a download from the store", () => {
       useDownloads.setState({
-        ...initialState,
+        ...initialDownloadsState,
         downloads: {
           media1: {
             mediaId: "media1",
@@ -80,7 +78,10 @@ describe("downloads store", () => {
           status: "pending" as const,
         },
       };
-      useDownloads.setState({ ...initialState, downloads: initialDownloads });
+      useDownloads.setState({
+        ...initialDownloadsState,
+        downloads: initialDownloads,
+      });
 
       removeDownloadFromStore("media2");
       const state = useDownloads.getState();
@@ -91,7 +92,7 @@ describe("downloads store", () => {
   describe("setDownloadProgress", () => {
     it("sets the progress for a download", () => {
       useDownloads.setState({
-        ...initialState,
+        ...initialDownloadsState,
         downloads: {
           media1: {
             mediaId: "media1",
@@ -108,7 +109,7 @@ describe("downloads store", () => {
 
     it("sets progress to undefined if progress is 1", () => {
       useDownloads.setState({
-        ...initialState,
+        ...initialDownloadsState,
         downloads: {
           media1: {
             mediaId: "media1",
@@ -128,7 +129,7 @@ describe("downloads store", () => {
     it("sets the resumable for a download", () => {
       const resumable = {} as any; // Mock resumable object
       useDownloads.setState({
-        ...initialState,
+        ...initialDownloadsState,
         downloads: {
           media1: {
             mediaId: "media1",

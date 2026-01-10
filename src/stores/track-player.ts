@@ -118,3 +118,10 @@ export const useTrackPlayer = create<TrackPlayerState>()(() => ({
   initialized: false,
   ...initialState,
 }));
+
+/**
+ * Reset store to initial state for testing.
+ */
+export function resetForTesting() {
+  useTrackPlayer.setState({ initialized: false, ...initialState }, true);
+}

@@ -12,12 +12,14 @@ export interface SleepTimerState {
   sleepTimerTriggerTime: number | null; // Unix timestamp in milliseconds (in-memory only)
 }
 
-export const useSleepTimer = create<SleepTimerState>()(() => ({
+export const initialState: SleepTimerState = {
   initialized: false,
   sleepTimer: DEFAULT_SLEEP_TIMER_SECONDS,
   sleepTimerEnabled: DEFAULT_SLEEP_TIMER_ENABLED,
   sleepTimerTriggerTime: null,
-}));
+};
+
+export const useSleepTimer = create<SleepTimerState>()(() => initialState);
 
 /**
  * Internal: Set trigger time (called from sleep timer service)
@@ -28,4 +30,11 @@ export const useSleepTimer = create<SleepTimerState>()(() => ({
  */
 export function setTriggerTime(triggerTime: number | null) {
   useSleepTimer.setState({ sleepTimerTriggerTime: triggerTime });
+}
+
+/**
+ * Reset store to initial state for testing.
+ */
+export function resetForTesting() {
+  useSleepTimer.setState(initialState, true);
 }

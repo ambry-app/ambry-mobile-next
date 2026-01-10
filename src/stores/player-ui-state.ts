@@ -25,16 +25,16 @@ export interface PlayerUIState {
 // Store
 // ============================================================================
 
-const initialState = {
+export const initialPlayerUIState: PlayerUIState = {
+  initialized: false,
   loadingNewMedia: false,
   expanded: true,
   pendingExpandPlayer: false,
 };
 
-export const usePlayerUIState = create<PlayerUIState>()(() => ({
-  initialized: false,
-  ...initialState,
-}));
+export const usePlayerUIState = create<PlayerUIState>()(
+  () => initialPlayerUIState,
+);
 
 // ============================================================================
 // Actions
@@ -45,7 +45,15 @@ export const usePlayerUIState = create<PlayerUIState>()(() => ({
  * Used when the player is unloaded.
  */
 export function resetPlayerUIState() {
-  usePlayerUIState.setState(initialState);
+  const { initialized } = usePlayerUIState.getState();
+  usePlayerUIState.setState({ ...initialPlayerUIState, initialized });
+}
+
+/**
+ * Reset store to initial state for testing.
+ */
+export function resetForTesting() {
+  usePlayerUIState.setState(initialPlayerUIState, true);
 }
 
 export function setLoadingNewMedia(loading: boolean) {

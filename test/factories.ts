@@ -404,6 +404,12 @@ export async function createMediaNarrator(
 
 type PlaythroughOverrides = Partial<schema.PlaythroughInsert> & {
   media?: MediaOverrides;
+  /** If provided, creates a state cache with this position */
+  position?: number;
+  /** If provided, creates a state cache with this rate (defaults to 1.0 if position is set) */
+  rate?: number;
+  /** If provided, sets lastEventAt on the state cache (requires position or rate to be set) */
+  lastEventAt?: Date;
 };
 
 export async function createPlaythrough(
@@ -411,7 +417,13 @@ export async function createPlaythrough(
   overrides: PlaythroughOverrides = {},
 ): Promise<schema.PlaythroughSelect> {
   const now = new Date();
-  const { media: mediaOverrides, ...rest } = overrides;
+  const {
+    media: mediaOverrides,
+    position,
+    rate,
+    lastEventAt,
+    ...rest
+  } = overrides;
   const id = rest.id ?? nextId("playthrough");
   const url = rest.url ?? DEFAULT_TEST_SESSION.url;
 
@@ -435,6 +447,22 @@ export async function createPlaythrough(
   };
 
   await db.insert(schema.playthroughs).values(playthrough);
+
+  // Create state cache if position, rate, or lastEventAt is provided
+  if (
+    position !== undefined ||
+    rate !== undefined ||
+    lastEventAt !== undefined
+  ) {
+    const cache: schema.PlaythroughStateCacheInsert = {
+      playthroughId: id,
+      currentPosition: position ?? 0,
+      currentRate: rate ?? 1.0,
+      lastEventAt: lastEventAt ?? now,
+      updatedAt: now,
+    };
+    await db.insert(schema.playthroughStateCache).values(cache);
+  }
 
   const result = await db.query.playthroughs.findFirst({
     where: (p, { and, eq }) =>
@@ -477,42 +505,6 @@ export async function createPlaybackEvent(
 
   const result = await db.query.playbackEvents.findFirst({
     where: (e, { eq }) => eq(e.id, event.id),
-  });
-
-  return result!;
-}
-
-type StateCacheOverrides = Partial<schema.PlaythroughStateCacheInsert> & {
-  playthrough?: PlaythroughOverrides;
-};
-
-export async function createPlaythroughStateCache(
-  db: TestDatabase,
-  overrides: StateCacheOverrides = {},
-): Promise<schema.PlaythroughStateCacheSelect> {
-  const now = new Date();
-  const { playthrough: playthroughOverrides, ...rest } = overrides;
-
-  // Create or use existing playthrough
-  let playthroughId = rest.playthroughId;
-  if (!playthroughId) {
-    const playthrough = await createPlaythrough(db, playthroughOverrides);
-    playthroughId = playthrough.id;
-  }
-
-  const cache: schema.PlaythroughStateCacheInsert = {
-    playthroughId,
-    currentPosition: 0,
-    currentRate: 1.0,
-    lastEventAt: now,
-    updatedAt: now,
-    ...rest,
-  };
-
-  await db.insert(schema.playthroughStateCache).values(cache);
-
-  const result = await db.query.playthroughStateCache.findFirst({
-    where: (c, { eq }) => eq(c.playthroughId, cache.playthroughId),
   });
 
   return result!;

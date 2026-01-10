@@ -7,7 +7,7 @@
 
 import { CreateSessionErrorCode } from "@/graphql/api";
 import { signIn, signOut } from "@/services/auth-service";
-import { clearSession, useSession } from "@/stores/session";
+import { clearSession, resetForTesting, useSession } from "@/stores/session";
 import {
   graphqlError,
   graphqlSuccess,
@@ -17,15 +17,11 @@ import {
 } from "@test/fetch-mock";
 import { clearSecureStore } from "@test/jest-setup";
 
-// Initial state for resetting between tests
-const initialSessionState = { session: null };
-
 describe("session store", () => {
   let mockFetch: ReturnType<typeof installFetchMock>;
 
   beforeEach(() => {
-    // Reset store state
-    useSession.setState(initialSessionState);
+    resetForTesting();
     // Clear SecureStore
     clearSecureStore();
     // Install fresh fetch mock

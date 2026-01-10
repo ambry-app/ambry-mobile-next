@@ -9,48 +9,30 @@
  */
 
 import { SEEK_ACCUMULATION_WINDOW } from "@/constants";
+import { startNewPlaythrough } from "@/services/playthrough-operations";
 import * as seekService from "@/services/seek-service";
 import * as trackPlayerService from "@/services/track-player-service";
-import { useSeekUIState } from "@/stores/seek-ui-state";
 import {
-  initialState as trackPlayerInitialState,
+  resetForTesting as resetSeekUIStore,
+  useSeekUIState,
+} from "@/stores/seek-ui-state";
+import {
+  resetForTesting as resetTrackPlayerStore,
   SeekSource,
   useTrackPlayer,
 } from "@/stores/track-player";
 import { setupTestDatabase } from "@test/db-test-utils";
-import {
-  createBook,
-  createMedia,
-  createPlaythrough,
-  createPlaythroughStateCache,
-  DEFAULT_TEST_SESSION,
-} from "@test/factories";
+import { createMedia, DEFAULT_TEST_SESSION } from "@test/factories";
 import { resetTrackPlayerFake, trackPlayerFake } from "@test/jest-setup";
-import { resetStoreBeforeEach } from "@test/store-test-utils";
 
 // Set up fresh test DB
 const { getDb } = setupTestDatabase();
-
-// Reset stores before each test
-resetStoreBeforeEach(useTrackPlayer, {
-  initialized: false,
-  ...trackPlayerInitialState,
-});
-
-const seekUIStateInitialState = {
-  userIsSeeking: false,
-  seekIsApplying: false,
-  seekEffectiveDiff: null,
-  seekLastDirection: null,
-  seekPosition: null,
-};
-
-resetStoreBeforeEach(useSeekUIState, seekUIStateInitialState);
 
 const session = DEFAULT_TEST_SESSION;
 
 /**
  * Helper to set up a loaded playthrough for testing seek operations.
+ * Uses real service functions instead of manually constructing data shapes.
  */
 async function setupLoadedPlaythrough(
   options: {
@@ -61,67 +43,22 @@ async function setupLoadedPlaythrough(
 ) {
   const db = getDb();
 
-  const book = await createBook(db, { title: "Test Book" });
   const media = await createMedia(db, {
-    bookId: book.id,
     duration: options.duration ?? "300.0",
     chapters: [{ id: "ch-1", title: "Chapter 1", startTime: 0, endTime: null }],
   });
-  const playthrough = await createPlaythrough(db, {
-    mediaId: media.id,
-    status: "in_progress",
-  });
 
-  if (options.position !== undefined || options.rate !== undefined) {
-    await createPlaythroughStateCache(db, {
-      playthroughId: playthrough.id,
-      currentPosition: options.position ?? 0,
-      currentRate: options.rate ?? 1.0,
-    });
+  await startNewPlaythrough(session, media.id);
+
+  if (options.position !== undefined) {
+    await trackPlayerService.seekTo(options.position, SeekSource.INTERNAL);
   }
 
-  // Build PlaythroughWithMedia shape
-  const bookWithAuthors = await db.query.books.findFirst({
-    where: (b, { eq }) => eq(b.id, book.id),
-    with: { bookAuthors: { with: { author: true } } },
-  });
+  if (options.rate !== undefined) {
+    await trackPlayerService.setPlaybackRate(options.rate);
+  }
 
-  const stateCache = await db.query.playthroughStateCache.findFirst({
-    where: (c, { eq }) => eq(c.playthroughId, playthrough.id),
-  });
-
-  const playthroughWithMedia = {
-    ...playthrough,
-    stateCache: stateCache ?? null,
-    media: {
-      id: media.id,
-      thumbnails: media.thumbnails,
-      mpdPath: media.mpdPath,
-      hlsPath: media.hlsPath,
-      duration: media.duration,
-      chapters: media.chapters,
-      download: null,
-      book: {
-        id: bookWithAuthors!.id,
-        title: bookWithAuthors!.title,
-        bookAuthors: bookWithAuthors!.bookAuthors.map((ba) => ({
-          id: ba.id,
-          author: {
-            id: ba.author.id,
-            name: ba.author.name,
-            person: { id: ba.author.personId },
-          },
-        })),
-      },
-    },
-  };
-
-  await trackPlayerService.loadPlaythroughIntoPlayer(
-    session,
-    playthroughWithMedia as any,
-  );
-
-  return { playthrough, media };
+  return { media };
 }
 
 describe("seek-service", () => {
@@ -129,6 +66,8 @@ describe("seek-service", () => {
     jest.useFakeTimers();
     jest.clearAllMocks();
     resetTrackPlayerFake();
+    resetTrackPlayerStore();
+    resetSeekUIStore();
     // Reset module state by clearing any pending timers
     jest.runAllTimers();
   });

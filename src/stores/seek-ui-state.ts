@@ -23,7 +23,7 @@ export interface SeekUIState {
 // Store
 // ============================================================================
 
-const initialState: SeekUIState = {
+export const initialSeekUIState: SeekUIState = {
   userIsSeeking: false,
   seekIsApplying: false,
   seekEffectiveDiff: null,
@@ -31,7 +31,7 @@ const initialState: SeekUIState = {
   seekPosition: null,
 };
 
-export const useSeekUIState = create<SeekUIState>()(() => initialState);
+export const useSeekUIState = create<SeekUIState>()(() => initialSeekUIState);
 
 // ============================================================================
 // Actions (only seek-service should call these)
@@ -42,5 +42,12 @@ export function setSeekingState(state: Partial<SeekUIState>) {
 }
 
 export function clearSeekingState() {
-  useSeekUIState.setState(initialState);
+  useSeekUIState.setState(initialSeekUIState);
+}
+
+/**
+ * Reset store to initial state for testing.
+ */
+export function resetForTesting() {
+  useSeekUIState.setState(initialSeekUIState, true);
 }

@@ -15,8 +15,10 @@ import {
   removeDownload,
   startDownload,
 } from "@/services/download-service";
-import { useDownloads } from "@/stores/downloads";
-import { Session } from "@/types/session";
+import {
+  resetForTesting as resetDownloadsStore,
+  useDownloads,
+} from "@/stores/downloads";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createDownload as createDownloadFactory,
@@ -24,25 +26,15 @@ import {
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
 import { mockDownloadResumable } from "@test/jest-setup";
-import { resetStoreBeforeEach } from "@test/store-test-utils";
+
+const session = DEFAULT_TEST_SESSION;
 
 describe("download service", () => {
   const { getDb } = setupTestDatabase();
 
-  const testSession: Session = {
-    url: DEFAULT_TEST_SESSION.url,
-    email: DEFAULT_TEST_SESSION.email,
-    token: "test-token",
-  };
-
-  // Reset store state before each test
-  resetStoreBeforeEach(useDownloads, {
-    initialized: false,
-    downloads: {},
-  });
-
   beforeEach(() => {
     jest.clearAllMocks();
+    resetDownloadsStore();
   });
 
   describe("initializeDownloads", () => {
@@ -61,7 +53,7 @@ describe("download service", () => {
         status: "pending",
       });
 
-      await initializeDownloads(testSession);
+      await initializeDownloads(session);
 
       const state = useDownloads.getState();
       expect(state.initialized).toBe(true);
@@ -84,7 +76,7 @@ describe("download service", () => {
       await createDownloadFactory(db, { mediaId: media.id });
 
       // First initialization
-      await initializeDownloads(testSession);
+      await initializeDownloads(session);
       expect(useDownloads.getState().initialized).toBe(true);
 
       // Add another download to DB (simulating external change)
@@ -92,14 +84,14 @@ describe("download service", () => {
       await createDownloadFactory(db, { mediaId: media2.id });
 
       // Second initialization should skip
-      await initializeDownloads(testSession);
+      await initializeDownloads(session);
 
       // Should still only have the original download
       expect(Object.keys(useDownloads.getState().downloads)).toHaveLength(1);
     });
 
     it("handles empty downloads", async () => {
-      await initializeDownloads(testSession);
+      await initializeDownloads(session);
 
       const state = useDownloads.getState();
       expect(state.initialized).toBe(true);
@@ -121,7 +113,7 @@ describe("download service", () => {
         status: 200,
       });
 
-      await startDownload(testSession, media.id);
+      await startDownload(session, media.id);
 
       // Verify download was created in store
       const state = useDownloads.getState();
@@ -133,9 +125,9 @@ describe("download service", () => {
 
       // Verify LegacyFileSystem was called with correct URL and auth
       expect(LegacyFileSystem.createDownloadResumable).toHaveBeenCalledWith(
-        `${testSession.url}/audio/media-dl/stream.mp4`,
+        `${session.url}/audio/media-dl/stream.mp4`,
         "file:///test-document-directory/media-dl.mp4",
-        { headers: { Authorization: `Bearer ${testSession.token}` } },
+        { headers: { Authorization: `Bearer ${session.token}` } },
         expect.any(Function),
       );
     });
@@ -167,7 +159,7 @@ describe("download service", () => {
         status: 200,
       });
 
-      const downloadPromise = startDownload(testSession, media.id);
+      const downloadPromise = startDownload(session, media.id);
 
       // Wait for download to start
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -208,7 +200,7 @@ describe("download service", () => {
         new Error("Network error"),
       );
 
-      await startDownload(testSession, media.id);
+      await startDownload(session, media.id);
 
       const state = useDownloads.getState();
       expect(state.downloads["media-fail"]).toMatchObject({
@@ -241,12 +233,12 @@ describe("download service", () => {
         status: 200,
       });
 
-      await startDownload(testSession, media.id);
+      await startDownload(session, media.id);
 
       // Verify all thumbnails were downloaded
       expect(LegacyFileSystem.downloadAsync).toHaveBeenCalledTimes(5);
       expect(LegacyFileSystem.downloadAsync).toHaveBeenCalledWith(
-        `${testSession.url}/images/xs.webp`,
+        `${session.url}/images/xs.webp`,
         "file:///test-document-directory/media-thumb-xs.webp",
         expect.any(Object),
       );
@@ -265,7 +257,7 @@ describe("download service", () => {
         mp4Path: null,
       });
 
-      await startDownload(testSession, media.id);
+      await startDownload(session, media.id);
 
       expect(LegacyFileSystem.createDownloadResumable).not.toHaveBeenCalled();
       expect(useDownloads.getState().downloads["media-no-mp4"]).toBeUndefined();
@@ -291,7 +283,7 @@ describe("download service", () => {
       );
 
       // Start download but don't await it
-      const startPromise = startDownload(testSession, media.id);
+      const startPromise = startDownload(session, media.id);
 
       // Wait a tick for download to start
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -300,7 +292,7 @@ describe("download service", () => {
       expect(useDownloads.getState().downloads["media-cancel"]).toBeDefined();
 
       // Cancel it
-      await cancelDownload(testSession, "media-cancel");
+      await cancelDownload(session, "media-cancel");
 
       expect(mockDownloadResumable.cancelAsync).toHaveBeenCalled();
       expect(useDownloads.getState().downloads["media-cancel"]).toBeUndefined();
@@ -320,7 +312,7 @@ describe("download service", () => {
       });
 
       // Initialize to load download into store (no resumable since not actively downloading)
-      await initializeDownloads(testSession);
+      await initializeDownloads(session);
       expect(
         useDownloads.getState().downloads["media-no-resumable"],
       ).toBeDefined();
@@ -329,7 +321,7 @@ describe("download service", () => {
       ).toBeUndefined();
 
       // Cancel should work even without a resumable
-      await cancelDownload(testSession, "media-no-resumable");
+      await cancelDownload(session, "media-no-resumable");
 
       expect(
         useDownloads.getState().downloads["media-no-resumable"],
@@ -357,14 +349,14 @@ describe("download service", () => {
       );
 
       // Start download but don't await it
-      const startPromise = startDownload(testSession, media.id);
+      const startPromise = startDownload(session, media.id);
 
       // Wait a tick for download to start
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Cancel should not throw even if cancelAsync fails
       await expect(
-        cancelDownload(testSession, "media-cancel-err"),
+        cancelDownload(session, "media-cancel-err"),
       ).resolves.not.toThrow();
 
       // Download should still be removed from store
@@ -389,10 +381,10 @@ describe("download service", () => {
       });
 
       // Initialize to load the download into store
-      await initializeDownloads(testSession);
+      await initializeDownloads(session);
       expect(useDownloads.getState().downloads["media-remove"]).toBeDefined();
 
-      await removeDownload(testSession, "media-remove");
+      await removeDownload(session, "media-remove");
 
       // Verify file was deleted
       expect(LegacyFileSystem.deleteAsync).toHaveBeenCalledWith(
@@ -426,8 +418,8 @@ describe("download service", () => {
         },
       });
 
-      await initializeDownloads(testSession);
-      await removeDownload(testSession, "media-with-thumbs");
+      await initializeDownloads(session);
+      await removeDownload(session, "media-with-thumbs");
 
       // 1 for main file + 5 for thumbnails
       expect(LegacyFileSystem.deleteAsync).toHaveBeenCalledTimes(6);
@@ -436,7 +428,7 @@ describe("download service", () => {
     it("handles missing download gracefully", async () => {
       // Should not throw when download doesn't exist
       await expect(
-        removeDownload(testSession, "nonexistent"),
+        removeDownload(session, "nonexistent"),
       ).resolves.not.toThrow();
     });
 
@@ -454,11 +446,11 @@ describe("download service", () => {
         new Error("File not found"),
       );
 
-      await initializeDownloads(testSession);
+      await initializeDownloads(session);
 
       // Should not throw even if delete fails
       await expect(
-        removeDownload(testSession, "media-delete-err"),
+        removeDownload(session, "media-delete-err"),
       ).resolves.not.toThrow();
 
       // Download should still be removed from store and database

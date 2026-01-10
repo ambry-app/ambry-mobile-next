@@ -11,9 +11,15 @@
 import * as schema from "@/db/schema";
 import { getServerSyncTimestamps } from "@/db/sync-helpers";
 import { syncLibrary, syncPlaythroughs } from "@/services/sync-service";
-import { initialDataVersionState, useDataVersion } from "@/stores/data-version";
-import { initialDeviceState, useDevice } from "@/stores/device";
-import { useSession } from "@/stores/session";
+import { resetForTesting as resetDataVersionStore } from "@/stores/data-version";
+import {
+  resetForTesting as resetDeviceStore,
+  useDevice,
+} from "@/stores/device";
+import {
+  resetForTesting as resetSessionStore,
+  useSession,
+} from "@/stores/session";
 import { DeviceInfo } from "@/types/device-info";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { DEFAULT_TEST_SESSION } from "@test/factories";
@@ -25,7 +31,6 @@ import {
   mockGraphQL,
   mockNetworkError,
 } from "@test/fetch-mock";
-import { resetStoreBeforeEach } from "@test/store-test-utils";
 import {
   createLibraryAuthor,
   createLibraryBook,
@@ -60,18 +65,26 @@ const MOCK_DEVICE_INFO: DeviceInfo = {
   osVersion: "14",
 };
 
-// Initial state for session store - set to our test session so sync functions work
-const initialSessionState = { session };
+/**
+ * Set up stores with test-specific initial state.
+ */
+function setupStores() {
+  resetDataVersionStore();
+  resetDeviceStore();
+  resetSessionStore();
 
-// Reset stores between tests
-resetStoreBeforeEach(useDataVersion, initialDataVersionState);
-resetStoreBeforeEach(useDevice, initialDeviceState);
-resetStoreBeforeEach(useSession, initialSessionState);
+  useSession.setState({ session });
+  useDevice.setState({
+    initialized: true,
+    deviceInfo: MOCK_DEVICE_INFO,
+  });
+}
 
 describe("sync", () => {
   let mockFetch: ReturnType<typeof installFetchMock>;
 
   beforeEach(() => {
+    setupStores();
     mockFetch = installFetchMock();
     resetSyncFixtureIdCounter();
   });

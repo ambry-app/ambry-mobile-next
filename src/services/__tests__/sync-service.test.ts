@@ -9,9 +9,18 @@
  */
 
 import { sync, syncLibrary, syncPlaythroughs } from "@/services/sync-service";
-import { useDataVersion } from "@/stores/data-version";
-import { useDevice } from "@/stores/device";
-import { useSession } from "@/stores/session";
+import {
+  resetForTesting as resetDataVersionStore,
+  useDataVersion,
+} from "@/stores/data-version";
+import {
+  resetForTesting as resetDeviceStore,
+  useDevice,
+} from "@/stores/device";
+import {
+  resetForTesting as resetSessionStore,
+  useSession,
+} from "@/stores/session";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { DEFAULT_TEST_SESSION } from "@test/factories";
 import {
@@ -20,7 +29,6 @@ import {
   installFetchMock,
   mockGraphQL,
 } from "@test/fetch-mock";
-import { resetStoreBeforeEach } from "@test/store-test-utils";
 import {
   emptyLibraryChanges,
   emptySyncProgressResult,
@@ -35,33 +43,40 @@ setupTestDatabase();
 
 const session = DEFAULT_TEST_SESSION;
 
-const initialSessionState = { session };
-const initialDataVersionState = {
-  initialized: false,
-  libraryDataVersion: null,
-  playthroughDataVersion: 0,
-  shelfDataVersion: 0,
-};
-const initialDeviceState = {
-  initialized: true,
-  deviceInfo: {
-    id: "test-device-id",
-    type: "android" as const,
-    brand: "TestBrand",
-    modelName: "TestModel",
-    osName: "Android",
-    osVersion: "14",
-  },
-};
+/**
+ * Set up stores with test-specific initial state.
+ * We reset to initial state first, then set the values we need for sync tests.
+ */
+function setupStores() {
+  resetSessionStore();
+  resetDataVersionStore();
+  resetDeviceStore();
 
-resetStoreBeforeEach(useSession, initialSessionState);
-resetStoreBeforeEach(useDataVersion, initialDataVersionState);
-resetStoreBeforeEach(useDevice, initialDeviceState);
+  useSession.setState({ session });
+  useDataVersion.setState({
+    initialized: false,
+    libraryDataVersion: null,
+    playthroughDataVersion: 0,
+    shelfDataVersion: 0,
+  });
+  useDevice.setState({
+    initialized: true,
+    deviceInfo: {
+      id: "test-device-id",
+      type: "android" as const,
+      brand: "TestBrand",
+      modelName: "TestModel",
+      osName: "Android",
+      osVersion: "14",
+    },
+  });
+}
 
 describe("sync-service", () => {
   let mockFetch: ReturnType<typeof installFetchMock>;
 
   beforeEach(() => {
+    setupStores();
     mockFetch = installFetchMock();
     resetSyncFixtureIdCounter();
   });

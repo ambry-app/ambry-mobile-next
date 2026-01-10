@@ -44,3 +44,10 @@ export function bumpShelfDataVersion() {
     shelfDataVersion: state.shelfDataVersion + 1,
   }));
 }
+
+/**
+ * Reset store to initial state for testing.
+ */
+export function resetForTesting() {
+  useDataVersion.setState(initialDataVersionState, true);
+}

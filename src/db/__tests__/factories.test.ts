@@ -11,7 +11,6 @@ import {
   createPerson,
   createPlaybackEvent,
   createPlaythrough,
-  createPlaythroughStateCache,
   createSeries,
   createSeriesBook,
   createServerProfile,
@@ -204,17 +203,19 @@ describe("test factories", () => {
       expect(event.position).toBe(123.45);
     });
 
-    it("creates a playthrough state cache", async () => {
+    it("creates a playthrough with position and rate options", async () => {
       const db = getDb();
-      const cache = await createPlaythroughStateCache(db, {
-        currentPosition: 500,
-        currentRate: 1.5,
+      const playthrough = await createPlaythrough(db, {
+        position: 500,
+        rate: 1.5,
       });
 
-      // Playthrough is auto-created, so just verify it exists
-      expect(cache.playthroughId).toMatch(/^playthrough-/);
-      expect(cache.currentPosition).toBe(500);
-      expect(cache.currentRate).toBe(1.5);
+      // State cache should be auto-created
+      const cache = await db.query.playthroughStateCache.findFirst({
+        where: (c, { eq }) => eq(c.playthroughId, playthrough.id),
+      });
+      expect(cache?.currentPosition).toBe(500);
+      expect(cache?.currentRate).toBe(1.5);
     });
   });
 

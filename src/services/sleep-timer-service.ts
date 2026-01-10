@@ -18,7 +18,11 @@ import {
 } from "@/db/settings";
 import * as Player from "@/services/track-player-service";
 import * as TrackPlayer from "@/services/track-player-wrapper";
-import { setTriggerTime, useSleepTimer } from "@/stores/sleep-timer";
+import {
+  resetForTesting as resetSleepTimerStore,
+  setTriggerTime,
+  useSleepTimer,
+} from "@/stores/sleep-timer";
 import {
   PlayPauseEvent,
   PlayPauseSource,
@@ -35,6 +39,8 @@ const log = logBase.extend("sleep-timer");
 
 const SLEEP_TIMER_CHECK_INTERVAL = 1000;
 let sleepTimerCheckInterval: NodeJS.Timeout | null = null;
+
+let unsubscribeFunctions: (() => void)[] = [];
 
 // =============================================================================
 // Public API
@@ -121,16 +127,20 @@ function isInitialized() {
  * timer based on playback state changes.
  */
 function setupStoreSubscriptions() {
-  subscribeToChange(
-    useTrackPlayer,
-    (s) => s.lastPlayPause,
-    (event) => event && handlePlayPauseEvent(event),
+  unsubscribeFunctions.push(
+    subscribeToChange(
+      useTrackPlayer,
+      (s) => s.lastPlayPause,
+      (event) => event && handlePlayPauseEvent(event),
+    ),
   );
 
-  subscribeToChange(
-    useTrackPlayer,
-    (s) => s.lastSeek,
-    (seek) => seek && handleSeek(seek),
+  unsubscribeFunctions.push(
+    subscribeToChange(
+      useTrackPlayer,
+      (s) => s.lastSeek,
+      (seek) => seek && handleSeek(seek),
+    ),
   );
 }
 
@@ -263,4 +273,27 @@ async function checkTimer() {
     log.debug(`Fading volume: ${volume.toFixed(2)}`);
     await TrackPlayer.setVolume(volume);
   }
+}
+
+// =============================================================================
+// Testing Helpers
+// =============================================================================
+
+/**
+ * Reset all module-level state for testing.
+ * This cleans up subscriptions and resets state to allow fresh initialization.
+ */
+export function resetForTesting() {
+  // Clear intervals
+  if (sleepTimerCheckInterval) {
+    clearInterval(sleepTimerCheckInterval);
+    sleepTimerCheckInterval = null;
+  }
+
+  // Unsubscribe from all subscriptions
+  unsubscribeFunctions.forEach((unsubscribe) => unsubscribe());
+  unsubscribeFunctions = [];
+
+  // Reset store
+  resetSleepTimerStore();
 }

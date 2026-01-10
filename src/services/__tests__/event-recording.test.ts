@@ -17,12 +17,18 @@ import {
   SEEK_EVENT_ACCUMULATION_WINDOW,
 } from "@/constants";
 import * as eventRecording from "@/services/event-recording";
-import { initialDeviceState, useDevice } from "@/stores/device";
-import { useSession } from "@/stores/session";
 import {
-  initialState as trackPlayerInitialState,
+  resetForTesting as resetDeviceStore,
+  useDevice,
+} from "@/stores/device";
+import {
+  resetForTesting as resetSessionStore,
+  useSession,
+} from "@/stores/session";
+import {
   PlayPauseSource,
   PlayPauseType,
+  resetForTesting as resetTrackPlayerStore,
   SeekSource,
   useTrackPlayer,
 } from "@/stores/track-player";
@@ -33,22 +39,9 @@ import {
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
 import { installFetchMock, mockGraphQL } from "@test/fetch-mock";
-import { resetStoreBeforeEach } from "@test/store-test-utils";
 
 // Set up fresh test DB
 const { getDb } = setupTestDatabase();
-
-// Reset stores before each test
-resetStoreBeforeEach(useTrackPlayer, {
-  initialized: false,
-  ...trackPlayerInitialState,
-});
-
-resetStoreBeforeEach(useSession, {
-  session: null,
-});
-
-resetStoreBeforeEach(useDevice, initialDeviceState);
 
 const session = DEFAULT_TEST_SESSION;
 
@@ -84,6 +77,9 @@ describe("event-recording", () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
+    resetTrackPlayerStore();
+    resetSessionStore();
+    resetDeviceStore();
     setupSessionAndDevice();
   });
 

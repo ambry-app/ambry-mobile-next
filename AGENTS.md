@@ -516,6 +516,131 @@ If you can't verify an outcome but the test exercises the code path, it's still 
 - Check return values
 - Use real implementations with mocked system boundaries
 
+### Don't Bypass Services to Manipulate State
+
+**Never directly manipulate store state in tests.** Instead, use the actual service APIs to set up the state you need.
+
+This is a corollary to Detroit-style testing: if you're directly calling `useStore.setState()` in your test setup, you're bypassing the real code paths that would normally set that state. This:
+
+- Tests against an unrealistic state that may not be achievable through real code
+- Misses bugs in the service layer that creates that state
+- Creates brittle tests coupled to store implementation details
+
+**Bad** - Directly manipulating state:
+```typescript
+// Bypasses the real play logic entirely
+useTrackPlayer.setState({
+  isPlaying: { playing: true, bufferingDuringPlay: false },
+  lastPlayPause: { type: PlayPauseType.PLAY, source: PlayPauseSource.USER, ... },
+});
+```
+
+**Good** - Using the service API:
+```typescript
+// Goes through the real play flow
+await trackPlayerService.play(PlayPauseSource.USER);
+```
+
+**Setting up playthroughs for tests:**
+
+**Bad** - Directly setting playthrough state:
+```typescript
+useTrackPlayer.setState({
+  playthrough: { id: "fake-id", mediaId: "fake-media", ... } as any,
+  progress: { position: 100, duration: 300, ... },
+});
+```
+
+**Good** - Creating real data and loading through services:
+```typescript
+const db = getDb();
+const book = await createBook(db, { title: "Test Book" });
+const media = await createMedia(db, { bookId: book.id, duration: "300.0" });
+const playthrough = await createPlaythrough(db, { mediaId: media.id });
+
+await trackPlayerService.loadPlaythroughIntoPlayer(session, playthroughWithMedia);
+```
+
+**Exceptions:**
+- Setting `initialized: true` to skip initialization logic when testing other concerns
+
+### Service Reset Helpers for Testing
+
+Services with module-level state (subscriptions, intervals, flags) provide `resetForTesting()` functions to clean up between tests. This prevents subscription accumulation and state pollution.
+
+**Available reset helpers:**
+- `track-player-service.ts` → `resetForTesting()`: Clears intervals, resets `awaitingIsPlayingMatch`, unsubscribes all, resets store
+- `sleep-timer-service.ts` → `resetForTesting()`: Clears timer interval, unsubscribes all, resets store
+
+**Usage pattern:**
+
+```typescript
+import { resetForTesting as resetTrackPlayerService } from "@/services/track-player-service";
+import { resetForTesting as resetSleepTimerService } from "@/services/sleep-timer-service";
+
+describe("my-service", () => {
+  beforeEach(async () => {
+    await trackPlayerService.initialize();
+  });
+
+  afterEach(() => {
+    resetTrackPlayerService();
+    resetSleepTimerService();
+  });
+});
+```
+
+**Why this matters:** Services set up subscriptions during `initialize()`. Without cleanup, each test adds more subscriptions, causing handlers to fire multiple times. This leads to flaky tests and incorrect behavior.
+
+### Use Real Query Functions, Not Manual Data Construction
+
+**Never manually construct complex data shapes in tests.** Use the real query functions that produce them.
+
+When you manually construct objects to match a type (like `PlaythroughWithMedia`), you're:
+- Encoding implementation details about the data shape in your tests
+- Creating fragile tests that break when the shape changes
+- Potentially constructing invalid states that the real code wouldn't produce
+
+**Bad** - Manually constructing a complex type:
+```typescript
+// Manually building PlaythroughWithMedia shape - fragile!
+const playthroughWithMedia = {
+  ...playthrough,
+  stateCache: stateCache ?? null,
+  media: {
+    id: media.id,
+    thumbnails: media.thumbnails,
+    // ... 20 more fields manually mapped
+    book: {
+      // ... more nested structure
+    },
+  },
+};
+await trackPlayerService.loadPlaythroughIntoPlayer(session, playthroughWithMedia as any);
+```
+
+**Good** - Using the real query function:
+```typescript
+// Create the data, then use the real query to get the proper shape
+const playthrough = await createPlaythrough(db, { mediaId: media.id, position: 100 });
+const playthroughWithMedia = await getPlaythroughWithMedia(session, playthrough.id);
+await trackPlayerService.loadPlaythroughIntoPlayer(session, playthroughWithMedia);
+```
+
+**Factories should hide implementation details:**
+
+The `createPlaythrough` factory accepts `position`, `rate`, and `lastEventAt` parameters and internally creates the `playthroughStateCache` if needed. Callers don't need to know about the cache table:
+
+```typescript
+// Factory hides the cache implementation detail
+const playthrough = await createPlaythrough(db, {
+  mediaId: media.id,
+  position: 100,
+  rate: 1.5,
+  lastEventAt: new Date("2024-01-15"),
+});
+```
+
 ### Running Tests
 
 ```bash
@@ -579,21 +704,30 @@ describe("downloads", () => {
 
 ### Testing Zustand Stores
 
-Use `test/store-test-utils.ts` to reset store state between tests:
+Stores export their own `resetForTesting()` function to reset state between tests:
 
 ```typescript
-import { useMyStore } from "@/src/stores/my-store";
-import { resetStoreBeforeEach } from "@test/store-test-utils";
-
-const initialState = {
-  /* ... */
-};
+import { resetForTesting, useMyStore } from "@/stores/my-store";
 
 describe("my store", () => {
-  resetStoreBeforeEach(useMyStore, initialState);
+  beforeEach(() => {
+    resetForTesting();
+  });
 
   it("does something", () => {
-    // Store is reset to initialState before each test
+    // Store starts fresh with initial state
+  });
+});
+```
+
+Services that "own" a store (e.g., `track-player-service` owns `track-player` store) export their own `resetForTesting()` that cleans up service state AND calls the store's reset:
+
+```typescript
+import { resetForTesting as resetTrackPlayerService } from "@/services/track-player-service";
+
+describe("track-player-service", () => {
+  beforeEach(() => {
+    resetTrackPlayerService(); // Resets service state + store state
   });
 });
 ```

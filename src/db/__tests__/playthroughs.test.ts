@@ -2,25 +2,19 @@ import { eq } from "drizzle-orm";
 
 import * as playthroughs from "@/db/playthroughs";
 import * as schema from "@/db/schema";
-import { Session } from "@/types/session";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createMedia,
   createPlaybackEvent,
   createPlaythrough,
-  createPlaythroughStateCache,
   DEFAULT_TEST_SESSION,
   resetIdCounter,
 } from "@test/factories";
 
+const session = DEFAULT_TEST_SESSION;
+
 describe("playthroughs module", () => {
   const { getDb } = setupTestDatabase();
-
-  const testSession: Session = {
-    url: DEFAULT_TEST_SESSION.url,
-    email: DEFAULT_TEST_SESSION.email,
-    token: "test-token",
-  };
 
   beforeEach(() => {
     resetIdCounter();
@@ -32,7 +26,7 @@ describe("playthroughs module", () => {
       const media = await createMedia(db);
 
       const result = await playthroughs.getInProgressPlaythroughWithMedia(
-        testSession,
+        session,
         media.id,
       );
 
@@ -42,19 +36,16 @@ describe("playthroughs module", () => {
     it("returns playthrough with nested relations when found", async () => {
       const db = getDb();
       const media = await createMedia(db, { duration: "3600" });
-      const pt = await createPlaythrough(db, {
+      await createPlaythrough(db, {
         id: "pt-1",
         mediaId: media.id,
         status: "in_progress",
-      });
-      await createPlaythroughStateCache(db, {
-        playthroughId: pt.id,
-        currentPosition: 100,
-        currentRate: 1.5,
+        position: 100,
+        rate: 1.5,
       });
 
       const result = await playthroughs.getInProgressPlaythroughWithMedia(
-        testSession,
+        session,
         media.id,
       );
 
@@ -75,7 +66,7 @@ describe("playthroughs module", () => {
       });
 
       const result = await playthroughs.getInProgressPlaythroughWithMedia(
-        testSession,
+        session,
         media.id,
       );
 
@@ -91,7 +82,7 @@ describe("playthroughs module", () => {
       });
 
       const result = await playthroughs.getInProgressPlaythroughWithMedia(
-        testSession,
+        session,
         media.id,
       );
 
@@ -118,7 +109,7 @@ describe("playthroughs module", () => {
       });
 
       const result = await playthroughs.getInProgressPlaythroughWithMedia(
-        testSession,
+        session,
         media.id,
       );
 
@@ -134,7 +125,7 @@ describe("playthroughs module", () => {
       const pt = await createPlaythrough(db, { id: "pt-123" });
 
       const result = await playthroughs.getPlaythroughWithMedia(
-        testSession,
+        session,
         "pt-123",
       );
 
@@ -155,7 +146,7 @@ describe("playthroughs module", () => {
       });
 
       const result = await playthroughs.getFinishedOrAbandonedPlaythrough(
-        testSession,
+        session,
         media.id,
       );
 
@@ -175,7 +166,7 @@ describe("playthroughs module", () => {
       });
 
       const result = await playthroughs.getFinishedOrAbandonedPlaythrough(
-        testSession,
+        session,
         media.id,
       );
 
@@ -203,7 +194,7 @@ describe("playthroughs module", () => {
       });
 
       const result = await playthroughs.getFinishedOrAbandonedPlaythrough(
-        testSession,
+        session,
         media.id,
       );
 
@@ -216,7 +207,7 @@ describe("playthroughs module", () => {
       const db = getDb();
       const media = await createMedia(db);
 
-      const id = await playthroughs.createPlaythrough(testSession, media.id);
+      const id = await playthroughs.createPlaythrough(session, media.id);
 
       // Should be a valid UUID
       expect(id).toMatch(
@@ -228,8 +219,8 @@ describe("playthroughs module", () => {
       });
 
       expect(created).toBeDefined();
-      expect(created?.url).toBe(testSession.url);
-      expect(created?.userEmail).toBe(testSession.email);
+      expect(created?.url).toBe(session.url);
+      expect(created?.userEmail).toBe(session.email);
       expect(created?.mediaId).toBe(media.id);
       expect(created?.status).toBe("in_progress");
       expect(created?.syncedAt).toBeNull();
@@ -244,12 +235,9 @@ describe("playthroughs module", () => {
         syncedAt: new Date(),
       });
 
-      await playthroughs.updatePlaythroughStatus(
-        testSession,
-        pt.id,
-        "finished",
-        { finishedAt: new Date("2024-01-01") },
-      );
+      await playthroughs.updatePlaythroughStatus(session, pt.id, "finished", {
+        finishedAt: new Date("2024-01-01"),
+      });
 
       const updated = await db.query.playthroughs.findFirst({
         where: eq(schema.playthroughs.id, pt.id),
@@ -273,7 +261,7 @@ describe("playthroughs module", () => {
         syncedAt: new Date(),
       });
 
-      await playthroughs.resumePlaythrough(testSession, pt.id);
+      await playthroughs.resumePlaythrough(session, pt.id);
 
       const updated = await db.query.playthroughs.findFirst({
         where: eq(schema.playthroughs.id, pt.id),
@@ -291,7 +279,7 @@ describe("playthroughs module", () => {
       const db = getDb();
       const pt = await createPlaythrough(db, { syncedAt: new Date() });
 
-      await playthroughs.deletePlaythrough(testSession, pt.id);
+      await playthroughs.deletePlaythrough(session, pt.id);
 
       const updated = await db.query.playthroughs.findFirst({
         where: eq(schema.playthroughs.id, pt.id),
@@ -305,11 +293,9 @@ describe("playthroughs module", () => {
   describe("getDerivedState", () => {
     it("returns cached state when available", async () => {
       const db = getDb();
-      const pt = await createPlaythrough(db);
-      await createPlaythroughStateCache(db, {
-        playthroughId: pt.id,
-        currentPosition: 500,
-        currentRate: 1.25,
+      const pt = await createPlaythrough(db, {
+        position: 500,
+        rate: 1.25,
         lastEventAt: new Date("2024-01-01"),
       });
 
@@ -421,13 +407,11 @@ describe("playthroughs module", () => {
 
     it("updates existing cache entry", async () => {
       const db = getDb();
-      const pt = await createPlaythrough(db);
       // Set lastEventAt to the past so the update is not skipped
       const pastTime = new Date(Date.now() - 1000);
-      await createPlaythroughStateCache(db, {
-        playthroughId: pt.id,
-        currentPosition: 50,
-        currentRate: 1.0,
+      const pt = await createPlaythrough(db, {
+        position: 50,
+        rate: 1.0,
         lastEventAt: pastTime,
       });
 
@@ -458,7 +442,7 @@ describe("playthroughs module", () => {
           syncedAt: null,
         });
 
-        const result = await playthroughs.getUnsyncedPlaythroughs(testSession);
+        const result = await playthroughs.getUnsyncedPlaythroughs(session);
 
         expect(result).toHaveLength(1);
         expect(result[0]?.id).toBe("pt-unsynced");
@@ -570,8 +554,8 @@ describe("playthroughs module", () => {
 
         await playthroughs.upsertPlaythrough({
           id: "pt-new",
-          url: testSession.url,
-          userEmail: testSession.email,
+          url: session.url,
+          userEmail: session.email,
           mediaId: media.id,
           status: "in_progress",
           startedAt: now,
@@ -596,8 +580,8 @@ describe("playthroughs module", () => {
 
         await playthroughs.upsertPlaythrough({
           id: pt.id,
-          url: testSession.url,
-          userEmail: testSession.email,
+          url: session.url,
+          userEmail: session.email,
           mediaId: pt.mediaId,
           status: "finished",
           finishedAt: new Date(),
