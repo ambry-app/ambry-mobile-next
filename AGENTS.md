@@ -53,30 +53,31 @@ npm run ios-preview          # Build iOS preview locally with EAS
 
 ### Technology Stack
 
-- **React Native 0.81.5** with **Expo ~54.0.25**
-- **Expo Router 6.0.15**: File-based routing
+- **React Native 0.81.5** with **Expo ~54.0.31**
+- **React 19.1.0**
+- **Expo Router ~6.0.21**: File-based routing
 - **Zustand 5.0.5**: Global state management
-- **Drizzle ORM 0.44.2** with **Expo SQLite**: Local database
+- **Drizzle ORM ^0.45.1** with **Expo SQLite**: Local database
 - **react-native-track-player 5.0.0-alpha0**: Background audio playback
 - **GraphQL**: Custom client with code generation for type safety
+- **react-native-logs**: Structured logging with color-coded extensions
 
 ### Core Directories
 
 - **`/src/app/`**: Expo Router file-based routing. Each file is a route, `_layout.tsx` files define navigation structure
 - **`/src/components/`**: Reusable UI components. Complex screens in `screens/` subdirectory with modular organization
-- **`/src/stores/`**: Zustand stores for global state (session, player, downloads, data-version, screen)
+- **`/src/stores/`**: Zustand stores for global state
+- **`/src/services/`**: Business logic and background services (playback, sync, downloads, etc.)
 - **`/src/db/`**: Drizzle ORM schema and data access layer
   - `schema.ts`: Complete database schema
-  - `sync.ts`: Bi-directional server sync logic
+  - `sync.ts`: Database-level sync helpers
   - `library/`: Query functions organized by entity type
-  - `playthroughs.ts`: Event-sourced playback progress logic
+  - `playthroughs.ts`: Playthrough database operations
 - **`/drizzle/`**: Generated database migrations (run `npm run generate-migrations` after schema changes)
 - **`/src/graphql/`**: GraphQL API layer
   - `api.ts`: High-level API functions
   - `client/`: Generated types and execution logic
-- **`/src/services/`**: Background services (playback service, background sync)
-- **`/src/hooks/`**: Custom React hooks for common patterns
-- **`/src/utils/`**: Utility functions (event-bus, time formatting, paths)
+- **`/src/utils/`**: Utility functions (hooks, time formatting, paths, logging, subscriptions)
 - **`/src/styles/`**: Design system colors and style utilities
 
 ### State Management Pattern
@@ -88,28 +89,19 @@ npm run ios-preview          # Build iOS preview locally with EAS
 - **`data-version.ts`**: Library data versioning and sync timestamps
 - **`downloads.ts`**: Download management and progress tracking
 - **`sleep-timer.ts`**: Sleep timer state (duration, enabled, trigger time)
-- **`player.ts`**: Audio player state (position, duration, rate, seeking state, chapters)
+- **`track-player.ts`**: Core audio player state (playback state, progress, chapters, seek/play-pause events)
+- **`player-ui-state.ts`**: UI-specific player state (loading, expanded state)
+- **`seek-ui-state.ts`**: Seeking UI state (seeking position, direction)
 - **`screen.ts`**: UI state (dimensions, keyboard visibility)
+- **`debug.ts`**: Debug mode toggle
 
 **Store Initialization Pattern:**
-All stores (except session and screen) follow a consistent initialization pattern:
+Most stores follow a consistent initialization pattern:
 
 - Each has an `initialized: boolean` flag
-- Each exports an `initialize*()` async function
+- Each exports an `initialize*()` async function (usually in a service)
 - Initialize functions check the flag and skip if already initialized
 - This enables efficient app resume when JS context persists (see JS Context Architecture)
-
-```typescript
-// Example: initializeDownloads in downloads.ts
-export async function initializeDownloads(session: Session) {
-  if (useDownloads.getState().initialized) {
-    console.debug("[Downloads] Already initialized, skipping");
-    return;
-  }
-  // ... load from DB
-  useDownloads.setState({ initialized: true, downloads });
-}
-```
 
 **Access pattern:** Import and use directly
 
@@ -120,6 +112,54 @@ const { email, token } = useSession();
 const logout = useSession((state) => state.logout);
 ```
 
+**Subscribing to store changes in services:**
+
+```typescript
+import { subscribeToChange } from "@/utils/subscribe";
+
+subscribeToChange(
+  useTrackPlayer,
+  (s) => s.lastPlayPause,
+  (event) => handlePlayPauseEvent(event),
+);
+```
+
+### Services Architecture
+
+Services contain business logic and are decoupled via store subscriptions (using `subscribeToChange` from `@/utils/subscribe`):
+
+**Playback Services:**
+
+- **`track-player-service.ts`**: Core TrackPlayer integration. Owns `track-player` store. Handles play/pause/seek, progress tracking, loading playthroughs into TrackPlayer.
+- **`playback-service.ts`**: Registered in `entry.js`. Handles TrackPlayer events (remote play/pause, jump forward/backward, queue end).
+- **`playback-controls.ts`**: High-level playback API. Coordinates loading media, finishing/abandoning playthroughs, player UI expansion.
+- **`seek-service.ts`**: Handles user-initiated seeking with accumulation. Owns `seek-ui-state` store. Prevents overwhelming TrackPlayer with rapid seeks.
+- **`chapter-service.ts`**: Chapter navigation logic.
+- **`sleep-timer-service.ts`**: Sleep timer with volume fade and auto-pause.
+
+**Progress & Sync Services:**
+
+- **`event-recording.ts`**: Records playback events (play, pause, seek, rate change) to database. Subscribes to `track-player` store changes. Debounces events to reduce noise.
+- **`position-heartbeat.ts`**: Periodically saves playback position to database.
+- **`sync-service.ts`**: Handles library and playthrough sync with server. Exports `sync()`, `syncLibrary()`, `syncPlaythroughs()`, and hooks like `useForegroundSync()`, `usePullToRefresh()`.
+- **`background-sync-service.ts`**: Background task for periodic sync.
+
+**Data Services:**
+
+- **`playthrough-operations.ts`**: Playthrough CRUD operations (create, continue, finish, abandon, delete).
+- **`library-service.ts`**: Library data access.
+- **`shelf-service.ts`**: User shelf operations.
+- **`download-service.ts`**: Download management with progress tracking.
+- **`data-version-service.ts`**: Manages data version store initialization.
+
+**Infrastructure Services:**
+
+- **`boot-service.ts`**: App boot sequence. Exports `useAppBoot()` hook.
+- **`db-service.ts`**: Database initialization and migrations.
+- **`session-service.ts`**: Session access utilities.
+- **`auth-service.ts`**: Authentication logic.
+- **`track-player-wrapper.ts`**: Thin wrapper around TrackPlayer native module with logging.
+
 ### Audio Playback Architecture
 
 **Background Audio Service**:
@@ -128,44 +168,32 @@ const logout = useSession((state) => state.logout);
 - Service registered in `entry.js` before app renders
 - Runs as Android foreground service with persistent notification
 - Service code: `src/services/playback-service.ts`
-- Acts as thin adapter: translates TrackPlayer events → EventBus events
-- Remote control events (lock screen, headphones) handled via EventBus
-
-**Background Services Architecture**:
-Services are decoupled via EventBus:
-
-- **`playback-service.ts`**: TrackPlayer event adapter, emits EventBus events
-- **`event-recording-service.ts`**: Records playback events (play, pause, seek, rate change, finish) as events for sync
-- **`sleep-timer-service.ts`**: Manages sleep timer, volume fade, auto-pause
-
-Each service:
-
-- Initializes via `startMonitoring()` called from playback service
-- Sets up its own EventBus listeners
-- Self-contained with no direct dependencies on other services
+- Handles TrackPlayer events and delegates to appropriate services
+- Remote control events (lock screen, headphones) handled via TrackPlayer events
 
 **JS Context Architecture** (tested and confirmed):
 
 - TrackPlayer's foreground service keeps the **same JS context alive** even when app is swiped away
-- All modules (player store, services, EventBus) share the same runtime instance
-- Module-level variables, timers, and EventBus listeners persist across app "kills"
+- All modules (stores, services) share the same runtime instance
+- Module-level variables, timers, and store subscriptions persist across app "kills"
 - Force-stopping via Android Settings kills the foreground service entirely (no remote playback possible)
 - There is effectively **no dual-context scenario** in practice - the only way to trigger playback is to launch the app, which shares the existing context
 
 **Important**: Because the JS context persists, Zustand stores and module-level variables survive app "kills". If state appears to be lost, the likely cause is the **app boot sequence resetting it**, not context separation. The sleep timer is a good example: `sleepTimerTriggerTime` lives only in Zustand (not DB) and survives app kills because we don't reset it on boot. User preferences (duration, enabled) are persisted to DB, but transient runtime state (trigger time) stays in memory.
 
-**Player State** (`stores/player.ts`):
+**Player State Architecture:**
 
-- Complex seeking logic with accumulation (prevents stuttering from rapid taps)
-- Dual position tracking: server-synced vs local modifications
-- Chapter navigation with automatic current chapter detection
-- Supports both streaming (HLS/DASH) and downloaded (MP4) playback
+State is split across three stores by responsibility:
+
+- **`track-player.ts`**: Core playback state needed by all services (progress, playback state, rate, chapters, event tracking for lastSeek/lastPlayPause/lastRateChange)
+- **`player-ui-state.ts`**: UI-only state (loading indicator, expanded state)
+- **`seek-ui-state.ts`**: Seeking UI state (seek position during scrubbing, direction indicator)
 
 **Critical**: When modifying player logic, understand the seek accumulation pattern:
 
-- Multiple rapid seeks accumulate before applying (500ms window)
+- Multiple rapid seeks accumulate before applying (750ms window)
 - Prevents jitter and excessive native calls
-- See `utils/seek.ts` and `stores/player.ts` for implementation
+- See `seek-service.ts` for implementation
 
 ### Database Architecture
 
@@ -188,14 +216,10 @@ Each service:
 - **`playthroughs`**: Listening sessions for media (one per listen, status: in_progress/finished/abandoned)
 - **`playbackEvents`**: Immutable event log (play, pause, seek, rate_change, finish, abandon)
 - **`playthroughStateCache`**: Materialized view of current position/rate (rebuilt from events)
-- Events recorded in real-time via `event-recording-service.ts`
+- Events recorded in real-time via `event-recording.ts`
 - Bidirectional sync via `syncPlaythroughs()` - sends unsynced events, receives server state
 - Server is authoritative for completed/abandoned playthroughs
 - See `db/playthroughs.ts` for event recording and state reconstruction logic
-
-**Migration from PlayerState**:
-
-The old `playerStates`/`localPlayerStates` single-state tracking system was replaced with the event-sourced model. A one-time migration (`db/migration-player-state.ts`) converts old data to synthetic playthrough + events. The migration runs automatically on boot if old data exists and uses a kv-store flag to prevent re-running.
 
 **Schema Changes**:
 
@@ -238,7 +262,7 @@ const data = result.result; // Type-safe success path
 
 ### Data Synchronization
 
-**Main Sync Function** (`db/sync.ts`):
+**Main Sync Function** (`services/sync-service.ts`):
 
 The `sync(session)` function performs both library and playthrough sync in parallel:
 
@@ -262,15 +286,15 @@ The `sync(session)` function performs both library and playthrough sync in paral
 **Sync Timing**:
 
 - Initial sync on first login (blocks app)
-- Foreground sync: Every 15 minutes (see `hooks/use-foreground-sync.ts`)
-- Background sync: Every 15 minutes minimum (see `services/background-sync-service.ts`)
-- Manual sync: Pull-to-refresh on library screens
+- Foreground sync: Every 15 minutes (see `useForegroundSync` hook in sync-service)
+- Background sync: Every 15 minutes minimum (see `background-sync-service.ts`)
+- Manual sync: Pull-to-refresh on library screens (see `usePullToRefresh` hook)
 
 **Cache Invalidation**:
 
-- Global `libraryDataVersion` store tracks last sync
-- UI components use `useLibraryData()` hook which auto-refetches on version change
-- After sync completes: `setLibraryDataVersion(new Date())`
+- Global `libraryDataVersion` and `playthroughDataVersion` in data-version store
+- UI components refetch on version change
+- After sync completes: `setLibraryDataVersion(new Date())` or `bumpPlaythroughDataVersion()`
 
 ### Navigation & Routing
 
@@ -303,19 +327,21 @@ router.back();
 
 ### App Initialization Flow
 
-**Boot Sequence** (`hooks/use-app-boot.ts`):
+**Boot Sequence** (`services/boot-service.ts` - `useAppBoot` hook):
 
-1. Apply database migrations (Drizzle `useMigrations` hook)
-2. Run PlayerState → Playthrough migration if needed (one-time data migration)
-3. Check session (exit early if none)
-4. `initializeDevice()` - Load/create device ID from SecureStore
-5. `initializeDataVersion(session)` - Load sync timestamps, returns `{ needsInitialSync }`
+1. Apply database migrations (Drizzle `useMigrations` hook in db-service)
+2. Check session (exit early if none)
+3. `initializeDevice()` - Load/create device ID from SecureStore
+4. `initializeDataVersion(session)` - Load sync timestamps, returns `{ needsInitialSync }`
+5. Initial sync if needed (`sync(session)`)
 6. `initializeDownloads(session)` - Load download states from DB
-7. `initializeSleepTimer(session)` - Load sleep timer preferences from DB
-8. Initial sync if needed (`sync(session)` on first connection to server)
-9. `initializePlayer(session)` - Setup TrackPlayer + load most recent media
-10. Register background sync task
-11. Set ready (hide splash screen)
+7. `initializeTrackPlayer()` - Setup TrackPlayer native module
+8. `initializePlayer(session)` - Load most recent media into player
+9. `initializeSleepTimer(session)` - Load sleep timer preferences from DB
+10. `initializeHeartbeat()` - Start position heartbeat service
+11. `initializeEventRecording()` - Start event recording service
+12. Register background sync task
+13. Set ready (hide splash screen)
 
 **Key behavior**: Each `initialize*()` function checks its store's `initialized` flag and skips if already initialized. This enables efficient app resume when JS context persists - stores already have correct state from before app was "killed", so no redundant DB queries occur.
 
@@ -333,13 +359,14 @@ type Result<T, E> = { success: true; result: T } | { success: false; error: E };
 
 This forces exhaustive error handling at call sites.
 
-### Event Bus for Cross-Component Communication
+### Store Subscriptions for Cross-Service Communication
 
-Simple EventEmitter pattern (`utils/event-bus.ts`):
+Simple subscription pattern (`utils/subscribe.ts`):
 
-- Decouples background services from UI components
-- Key events: `playbackStarted`, `playbackPaused`, `seekApplied`, `playbackQueueEnded`, `remoteDuck`, `expandPlayer`, `playbackRateChanged`
-- Background services listen to events and handle their own concerns
+- Decouples services from each other
+- Services subscribe to store changes rather than calling each other directly
+- Key events tracked via store fields: `lastPlayPause`, `lastSeek`, `lastRateChange` in track-player store
+- Services react to changes and handle their own concerns
 - Works reliably since all code runs in the same JS context (see JS Context Architecture above)
 
 ### Type Inference from Queries
@@ -388,12 +415,41 @@ components/screens/
 
 Timing constants centralized in `src/constants.ts`:
 
-- `SEEK_ACCUMULATION_WINDOW`: Debounce window for rapid seeks (500ms)
+- `SEEK_ACCUMULATION_WINDOW`: Debounce window for rapid seeks (750ms)
 - `SEEK_EVENT_ACCUMULATION_WINDOW`: Delay before logging seek events (5s)
+- `PLAY_PAUSE_EVENT_ACCUMULATION_WINDOW`: Delay before logging play/pause events (2s)
+- `RATE_CHANGE_EVENT_ACCUMULATION_WINDOW`: Delay before logging rate changes (2s)
 - `PROGRESS_SAVE_INTERVAL`: How often to save position during playback (30s)
 - `SLEEP_TIMER_FADE_OUT_TIME`: Duration of volume fade before sleep timer triggers (30s)
+- `PAUSE_REWIND_SECONDS`: Seconds to rewind when pausing (1s, multiplied by rate)
+- `SLEEP_TIMER_PAUSE_REWIND_SECONDS`: Seconds to rewind on sleep timer pause (10s)
+- `FOREGROUND_SYNC_INTERVAL`: Periodic foreground sync interval (15 minutes)
 
 Keep all timing/interval constants here for easy adjustment.
+
+### Logging
+
+Uses `react-native-logs` with color-coded extensions (`utils/logger/`):
+
+```typescript
+import { logBase } from "@/utils/logger";
+const log = logBase.extend("my-module");
+
+log.info("User action happened");
+log.debug("Implementation detail");
+```
+
+**Log Level Guidelines:**
+
+| Level | When to Use                                                | Examples                                    |
+| ----- | ---------------------------------------------------------- | ------------------------------------------- |
+| error | Unexpected failures, caught exceptions indicating bugs     | Failed to load media, sync failed           |
+| warn  | Recoverable issues, degraded functionality                 | Retry needed, fallback used, missing data   |
+| info  | Significant mutations/actions (DB writes, state changes)   | "Recorded play event", "Loading playthrough"|
+| debug | Implementation details, skipped actions, downstream effects| "Skipping debounced event", state transitions|
+| silly | Very spammy, usually disabled during development           | Progress ticks, frequent polling results    |
+
+Extensions are color-coded by functional area (playback=purple, sync=blue, downloads=orange, etc.).
 
 ## Testing
 
@@ -504,18 +560,11 @@ describe("my store", () => {
 });
 ```
 
-### What to Test
-
-- **Database modules**: Query logic, multi-tenant isolation, CRUD operations
-- **GraphQL interactions**: API functions, sync logic, error handling (mock only `fetch`)
-- **Pure functions**: Data transformation, formatting utilities, business logic helpers
-- **Stores**: State transitions, initialization logic
-
 ## Debugging
 
-- Console logs prefixed by component: `[Player]`, `[SyncDown]`, `[LoadMedia]`
+- Logs use `react-native-logs` with color-coded module prefixes (see Logging section)
 - Expo DevTools: Network inspector, logs
-- Drizzle Studio: Database inspection (dev only, enabled via `useDrizzleStudio()`)
+- Drizzle Studio: Database inspection (dev only)
 - React DevTools: Component inspection
 
 ## Git Workflow
