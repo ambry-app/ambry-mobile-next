@@ -51,8 +51,6 @@ const initialState = {
   seekEffectiveDiff: null,
   seekLastDirection: null,
   seekPosition: null,
-  lastSeekTimestamp: null,
-  lastSeekSource: null,
 };
 
 export const usePlayerUIState = create<PlayerUIState>()(() => ({

@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 
+import { initialize as initializeAccuratePlayPauseService } from "@/services/accurate-play-pause-service";
 import { registerBackgroundSyncTask } from "@/services/background-sync-service";
 import { initializeDataVersion } from "@/services/data-version-service";
 import { useDatabaseMigrations } from "@/services/db-service";
@@ -73,6 +74,7 @@ export function useAppBoot() {
       await initializePlayer(session);
       await initializeSleepTimer(session);
       await initializeHeartbeat();
+      await initializeAccuratePlayPauseService();
 
       await registerBackgroundSyncTask();
 

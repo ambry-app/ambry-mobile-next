@@ -14,6 +14,7 @@ import * as TrackPlayer from "@/services/track-player-wrapper";
 import { useDataVersion } from "@/stores/data-version";
 import {
   initialState,
+  PlayPauseType,
   type ProgressWithPercent,
   type SeekSourceType,
   useTrackPlayer,
@@ -69,7 +70,19 @@ export async function initialize() {
  */
 export async function play() {
   log.debug("play");
-  return TrackPlayer.play();
+
+  const { position } = getProgress();
+  const timestamp = Date.now();
+
+  await TrackPlayer.play();
+
+  useTrackPlayer.setState({
+    lastPlayPauseCommand: {
+      timestamp: timestamp,
+      type: PlayPauseType.PLAY,
+      at: position,
+    },
+  });
 }
 
 /**
@@ -77,7 +90,19 @@ export async function play() {
  */
 export async function pause() {
   log.debug("pause");
-  return TrackPlayer.pause();
+
+  const { position } = getProgress();
+  const timestamp = Date.now();
+
+  await TrackPlayer.pause();
+
+  useTrackPlayer.setState({
+    lastPlayPauseCommand: {
+      timestamp: timestamp,
+      type: PlayPauseType.PAUSE,
+      at: position,
+    },
+  });
 }
 
 /**
@@ -91,11 +116,17 @@ export async function seekTo(position: number, source: SeekSourceType) {
 
   const timestamp = Date.now();
 
+  const beforeProgress = getProgress();
   await TrackPlayer.seekTo(position);
   const progress = await waitForSeekToComplete(position);
 
   useTrackPlayer.setState({
-    lastSeek: { timestamp, source },
+    lastSeek: {
+      timestamp,
+      source,
+      from: beforeProgress.position,
+      to: progress.position,
+    },
     ...buildNewProgress(progress),
   });
 }

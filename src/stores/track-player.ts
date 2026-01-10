@@ -36,6 +36,25 @@ export type SeekSourceType = (typeof SeekSource)[keyof typeof SeekSource];
 export type Seek = {
   timestamp: number;
   source: SeekSourceType;
+  from: number;
+  to: number;
+};
+
+export const PlayPauseType = {
+  PLAY: "play",
+  PAUSE: "pause",
+} as const;
+
+export type PlayPauseCommand = {
+  timestamp: number;
+  type: (typeof PlayPauseType)[keyof typeof PlayPauseType];
+  at: number;
+};
+
+export type PlayPauseEvent = {
+  timestamp: number;
+  type: (typeof PlayPauseType)[keyof typeof PlayPauseType];
+  position: number;
 };
 
 export interface TrackPlayerState {
@@ -54,6 +73,8 @@ export interface TrackPlayerState {
   currentChapter: Chapter | null;
   previousChapter: Chapter | null;
   lastSeek: Seek | null;
+  lastPlayPauseCommand: PlayPauseCommand | null;
+  lastPlayPause: PlayPauseEvent | null;
 }
 
 export const initialState = {
@@ -71,6 +92,8 @@ export const initialState = {
   currentChapter: null,
   previousChapter: null,
   lastSeek: null,
+  lastPlayPauseCommand: null,
+  lastPlayPause: null,
 };
 
 export const useTrackPlayer = create<TrackPlayerState>()(() => ({

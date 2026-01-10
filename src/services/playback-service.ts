@@ -100,7 +100,7 @@ export const PlaybackService = async function () {
   //   console.debug("[TrackPlayer Service] RemoteDislike");
   // });
 
-  // FIXME: this event doesn't seem to work
+  // FIXME: this event doesn't seem to work on Android
   TrackPlayer.addEventListener(Event.RemoteDuck, (args) => {
     console.debug("[TrackPlayer Service] RemoteDuck", args);
   });
