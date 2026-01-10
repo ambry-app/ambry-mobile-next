@@ -1,3 +1,21 @@
+/**
+ * Play/Pause Event Service
+ *
+ * Produces canonical play/pause events by consolidating two signals: the
+ * `lastPlayPauseCommand` (when we tell TrackPlayer to play/pause) and the
+ * `isPlaying` state (when playback actually starts/stops).
+ *
+ * This consolidation is necessary because play/pause can be triggered
+ * externally (e.g. system interruptions, like RemoteDuck or a user manually
+ * starting playback in another app) without going through our command
+ * functions, especially on Android where the `RemoteDuck` TrackPlayer event is
+ * currently broken. The service prefers command timing when available, falling
+ * back to state change detection otherwise.
+ *
+ * Consumers should subscribe to `lastPlayPause` in the track-player store for
+ * the authoritative play/pause events.
+ */
+
 import {
   PlayPauseCommand,
   PlayPauseType,
@@ -7,7 +25,7 @@ import { logBase } from "@/utils/logger";
 
 let initialized = false;
 
-const log = logBase.extend("accurate-play-pause-service");
+const log = logBase.extend("play-pause-event-service");
 
 const FALLBACK_TIMEOUT_MS = 50;
 

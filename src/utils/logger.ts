@@ -24,7 +24,7 @@ export const logBase = logger.createLogger({
       "boot-service": "red",
       "sleep-timer-service": "black",
       "position-heartbeat": "grey",
-      "accurate-play-pause-service": "cyan",
+      "play-pause-event-service": "cyan",
     },
   },
 });
