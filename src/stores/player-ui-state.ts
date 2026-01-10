@@ -12,15 +12,6 @@ import { create } from "zustand";
 // Types
 // ============================================================================
 
-/**
- * Represents the currently loaded playthrough in the player.
- * Both mediaId and playthroughId are always set together (or both null when unloaded).
- */
-export interface LoadedPlaythrough {
-  mediaId: string;
-  playthroughId: string;
-}
-
 export interface PlayerUIState {
   initialized: boolean;
 
@@ -29,7 +20,6 @@ export interface PlayerUIState {
   expanded: boolean;
   pendingExpandPlayer: boolean;
 
-  // FIXME: move into a seek store
   /* seek UI state */
   userIsSeeking: boolean;
   seekIsApplying: boolean;

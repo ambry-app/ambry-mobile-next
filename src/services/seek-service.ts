@@ -5,29 +5,19 @@
  * and delay so as to not overwhelm the audio player with rapid seek commands.
  */
 
-import {
-  SEEK_ACCUMULATION_WINDOW,
-  SEEK_EVENT_ACCUMULATION_WINDOW,
-} from "@/constants";
+import { SEEK_ACCUMULATION_WINDOW } from "@/constants";
 import { usePlayerUIState } from "@/stores/player-ui-state";
 import { SeekSource, SeekSourceType } from "@/stores/track-player";
 
-import * as EventRecording from "./event-recording";
 import * as Player from "./track-player-service";
 
 let seekTimer: NodeJS.Timeout | null = null;
-let seekEventTimer: NodeJS.Timeout | null = null;
 
 // Core state for accumulation logic
 let isApplying = false;
 let basePosition: number = 0;
 let accumulator: number = 0;
 let targetPosition: number = 0;
-
-// State for debounced event recording
-let eventFrom: number | null = null;
-let eventTo: number | null = null;
-let eventTimestamp: Date | null = null;
 
 // ============================================================================
 // Public API
@@ -41,7 +31,7 @@ export async function seekTo(position: number, source: SeekSourceType) {
   if (isApplying) return;
 
   const { position: currentPosition } = await Player.getAccurateProgress();
-  setupSeekTimers(currentPosition);
+  setupSeekState(currentPosition);
 
   // Update state for absolute seek
   basePosition = position;
@@ -55,8 +45,8 @@ export async function seekTo(position: number, source: SeekSourceType) {
     targetPosition > currentPosition ? "right" : "left",
   );
 
-  // Trigger apply/record timers
-  restartTimers(source);
+  // Trigger apply timer
+  restartTimer(source);
 }
 
 /**
@@ -69,7 +59,7 @@ export async function seekRelative(amount: number, source: SeekSourceType) {
   // On first tap, get fresh data from the player
   if (!seekTimer) {
     const { position } = await Player.getAccurateProgress();
-    setupSeekTimers(position);
+    setupSeekState(position);
   }
 
   // Accumulate the seek amount
@@ -84,8 +74,8 @@ export async function seekRelative(amount: number, source: SeekSourceType) {
     amount > 0 ? "right" : "left",
   );
 
-  // Trigger apply/record timers
-  restartTimers(source);
+  // Trigger apply timer
+  restartTimer(source);
 }
 
 // FIXME: not sure what to do about this one
@@ -123,31 +113,24 @@ export async function seekImmediateNoLog(amount: number) {
 /**
  * Set up the initial state for a new seeking interaction.
  */
-function setupSeekTimers(currentPosition: number) {
-  // First tap for apply timer
+function setupSeekState(currentPosition: number) {
   if (!seekTimer) {
     basePosition = currentPosition;
     accumulator = 0;
     targetPosition = currentPosition;
   }
-  // First tap for event recording timer
-  if (!seekEventTimer) {
-    eventFrom = currentPosition;
-  }
 }
 
 /**
- * Clear and restart the timers that apply the seek and record the event.
+ * Clear and restart the timer that applies the accumulated seek.
  */
-function restartTimers(source: SeekSourceType) {
+function restartTimer(source: SeekSourceType) {
   if (seekTimer) clearTimeout(seekTimer);
-  if (seekEventTimer) clearTimeout(seekEventTimer);
 
   seekTimer = setTimeout(
     () => applyAccumulatedSeek(source),
     SEEK_ACCUMULATION_WINDOW,
   );
-  seekEventTimer = setTimeout(recordSeekEvent, SEEK_EVENT_ACCUMULATION_WINDOW);
 }
 
 /**
@@ -165,65 +148,10 @@ async function applyAccumulatedSeek(source: SeekSourceType) {
 
   await Player.seekTo(positionToApply, source);
 
-  // Store data for the debounced event recording
-  eventTo = positionToApply;
-  eventTimestamp = new Date();
-
   // Clear UI seeking state
   clearSeekUI();
 
   isApplying = false;
-}
-
-// FIXME: this is a concern of the event recording service and shouldn't be here
-/**
- * Record the completed seek event after debounce.
- */
-async function recordSeekEvent() {
-  seekEventTimer = null;
-
-  if (eventFrom === null || eventTo === null || eventTimestamp === null) {
-    // This can happen if a seek was applied but another one started
-    // before the event timer fired. It's safe to ignore.
-    return;
-  }
-
-  console.debug(
-    "[Seek] Recording debounced seek from",
-    eventFrom.toFixed(1),
-    "to",
-    eventTo.toFixed(1),
-  );
-
-  const loadedPlaythrough = Player.getLoadedPlaythrough();
-  const playbackRate = Player.getPlaybackRate();
-
-  if (!loadedPlaythrough) return;
-
-  const fromPosition = eventFrom;
-  const toPosition = eventTo;
-
-  // Don't record trivial seeks (< 2 seconds)
-  if (Math.abs(toPosition - fromPosition) < 2) {
-    return;
-  }
-
-  try {
-    await EventRecording.recordSeekEvent(
-      loadedPlaythrough.id,
-      fromPosition,
-      toPosition,
-      playbackRate,
-      eventTimestamp,
-    );
-  } catch (error) {
-    console.warn("[Seek] Error recording seek event:", error);
-  }
-
-  // Reset event state for the next interaction
-  eventFrom = null;
-  eventTo = null;
-  eventTimestamp = null;
 }
 
 /**
