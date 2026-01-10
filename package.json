@@ -14,12 +14,18 @@
     "lint": "eslint src test --cache --cache-location=.expo/cache/eslint/",
     "lint:fix": "eslint src test --fix --cache --cache-location=.expo/cache/eslint/",
     "doctor": "npx expo-doctor",
-    "expo-upgrade": "npm install expo && npx expo install --fix",
-    "android-preview": "npx eas build --platform android --profile preview --local",
-    "ios-preview": "npx eas build --platform ios --profile preview --local",
+    "expo:upgrade": "npm install expo && npx expo install --fix",
+    "build:android:preview": "npx eas-cli build --platform android --profile preview --local",
+    "build:ios:preview": "npx eas-cli build --platform ios --profile preview --local",
+    "build:production": "npx eas-cli build --platform all --profile production",
+    "build:android:production": "npx eas-cli build --platform android --profile production",
+    "build:ios:production": "npx eas-cli build --platform ios --profile production",
+    "submit": "npx eas-cli submit --platform all --profile production",
+    "submit:ios": "npx eas-cli submit --platform ios --profile production",
+    "submit:android": "npx eas-cli submit --platform android --profile production",
     "codegen": "npx graphql-codegen --config codegen.ts",
-    "codegen-watch": "npx graphql-codegen --config codegen.ts --watch",
-    "generate-migrations": "npx drizzle-kit generate"
+    "codegen:watch": "npx graphql-codegen --config codegen.ts --watch",
+    "drizzle:generate-migrations": "npx drizzle-kit generate"
   },
   "expo": {
     "install": {

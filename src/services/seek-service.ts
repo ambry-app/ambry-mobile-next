@@ -73,11 +73,8 @@ export async function seekRelative(amount: number, source: SeekSourceType) {
   targetPosition = basePosition + accumulator * playbackRate;
 
   // Update UI for button animation
-  updateSeekUI(
-    targetPosition,
-    targetPosition - basePosition,
-    amount > 0 ? "right" : "left",
-  );
+  // Use accumulator (real time) for the diff, not book time
+  updateSeekUI(targetPosition, accumulator, amount > 0 ? "right" : "left");
 
   // Trigger apply timer
   restartTimer(source);

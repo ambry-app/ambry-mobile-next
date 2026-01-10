@@ -441,15 +441,46 @@ log.debug("Implementation detail");
 
 **Log Level Guidelines:**
 
-| Level | When to Use                                                | Examples                                    |
-| ----- | ---------------------------------------------------------- | ------------------------------------------- |
-| error | Unexpected failures, caught exceptions indicating bugs     | Failed to load media, sync failed           |
-| warn  | Recoverable issues, degraded functionality                 | Retry needed, fallback used, missing data   |
-| info  | Significant mutations/actions (DB writes, state changes)   | "Recorded play event", "Loading playthrough"|
-| debug | Implementation details, skipped actions, downstream effects| "Skipping debounced event", state transitions|
-| silly | Very spammy, usually disabled during development           | Progress ticks, frequent polling results    |
+| Level | When to Use                                                 | Examples                                      |
+| ----- | ----------------------------------------------------------- | --------------------------------------------- |
+| error | Unexpected failures, caught exceptions indicating bugs      | Failed to load media, sync failed             |
+| warn  | Recoverable issues, degraded functionality                  | Retry needed, fallback used, missing data     |
+| info  | Significant mutations/actions (DB writes, state changes)    | "Recorded play event", "Loading playthrough"  |
+| debug | Implementation details, skipped actions, downstream effects | "Skipping debounced event", state transitions |
+| silly | Very spammy, usually disabled during development            | Progress ticks, frequent polling results      |
 
 Extensions are color-coded by functional area (playback=purple, sync=blue, downloads=orange, etc.).
+
+### Time Display: Book Time vs Real Time
+
+The app displays time in two ways:
+
+- **Book time**: Actual position/duration in the audiobook (unaffected by playback rate)
+- **Real time**: Adjusted for playback rate (e.g., 1 hour at 2x speed = 30 min real time)
+
+**General pattern**: "Where am I" = book time, "How long until X" = real time.
+
+| Location                         | What's Displayed           | Time Type | Notes                       |
+| -------------------------------- | -------------------------- | --------- | --------------------------- |
+| PlayerProgressBar (left)         | Current position           | Book      |                             |
+| PlayerProgressBar (right)        | Remaining time             | Real      | `remaining / rate`          |
+| Scrubber timecode                | Position while scrubbing   | Book      |                             |
+| SeekIndicator (button seeks)     | Seek diff (+/-)            | Real      | User pressed "rewind 1 min" |
+| SeekIndicator (scrubber seeks)   | Seek diff (+/-)            | Book      | Dragging on book timeline   |
+| PlaythroughHistory (now playing) | "X left"                   | Real      | `remaining / rate`          |
+| PlaythroughHistory (in_progress) | "X left" for saved         | Real      | `remaining / savedRate`     |
+| PlaythroughHistory (abandoned)   | Saved position             | Book      |                             |
+| Chapter select                   | Chapter start times        | Book      |                             |
+| Playback rate modal              | "Finish in X"              | Real      | `remaining / rate`          |
+| Resume prompt                    | "Your last position was X" | Book      |                             |
+| Media header                     | Total duration             | Book      | "5 hours and 30 minutes"    |
+| Sleep timer                      | Duration/countdown         | Timer     | Not playback-related        |
+
+**Time formatting utilities** (`src/utils/time.ts`):
+
+- `secondsDisplay()`: Formats as "H:MM:SS" or "M:SS"
+- `secondsDisplayMinutesOnly()`: Always "M:SS", supports +/- prefix
+- `durationDisplay()`: Descriptive phrase like "5 hours and 30 minutes"
 
 ## Testing
 
@@ -483,6 +514,7 @@ We follow **Detroit-style testing** (also called "Classical" or "Sociable" testi
 **Avoid testing HOW code works internally.** Instead, test WHAT it produces (observable outcomes).
 
 This applies to:
+
 - `jest.spyOn()` - avoid unless truly necessary
 - `expect(mock).toHaveBeenCalled()` - avoid if you can verify the outcome instead
 - `expect(mock).toHaveBeenCalledWith(...)` - same principle
@@ -490,6 +522,7 @@ This applies to:
 These assertions test implementation details, making tests brittle - they break when you refactor internals even if behavior is unchanged.
 
 **Bad** - Testing implementation:
+
 ```typescript
 // Tests that a function was called, not that the result is correct
 await trackPlayerService.play(PlayPauseSource.USER);
@@ -497,6 +530,7 @@ expect(mockTrackPlayerPlay).toHaveBeenCalled();
 ```
 
 **Good** - Verifying observable outcome:
+
 ```typescript
 // Tests the actual result - state changed correctly
 await trackPlayerService.play(PlayPauseSource.USER);
@@ -504,6 +538,7 @@ expect(useTrackPlayer.getState().lastPlayPause?.type).toBe(PlayPauseType.PLAY);
 ```
 
 **When `.toHaveBeenCalled()` is acceptable:**
+
 - `expect(mock).not.toHaveBeenCalled()` - verifying a code path was NOT taken (no side effects occurred)
 - When there's truly no observable state to check (rare with proper architecture)
 
@@ -511,6 +546,7 @@ expect(useTrackPlayer.getState().lastPlayPause?.type).toBe(PlayPauseType.PLAY);
 If you can't verify an outcome but the test exercises the code path, it's still valuable as a "doesn't crash" test. Just running the code and completing without error provides some confidence.
 
 **Preferred alternatives:**
+
 - Check store state after actions
 - Check database state after operations
 - Check return values
@@ -527,6 +563,7 @@ This is a corollary to Detroit-style testing: if you're directly calling `useSto
 - Creates brittle tests coupled to store implementation details
 
 **Bad** - Directly manipulating state:
+
 ```typescript
 // Bypasses the real play logic entirely
 useTrackPlayer.setState({
@@ -536,6 +573,7 @@ useTrackPlayer.setState({
 ```
 
 **Good** - Using the service API:
+
 ```typescript
 // Goes through the real play flow
 await trackPlayerService.play(PlayPauseSource.USER);
@@ -544,6 +582,7 @@ await trackPlayerService.play(PlayPauseSource.USER);
 **Setting up playthroughs for tests:**
 
 **Bad** - Directly setting playthrough state:
+
 ```typescript
 useTrackPlayer.setState({
   playthrough: { id: "fake-id", mediaId: "fake-media", ... } as any,
@@ -552,16 +591,21 @@ useTrackPlayer.setState({
 ```
 
 **Good** - Creating real data and loading through services:
+
 ```typescript
 const db = getDb();
 const book = await createBook(db, { title: "Test Book" });
 const media = await createMedia(db, { bookId: book.id, duration: "300.0" });
 const playthrough = await createPlaythrough(db, { mediaId: media.id });
 
-await trackPlayerService.loadPlaythroughIntoPlayer(session, playthroughWithMedia);
+await trackPlayerService.loadPlaythroughIntoPlayer(
+  session,
+  playthroughWithMedia,
+);
 ```
 
 **Exceptions:**
+
 - Setting `initialized: true` to skip initialization logic when testing other concerns
 
 ### Service Reset Helpers for Testing
@@ -569,6 +613,7 @@ await trackPlayerService.loadPlaythroughIntoPlayer(session, playthroughWithMedia
 Services with module-level state (subscriptions, intervals, flags) provide `resetForTesting()` functions to clean up between tests. This prevents subscription accumulation and state pollution.
 
 **Available reset helpers:**
+
 - `track-player-service.ts` → `resetForTesting()`: Clears intervals, resets `awaitingIsPlayingMatch`, unsubscribes all, resets store
 - `sleep-timer-service.ts` → `resetForTesting()`: Clears timer interval, unsubscribes all, resets store
 
@@ -597,11 +642,13 @@ describe("my-service", () => {
 **Never manually construct complex data shapes in tests.** Use the real query functions that produce them.
 
 When you manually construct objects to match a type (like `PlaythroughWithMedia`), you're:
+
 - Encoding implementation details about the data shape in your tests
 - Creating fragile tests that break when the shape changes
 - Potentially constructing invalid states that the real code wouldn't produce
 
 **Bad** - Manually constructing a complex type:
+
 ```typescript
 // Manually building PlaythroughWithMedia shape - fragile!
 const playthroughWithMedia = {
@@ -616,15 +663,28 @@ const playthroughWithMedia = {
     },
   },
 };
-await trackPlayerService.loadPlaythroughIntoPlayer(session, playthroughWithMedia as any);
+await trackPlayerService.loadPlaythroughIntoPlayer(
+  session,
+  playthroughWithMedia as any,
+);
 ```
 
 **Good** - Using the real query function:
+
 ```typescript
 // Create the data, then use the real query to get the proper shape
-const playthrough = await createPlaythrough(db, { mediaId: media.id, position: 100 });
-const playthroughWithMedia = await getPlaythroughWithMedia(session, playthrough.id);
-await trackPlayerService.loadPlaythroughIntoPlayer(session, playthroughWithMedia);
+const playthrough = await createPlaythrough(db, {
+  mediaId: media.id,
+  position: 100,
+});
+const playthroughWithMedia = await getPlaythroughWithMedia(
+  session,
+  playthrough.id,
+);
+await trackPlayerService.loadPlaythroughIntoPlayer(
+  session,
+  playthroughWithMedia,
+);
 ```
 
 **Factories should hide implementation details:**

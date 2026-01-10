@@ -1,15 +1,19 @@
 import { useMemo } from "react";
 import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
+import { useKeyboardState } from "react-native-keyboard-controller";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import { Loading } from "@/components/Loading";
 import { MediaTile } from "@/components/Tiles";
-import { PAGE_SIZE } from "@/constants";
+import { PAGE_SIZE, PLAYER_HEIGHT, TAB_BAR_BASE_HEIGHT } from "@/constants";
 import {
   getMediaPage,
   usePaginatedLibraryData,
 } from "@/services/library-service";
 import { usePullToRefresh } from "@/services/sync-service";
 import { useScreen } from "@/stores/screen";
+import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 
@@ -25,8 +29,23 @@ type FullLibraryProps = {
   session: Session;
 };
 
+const MINI_PROGRESS_BAR_HEIGHT = 2;
+
 export function FullLibrary({ session }: FullLibraryProps) {
   const screenWidth = useScreen((state) => state.screenWidth);
+  const { bottom: safeAreaBottom } = useSafeAreaInsets();
+  const playerLoaded = useTrackPlayer((state) => !!state.playthrough);
+
+  // Calculate the height of the bottom bar (tab bar + player if loaded)
+  const bottomBarHeight =
+    TAB_BAR_BASE_HEIGHT +
+    safeAreaBottom +
+    (playerLoaded ? PLAYER_HEIGHT + MINI_PROGRESS_BAR_HEIGHT : 0);
+
+  // Keyboard height is from screen bottom, but content is above the bottom bar
+  const rawKeyboardHeight = useKeyboardState((state) => state.height);
+  const keyboardHeight = Math.max(0, rawKeyboardHeight - bottomBarHeight);
+
   const getPage = (pageSize: number, cursor: Date | undefined) =>
     getMediaPage(session, pageSize, cursor);
   const getCursor = (item: { insertedAt: Date }) => item.insertedAt;
@@ -61,16 +80,26 @@ export function FullLibrary({ session }: FullLibraryProps) {
 
   if (media.length === 0) {
     return (
-      <Text style={styles.text}>
-        Your library is empty. Log into the server on the web and add some
-        audiobooks to get started!
-      </Text>
+      <View style={styles.emptyContainer}>
+        <FontAwesome6
+          name="book-open"
+          size={64}
+          color={Colors.zinc[600]}
+          style={styles.emptyIcon}
+        />
+        <Text style={styles.emptyTitle}>Your Library is Empty</Text>
+        <Text style={styles.emptySubtitle}>
+          Log into your Ambry server on the web and add some audiobooks to get
+          started.
+        </Text>
+      </View>
     );
   }
 
   return (
     <FlatList
       contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={{ paddingBottom: keyboardHeight }}
       style={styles.flatlist}
       data={media}
       keyExtractor={(item) => item.id}
@@ -98,10 +127,26 @@ export function FullLibrary({ session }: FullLibraryProps) {
 }
 
 const styles = StyleSheet.create({
-  text: {
+  emptyContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 48,
+  },
+  emptyIcon: {
+    marginBottom: 16,
+  },
+  emptyTitle: {
     color: Colors.zinc[100],
-    paddingHorizontal: 32,
-    paddingTop: 32,
+    fontSize: 20,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    color: Colors.zinc[400],
+    fontSize: 16,
+    textAlign: "center",
+    lineHeight: 22,
   },
   flatlist: {
     padding: 8,

@@ -12,6 +12,7 @@ import { Platform } from "react-native";
 import { getPlaythrough, type PlaythroughWithMedia } from "@/db/playthroughs";
 import * as TrackPlayer from "@/services/track-player-wrapper";
 import { useDataVersion } from "@/stores/data-version";
+import { usePreferredPlaybackRate } from "@/stores/preferred-playback-rate";
 import {
   initialState,
   PlayPauseSource,
@@ -316,7 +317,9 @@ export async function loadPlaythroughIntoPlayer(
 
   const streaming = playthrough.media.download?.status !== "ready";
   const position = playthrough.stateCache?.currentPosition ?? 0;
-  const playbackRate = playthrough.stateCache?.currentRate ?? 1;
+  const playbackRate =
+    playthrough.stateCache?.currentRate ??
+    usePreferredPlaybackRate.getState().preferredPlaybackRate;
   const trackAdd = buildAddTrack(session, playthrough);
 
   await TrackPlayer.reset();

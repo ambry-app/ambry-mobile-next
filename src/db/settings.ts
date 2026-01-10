@@ -1,6 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 
 import {
+  DEFAULT_PREFERRED_PLAYBACK_RATE,
   DEFAULT_SLEEP_TIMER_ENABLED,
   DEFAULT_SLEEP_TIMER_SECONDS,
 } from "@/constants";
@@ -23,6 +24,19 @@ export async function setPreferredPlaybackRate(
         preferredPlaybackRate: sql`excluded.preferred_playback_rate`,
       },
     });
+}
+
+export async function getPreferredPlaybackRate(
+  userEmail: string,
+): Promise<number> {
+  const response = await getDb().query.localUserSettings.findFirst({
+    columns: {
+      preferredPlaybackRate: true,
+    },
+    where: eq(schema.localUserSettings.userEmail, userEmail),
+  });
+
+  return response?.preferredPlaybackRate ?? DEFAULT_PREFERRED_PLAYBACK_RATE;
 }
 
 export async function setSleepTimerEnabled(
