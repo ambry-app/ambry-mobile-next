@@ -1,7 +1,6 @@
 import { PAUSE_REWIND_SECONDS } from "@/constants";
 import * as EventRecording from "@/services/event-recording";
 import * as Lifecycle from "@/services/playthrough-lifecycle";
-import * as Heartbeat from "@/services/position-heartbeat";
 import { seekImmediateNoLog, seekRelative } from "@/services/seek-service";
 import * as Player from "@/services/track-player-service";
 import * as TrackPlayer from "@/services/track-player-wrapper";
@@ -55,8 +54,6 @@ export const PlaybackService = async function () {
 
   TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async () => {
     console.debug("[TrackPlayer Service] PlaybackQueueEnded");
-
-    Heartbeat.stop();
 
     const loadedPlaythrough = Player.getLoadedPlaythrough();
 
@@ -133,8 +130,6 @@ export const PlaybackService = async function () {
   TrackPlayer.addEventListener(Event.RemotePause, async () => {
     console.debug("[TrackPlayer Service] RemotePause");
 
-    Heartbeat.stop();
-
     await Player.pause();
     await seekImmediateNoLog(-PAUSE_REWIND_SECONDS);
 
@@ -183,9 +178,6 @@ export const PlaybackService = async function () {
     }
 
     const playbackRate = Player.getPlaybackRate();
-
-    Heartbeat.start(loadedPlaythrough.id, playbackRate);
-
     const progress = await Player.getAccurateProgress();
 
     await EventRecording.recordPlayEvent(

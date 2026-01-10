@@ -1,75 +1,42 @@
 /**
  * Position Heartbeat Service
  *
- * Manages periodic saving of playback position to the state cache.
- * This runs during playback to ensure position is saved even if the app
- * crashes or is force-killed.
- *
- * Extracted from event-recording-service.ts to separate concerns:
- * - Event recording: records discrete playback events (play, pause, seek)
- * - Position heartbeat: periodic background saves (no events created)
+ * Manages periodic saving of playback position to the state cache. This runs
+ * during playback to ensure position is saved even if the app crashes or is
+ * force-killed.
  */
 
 import { PROGRESS_SAVE_INTERVAL } from "@/constants";
 import { updateStateCache } from "@/db/playthroughs";
 import * as Player from "@/services/track-player-service";
+import { useTrackPlayer } from "@/stores/track-player";
+import { logBase } from "@/utils/logger";
 
-// =============================================================================
-// Module State
-// =============================================================================
+const log = logBase.extend("position-heartbeat");
 
+let initialized = false;
 let heartbeatInterval: NodeJS.Timeout | null = null;
-let currentPlaythroughId: string | null = null;
-let currentPlaybackRate: number = 1;
 
 // =============================================================================
 // Public API
 // =============================================================================
 
 /**
- * Start the position heartbeat.
- * Saves position every PROGRESS_SAVE_INTERVAL (30 seconds).
- *
- * @param playthroughId - The playthrough to save position for
- * @param playbackRate - Current playback rate (used for state cache)
+ * Initialize the heartbeat service.
  */
-export function start(playthroughId: string, playbackRate: number): void {
-  if (heartbeatInterval) {
-    // Already running - update state but don't create new interval
-    currentPlaythroughId = playthroughId;
-    currentPlaybackRate = playbackRate;
+export async function initialize() {
+  if (initialized) {
+    log.debug("Already initialized, skipping");
     return;
   }
 
-  currentPlaythroughId = playthroughId;
-  currentPlaybackRate = playbackRate;
+  setupStoreSubscriptions();
+  initialized = true;
 
-  heartbeatInterval = setInterval(async () => {
-    await save();
-  }, PROGRESS_SAVE_INTERVAL);
-
-  console.debug("[Heartbeat] Started for playthrough:", playthroughId);
+  log.debug("Initialized");
 }
 
-/**
- * Stop the position heartbeat.
- */
-export function stop(): void {
-  if (heartbeatInterval) {
-    clearInterval(heartbeatInterval);
-    heartbeatInterval = null;
-    console.debug("[Heartbeat] Stopped");
-  }
-}
-
-/**
- * Update the playback rate used for state cache updates.
- * Call this when the playback rate changes during playback.
- */
-export function setPlaybackRate(rate: number): void {
-  currentPlaybackRate = rate;
-}
-
+// FIXME: maybe?
 /**
  * Force an immediate save of the current playback position.
  * Call this before reloading the player to preserve position.
@@ -78,41 +45,70 @@ export async function saveNow(): Promise<void> {
   await save();
 }
 
-/**
- * Check if the heartbeat is currently running.
- */
-export function isRunning(): boolean {
-  return heartbeatInterval !== null;
-}
-
 // =============================================================================
 // Internal
 // =============================================================================
 
-async function save(): Promise<void> {
-  if (!currentPlaythroughId) return;
+/**
+ * Subscribes to the track-player store to reactively start and stop the
+ * heartbeat based on playback state changes.
+ */
+function setupStoreSubscriptions() {
+  useTrackPlayer.subscribe((state, prevState) => {
+    if (state.isPlaying.playing !== prevState.isPlaying.playing) {
+      handleIsPlayingChange(state.isPlaying.playing);
+    }
+  });
+}
 
-  try {
-    const { position } = await Player.getAccurateProgress();
-
-    // Update state cache without creating events (background save)
-    await updateStateCache(currentPlaythroughId, position, currentPlaybackRate);
-
-    console.debug("[Heartbeat] Saved position:", position.toFixed(1));
-  } catch (error) {
-    console.warn("[Heartbeat] Error saving position:", error);
+/**
+ * Handle changes to isPlaying state. Starts or stops the heartbeat accordingly.
+ */
+function handleIsPlayingChange(isPlaying: boolean) {
+  if (isPlaying) {
+    start();
+  } else {
+    stop();
   }
 }
 
-// =============================================================================
-// Testing
-// =============================================================================
+/**
+ * Start the position heartbeat.
+ */
+function start(): void {
+  if (heartbeatInterval) {
+    return;
+  }
+
+  heartbeatInterval = setInterval(async () => {
+    await save();
+  }, PROGRESS_SAVE_INTERVAL);
+
+  log.debug("Started heartbeat");
+}
 
 /**
- * Reset service state for testing.
+ * Stop the position heartbeat.
  */
-export function __resetForTesting(): void {
-  stop();
-  currentPlaythroughId = null;
-  currentPlaybackRate = 1;
+function stop(): void {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+    log.debug("Stopped heartbeat");
+  }
+}
+
+/**
+ * Save the current playback position to the state cache.
+ */
+async function save(): Promise<void> {
+  const currentPlaythroughId = Player.getLoadedPlaythrough()?.id;
+  if (!currentPlaythroughId) return;
+
+  const currentPlaybackRate = Player.getPlaybackRate();
+  const { position } = Player.getProgress();
+
+  await updateStateCache(currentPlaythroughId, position, currentPlaybackRate);
+
+  log.debug(`Saved position: ${position.toFixed(1)}`);
 }

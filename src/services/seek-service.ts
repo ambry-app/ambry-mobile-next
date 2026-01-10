@@ -1,3 +1,10 @@
+/**
+ * Seek Service
+ *
+ * Handles user-initiated seeking (scrubbing and button-based) with accumulation
+ * and delay so as to not overwhelm the audio player with rapid seek commands.
+ */
+
 import {
   SEEK_ACCUMULATION_WINDOW,
   SEEK_EVENT_ACCUMULATION_WINDOW,
@@ -7,10 +14,6 @@ import { SeekSource, SeekSourceType } from "@/stores/track-player";
 
 import * as EventRecording from "./event-recording";
 import * as Player from "./track-player-service";
-
-// ============================================================================
-// Module State (for core accumulation logic)
-// ============================================================================
 
 let seekTimer: NodeJS.Timeout | null = null;
 let seekEventTimer: NodeJS.Timeout | null = null;
@@ -85,6 +88,7 @@ export async function seekRelative(amount: number, source: SeekSourceType) {
   restartTimers(source);
 }
 
+// FIXME: not sure what to do about this one
 /**
  * Seek by a small amount without creating a seek record.
  * Used for the rewind-on-pause feature.
@@ -113,7 +117,7 @@ export async function seekImmediateNoLog(amount: number) {
 }
 
 // ============================================================================
-// Internal Logic
+// Internal
 // ============================================================================
 
 /**
@@ -171,6 +175,7 @@ async function applyAccumulatedSeek(source: SeekSourceType) {
   isApplying = false;
 }
 
+// FIXME: this is a concern of the event recording service and shouldn't be here
 /**
  * Record the completed seek event after debounce.
  */
@@ -220,10 +225,6 @@ async function recordSeekEvent() {
   eventTo = null;
   eventTimestamp = null;
 }
-
-// ============================================================================
-// UI State Updates
-// ============================================================================
 
 /**
  * Update the UI-specific parts of the seek state in the Zustand store.

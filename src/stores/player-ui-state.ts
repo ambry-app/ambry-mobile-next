@@ -29,6 +29,7 @@ export interface PlayerUIState {
   expanded: boolean;
   pendingExpandPlayer: boolean;
 
+  // FIXME: move into a seek store
   /* seek UI state */
   userIsSeeking: boolean;
   seekIsApplying: boolean;

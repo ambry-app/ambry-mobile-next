@@ -12,6 +12,7 @@ import { initializeDataVersion } from "@/services/data-version-service";
 import { useDatabaseMigrations } from "@/services/db-service";
 import { initializeDownloads } from "@/services/download-service";
 import { initializePlayer } from "@/services/playback-controls";
+import { initialize as initializeHeartbeat } from "@/services/position-heartbeat";
 import { initialize as initializeSleepTimer } from "@/services/sleep-timer-service";
 import { sync } from "@/services/sync-service";
 import { initialize as initializeTrackPlayer } from "@/services/track-player-service";
@@ -57,36 +58,23 @@ export function useAppBoot() {
 
       log.debug("Starting");
 
-      // Initialize device
       await initializeDevice();
-
-      // Initialize remaining stores (each handles its own "already initialized" check)
       const { needsInitialSync } = await initializeDataVersion(session);
-      await initializeDownloads(session);
 
-      // Initial sync if needed
       if (needsInitialSync) {
-        try {
-          log.debug("Initial sync...");
-          await sync(session);
-          log.debug("Initial sync complete");
-        } catch (e) {
-          log.error("Initial sync error", e);
-        }
+        log.debug("Initial sync...");
+        await sync(session);
+        log.debug("Initial sync complete");
       }
       setInitialSyncComplete(true);
 
-      // Initialize player (sets up TrackPlayer and loads active playthrough)
+      await initializeDownloads(session);
       await initializeTrackPlayer();
       await initializePlayer(session);
       await initializeSleepTimer(session);
+      await initializeHeartbeat();
 
-      // Register background sync
-      try {
-        await registerBackgroundSyncTask();
-      } catch (e) {
-        log.error("Background sync registration error", e);
-      }
+      await registerBackgroundSyncTask();
 
       log.debug("Complete");
       setIsReady(true);

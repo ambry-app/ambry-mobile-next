@@ -4,8 +4,8 @@ import { seekTo } from "./seek-service";
 import * as Player from "./track-player-service";
 
 /**
- * Skip to the end of the current chapter.
- * If it's the last chapter, it will seek to the end of the media.
+ * Skip to the end of the current chapter. If it's the last chapter, it will
+ * seek to the end of the media.
  */
 export function skipToEndOfChapter() {
   const currentChapter = Player.getCurrentChapter();
@@ -20,6 +20,7 @@ export function skipToEndOfChapter() {
 
 /**
  * Skip to the beginning of the chapter.
+ 
  * - If playback is within the first few seconds of a chapter, it skips to the previous chapter.
  * - Otherwise, it skips to the beginning of the current chapter.
  */

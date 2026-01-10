@@ -1,3 +1,12 @@
+/**
+ * Sleep Timer Service
+ *
+ * Manages the sleep timer functionality, allowing users to set a timer that
+ * will pause playback after a specified duration. Integrates with the track
+ * player store to reactively start and stop the timer based on playback state
+ * changes and user interactions.
+ */
+
 import {
   SLEEP_TIMER_FADE_OUT_TIME,
   SLEEP_TIMER_PAUSE_REWIND_SECONDS,
@@ -16,7 +25,7 @@ import { Session } from "@/types/session";
 import { logBase } from "@/utils/logger";
 
 import * as EventRecording from "./event-recording";
-import * as Heartbeat from "./position-heartbeat";
+import { seekImmediateNoLog } from "./seek-service";
 import { syncPlaythroughs } from "./sync-service";
 
 const log = logBase.extend("sleep-timer-service");
@@ -38,8 +47,6 @@ export async function initialize(session: Session) {
     return;
   }
 
-  log.debug("Initializing...");
-
   const settings = await getSleepTimerSettings(session.email);
   useSleepTimer.setState({
     initialized: true,
@@ -57,7 +64,7 @@ export async function initialize(session: Session) {
  * Clears or sets the trigger time as needed.
  */
 export async function setSleepTimerEnabled(session: Session, enabled: boolean) {
-  log.debug("Setting enabled to", enabled);
+  log.debug(`Setting enabled to ${enabled}`);
 
   const { playing } = Player.isPlaying();
 
@@ -82,7 +89,7 @@ export async function setSleepTimerEnabled(session: Session, enabled: boolean) {
  * the trigger time if the timer is currently active.
  */
 export async function setSleepTimerTime(session: Session, seconds: number) {
-  log.debug("Setting time to", seconds, "seconds");
+  log.debug(`Setting time to ${seconds} seconds`);
 
   const { sleepTimerTriggerTime, sleepTimer: prevSleepTimer } =
     useSleepTimer.getState();
@@ -131,12 +138,8 @@ function setupStoreSubscriptions() {
  */
 function handleIsPlayingChange(isPlaying: boolean) {
   if (isPlaying) {
-    // Started playing
-    log.debug("Detected playback started");
     start();
   } else {
-    // Stopped playing
-    log.debug("Detected playback stopped");
     stop();
   }
 }
@@ -209,7 +212,7 @@ async function resetTriggerTime() {
   if (!sleepTimerEnabled) return await clearTriggerTime();
 
   const triggerTime = Date.now() + sleepTimer * 1000;
-  log.debug("Setting trigger time to", new Date(triggerTime));
+  log.debug(`Setting trigger time to ${new Date(triggerTime)}`);
   setTriggerTime(triggerTime);
   await TrackPlayer.setVolume(1.0);
 }
@@ -245,18 +248,12 @@ async function checkTimer() {
 
     const loadedPlaythrough = Player.getLoadedPlaythrough();
     const playbackRate = Player.getPlaybackRate();
-    const { position, duration } = await Player.getAccurateProgress();
 
     // FIXME:
     // We have to re-implement most of the pause logic from player-controls here
     await Player.pause();
-    Heartbeat.stop();
 
-    // seek back a bit
-    let seekPosition =
-      position - SLEEP_TIMER_PAUSE_REWIND_SECONDS * playbackRate;
-    seekPosition = Math.max(0, Math.min(seekPosition, duration));
-    await Player.seekTo(seekPosition, SeekSource.INTERNAL);
+    seekImmediateNoLog(-SLEEP_TIMER_PAUSE_REWIND_SECONDS);
 
     if (loadedPlaythrough) {
       const { position } = await Player.getAccurateProgress();
@@ -274,7 +271,7 @@ async function checkTimer() {
   } else if (timeRemaining <= SLEEP_TIMER_FADE_OUT_TIME) {
     // Fade volume in last 30 seconds
     const volume = timeRemaining / SLEEP_TIMER_FADE_OUT_TIME;
-    log.debug("Fading volume:", volume.toFixed(2));
+    log.debug(`Fading volume: ${volume.toFixed(2)}`);
     await TrackPlayer.setVolume(volume);
   }
 }

@@ -54,7 +54,6 @@ export async function play() {
         position,
         rate,
       );
-      Heartbeat.start(loadedPlaythrough.id, rate);
     } catch (error) {
       console.warn("[Controls] Error recording play event:", error);
     }
@@ -70,8 +69,6 @@ export async function pause() {
   console.debug("[Controls] Pausing at position", position.toFixed(1));
   await Player.pause();
   await seekImmediateNoLog(-PAUSE_REWIND_SECONDS);
-
-  Heartbeat.stop();
 
   const loadedPlaythrough = Player.getLoadedPlaythrough();
   const playbackRate = Player.getPlaybackRate();
@@ -124,7 +121,6 @@ export async function setPlaybackRate(playbackRate: number) {
         playbackRate,
         previousRate,
       );
-      Heartbeat.setPlaybackRate(playbackRate);
     } catch (error) {
       console.warn("[Controls] Error recording rate change:", error);
     }
@@ -298,10 +294,7 @@ export async function finishPlaythrough(
   const isLoaded = loadedPlaythrough?.id === playthroughId;
 
   if (isLoaded) {
-    const paused = await pauseAndRecordEvent();
-    if (paused) {
-      Heartbeat.stop();
-    }
+    await pauseAndRecordEvent();
   }
 
   await Lifecycle.finishPlaythrough(session, playthroughId);
@@ -322,10 +315,7 @@ export async function abandonPlaythrough(
   const isLoaded = loadedPlaythrough?.id === playthroughId;
 
   if (isLoaded) {
-    const paused = await pauseAndRecordEvent();
-    if (paused) {
-      Heartbeat.stop();
-    }
+    await pauseAndRecordEvent();
   }
 
   await Lifecycle.abandonPlaythrough(session, playthroughId);
@@ -346,10 +336,7 @@ export async function deletePlaythrough(
   const isLoaded = loadedPlaythrough?.id === playthroughId;
 
   if (isLoaded) {
-    const paused = await pauseAndRecordEvent();
-    if (paused) {
-      Heartbeat.stop();
-    }
+    await pauseAndRecordEvent();
     await tryUnloadPlayer();
   }
 
@@ -367,16 +354,16 @@ export async function deletePlaythrough(
  *
  * Returns true if a pause was recorded, false if already paused.
  */
-async function pauseAndRecordEvent(): Promise<boolean> {
+async function pauseAndRecordEvent() {
   const loadedPlaythrough = Player.getLoadedPlaythrough();
   const playbackRate = Player.getPlaybackRate();
 
-  if (!loadedPlaythrough) return false;
+  if (!loadedPlaythrough) return;
 
   const { playing } = Player.isPlaying();
   if (!playing) {
     console.debug("[Controls] pauseAndRecordEvent: not playing, skipping");
-    return false;
+    return;
   }
 
   await Player.pause();
@@ -387,7 +374,7 @@ async function pauseAndRecordEvent(): Promise<boolean> {
     playbackRate,
   );
   console.debug("[Controls] pauseAndRecordEvent completed");
-  return true;
+  return;
 }
 
 /**

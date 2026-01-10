@@ -15,7 +15,7 @@ import { useDataVersion } from "@/stores/data-version";
 import {
   initialState,
   type ProgressWithPercent,
-  SeekSourceType,
+  type SeekSourceType,
   useTrackPlayer,
 } from "@/stores/track-player";
 import { Chapter } from "@/types/db-schema";
@@ -53,8 +53,6 @@ export async function initialize() {
     log.debug("Already initialized, skipping");
     return;
   }
-
-  log.debug("Initializing...");
 
   await setupPlayer();
   setupTrackPlayerListeners();
@@ -130,7 +128,7 @@ export function getLoadedPlaythrough() {
  * `getAccurateProgress` instead.
  */
 export function getProgress() {
-  log.debug("getProgress");
+  log.trace("getProgress");
   const { progress } = useTrackPlayer.getState();
   return progress;
 }
@@ -141,7 +139,7 @@ export function getProgress() {
  * This bypasses the store to ensure we get the most up-to-date progress.
  */
 export async function getAccurateProgress() {
-  log.debug("getAccurateProgress");
+  log.trace("getAccurateProgress");
   return getProgressWithPercent();
 }
 
@@ -190,7 +188,7 @@ export async function loadPlaythroughIntoPlayer(
   session: Session,
   playthrough: PlaythroughWithMedia,
 ): Promise<void> {
-  log.debug("Loading playthrough into player...");
+  log.debug(`Loading playthrough into player ${playthrough.id}`);
 
   const streaming = playthrough.media.download?.status !== "ready";
   const position = playthrough.stateCache?.currentPosition ?? 0;

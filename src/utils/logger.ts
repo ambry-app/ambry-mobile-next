@@ -23,6 +23,7 @@ export const logBase = logger.createLogger({
       "track-player-wrapper": "blue",
       "boot-service": "red",
       "sleep-timer-service": "black",
+      "position-heartbeat": "grey",
     },
   },
 });

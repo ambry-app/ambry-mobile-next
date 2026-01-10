@@ -30,7 +30,6 @@ import { SeekSource } from "@/stores/track-player";
 import { Session } from "@/types/session";
 
 import * as EventRecording from "./event-recording";
-import * as Heartbeat from "./position-heartbeat";
 import { syncPlaythroughs } from "./sync-service";
 import * as Player from "./track-player-service";
 
@@ -225,8 +224,6 @@ async function pauseCurrentIfPlaying() {
   let seekPosition = progress.position - PAUSE_REWIND_SECONDS * playbackRate;
   seekPosition = Math.max(0, Math.min(seekPosition, progress.duration));
   await Player.seekTo(seekPosition, SeekSource.INTERNAL);
-
-  Heartbeat.stop();
 
   const loadedPlaythrough = Player.getLoadedPlaythrough();
 

@@ -1,8 +1,8 @@
 /**
  * Authentication Service
  *
- * Handles sign in/out operations by coordinating between
- * the GraphQL API and the session store.
+ * Handles sign in/out operations by coordinating between the GraphQL API and
+ * the session store.
  */
 
 import {
