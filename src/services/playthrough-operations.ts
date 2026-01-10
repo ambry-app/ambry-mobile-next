@@ -1,38 +1,39 @@
 /**
- * Playthrough Loading Service
+ * Playthrough Operations Service
  *
- * Explicit functions for loading playthroughs into TrackPlayer.
- * These functions do NO decision logic (caller decides which to call):
- * - startNewPlaythrough: creates and loads a new playthrough
- * - continuePlaythrough: loads an existing in_progress playthrough
- * - resumePlaythrough: changes status and loads a finished/abandoned playthrough
+ * Handles all playthrough state transitions:
+ * - Starting: create new, continue existing, resume finished/abandoned
+ * - Ending: finish, abandon, delete
  *
- * The caller is responsible for deciding which function to call.
- * This removes hidden queries and makes the code flow explicit.
- *
- * Also includes:
- * - loadActivePlaythroughIntoPlayer: for app initialization
- * - reloadPlaythroughById: for reloading after download completes
- * - clearActivePlaythrough: for user-initiated unload
+ * This is the single source of truth for:
+ * - Recording lifecycle events (start, resume, finish, abandon)
+ * - Creating/updating/deleting playthrough status in DB
+ * - Loading playthroughs into TrackPlayer
+ * - Managing active playthrough for device
+ * - Bumping data version for UI refresh
+ * - Triggering sync
  */
 
-import { PAUSE_REWIND_SECONDS } from "@/constants";
 import {
   clearActivePlaythroughIdForDevice,
   createPlaythrough,
+  deletePlaythrough as deletePlaythroughDb,
   getActivePlaythroughIdForDevice,
   getPlaythroughWithMedia,
   resumePlaythrough as resumePlaythroughInDb,
   setActivePlaythroughIdForDevice,
+  updatePlaythroughStatus,
 } from "@/db/playthroughs";
-import { PlayPauseSource } from "@/stores/track-player";
+import { bumpPlaythroughDataVersion } from "@/stores/data-version";
+import { useSession } from "@/stores/session";
 import { Session } from "@/types/session";
 
 import * as EventRecording from "./event-recording";
+import { syncPlaythroughs } from "./sync-service";
 import * as Player from "./track-player-service";
 
 // =============================================================================
-// Explicit User-Action Functions
+// Starting Operations
 // =============================================================================
 
 /**
@@ -50,8 +51,6 @@ export async function startNewPlaythrough(
   session: Session,
   mediaId: string,
 ): Promise<void> {
-  await pauseCurrentIfPlaying();
-
   // Create new playthrough and record start event
   const playthroughId = await createPlaythrough(session, mediaId);
   await EventRecording.recordStartEvent(playthroughId);
@@ -78,8 +77,6 @@ export async function continuePlaythrough(
   session: Session,
   playthroughId: string,
 ): Promise<void> {
-  await pauseCurrentIfPlaying();
-
   // Get the playthrough with full media info
   const playthrough = await getPlaythroughWithMedia(session, playthroughId);
   await Player.loadPlaythroughIntoPlayer(session, playthrough);
@@ -101,8 +98,6 @@ export async function resumePlaythrough(
   session: Session,
   playthroughId: string,
 ): Promise<void> {
-  await pauseCurrentIfPlaying();
-
   // Mark as in_progress in database and record resume event
   await resumePlaythroughInDb(session, playthroughId);
   await EventRecording.recordResumeEvent(playthroughId);
@@ -113,6 +108,123 @@ export async function resumePlaythrough(
 
   // Track this as the active playthrough for this device
   await setActivePlaythroughIdForDevice(session, playthroughId);
+}
+
+// =============================================================================
+// Ending Operations
+// =============================================================================
+
+/**
+ * Finalize a playthrough as finished.
+ *
+ * This handles all the bookkeeping for marking a playthrough complete:
+ * 1. Records "finish" lifecycle event
+ * 2. Updates playthrough status in database
+ * 3. Clears active playthrough for this device
+ * 4. Bumps data version for UI refresh
+ * 5. Triggers sync in background
+ *
+ * @param session - Current session (or null to use current session from store)
+ * @param playthroughId - ID of the playthrough to finish
+ */
+export async function finishPlaythrough(
+  session: Session | null,
+  playthroughId: string,
+): Promise<void> {
+  const resolvedSession = session ?? useSession.getState().session;
+  if (!resolvedSession) {
+    console.warn("[Operations] No session, cannot finish playthrough");
+    return;
+  }
+
+  console.debug("[Operations] Finishing playthrough:", playthroughId);
+
+  // Record the finish lifecycle event
+  await EventRecording.recordFinishEvent(playthroughId);
+
+  // Update status in database
+  await updatePlaythroughStatus(resolvedSession, playthroughId, "finished", {
+    finishedAt: new Date(),
+  });
+
+  // Clear the active playthrough for this device since it's finished
+  await clearActivePlaythroughIdForDevice(resolvedSession);
+
+  // Notify UI that playthrough data changed
+  bumpPlaythroughDataVersion();
+
+  // Trigger sync in background (non-blocking)
+  triggerBackgroundSync(resolvedSession);
+}
+
+/**
+ * Finalize a playthrough as abandoned.
+ *
+ * This handles all the bookkeeping for marking a playthrough abandoned:
+ * 1. Records "abandon" lifecycle event
+ * 2. Updates playthrough status in database
+ * 3. Clears active playthrough for this device
+ * 4. Bumps data version for UI refresh
+ * 5. Triggers sync in background
+ *
+ * @param session - Current session (or null to use current session from store)
+ * @param playthroughId - ID of the playthrough to abandon
+ */
+export async function abandonPlaythrough(
+  session: Session | null,
+  playthroughId: string,
+): Promise<void> {
+  const resolvedSession = session ?? useSession.getState().session;
+  if (!resolvedSession) {
+    console.warn("[Operations] No session, cannot abandon playthrough");
+    return;
+  }
+
+  console.debug("[Operations] Abandoning playthrough:", playthroughId);
+
+  // Record the abandon lifecycle event
+  await EventRecording.recordAbandonEvent(playthroughId);
+
+  // Update status in database
+  await updatePlaythroughStatus(resolvedSession, playthroughId, "abandoned", {
+    abandonedAt: new Date(),
+  });
+
+  // Clear the active playthrough for this device since it's abandoned
+  await clearActivePlaythroughIdForDevice(resolvedSession);
+
+  // Notify UI that playthrough data changed
+  bumpPlaythroughDataVersion();
+
+  // Trigger sync in background (non-blocking)
+  triggerBackgroundSync(resolvedSession);
+}
+
+/**
+ * Delete a playthrough.
+ *
+ * This handles all the bookkeeping for deleting a playthrough:
+ * 1. Deletes playthrough from database (soft delete with deletedAt)
+ * 2. Bumps data version for UI refresh
+ * 3. Triggers sync in background
+ *
+ * @param session - Current session
+ * @param playthroughId - ID of the playthrough to delete
+ */
+export async function deletePlaythrough(
+  session: Session,
+  playthroughId: string,
+): Promise<void> {
+  console.debug("[Operations] Deleting playthrough:", playthroughId);
+
+  // Delete from database
+  await deletePlaythroughDb(session, playthroughId);
+
+  // Notify UI that playthrough data changed
+  bumpPlaythroughDataVersion();
+
+  // Trigger sync in background (non-blocking)
+  triggerBackgroundSync(session);
 }
 
 // =============================================================================
@@ -136,7 +248,7 @@ export async function loadActivePlaythroughIntoPlayer(
   const storedPlaythroughId = await getActivePlaythroughIdForDevice(session);
 
   if (!storedPlaythroughId) {
-    console.debug("[Loader] No active playthrough stored for this device");
+    console.debug("[Operations] No active playthrough stored for this device");
     return;
   }
 
@@ -148,7 +260,7 @@ export async function loadActivePlaythroughIntoPlayer(
 
   if (playthrough.status !== "in_progress") {
     console.debug(
-      "[Loader] Stored playthrough is not in_progress (status:",
+      "[Operations] Stored playthrough is not in_progress (status:",
       playthrough.status,
       "), clearing:",
       storedPlaythroughId,
@@ -158,7 +270,7 @@ export async function loadActivePlaythroughIntoPlayer(
   }
 
   console.debug(
-    "[Loader] Loading stored active playthrough:",
+    "[Operations] Loading stored active playthrough:",
     playthrough.id,
     "mediaId:",
     playthrough.media.id,
@@ -179,7 +291,7 @@ export async function reloadPlaythroughById(
   session: Session,
   playthroughId: string,
 ): Promise<void> {
-  console.debug("[Loader] Reloading playthrough by ID:", playthroughId);
+  console.debug("[Operations] Reloading playthrough by ID:", playthroughId);
 
   const playthrough = await getPlaythroughWithMedia(session, playthroughId);
 
@@ -203,6 +315,6 @@ export async function clearActivePlaythrough(session: Session): Promise<void> {
 // Internal Helpers
 // =============================================================================
 
-async function pauseCurrentIfPlaying() {
-  await Player.pauseIfPlaying(PlayPauseSource.USER, PAUSE_REWIND_SECONDS);
+function triggerBackgroundSync(session: Session) {
+  syncPlaythroughs(session);
 }

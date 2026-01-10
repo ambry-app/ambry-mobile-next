@@ -2,10 +2,6 @@ import {
   PAUSE_REWIND_SECONDS,
   PLAYER_EXPAND_ANIMATION_DURATION,
 } from "@/constants";
-import {
-  deletePlaythrough as deletePlaythroughDb,
-  getInProgressPlaythroughWithMedia,
-} from "@/db/playthroughs";
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
 import {
   requestExpandPlayer,
@@ -18,29 +14,16 @@ import { PlayPauseSource } from "@/stores/track-player";
 import { Session } from "@/types/session";
 import { subscribeToChange } from "@/utils/subscribe";
 
-import * as Lifecycle from "./playthrough-lifecycle";
-import * as Loader from "./playthrough-loader";
+import * as Operations from "./playthrough-operations";
 import * as Heartbeat from "./position-heartbeat";
 import * as Player from "./track-player-service";
 
 export type PlaythroughAction =
-  | { type: "unloadPlayer" }
+  | { type: "unloadPlayer" } // FIXME: renamed to unloadPlaythrough
   | { type: "continueExistingPlaythrough"; playthroughId: string }
   | { type: "startFreshPlaythrough"; mediaId: string }
   | { type: "resumeAndLoadPlaythrough"; playthroughId: string }
   | { type: "promptForResume"; playthroughId: string };
-
-// =============================================================================
-// Internal Playback Helpers
-// =============================================================================
-
-async function play() {
-  await Player.play(PlayPauseSource.USER);
-}
-
-async function pauseIfPlaying() {
-  await Player.pauseIfPlaying(PlayPauseSource.USER, PAUSE_REWIND_SECONDS);
-}
 
 // =============================================================================
 // Player Initialization & Media Loading
@@ -61,31 +44,7 @@ export async function initializePlayer(session: Session) {
   usePlayerUIState.setState({ initialized: true });
 
   // Try to load the stored active playthrough if no track was pre-loaded
-  await Loader.loadActivePlaythroughIntoPlayer(session);
-}
-
-/**
- * Load media and start playing with full state management.
- * Handles setting loading state, expanding player, querying playthrough state,
- * and calling appropriate loader function.
- */
-export async function loadAndPlayMedia(session: Session, mediaId: string) {
-  console.debug("[Controls] Loading and playing media:", mediaId);
-
-  setLoadingNewMedia(true);
-  await expandPlayerAndWait();
-
-  const inProgress = await getInProgressPlaythroughWithMedia(session, mediaId);
-
-  if (inProgress) {
-    await Loader.continuePlaythrough(session, inProgress.id);
-  } else {
-    await Loader.startNewPlaythrough(session, mediaId);
-  }
-
-  setLoadingNewMedia(false);
-  bumpPlaythroughDataVersion();
-  await play();
+  await Operations.loadActivePlaythroughIntoPlayer(session);
 }
 
 /**
@@ -97,10 +56,11 @@ export async function continueExistingPlaythrough(
 ) {
   console.debug("[Controls] Continuing existing playthrough:", playthroughId);
 
+  await pauseIfPlaying();
   setLoadingNewMedia(true);
   await expandPlayerAndWait();
 
-  await Loader.continuePlaythrough(session, playthroughId);
+  await Operations.continuePlaythrough(session, playthroughId);
   setLoadingNewMedia(false);
   bumpPlaythroughDataVersion();
   await play();
@@ -112,10 +72,11 @@ export async function continueExistingPlaythrough(
 export async function startFreshPlaythrough(session: Session, mediaId: string) {
   console.debug("[Controls] Starting fresh playthrough for media:", mediaId);
 
+  await pauseIfPlaying();
   setLoadingNewMedia(true);
   await expandPlayerAndWait();
 
-  await Loader.startNewPlaythrough(session, mediaId);
+  await Operations.startNewPlaythrough(session, mediaId);
   setLoadingNewMedia(false);
   bumpPlaythroughDataVersion();
   await play();
@@ -154,7 +115,7 @@ export async function reloadCurrentPlaythroughIfMedia(
   }
 
   await Heartbeat.saveNow();
-  await Loader.reloadPlaythroughById(session, loadedPlaythrough.id);
+  await Operations.reloadPlaythroughById(session, loadedPlaythrough.id);
 
   if (playing) {
     await Player.play(PlayPauseSource.INTERNAL);
@@ -170,10 +131,11 @@ export async function resumeAndLoadPlaythrough(
 ) {
   console.debug("[Controls] Resuming playthrough:", playthroughId);
 
+  await pauseIfPlaying();
   setLoadingNewMedia(true);
   await expandPlayerAndWait();
 
-  await Loader.resumePlaythrough(session, playthroughId);
+  await Operations.resumePlaythrough(session, playthroughId);
 
   setLoadingNewMedia(false);
   bumpPlaythroughDataVersion();
@@ -187,7 +149,7 @@ export async function applyPlaythroughAction(
 ) {
   switch (action.type) {
     case "unloadPlayer":
-      await unloadPlayer(session);
+      await unloadPlaythrough(session);
       break;
     case "continueExistingPlaythrough":
       await continueExistingPlaythrough(session, action.playthroughId);
@@ -223,10 +185,10 @@ export async function finishPlaythrough(
     await pauseIfPlaying();
   }
 
-  await Lifecycle.finishPlaythrough(session, playthroughId);
+  await Operations.finishPlaythrough(session, playthroughId);
 
   if (isLoaded && !options?.skipUnload) {
-    await tryUnloadPlayer();
+    await unload();
   }
 }
 
@@ -244,10 +206,10 @@ export async function abandonPlaythrough(
     await pauseIfPlaying();
   }
 
-  await Lifecycle.abandonPlaythrough(session, playthroughId);
+  await Operations.abandonPlaythrough(session, playthroughId);
 
   if (isLoaded) {
-    await tryUnloadPlayer();
+    await unload();
   }
 }
 
@@ -263,41 +225,37 @@ export async function deletePlaythrough(
 
   if (isLoaded) {
     await pauseIfPlaying();
-    await tryUnloadPlayer();
   }
 
-  await deletePlaythroughDb(session, playthroughId);
-  bumpPlaythroughDataVersion();
+  await Operations.deletePlaythrough(session, playthroughId);
+
+  if (isLoaded) {
+    await unload();
+  }
 }
 
 /**
  * Unload the player and clear the active playthrough.
  */
-export async function unloadPlayer(session: Session) {
-  await Loader.clearActivePlaythrough(session);
-  await tryUnloadPlayer();
+export async function unloadPlaythrough(session: Session) {
+  await pauseIfPlaying();
+  await Operations.clearActivePlaythrough(session);
+  await unload();
 }
 
 /**
- * Attempts to unload the TrackPlayer and reset UI state.
- * Handles clearing timers and pausing playback.
+ * Unload the player, but keep the active playthrough.
  */
-export async function tryUnloadPlayer() {
-  // There were seek timers here, but they are now managed by seek-service.ts
-  // We just need to ensure playback is paused and player is reset.
+export async function unloadPlayer() {
   await pauseIfPlaying();
-  await Player.unload();
-  resetPlayerUIState();
+  await unload();
 }
 
 /**
  * Forcefully unloads the player without pausing.
- * Used for session cleanup during sign-out.
  */
 export async function forceUnloadPlayer() {
-  // There were seek timers here, but they are now managed by seek-service.ts
-  await Player.unload();
-  resetPlayerUIState();
+  await unload();
 }
 
 // =============================================================================
@@ -319,6 +277,23 @@ export function expandPlayerAndWait(): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, PLAYER_EXPAND_ANIMATION_DURATION);
   });
+}
+
+// =============================================================================
+// Internal Playback Helpers
+// =============================================================================
+
+async function play() {
+  await Player.play(PlayPauseSource.USER);
+}
+
+async function pauseIfPlaying() {
+  await Player.pauseIfPlaying(PlayPauseSource.USER, PAUSE_REWIND_SECONDS);
+}
+
+async function unload() {
+  await Player.unload();
+  resetPlayerUIState();
 }
 
 // =============================================================================

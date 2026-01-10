@@ -1,5 +1,5 @@
 import { PAUSE_REWIND_SECONDS } from "@/constants";
-import * as Lifecycle from "@/services/playthrough-lifecycle";
+import * as Operations from "@/services/playthrough-operations";
 import { seekRelative } from "@/services/seek-service";
 import * as Player from "@/services/track-player-service";
 import * as TrackPlayer from "@/services/track-player-wrapper";
@@ -64,7 +64,7 @@ export const PlaybackService = async function () {
     console.debug(
       "[PlaybackService] Playback ended, auto-finishing playthrough",
     );
-    await Lifecycle.finishPlaythrough(null, loadedPlaythrough.id);
+    await Operations.finishPlaythrough(null, loadedPlaythrough.id);
   });
 
   // TrackPlayer.addEventListener(Event.PlaybackResume, (args) => {

@@ -1,7 +1,7 @@
 import { Button, StyleSheet, Switch, Text, View } from "react-native";
 
 import { signOut } from "@/services/auth-service";
-import { tryUnloadPlayer } from "@/services/playback-controls";
+import { unloadPlayer } from "@/services/playback-controls";
 import { useDebug } from "@/stores/debug";
 import { useSession } from "@/stores/session";
 import { Colors } from "@/styles";
@@ -23,7 +23,7 @@ export default function SettingsRoute() {
       <Button
         title="Sign out"
         onPress={async function () {
-          await tryUnloadPlayer();
+          await unloadPlayer();
           await signOut();
         }}
         color={Colors.lime[500]}

@@ -5,7 +5,7 @@ import { startDownload } from "@/services/download-service";
 import {
   abandonPlaythrough,
   finishPlaythrough,
-  unloadPlayer,
+  unloadPlaythrough,
 } from "@/services/playback-controls";
 import { shouldPromptForFinish } from "@/services/playthrough-query-service";
 import { useDownloads } from "@/stores/downloads";
@@ -74,7 +74,7 @@ export function PlayerContextMenu({
         },
       });
     } else {
-      await unloadPlayer(session);
+      await unloadPlaythrough(session);
     }
   }, [session]);
 
