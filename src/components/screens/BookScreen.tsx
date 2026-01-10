@@ -1,7 +1,8 @@
 import { FlatList, StyleSheet } from "react-native";
 
-import { FadeInOnMount, Tile } from "@/components";
-import { Header } from "@/components/screens/book-screen";
+import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { Header } from "@/components/screens/book-screen/Header";
+import { Tile } from "@/components/Tiles";
 import { PAGE_SIZE } from "@/constants";
 import { getBookDetails, useLibraryData } from "@/services/library-service";
 import { Session } from "@/types/session";

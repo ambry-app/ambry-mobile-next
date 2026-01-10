@@ -4,13 +4,14 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
 
-import { IconButton } from "@/components";
+import { IconButton } from "@/components/IconButton";
 import { setSleepTimerEnabled } from "@/services/sleep-timer-service";
 import { useSession } from "@/stores/session";
 import { useSleepTimer } from "@/stores/sleep-timer";
 import { useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles";
-import { formatPlaybackRate, secondsDisplayMinutesOnly } from "@/utils";
+import { Colors } from "@/styles/colors";
+import { formatPlaybackRate } from "@/utils/rate";
+import { secondsDisplayMinutesOnly } from "@/utils/time";
 
 export function PlayerSettingButtons() {
   return (

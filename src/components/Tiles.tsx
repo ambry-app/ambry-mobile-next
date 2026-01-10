@@ -16,7 +16,7 @@ import {
   PlaythroughWithMedia,
   Thumbnails,
 } from "@/services/library-service";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 import { useNavigateToBookCallback } from "@/utils/hooks";
 
 import { BookDetailsText } from "./BookDetailsText";

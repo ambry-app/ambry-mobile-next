@@ -43,3 +43,12 @@ export const red = {
   "900": "#7f1d1d",
   "950": "#450a0a",
 };
+
+export const Colors = {
+  black,
+  white,
+  transparent,
+  zinc,
+  lime,
+  red,
+};

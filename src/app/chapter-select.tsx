@@ -5,13 +5,13 @@ import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
 
-import { Button } from "@/components";
+import { Button } from "@/components/Button";
 import * as schema from "@/db/schema";
 import { seekTo } from "@/services/seek-service";
 import { SeekSource, useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles";
-import { secondsDisplay } from "@/utils";
+import { Colors } from "@/styles/colors";
 import { useBackHandler } from "@/utils/hooks";
+import { secondsDisplay } from "@/utils/time";
 
 const chapterRowHeight = 54;
 

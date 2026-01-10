@@ -1,12 +1,10 @@
 import { FlatList, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import {
-  BookTile,
-  FadeInOnMount,
-  HeaderButton,
-  SeeAllTile,
-} from "@/components";
+import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { HeaderButton } from "@/components/HeaderButton";
+import { SeeAllTile } from "@/components/SeeAllTile";
+import { BookTile } from "@/components/Tiles";
 import {
   HORIZONTAL_LIST_LIMIT,
   HORIZONTAL_TILE_SPACING,

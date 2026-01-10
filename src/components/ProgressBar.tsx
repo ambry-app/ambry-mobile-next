@@ -1,6 +1,6 @@
 import { StyleSheet, View } from "react-native";
 
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 
 type ProgressBarProps = {
   percent: number;

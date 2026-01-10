@@ -35,8 +35,8 @@ import {
   State,
   TrackType,
 } from "@/types/track-player";
-import { documentDirectoryFilePath } from "@/utils";
 import { logBase } from "@/utils/logger";
+import { documentDirectoryFilePath } from "@/utils/paths";
 import { subscribeToChange } from "@/utils/subscribe";
 
 import { getSession } from "./session-service";

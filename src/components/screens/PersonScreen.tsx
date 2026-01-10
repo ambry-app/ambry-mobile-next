@@ -1,11 +1,10 @@
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
 
-import { Delay, FadeInOnMount } from "@/components";
-import {
-  BooksByAuthors,
-  Header,
-  MediaByNarrators,
-} from "@/components/screens/person-screen";
+import { Delay } from "@/components/Delay";
+import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { BooksByAuthors } from "@/components/screens/person-screen/BooksByAuthors";
+import { Header } from "@/components/screens/person-screen/Header";
+import { MediaByNarrators } from "@/components/screens/person-screen/MediaByNarrators";
 import {
   getPersonHeaderInfo,
   useLibraryData,

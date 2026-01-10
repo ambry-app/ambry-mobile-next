@@ -7,12 +7,10 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 
-import {
-  FadeInOnMount,
-  Loading,
-  MediaTile,
-  ThumbnailImage,
-} from "@/components";
+import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { Loading } from "@/components/Loading";
+import { ThumbnailImage } from "@/components/ThumbnailImage";
+import { MediaTile } from "@/components/Tiles";
 import { PAGE_SIZE } from "@/constants";
 import {
   getMediaByNarratorPage,
@@ -22,7 +20,7 @@ import {
   usePaginatedLibraryData,
 } from "@/services/library-service";
 import { usePullToRefresh } from "@/services/sync-service";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 
 type NarratorScreenProps = {

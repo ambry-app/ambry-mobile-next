@@ -1,10 +1,11 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { BookDetailsText, ThumbnailImage } from "@/components";
+import { BookDetailsText } from "@/components/BookDetailsText";
+import { ThumbnailImage } from "@/components/ThumbnailImage";
 import { MediaHeaderInfo } from "@/services/library-service";
 import { useScreen } from "@/stores/screen";
-import { Colors } from "@/styles";
-import { durationDisplay } from "@/utils";
+import { Colors } from "@/styles/colors";
+import { durationDisplay } from "@/utils/time";
 
 type HeaderProps = {
   media: MediaHeaderInfo;

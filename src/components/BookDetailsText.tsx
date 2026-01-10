@@ -1,6 +1,6 @@
 import { StyleProp, StyleSheet, Text, TextStyle } from "react-native";
 
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 
 import { NamesList } from "./NamesList";
 

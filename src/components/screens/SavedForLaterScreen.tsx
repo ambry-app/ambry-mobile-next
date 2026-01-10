@@ -1,12 +1,15 @@
 import { FlatList, StyleSheet, Text } from "react-native";
 
-import { FadeInOnMount, Loading, MediaTile, TimeAgo } from "@/components";
+import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { Loading } from "@/components/Loading";
+import { MediaTile } from "@/components/Tiles";
+import { TimeAgo } from "@/components/TimeAgo";
 import { PAGE_SIZE } from "@/constants";
 import { usePaginatedLibraryData } from "@/services/library-service";
 import { getSavedMediaPage } from "@/services/shelf-service";
 import { usePullToRefresh } from "@/services/sync-service";
 import { useDataVersion } from "@/stores/data-version";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 
 type SavedForLaterScreenProps = {

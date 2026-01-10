@@ -1,11 +1,9 @@
 import { useLayoutEffect, useState } from "react";
 import { useNavigation } from "expo-router";
 
-import {
-  FullLibrary,
-  SearchResults,
-} from "@/components/screens/library-screen";
-import { Colors } from "@/styles";
+import { FullLibrary } from "@/components/screens/library-screen/FullLibrary";
+import { SearchResults } from "@/components/screens/library-screen/SearchResults";
+import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 import { useDebounce } from "@/utils/hooks";
 

@@ -7,7 +7,7 @@ import {
 } from "@/db/playthroughs";
 import { PlaybackEventSelect } from "@/db/schema";
 import { useLibraryData } from "@/services/library-service";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 
 export default function PlaythroughDebugRoute() {
   const { id: playthroughId } = useLocalSearchParams<{ id: string }>();

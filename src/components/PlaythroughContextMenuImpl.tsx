@@ -4,7 +4,7 @@ import { StyleSheet, View } from "react-native";
 import { Button, ButtonProps, ContextMenu } from "@expo/ui/jetpack-compose";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 
 export type PlaythroughStatus = "in_progress" | "finished" | "abandoned";
 

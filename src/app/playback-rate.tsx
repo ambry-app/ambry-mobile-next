@@ -3,12 +3,14 @@ import { Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Slider from "@react-native-community/slider";
 
-import { Button, IconButton } from "@/components";
+import { Button } from "@/components/Button";
+import { IconButton } from "@/components/IconButton";
 import * as Player from "@/services/track-player-service";
 import { useSession } from "@/stores/session";
 import { useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles";
-import { formatPlaybackRate, secondsDisplay } from "@/utils";
+import { Colors } from "@/styles/colors";
+import { formatPlaybackRate } from "@/utils/rate";
+import { secondsDisplay } from "@/utils/time";
 
 export default function PlaybackRateRoute() {
   const { bottom } = useSafeAreaInsets();

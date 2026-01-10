@@ -1,13 +1,11 @@
 import { FlatList, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import {
-  FadeInOnMount,
-  HeaderButton,
-  PlaythroughTile,
-  SeeAllTile,
-  TimeAgo,
-} from "@/components";
+import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { HeaderButton } from "@/components/HeaderButton";
+import { SeeAllTile } from "@/components/SeeAllTile";
+import { PlaythroughTile } from "@/components/Tiles";
+import { TimeAgo } from "@/components/TimeAgo";
 import {
   HORIZONTAL_LIST_LIMIT,
   HORIZONTAL_TILE_SPACING,

@@ -4,7 +4,7 @@ import { Button, ContextMenu, Host, Section } from "@expo/ui/swift-ui";
 import { frame } from "@expo/ui/swift-ui/modifiers";
 
 import { DownloadStatus } from "@/stores/downloads";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 
 type AuthorOrNarrator = {
   id: string;

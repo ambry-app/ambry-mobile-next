@@ -1,5 +1,5 @@
-import { Delay } from "@/components";
-import { InProgressScreen } from "@/components/screens";
+import { Delay } from "@/components/Delay";
+import { InProgressScreen } from "@/components/screens/InProgressScreen";
 import { useSession } from "@/stores/session";
 
 export default function InProgressRoute() {

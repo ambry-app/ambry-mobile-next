@@ -1,13 +1,14 @@
 import { StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 
-import { Button, IconButton } from "@/components";
+import { Button } from "@/components/Button";
+import { IconButton } from "@/components/IconButton";
 import {
   skipToBeginningOfChapter,
   skipToEndOfChapter,
 } from "@/services/chapter-service";
 import { useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 
 export function ChapterControls() {
   const currentChapter = useTrackPlayer((state) => state.currentChapter);

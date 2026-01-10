@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 
-import { MediaTile } from "@/components";
+import { MediaTile } from "@/components/Tiles";
 import { PAGE_SIZE } from "@/constants";
 import { getSearchedMedia, useLibraryData } from "@/services/library-service";
 import { useScreen } from "@/stores/screen";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 
 // FlatList layout constants for 2-column grid

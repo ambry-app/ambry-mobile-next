@@ -8,13 +8,88 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/shallow";
 
-import { getDownloadedMedia as getDownloadedMediaFromDb } from "@/db/library";
+import {
+  type DownloadedMedia,
+  getDownloadedMedia,
+  getDownloadedMedia as getDownloadedMediaFromDb,
+} from "@/db/library/get-downloaded-media";
 import { useDataVersion } from "@/stores/data-version";
 import { useDownloads } from "@/stores/downloads";
 import { Session } from "@/types/session";
 
 // Re-export all library queries and types for UI consumers
-export * from "@/db/library";
+export {
+  type AuthorHeaderInfo,
+  getAuthorHeaderInfo,
+} from "@/db/library/get-author-header-info";
+export {
+  type BookDetails,
+  getBookDetails,
+} from "@/db/library/get-book-details";
+export {
+  type BookOtherEditions,
+  getBookOtherEditions,
+} from "@/db/library/get-book-other-editions";
+export { getBooksByAuthorPage } from "@/db/library/get-books-by-author-page";
+export {
+  type AuthorWithBooks,
+  getBooksByAuthors,
+} from "@/db/library/get-books-by-authors";
+export { type DownloadedMedia, getDownloadedMedia };
+export { getMedia, type Media } from "@/db/library/get-media";
+export { getMediaAuthorsAndNarrators } from "@/db/library/get-media-authors-and-narrators";
+export { getMediaByNarratorPage } from "@/db/library/get-media-by-narrator-page";
+export {
+  getMediaByNarrators,
+  type MediaByNarratorsType,
+} from "@/db/library/get-media-by-narrators";
+export { getMediaDownloadInfo } from "@/db/library/get-media-download-info";
+export {
+  getMediaHeaderInfo,
+  type MediaHeaderInfo,
+} from "@/db/library/get-media-header-info";
+export {
+  getMediaPage,
+  getSearchedMedia,
+  type MediaPage,
+  type MediaSearchResult,
+} from "@/db/library/get-media-page";
+export { getMediaTitle } from "@/db/library/get-media-title";
+export {
+  getNarratorHeaderInfo,
+  type NarratorHeaderInfo,
+} from "@/db/library/get-narrator-header-info";
+export {
+  type AuthorWithOtherBooks,
+  getOtherBooksByAuthors,
+} from "@/db/library/get-other-books-by-authors";
+export {
+  getOtherMediaByNarrators,
+  type NarratorWithOtherMedia,
+} from "@/db/library/get-other-media-by-narrators";
+export {
+  getPersonHeaderInfo,
+  type PersonHeaderInfo,
+} from "@/db/library/get-person-header-info";
+export {
+  getPlaythroughsPage,
+  type PlaythroughWithMedia,
+} from "@/db/library/get-playthroughs-page";
+export { getSeriesBooksPage } from "@/db/library/get-series-books-page";
+export { getSeriesDetails } from "@/db/library/get-series-details";
+export {
+  getSeriesWithBooks,
+  type SeriesWithBooks,
+} from "@/db/library/get-series-with-books";
+export {
+  combineAuthorsAndNarrators,
+  getAuthorsForBooks,
+  getMediaForBooks,
+  getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
+  getSavedForLaterStatusForMedia,
+  type MediaAuthorOrNarrator,
+} from "@/db/library/shared-queries";
 
 // Re-export schema types used for display (thumbnails, playthrough status)
 export type {

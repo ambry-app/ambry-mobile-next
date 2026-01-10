@@ -10,7 +10,7 @@ import {
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import { DownloadStatus } from "@/stores/downloads";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 
 type AuthorOrNarrator = {
   id: string;

@@ -5,7 +5,7 @@ import { Button, ButtonProps, ContextMenu } from "@expo/ui/jetpack-compose";
 
 import { MediaPlaybackState } from "@/services/playthrough-query-service";
 import { DownloadStatus } from "@/stores/downloads";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 
 import { IconButton } from "./IconButton";
 

@@ -2,14 +2,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
-import { FocusableTextInput, IconButton, Loading } from "@/components";
+import { FocusableTextInput } from "@/components/FocusableTextInput";
+import { IconButton } from "@/components/IconButton";
+import { Loading } from "@/components/Loading";
 import { getLatestProfile } from "@/db/server";
 import { CreateSessionErrorCode } from "@/graphql/api";
 import { ExecuteErrorCode } from "@/graphql/client/execute";
 import { signIn } from "@/services/auth-service";
 import { useScreen } from "@/stores/screen";
 import { useSession } from "@/stores/session";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 import Logo from "@assets/images/logo.svg";
 
 export default function SignInRoute() {

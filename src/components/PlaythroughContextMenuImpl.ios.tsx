@@ -3,7 +3,7 @@ import { StyleSheet } from "react-native";
 import { Button, ContextMenu, Host } from "@expo/ui/swift-ui";
 import { frame } from "@expo/ui/swift-ui/modifiers";
 
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 
 export type PlaythroughStatus = "in_progress" | "finished" | "abandoned";
 

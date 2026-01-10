@@ -9,8 +9,8 @@ import Animated, {
 import { scheduleOnRN } from "react-native-worklets";
 
 import { useSeekUIState } from "@/stores/seek-ui-state";
-import { Colors } from "@/styles";
-import { secondsDisplayMinutesOnly } from "@/utils";
+import { Colors } from "@/styles/colors";
+import { secondsDisplayMinutesOnly } from "@/utils/time";
 
 export function SeekIndicator() {
   const seekEffectiveDiff = useSeekUIState((state) => state.seekEffectiveDiff);

@@ -2,9 +2,9 @@ import { useMemo } from "react";
 import { StyleSheet, Text } from "react-native";
 import { File } from "expo-file-system";
 
-import { FadeInOnMount } from "@/components";
-import { Colors } from "@/styles";
-import { documentDirectoryFilePath } from "@/utils";
+import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { Colors } from "@/styles/colors";
+import { documentDirectoryFilePath } from "@/utils/paths";
 
 type FileSizeProps = {
   filePath: string;

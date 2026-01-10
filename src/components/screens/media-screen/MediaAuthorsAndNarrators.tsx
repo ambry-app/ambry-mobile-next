@@ -1,4 +1,4 @@
-import { AuthorsAndNarrators } from "@/components";
+import { AuthorsAndNarrators } from "@/components/AuthorsAndNarrators";
 import {
   getMediaAuthorsAndNarrators,
   MediaHeaderInfo,

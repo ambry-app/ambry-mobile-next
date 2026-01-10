@@ -1,5 +1,5 @@
-import { Delay } from "@/components";
-import { ShelfScreen } from "@/components/screens";
+import { Delay } from "@/components/Delay";
+import { ShelfScreen } from "@/components/screens/ShelfScreen";
 import { useSession } from "@/stores/session";
 
 export default function ShelfRoute() {

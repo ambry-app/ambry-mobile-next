@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 
 import { TabConfig, TABS, useActiveTab } from "./useActiveTab";
 

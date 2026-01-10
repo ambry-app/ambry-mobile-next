@@ -1,17 +1,15 @@
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
 
-import { FadeInOnMount } from "@/components";
-import {
-  ActionBar,
-  BooksInSeries,
-  Header,
-  MediaAuthorsAndNarrators,
-  MediaDescription,
-  OtherBooksByAuthors,
-  OtherEditions,
-  OtherMediaByNarrators,
-  PlaythroughHistory,
-} from "@/components/screens/media-screen";
+import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { ActionBar } from "@/components/screens/media-screen/ActionBar";
+import { BooksInSeries } from "@/components/screens/media-screen/BooksInSeries";
+import { Header } from "@/components/screens/media-screen/Header";
+import { MediaAuthorsAndNarrators } from "@/components/screens/media-screen/MediaAuthorsAndNarrators";
+import { MediaDescription } from "@/components/screens/media-screen/MediaDescription";
+import { OtherBooksByAuthors } from "@/components/screens/media-screen/OtherBooksByAuthors";
+import { OtherEditions } from "@/components/screens/media-screen/OtherEditions";
+import { OtherMediaByNarrators } from "@/components/screens/media-screen/OtherMediaByNarrators";
+import { PlaythroughHistory } from "@/components/screens/media-screen/PlaythroughHistory";
 import { getMediaHeaderInfo, useLibraryData } from "@/services/library-service";
 import { usePullToRefresh } from "@/services/sync-service";
 import { Session } from "@/types/session";

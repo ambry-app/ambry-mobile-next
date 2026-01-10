@@ -1,6 +1,8 @@
 import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 
-import { Loading, PlaythroughTile, TimeAgo } from "@/components";
+import { Loading } from "@/components/Loading";
+import { PlaythroughTile } from "@/components/Tiles";
+import { TimeAgo } from "@/components/TimeAgo";
 import { PAGE_SIZE } from "@/constants";
 import {
   getPlaythroughsPage,
@@ -8,7 +10,7 @@ import {
 } from "@/services/library-service";
 import { usePullToRefresh } from "@/services/sync-service";
 import { useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 
 type InProgressScreenProps = {

@@ -1,7 +1,7 @@
 import { Stack, useLocalSearchParams } from "expo-router";
 
-import { Delay } from "@/components";
-import { NarratorScreen } from "@/components/screens";
+import { Delay } from "@/components/Delay";
+import { NarratorScreen } from "@/components/screens/NarratorScreen";
 import { useSession } from "@/stores/session";
 import { RouterParams } from "@/types/router";
 

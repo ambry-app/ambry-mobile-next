@@ -1,9 +1,9 @@
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { TAB_BAR_BASE_HEIGHT } from "@/constants";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 
-import { TabBarTabs } from "./tab-bar";
+import { TabBarTabs } from "./tab-bar/TabBarTabs";
 
 export function CustomTabBar() {
   const insets = useSafeAreaInsets();

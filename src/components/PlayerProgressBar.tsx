@@ -3,8 +3,8 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { useSeekUIState } from "@/stores/seek-ui-state";
 import { useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles";
-import { secondsDisplay } from "@/utils";
+import { Colors } from "@/styles/colors";
+import { secondsDisplay } from "@/utils/time";
 
 import { ProgressBar } from "./ProgressBar";
 

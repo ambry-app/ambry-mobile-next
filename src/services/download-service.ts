@@ -10,7 +10,7 @@ import {
   getDownload,
   updateDownload,
 } from "@/db/downloads";
-import { getMediaDownloadInfo } from "@/db/library";
+import { getMediaDownloadInfo } from "@/db/library/get-media-download-info";
 import { DownloadedThumbnails, Thumbnails } from "@/db/schema";
 import {
   addOrUpdateDownload,
@@ -20,8 +20,8 @@ import {
   useDownloads,
 } from "@/stores/downloads";
 import { Session } from "@/types/session";
-import { documentDirectoryFilePath } from "@/utils";
 import { logBase } from "@/utils/logger";
+import { documentDirectoryFilePath } from "@/utils/paths";
 
 import { reloadCurrentPlaythroughIfMedia } from "./playback-controls";
 

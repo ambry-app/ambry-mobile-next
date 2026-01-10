@@ -1,6 +1,8 @@
 import { FlatList, StyleSheet } from "react-native";
 
-import { FadeInOnMount, Loading, SeriesBookTile } from "@/components";
+import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { Loading } from "@/components/Loading";
+import { SeriesBookTile } from "@/components/Tiles";
 import { PAGE_SIZE } from "@/constants";
 import {
   getSeriesBooksPage,
@@ -11,7 +13,7 @@ import {
 import { usePullToRefresh } from "@/services/sync-service";
 import { Session } from "@/types/session";
 
-import { Header } from "./series-screen";
+import { Header } from "./series-screen/Header";
 
 type SeriesScreenProps = {
   seriesId: string;

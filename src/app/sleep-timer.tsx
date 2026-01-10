@@ -4,14 +4,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Slider from "@react-native-community/slider";
 import { useShallow } from "zustand/shallow";
 
-import { Button, IconButton } from "@/components";
+import { Button } from "@/components/Button";
+import { IconButton } from "@/components/IconButton";
 import {
   setSleepTimerEnabled,
   setSleepTimerTime,
 } from "@/services/sleep-timer-service";
 import { useSession } from "@/stores/session";
 import { useSleepTimer } from "@/stores/sleep-timer";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 
 function formatSeconds(seconds: number) {
   return Math.round(seconds / 60);

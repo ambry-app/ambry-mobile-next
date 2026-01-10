@@ -1,7 +1,8 @@
 import { StyleSheet, View } from "react-native";
 
-import { PlayButton, SeekButton } from "@/components";
-import { Colors } from "@/styles";
+import { PlayButton } from "@/components/PlayButton";
+import { SeekButton } from "@/components/SeekButton";
+import { Colors } from "@/styles/colors";
 
 import { SeekIndicator } from "./SeekIndicator";
 

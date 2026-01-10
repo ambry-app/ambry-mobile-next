@@ -3,7 +3,7 @@ import { and, desc, eq, ne, or, sql } from "drizzle-orm";
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
 import { Session } from "@/types/session";
-import { flatMapGroups } from "@/utils";
+import { flatMapGroups } from "@/utils/flat-map-groups";
 
 import { MediaHeaderInfo } from "./get-media-header-info";
 import {

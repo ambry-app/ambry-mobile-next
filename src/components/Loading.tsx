@@ -1,6 +1,6 @@
 import { ActivityIndicator, ActivityIndicatorProps } from "react-native";
 
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 
 type LoadingProps = ActivityIndicatorProps & {
   color?: string;

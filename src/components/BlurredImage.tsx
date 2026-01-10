@@ -3,7 +3,7 @@ import { Image, ImageStyle } from "expo-image";
 
 import { DownloadedThumbnails, Thumbnails } from "@/services/library-service";
 import { useSession } from "@/stores/session";
-import { documentDirectoryFilePath } from "@/utils";
+import { documentDirectoryFilePath } from "@/utils/paths";
 
 const blurRadius = 1;
 

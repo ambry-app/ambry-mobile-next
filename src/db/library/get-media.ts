@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
 import { Session } from "@/types/session";
-import { requireValue } from "@/utils";
+import { requireValue } from "@/utils/require-value";
 
 import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
 

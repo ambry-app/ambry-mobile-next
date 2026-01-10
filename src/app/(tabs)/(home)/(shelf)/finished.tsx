@@ -1,5 +1,5 @@
-import { Delay } from "@/components";
-import { FinishedScreen } from "@/components/screens";
+import { Delay } from "@/components/Delay";
+import { FinishedScreen } from "@/components/screens/FinishedScreen";
 import { useSession } from "@/stores/session";
 
 export default function FinishedRoute() {

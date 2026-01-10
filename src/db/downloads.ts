@@ -3,8 +3,8 @@ import { and, desc, eq } from "drizzle-orm";
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
 import { Session } from "@/types/session";
-import { requireValue } from "@/utils";
 import { logBase } from "@/utils/logger";
+import { requireValue } from "@/utils/require-value";
 
 const log = logBase.extend("db-downloads");
 

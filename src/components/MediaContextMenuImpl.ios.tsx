@@ -5,7 +5,7 @@ import { frame } from "@expo/ui/swift-ui/modifiers";
 
 import { MediaPlaybackState } from "@/services/playthrough-query-service";
 import { DownloadStatus } from "@/stores/downloads";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 
 export type MediaContextMenuImplProps = {
   playbackState: MediaPlaybackState;

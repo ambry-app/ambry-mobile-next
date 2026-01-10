@@ -4,7 +4,7 @@ import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
 import { PlaythroughStatus } from "@/db/schema";
 import { Session } from "@/types/session";
-import { groupMapBy } from "@/utils";
+import { groupMapBy } from "@/utils/group-map-by";
 
 export async function getAuthorsForBooks(session: Session, bookIds: string[]) {
   if (bookIds.length === 0) return {};

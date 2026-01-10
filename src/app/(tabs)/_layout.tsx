@@ -2,7 +2,8 @@ import { Platform } from "react-native";
 import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { Stack } from "expo-router";
 
-import { CustomTabBar, CustomTabBarWithPlayer } from "@/components/screens";
+import { CustomTabBar } from "@/components/screens/CustomTabBar";
+import { CustomTabBarWithPlayer } from "@/components/screens/CustomTabBarWithPlayer";
 import { useSession } from "@/stores/session";
 import { useTrackPlayer } from "@/stores/track-player";
 

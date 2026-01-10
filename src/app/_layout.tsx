@@ -10,14 +10,16 @@ import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import { Stack, useNavigationContainerRef } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 
-import { Loading, MeasureScreenHeight, ScreenCentered } from "@/components";
+import { Loading } from "@/components/Loading";
+import { MeasureScreenHeight } from "@/components/MeasureScreenHeight";
+import { ScreenCentered } from "@/components/ScreenCentered";
 import { getExpoDb } from "@/db/db";
 import { useAppBoot } from "@/services/boot-service";
 import { useRefreshLibraryDataVersion } from "@/services/data-version-service";
 import { useForegroundSync } from "@/services/sync-service";
 import { useSession } from "@/stores/session";
 import { useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 import { useAppState } from "@/utils/hooks";
 
 import "core-js/actual/object/group-by";

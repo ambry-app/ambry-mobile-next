@@ -1,6 +1,6 @@
 import { StyleSheet, Text } from "react-native";
 
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 
 import { IconButton } from "./IconButton";
 

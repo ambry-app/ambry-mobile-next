@@ -7,7 +7,7 @@ import {
   PlaythroughAction,
 } from "@/services/playback-controls";
 import { useSession } from "@/stores/session";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 
 export default function MarkFinishedPromptModal() {

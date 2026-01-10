@@ -1,4 +1,4 @@
-import { LibraryScreen } from "@/components/screens";
+import { LibraryScreen } from "@/components/screens/LibraryScreen";
 import { useSession } from "@/stores/session";
 
 export default function LibraryRoute() {

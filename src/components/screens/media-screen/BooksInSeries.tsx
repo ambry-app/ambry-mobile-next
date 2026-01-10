@@ -1,7 +1,9 @@
 import { FlatList, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import { HeaderButton, SeeAllTile, SeriesBookTile } from "@/components";
+import { HeaderButton } from "@/components/HeaderButton";
+import { SeeAllTile } from "@/components/SeeAllTile";
+import { SeriesBookTile } from "@/components/Tiles";
 import {
   HORIZONTAL_LIST_LIMIT,
   HORIZONTAL_TILE_SPACING,

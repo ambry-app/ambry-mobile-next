@@ -4,7 +4,7 @@ import { signOut } from "@/services/auth-service";
 import { unloadPlayer } from "@/services/playback-controls";
 import { useDebug } from "@/stores/debug";
 import { useSession } from "@/stores/session";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 
 export default function SettingsRoute() {
   const session = useSession((state) => state.session);

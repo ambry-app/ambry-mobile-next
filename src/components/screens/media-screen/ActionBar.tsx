@@ -3,11 +3,9 @@ import { Share, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
 
-import {
-  IconButton,
-  MediaContextMenu,
-  PlayButton as PlayerPlayButton,
-} from "@/components";
+import { IconButton } from "@/components/IconButton";
+import { MediaContextMenu } from "@/components/MediaContextMenu";
+import { PlayButton as PlayerPlayButton } from "@/components/PlayButton";
 import { startDownload } from "@/services/download-service";
 import { MediaHeaderInfo } from "@/services/library-service";
 import {
@@ -21,7 +19,7 @@ import {
 } from "@/services/playthrough-query-service";
 import { useShelvedMedia } from "@/services/shelf-service";
 import { useDownloads } from "@/stores/downloads";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 
 type ActionBarProps = {

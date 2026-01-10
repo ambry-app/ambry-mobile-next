@@ -1,5 +1,5 @@
-import { Delay } from "@/components";
-import { DownloadsScreen } from "@/components/screens";
+import { Delay } from "@/components/Delay";
+import { DownloadsScreen } from "@/components/screens/DownloadsScreen";
 import { useSession } from "@/stores/session";
 
 export default function DownloadsRoute() {

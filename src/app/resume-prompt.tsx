@@ -1,15 +1,15 @@
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
-import { Loading } from "@/components";
+import { Loading } from "@/components/Loading";
 import {
   resumeAndLoadPlaythrough,
   startFreshPlaythrough,
 } from "@/services/playback-controls";
 import { usePlaythroughForPrompt } from "@/services/playthrough-query-service";
-import { Colors } from "@/styles";
-import { secondsDisplay } from "@/utils";
+import { Colors } from "@/styles/colors";
 import { timeAgo } from "@/utils/date";
+import { secondsDisplay } from "@/utils/time";
 
 export default function ResumePromptModal() {
   const { playthroughId } = useLocalSearchParams<{ playthroughId: string }>();

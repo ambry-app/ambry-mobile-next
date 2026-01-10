@@ -2,10 +2,10 @@ import { FlatList, StyleSheet, Text } from "react-native";
 
 import { useDownloadedMedia } from "@/services/library-service";
 import { usePullToRefresh } from "@/services/sync-service";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 
-import { DownloadRow } from "./downloads-screen";
+import { DownloadRow } from "./downloads-screen/DownloadRow";
 
 export function DownloadsScreen({ session }: { session: Session }) {
   const media = useDownloadedMedia(session);

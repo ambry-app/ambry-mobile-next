@@ -16,17 +16,15 @@ import { scheduleOnRN } from "react-native-worklets";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { useShallow } from "zustand/shallow";
 
-import {
-  BlurredImage,
-  BookDetailsText,
-  IconButton,
-  Loading,
-  PlayButton,
-  PlayerContextMenu,
-  PlayerProgressBar,
-  Scrubber,
-  ThumbnailImage,
-} from "@/components";
+import { BlurredImage } from "@/components/BlurredImage";
+import { BookDetailsText } from "@/components/BookDetailsText";
+import { IconButton } from "@/components/IconButton";
+import { Loading } from "@/components/Loading";
+import { PlayButton } from "@/components/PlayButton";
+import { PlayerContextMenu } from "@/components/PlayerContextMenu";
+import { PlayerProgressBar } from "@/components/PlayerProgressBar";
+import { Scrubber } from "@/components/Scrubber";
+import { ThumbnailImage } from "@/components/ThumbnailImage";
 import {
   PLAYER_EXPAND_ANIMATION_DURATION,
   PLAYER_HEIGHT,
@@ -41,16 +39,14 @@ import {
 import { useScreen } from "@/stores/screen";
 import { useSeekUIState } from "@/stores/seek-ui-state";
 import { LoadedPlaythrough, useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 import { useBackHandler } from "@/utils/hooks";
 
-import { TabBarTabs } from "./tab-bar";
-import {
-  ChapterControls,
-  PlaybackControls,
-  PlayerSettingButtons,
-} from "./tab-bar-with-player";
+import { TabBarTabs } from "./tab-bar/TabBarTabs";
+import { ChapterControls } from "./tab-bar-with-player/ChapterControls";
+import { PlaybackControls } from "./tab-bar-with-player/PlaybackControls";
+import { PlayerSettingButtons } from "./tab-bar-with-player/PlayerSettingButtons";
 
 const MINI_PROGRESS_BAR_HEIGHT = 2;
 

@@ -4,16 +4,14 @@ import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
 
-import {
-  BookDetailsText,
-  DownloadContextMenu,
-  Loading,
-  ThumbnailImage,
-} from "@/components";
+import { BookDetailsText } from "@/components/BookDetailsText";
+import { DownloadContextMenu } from "@/components/DownloadContextMenu";
+import { Loading } from "@/components/Loading";
+import { ThumbnailImage } from "@/components/ThumbnailImage";
 import { cancelDownload, removeDownload } from "@/services/download-service";
 import { DownloadedMedia } from "@/services/library-service";
 import { useDownloads } from "@/stores/downloads";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 import { useThrottle } from "@/utils/hooks";
 

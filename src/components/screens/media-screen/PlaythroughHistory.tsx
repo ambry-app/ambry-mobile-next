@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 
-import { PlaythroughContextMenu } from "@/components";
+import { PlaythroughContextMenu } from "@/components/PlaythroughContextMenu";
 import { useLibraryData } from "@/services/library-service";
 import {
   getAllPlaythroughsForMedia,
@@ -12,10 +12,10 @@ import {
 import { useDataVersion } from "@/stores/data-version";
 import { useDebug } from "@/stores/debug";
 import { useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
-import { secondsDisplay } from "@/utils";
 import { timeAgo } from "@/utils/date";
+import { secondsDisplay } from "@/utils/time";
 
 type PlaythroughHistoryProps = {
   session: Session;

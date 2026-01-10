@@ -2,7 +2,7 @@ import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { ImageStyle } from "expo-image";
 
 import { DownloadedThumbnails, Thumbnails } from "@/services/library-service";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 
 import { ThumbnailImage } from "./ThumbnailImage";
 

@@ -23,7 +23,7 @@ import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 import { seekTo } from "@/services/seek-service";
 import * as Player from "@/services/track-player-service";
 import { SeekSource, useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 import { logBase } from "@/utils/logger";
 
 const log = logBase.extend("scrubber");

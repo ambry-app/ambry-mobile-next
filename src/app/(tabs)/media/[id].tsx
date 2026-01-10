@@ -1,8 +1,8 @@
 import { Stack, useLocalSearchParams } from "expo-router";
 
-import { Delay } from "@/components";
-import { MediaScreen } from "@/components/screens";
-import { getMediaTitle } from "@/db/library";
+import { Delay } from "@/components/Delay";
+import { MediaScreen } from "@/components/screens/MediaScreen";
+import { getMediaTitle } from "@/db/library/get-media-title";
 import { useLibraryData } from "@/services/library-service";
 import { useSession } from "@/stores/session";
 import { RouterParams } from "@/types/router";

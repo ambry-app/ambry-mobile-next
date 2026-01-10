@@ -6,8 +6,8 @@ import {
 } from "@/constants";
 import { MediaAuthorOrNarrator } from "@/services/library-service";
 import { useScreen } from "@/stores/screen";
-import { Colors } from "@/styles";
-import { requireValue } from "@/utils";
+import { Colors } from "@/styles/colors";
+import { requireValue } from "@/utils/require-value";
 
 import { FadeInOnMount } from "./FadeInOnMount";
 import { PersonTile } from "./Tiles";

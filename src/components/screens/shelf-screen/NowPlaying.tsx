@@ -1,10 +1,11 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { PlayerProgressBar, TileImage, TileText } from "@/components";
+import { PlayerProgressBar } from "@/components/PlayerProgressBar";
+import { TileImage, TileText } from "@/components/Tiles";
 import { getMedia, useLibraryData } from "@/services/library-service";
 import { expandPlayer } from "@/services/playback-controls";
 import { useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 
 type NowPlayingProps = {

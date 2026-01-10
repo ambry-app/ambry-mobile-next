@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { StyleProp, Text, TextStyle } from "react-native";
 
-import { Colors } from "@/styles";
+import { Colors } from "@/styles/colors";
 import { timeAgo } from "@/utils/date";
 
 type TimeAgoProps = {
