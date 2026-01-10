@@ -8,7 +8,6 @@
 import { CreateSessionErrorCode } from "@/graphql/api";
 import { signIn, signOut } from "@/services/auth-service";
 import { clearSession, useSession } from "@/stores/session";
-import { clearSecureStore } from "@test/jest-setup";
 import {
   graphqlError,
   graphqlSuccess,
@@ -16,6 +15,7 @@ import {
   mockGraphQL,
   mockNetworkError,
 } from "@test/fetch-mock";
+import { clearSecureStore } from "@test/jest-setup";
 
 // Initial state for resetting between tests
 const initialSessionState = { session: null };
@@ -55,7 +55,10 @@ describe("session store", () => {
 
     it("sets session on successful sign in", async () => {
       // Mock successful GraphQL response
-      mockGraphQL(mockFetch, graphqlSuccess({ createSession: { token: testToken } }));
+      mockGraphQL(
+        mockFetch,
+        graphqlSuccess({ createSession: { token: testToken } }),
+      );
 
       const result = await signIn(testUrl, testEmail, testPassword);
 
@@ -124,7 +127,10 @@ describe("session store", () => {
       useSession.setState({ session: testSession });
 
       // Mock successful deleteSession response
-      mockGraphQL(mockFetch, graphqlSuccess({ deleteSession: { deleted: true } }));
+      mockGraphQL(
+        mockFetch,
+        graphqlSuccess({ deleteSession: { deleted: true } }),
+      );
 
       await signOut();
 

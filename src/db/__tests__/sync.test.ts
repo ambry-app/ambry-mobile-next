@@ -182,7 +182,10 @@ describe("sync", () => {
     describe("inserting entities", () => {
       it("inserts new people from server response", async () => {
         const db = getDb();
-        const person = createLibraryPerson({ id: "person-1", name: "John Doe" });
+        const person = createLibraryPerson({
+          id: "person-1",
+          name: "John Doe",
+        });
 
         mockGraphQL(
           mockFetch,
@@ -832,16 +835,16 @@ describe("sync", () => {
         const vars = getGraphQLVariables(mockFetch, 1);
         expect(vars?.input).toBeDefined();
         const input = vars!.input as {
-          playthroughs: Array<{
+          playthroughs: {
             id: string;
             mediaId: string;
             status: string;
-          }>;
+          }[];
         };
         expect(input.playthroughs).toHaveLength(1);
-        expect(input.playthroughs[0].id).toBe("playthrough-1");
-        expect(input.playthroughs[0].mediaId).toBe("media-1");
-        expect(input.playthroughs[0].status).toBe("IN_PROGRESS");
+        expect(input.playthroughs[0]!.id).toBe("playthrough-1");
+        expect(input.playthroughs[0]!.mediaId).toBe("media-1");
+        expect(input.playthroughs[0]!.status).toBe("IN_PROGRESS");
       });
 
       it("sends unsynced events to server", async () => {
@@ -886,11 +889,11 @@ describe("sync", () => {
         const vars = getGraphQLVariables(mockFetch, 1);
         expect(vars?.input).toBeDefined();
         const input = vars!.input as {
-          events: Array<{ id: string; type: string }>;
+          events: { id: string; type: string }[];
         };
         expect(input.events).toHaveLength(1);
-        expect(input.events[0].id).toBe("event-1");
-        expect(input.events[0].type).toBe("PLAY");
+        expect(input.events[0]!.id).toBe("event-1");
+        expect(input.events[0]!.type).toBe("PLAY");
       });
 
       it("marks playthroughs as synced after successful sync", async () => {

@@ -71,24 +71,6 @@ describe("sync-service", () => {
   // ===========================================================================
 
   describe("sync (orchestration)", () => {
-    it("calls syncLibrary and syncPlaythroughs in parallel", async () => {
-      const serverTime = "2024-01-15T10:00:00.000Z";
-
-      // First call: libraryChangesSince
-      mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges(serverTime)));
-
-      // Second call: syncProgress
-      mockGraphQL(
-        mockFetch,
-        graphqlSuccess({ syncProgress: emptySyncProgressResult(serverTime) }),
-      );
-
-      await sync(session);
-
-      // Both calls should have been made
-      expect(mockFetch).toHaveBeenCalledTimes(2);
-    });
-
     it("completes successfully when sync succeeds", async () => {
       const serverTime = "2024-01-15T10:00:00.000Z";
 

@@ -8,7 +8,7 @@
 
 type GraphQLResponse<T = unknown> = {
   data?: T;
-  errors?: Array<{ message: string; extensions?: { code?: string } }>;
+  errors?: { message: string; extensions?: { code?: string } }[];
 };
 
 type MockedFetch = jest.Mock<
@@ -115,7 +115,7 @@ export function mockGraphQL<T>(
  */
 export function mockGraphQLSequence<T>(
   mockFetch: MockedFetch,
-  responses: Array<{ response: GraphQLResponse<T>; status?: number }>,
+  responses: { response: GraphQLResponse<T>; status?: number }[],
 ): void {
   for (const { response, status = 200 } of responses) {
     mockFetch.mockResolvedValueOnce(jsonResponse(response, status));

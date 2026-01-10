@@ -175,25 +175,26 @@ export async function seekTo(position: number, source: SeekSourceType) {
   log.debug(`seekTo ${position.toFixed(1)}`);
 
   const { playthrough, playbackRate } = useTrackPlayer.getState();
-  const timestamp = Date.now();
+  if (!playthrough) {
+    log.warn("seekTo() called with no playthrough loaded");
+    return;
+  }
 
+  const timestamp = Date.now();
   const beforeProgress = getProgress();
+
   await TrackPlayer.seekTo(position);
   const progress = await waitForSeekToComplete(position);
 
-  const lastSeek = playthrough
-    ? {
-        timestamp,
-        source,
-        playthroughId: playthrough.id,
-        playbackRate,
-        from: beforeProgress.position,
-        to: progress.position,
-      }
-    : null;
-
   useTrackPlayer.setState({
-    lastSeek,
+    lastSeek: {
+      timestamp,
+      source,
+      playthroughId: playthrough.id,
+      playbackRate,
+      from: beforeProgress.position,
+      to: progress.position,
+    },
     ...buildNewProgress(progress),
   });
 }

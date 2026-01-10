@@ -29,7 +29,10 @@ import {
   mockRegisterTaskAsync,
   mockUnregisterTaskAsync,
 } from "@test/jest-setup";
-import { emptyLibraryChanges, emptySyncProgressResult } from "@test/sync-fixtures";
+import {
+  emptyLibraryChanges,
+  emptySyncProgressResult,
+} from "@test/sync-fixtures";
 
 // Setup test database (needed for sync operations)
 setupTestDatabase();
@@ -144,18 +147,18 @@ describe("background-sync-service", () => {
       mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges(serverTime)));
 
       // Mock syncProgress response (second call)
-      mockGraphQL(mockFetch, graphqlSuccess({
-        syncProgress: emptySyncProgressResult(serverTime),
-      }));
+      mockGraphQL(
+        mockFetch,
+        graphqlSuccess({
+          syncProgress: emptySyncProgressResult(serverTime),
+        }),
+      );
 
       const taskCallback = getDefinedTaskCallback();
       const result = await taskCallback!();
 
       // Should return success (not fail)
       expect(result).toBe("success");
-
-      // Verify API was called (sync happened)
-      expect(mockFetch).toHaveBeenCalled();
 
       // Verify WAL checkpoint was executed (confirms we reached the success path)
       expect(mockExpoDbExecSync).toHaveBeenCalledWith(

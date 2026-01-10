@@ -24,41 +24,157 @@ jest.mock("@/utils/crypto", () => ({
 //   mockGraphQL(mockFetch, graphqlSuccess({ ... }));
 
 // =============================================================================
-// React Native Track Player Mock (Native Module)
+// React Native Track Player Fake (Native Module)
 // =============================================================================
-// We mock the native module, NOT our wrapper (@/services/trackplayer-wrapper).
-// The wrapper is our own code and should run for real against the mocked native module.
+// We use a "fake" instead of mocks - a working implementation that maintains
+// internal state. This is more robust than mocks because:
+// - No need to manually choreograph mock return values
+// - State stays consistent automatically (seekTo updates position, etc.)
+// - Tests focus on behavior, not mock orchestration
+//
+// The wrapper (@/services/track-player-wrapper) is our own code and runs for
+// real against this fake.
 
-// Mock functions for methods that need test control
-export const mockTrackPlayerGetProgress = jest.fn();
-export const mockTrackPlayerGetPlaybackState = jest.fn();
-export const mockTrackPlayerGetPlayWhenReady = jest.fn();
-export const mockTrackPlayerGetRate = jest.fn();
-export const mockTrackPlayerSeekTo = jest.fn();
-export const mockTrackPlayerPlay = jest.fn();
-export const mockTrackPlayerPause = jest.fn();
-export const mockTrackPlayerSetRate = jest.fn();
-export const mockTrackPlayerSetVolume = jest.fn();
-export const mockTrackPlayerReset = jest.fn();
-export const mockTrackPlayerAdd = jest.fn();
+// Internal fake state
+interface TrackPlayerFakeState {
+  position: number;
+  duration: number;
+  buffered: number;
+  rate: number;
+  volume: number;
+  playWhenReady: boolean;
+  playbackState: string;
+  currentTrack: unknown | null;
+  eventListeners: Map<string, ((event: unknown) => void)[]>;
+}
+
+const createInitialState = (): TrackPlayerFakeState => ({
+  position: 0,
+  duration: 0,
+  buffered: 0,
+  rate: 1.0,
+  volume: 1.0,
+  playWhenReady: false,
+  playbackState: "none",
+  currentTrack: null,
+  eventListeners: new Map(),
+});
+
+let trackPlayerState = createInitialState();
+
+// Helper to emit events to listeners
+function emitTrackPlayerEvent(event: string, data: unknown) {
+  const listeners = trackPlayerState.eventListeners.get(event) || [];
+  listeners.forEach((handler) => handler(data));
+}
+
+/**
+ * Reset the TrackPlayer fake to initial state. Call in beforeEach().
+ */
+export function resetTrackPlayerFake() {
+  trackPlayerState = createInitialState();
+}
+
+/**
+ * Control the TrackPlayer fake state for test setup.
+ *
+ * Usage:
+ *   trackPlayerFake.setState({ duration: 300, position: 50 });
+ */
+export const trackPlayerFake = {
+  setState(partial: Partial<Omit<TrackPlayerFakeState, "eventListeners">>) {
+    Object.assign(trackPlayerState, partial);
+  },
+
+  getState() {
+    return { ...trackPlayerState };
+  },
+
+  // Simulate external events (e.g., system interruption)
+  emitPlaybackStateChange(state: string) {
+    trackPlayerState.playbackState = state;
+    emitTrackPlayerEvent("playback-state", { state });
+  },
+
+  emitPlayWhenReadyChange(playWhenReady: boolean) {
+    trackPlayerState.playWhenReady = playWhenReady;
+    emitTrackPlayerEvent("playback-play-when-ready-changed", { playWhenReady });
+  },
+};
+
+// Legacy mock exports for backward compatibility with existing tests
+// These delegate to the fake but allow tests to override with mockImplementation
+export const mockTrackPlayerGetProgress = jest.fn(async () => ({
+  position: trackPlayerState.position,
+  duration: trackPlayerState.duration,
+  buffered: trackPlayerState.buffered,
+}));
+export const mockTrackPlayerGetPlaybackState = jest.fn(async () => ({
+  state: trackPlayerState.playbackState,
+}));
+export const mockTrackPlayerGetPlayWhenReady = jest.fn(
+  async () => trackPlayerState.playWhenReady,
+);
+export const mockTrackPlayerGetRate = jest.fn(
+  async () => trackPlayerState.rate,
+);
+export const mockTrackPlayerSeekTo = jest.fn(async (pos: number) => {
+  trackPlayerState.position = Math.max(
+    0,
+    Math.min(pos, trackPlayerState.duration || pos),
+  );
+});
+export const mockTrackPlayerPlay = jest.fn(async () => {
+  trackPlayerState.playWhenReady = true;
+  trackPlayerState.playbackState = "playing";
+});
+export const mockTrackPlayerPause = jest.fn(async () => {
+  trackPlayerState.playWhenReady = false;
+  trackPlayerState.playbackState = "paused";
+});
+export const mockTrackPlayerSetRate = jest.fn(async (rate: number) => {
+  trackPlayerState.rate = rate;
+});
+export const mockTrackPlayerSetVolume = jest.fn(async (volume: number) => {
+  trackPlayerState.volume = volume;
+});
+export const mockTrackPlayerReset = jest.fn(async () => {
+  trackPlayerState.position = 0;
+  trackPlayerState.currentTrack = null;
+  trackPlayerState.playWhenReady = false;
+  trackPlayerState.playbackState = "none";
+});
+export const mockTrackPlayerAdd = jest.fn(async (track: unknown) => {
+  trackPlayerState.currentTrack = track;
+  // If track has duration, use it
+  if (track && typeof track === "object" && "duration" in track) {
+    trackPlayerState.duration = (track as { duration: number }).duration;
+  }
+});
 export const mockTrackPlayerSetupPlayer = jest.fn();
 export const mockTrackPlayerUpdateOptions = jest.fn();
-export const mockTrackPlayerAddEventListener = jest.fn();
+export const mockTrackPlayerAddEventListener = jest.fn(
+  (event: string, handler: (event: unknown) => void) => {
+    const listeners = trackPlayerState.eventListeners.get(event) || [];
+    listeners.push(handler);
+    trackPlayerState.eventListeners.set(event, listeners);
+    return { remove: () => {} };
+  },
+);
 export const mockTrackPlayerRegisterPlaybackService = jest.fn();
 
-// Default return values
-mockTrackPlayerGetProgress.mockResolvedValue({ position: 0, duration: 0, buffered: 0 });
-mockTrackPlayerGetPlaybackState.mockResolvedValue({ state: "none" });
-mockTrackPlayerGetPlayWhenReady.mockResolvedValue(false);
-mockTrackPlayerGetRate.mockResolvedValue(1.0);
-
-// Mock the native module
+// Mock the native module using the fake
+//
+// NOTE: We duplicate enum values here because jest.requireActual() doesn't work -
+// react-native-track-player requires native TurboModule which isn't available in Jest.
+// These values are stable (changing them would break all library users), and if new
+// values are added, tests will fail when we try to use them - alerting us to update.
 jest.mock("react-native-track-player", () => {
-  // Event enum values
   const Event = {
     PlaybackProgressUpdated: "playback-progress-updated",
     PlaybackQueueEnded: "playback-queue-ended",
     PlaybackState: "playback-state",
+    PlaybackPlayWhenReadyChanged: "playback-play-when-ready-changed",
     PlaybackActiveTrackChanged: "playback-active-track-changed",
     RemoteDuck: "remote-duck",
     RemoteJumpBackward: "remote-jump-backward",
@@ -69,7 +185,6 @@ jest.mock("react-native-track-player", () => {
     RemoteSeek: "remote-seek",
   };
 
-  // State enum values
   const State = {
     None: "none",
     Ready: "ready",
@@ -78,9 +193,10 @@ jest.mock("react-native-track-player", () => {
     Stopped: "stopped",
     Buffering: "buffering",
     Loading: "loading",
+    Error: "error",
+    Ended: "ended",
   };
 
-  // Capability enum values
   const Capability = {
     Play: "play",
     Pause: "pause",
@@ -97,7 +213,6 @@ jest.mock("react-native-track-player", () => {
     Bookmark: "bookmark",
   };
 
-  // Other enums
   const AndroidAudioContentType = { Speech: 1, Music: 2 };
   const IOSCategory = { Playback: "playback" };
   const IOSCategoryMode = { SpokenAudio: "spokenAudio", Default: "default" };
@@ -123,10 +238,11 @@ jest.mock("react-native-track-player", () => {
       getRate: () => mockTrackPlayerGetRate(),
       // Event Listeners
       addEventListener: (event: string, handler: unknown) =>
-        mockTrackPlayerAddEventListener(event, handler),
+        mockTrackPlayerAddEventListener(event, handler as () => void),
       // Setup
       setupPlayer: (options: unknown) => mockTrackPlayerSetupPlayer(options),
-      updateOptions: (options: unknown) => mockTrackPlayerUpdateOptions(options),
+      updateOptions: (options: unknown) =>
+        mockTrackPlayerUpdateOptions(options),
       registerPlaybackService: (factory: unknown) =>
         mockTrackPlayerRegisterPlaybackService(factory),
     },
@@ -140,7 +256,10 @@ jest.mock("react-native-track-player", () => {
     PitchAlgorithm,
     TrackType,
     // React hooks
-    useIsPlaying: jest.fn(() => ({ playing: false, bufferingDuringPlay: false })),
+    useIsPlaying: jest.fn(() => ({
+      playing: false,
+      bufferingDuringPlay: false,
+    })),
     usePlaybackState: jest.fn(() => ({ state: State.None })),
     useProgress: jest.fn(() => ({ position: 0, duration: 0, buffered: 0 })),
   };

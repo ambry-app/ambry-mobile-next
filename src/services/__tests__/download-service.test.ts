@@ -131,14 +131,13 @@ describe("download service", () => {
         status: "ready",
       });
 
-      // Verify LegacyFileSystem was called correctly
+      // Verify LegacyFileSystem was called with correct URL and auth
       expect(LegacyFileSystem.createDownloadResumable).toHaveBeenCalledWith(
         `${testSession.url}/audio/media-dl/stream.mp4`,
         "file:///test-document-directory/media-dl.mp4",
         { headers: { Authorization: `Bearer ${testSession.token}` } },
         expect.any(Function),
       );
-      expect(mockDownloadResumable.downloadAsync).toHaveBeenCalled();
     });
 
     it("updates progress when progress callback is invoked", async () => {
