@@ -11,6 +11,12 @@ export const SEEK_ACCUMULATION_WINDOW = 750;
 /* How long to wait before saving a seek event to the db */
 export const SEEK_EVENT_ACCUMULATION_WINDOW = 5000;
 
+/* How long to wait before saving a play/pause event to the db */
+export const PLAY_PAUSE_EVENT_ACCUMULATION_WINDOW = 2000;
+
+/* How long to wait before saving a rate change event to the db */
+export const RATE_CHANGE_EVENT_ACCUMULATION_WINDOW = 2000;
+
 /* How often to save playback position to the database (in milliseconds) */
 export const PROGRESS_SAVE_INTERVAL = 30000;
 

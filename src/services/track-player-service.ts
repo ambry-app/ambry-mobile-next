@@ -273,6 +273,8 @@ export async function loadPlaythroughIntoPlayer(
 ): Promise<void> {
   log.debug(`Loading playthrough into player ${playthrough.id}`);
 
+  awaitingIsPlayingMatch = null;
+
   const streaming = playthrough.media.download?.status !== "ready";
   const position = playthrough.stateCache?.currentPosition ?? 0;
   const playbackRate = playthrough.stateCache?.currentRate ?? 1;
@@ -306,6 +308,7 @@ export async function loadPlaythroughIntoPlayer(
  */
 export async function unload() {
   log.debug("unload");
+  awaitingIsPlayingMatch = null;
   useTrackPlayer.setState(initialState);
   return TrackPlayer.reset();
 }
