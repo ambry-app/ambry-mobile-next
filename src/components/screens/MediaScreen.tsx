@@ -12,8 +12,7 @@ import {
   OtherMediaByNarrators,
   PlaythroughHistory,
 } from "@/components/screens/media-screen";
-import { getMediaHeaderInfo } from "@/services/library-service";
-import { useLibraryData } from "@/services/library-service";
+import { getMediaHeaderInfo, useLibraryData } from "@/services/library-service";
 import { usePullToRefresh } from "@/services/sync-service";
 import { Session } from "@/types/session";
 

@@ -10,10 +10,10 @@ import {
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 
-import { PlaythroughWithMedia } from "@/services/library-service";
 import {
   DownloadedThumbnails,
   PlaythroughStatus,
+  PlaythroughWithMedia,
   Thumbnails,
 } from "@/services/library-service";
 import { Colors } from "@/styles";

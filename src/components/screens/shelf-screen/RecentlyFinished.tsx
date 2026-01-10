@@ -7,8 +7,10 @@ import {
   HORIZONTAL_TILE_SPACING,
   HORIZONTAL_TILE_WIDTH_RATIO,
 } from "@/constants";
-import { getPlaythroughsPage } from "@/services/library-service";
-import { useLibraryData } from "@/services/library-service";
+import {
+  getPlaythroughsPage,
+  useLibraryData,
+} from "@/services/library-service";
 import { useDataVersion } from "@/stores/data-version";
 import { useScreen } from "@/stores/screen";
 import { Session } from "@/types/session";

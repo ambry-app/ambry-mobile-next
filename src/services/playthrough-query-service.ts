@@ -13,9 +13,11 @@ import { useEffect, useState } from "react";
 import { FINISH_PROMPT_THRESHOLD_PERCENT } from "@/constants";
 import {
   FinishedOrAbandonedPlaythrough,
+  getAllPlaythroughsForMedia,
   getFinishedOrAbandonedPlaythrough,
   getInProgressPlaythroughWithMedia,
   getPlaythroughWithMedia,
+  type PlaythroughForMedia,
   type PlaythroughWithMedia,
 } from "@/db/playthroughs";
 import { useDataVersion } from "@/stores/data-version";
@@ -27,10 +29,7 @@ import { useLibraryData } from "./library-service";
 import * as Player from "./track-player-service";
 
 // Re-export types and functions for UI consumers
-export {
-  getAllPlaythroughsForMedia,
-  type PlaythroughForMedia,
-} from "@/db/playthroughs";
+export { getAllPlaythroughsForMedia, type PlaythroughForMedia };
 
 // =============================================================================
 // Playthrough Hooks

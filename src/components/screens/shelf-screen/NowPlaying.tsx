@@ -1,8 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { PlayerProgressBar, TileImage, TileText } from "@/components";
-import { getMedia } from "@/services/library-service";
-import { useLibraryData } from "@/services/library-service";
+import { getMedia, useLibraryData } from "@/services/library-service";
 import { expandPlayer } from "@/services/playback-controls";
 import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";

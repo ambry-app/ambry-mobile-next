@@ -2,8 +2,8 @@ import { AuthorsAndNarrators } from "@/components";
 import {
   getMediaAuthorsAndNarrators,
   MediaHeaderInfo,
+  useLibraryData,
 } from "@/services/library-service";
-import { useLibraryData } from "@/services/library-service";
 import { Session } from "@/types/session";
 
 type MediaAuthorsAndNarratorsProps = {

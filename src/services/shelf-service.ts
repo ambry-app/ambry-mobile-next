@@ -8,14 +8,16 @@
 import { useCallback, useEffect, useState } from "react";
 
 import {
+  getSavedMediaPage,
   isMediaOnShelf as isMediaOnShelfDb,
+  type SavedMediaWithDetails,
   toggleMediaOnShelf as toggleMediaOnShelfDb,
 } from "@/db/shelves";
 import { bumpShelfDataVersion } from "@/stores/data-version";
 import { Session } from "@/types/session";
 
 // Re-export shelf queries and types for UI consumers
-export { getSavedMediaPage, type SavedMediaWithDetails } from "@/db/shelves";
+export { getSavedMediaPage, type SavedMediaWithDetails };
 
 /**
  * Checks if a media item is on a specific shelf.

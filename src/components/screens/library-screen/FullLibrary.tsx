@@ -3,8 +3,10 @@ import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 
 import { Loading, MediaTile } from "@/components";
 import { PAGE_SIZE } from "@/constants";
-import { getMediaPage } from "@/services/library-service";
-import { usePaginatedLibraryData } from "@/services/library-service";
+import {
+  getMediaPage,
+  usePaginatedLibraryData,
+} from "@/services/library-service";
 import { usePullToRefresh } from "@/services/sync-service";
 import { useScreen } from "@/stores/screen";
 import { Colors } from "@/styles";

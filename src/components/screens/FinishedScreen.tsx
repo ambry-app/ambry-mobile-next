@@ -2,8 +2,10 @@ import { FlatList, StyleSheet, Text } from "react-native";
 
 import { FadeInOnMount, Loading, MediaTile, TimeAgo } from "@/components";
 import { PAGE_SIZE } from "@/constants";
-import { getPlaythroughsPage } from "@/services/library-service";
-import { usePaginatedLibraryData } from "@/services/library-service";
+import {
+  getPlaythroughsPage,
+  usePaginatedLibraryData,
+} from "@/services/library-service";
 import { usePullToRefresh } from "@/services/sync-service";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";

@@ -6,8 +6,10 @@ import {
   Header,
   MediaByNarrators,
 } from "@/components/screens/person-screen";
-import { getPersonHeaderInfo } from "@/services/library-service";
-import { useLibraryData } from "@/services/library-service";
+import {
+  getPersonHeaderInfo,
+  useLibraryData,
+} from "@/services/library-service";
 import { usePullToRefresh } from "@/services/sync-service";
 import { Session } from "@/types/session";
 

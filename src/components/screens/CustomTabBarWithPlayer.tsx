@@ -32,8 +32,7 @@ import {
   PLAYER_HEIGHT,
   TAB_BAR_BASE_HEIGHT,
 } from "@/constants";
-import { getMedia } from "@/services/library-service";
-import { useLibraryData } from "@/services/library-service";
+import { getMedia, useLibraryData } from "@/services/library-service";
 import {
   clearPendingExpand,
   setPlayerExpandedState,

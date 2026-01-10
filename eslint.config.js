@@ -44,6 +44,10 @@ module.exports = defineConfig([
     rules: {
       "prettier/prettier": "error",
       "@typescript-eslint/no-deprecated": "warn",
+      "no-duplicate-imports": [
+        "error",
+        { includeExports: true, allowSeparateTypeImports: true },
+      ],
 
       "@typescript-eslint/no-unused-vars": [
         "warn",

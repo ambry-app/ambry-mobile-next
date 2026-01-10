@@ -6,7 +6,12 @@ import {
   ExecuteError,
   ExecuteErrorCode,
 } from "@/graphql/client/execute";
-import type { SyncProgressInput } from "@/graphql/client/graphql";
+import {
+  DeviceTypeInput,
+  PlaybackEventType,
+  PlaythroughStatus,
+  type SyncProgressInput,
+} from "@/graphql/client/graphql";
 import { Result } from "@/types/result";
 import { Session } from "@/types/session";
 
@@ -254,12 +259,8 @@ const syncProgressMutation = graphql(`
 `);
 
 // Re-export generated types for use in sync.ts
-export type { SyncProgressInput } from "@/graphql/client/graphql";
-export {
-  DeviceTypeInput,
-  PlaybackEventType,
-  PlaythroughStatus,
-} from "@/graphql/client/graphql";
+export type { SyncProgressInput };
+export { DeviceTypeInput, PlaybackEventType, PlaythroughStatus };
 
 export function syncProgress(session: Session, input: SyncProgressInput) {
   return executeAuthenticated(

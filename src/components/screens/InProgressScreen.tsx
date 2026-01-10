@@ -2,8 +2,10 @@ import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 
 import { Loading, PlaythroughTile, TimeAgo } from "@/components";
 import { PAGE_SIZE } from "@/constants";
-import { getPlaythroughsPage } from "@/services/library-service";
-import { usePaginatedLibraryData } from "@/services/library-service";
+import {
+  getPlaythroughsPage,
+  usePaginatedLibraryData,
+} from "@/services/library-service";
 import { usePullToRefresh } from "@/services/sync-service";
 import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";
