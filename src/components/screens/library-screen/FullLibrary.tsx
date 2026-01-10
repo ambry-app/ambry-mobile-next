@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import { Loading } from "@/components/Loading";
 import { MediaTile } from "@/components/Tiles";
@@ -61,10 +62,19 @@ export function FullLibrary({ session }: FullLibraryProps) {
 
   if (media.length === 0) {
     return (
-      <Text style={styles.text}>
-        Your library is empty. Log into the server on the web and add some
-        audiobooks to get started!
-      </Text>
+      <View style={styles.emptyContainer}>
+        <FontAwesome6
+          name="book-open"
+          size={64}
+          color={Colors.zinc[600]}
+          style={styles.emptyIcon}
+        />
+        <Text style={styles.emptyTitle}>Your Library is Empty</Text>
+        <Text style={styles.emptySubtitle}>
+          Log into your Ambry server on the web and add some audiobooks to get
+          started.
+        </Text>
+      </View>
     );
   }
 
@@ -98,10 +108,26 @@ export function FullLibrary({ session }: FullLibraryProps) {
 }
 
 const styles = StyleSheet.create({
-  text: {
+  emptyContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 48,
+  },
+  emptyIcon: {
+    marginBottom: 16,
+  },
+  emptyTitle: {
     color: Colors.zinc[100],
-    paddingHorizontal: 32,
-    paddingTop: 32,
+    fontSize: 20,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    color: Colors.zinc[400],
+    fontSize: 16,
+    textAlign: "center",
+    lineHeight: 22,
   },
   flatlist: {
     padding: 8,

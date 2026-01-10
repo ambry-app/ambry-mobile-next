@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import { MediaTile } from "@/components/Tiles";
 import { PAGE_SIZE } from "@/constants";
@@ -51,10 +52,19 @@ export function SearchResults(props: SearchResultsProps) {
 
   if (media.length === 0) {
     return (
-      <Text style={styles.text}>
-        Nothing in the library matches your search term. Please try another
-        search.
-      </Text>
+      <View style={styles.emptyContainer}>
+        <FontAwesome6
+          name="magnifying-glass"
+          size={64}
+          color={Colors.zinc[600]}
+          style={styles.emptyIcon}
+        />
+        <Text style={styles.emptyTitle}>No Results</Text>
+        <Text style={styles.emptySubtitle}>
+          Nothing in the library matches your search. Try a different search
+          term.
+        </Text>
+      </View>
     );
   }
 
@@ -79,10 +89,26 @@ export function SearchResults(props: SearchResultsProps) {
 }
 
 const styles = StyleSheet.create({
-  text: {
+  emptyContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 48,
+  },
+  emptyIcon: {
+    marginBottom: 16,
+  },
+  emptyTitle: {
     color: Colors.zinc[100],
-    paddingHorizontal: 32,
-    paddingTop: 32,
+    fontSize: 20,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    color: Colors.zinc[400],
+    fontSize: 16,
+    textAlign: "center",
+    lineHeight: 22,
   },
   flatlist: {
     padding: 8,
