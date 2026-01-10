@@ -25,7 +25,6 @@ import {
   resumePlaythrough as resumePlaythroughInDb,
   setActivePlaythroughIdForDevice,
 } from "@/db/playthroughs";
-import * as schema from "@/db/schema";
 import { useSession } from "@/stores/session";
 import { Session } from "@/types/session";
 
@@ -34,19 +33,6 @@ import * as Heartbeat from "./position-heartbeat";
 import * as SleepTimer from "./sleep-timer-service";
 import { syncPlaythroughs } from "./sync-service";
 import * as Player from "./track-player-service";
-
-// =============================================================================
-// Types
-// =============================================================================
-
-export interface TrackLoadResult {
-  playthroughId: string;
-  mediaId: string;
-  duration: number;
-  position: number;
-  playbackRate: number;
-  chapters: schema.Chapter[];
-}
 
 // =============================================================================
 // Explicit User-Action Functions
@@ -61,13 +47,12 @@ export interface TrackLoadResult {
  * Use when: User taps play on media that has no existing playthrough,
  * or user chooses "Start Fresh" to create a new playthrough.
  *
- * Returns TrackLoadResult for caller to update player state.
  * Caller is responsible for starting playback.
  */
 export async function startNewPlaythrough(
   session: Session,
   mediaId: string,
-): Promise<TrackLoadResult> {
+): Promise<void> {
   await pauseCurrentIfPlaying();
 
   // Create new playthrough and record start event
@@ -76,12 +61,10 @@ export async function startNewPlaythrough(
 
   // Get the new playthrough with full media info
   const playthrough = await getPlaythroughWithMedia(session, playthroughId);
-  const result = await Player.loadPlaythroughIntoPlayer(session, playthrough);
+  await Player.loadPlaythroughIntoPlayer(session, playthrough);
 
   // Track this as the active playthrough for this device
   await setActivePlaythroughIdForDevice(session, playthroughId);
-
-  return result;
 }
 
 /**
@@ -92,23 +75,20 @@ export async function startNewPlaythrough(
  *
  * Use when: User taps play on media that has an in_progress playthrough.
  *
- * Returns TrackLoadResult for caller to update player state.
  * Caller is responsible for starting playback.
  */
 export async function continuePlaythrough(
   session: Session,
   playthroughId: string,
-): Promise<TrackLoadResult> {
+): Promise<void> {
   await pauseCurrentIfPlaying();
 
   // Get the playthrough with full media info
   const playthrough = await getPlaythroughWithMedia(session, playthroughId);
-  const result = await Player.loadPlaythroughIntoPlayer(session, playthrough);
+  await Player.loadPlaythroughIntoPlayer(session, playthrough);
 
   // Track this as the active playthrough for this device
   await setActivePlaythroughIdForDevice(session, playthroughId);
-
-  return result;
 }
 
 /**
@@ -118,13 +98,12 @@ export async function continuePlaythrough(
  *
  * Use when: User chooses to resume from ResumePlaythroughDialog.
  *
- * Returns TrackLoadResult for caller to update player state.
  * Caller is responsible for starting playback.
  */
 export async function resumePlaythrough(
   session: Session,
   playthroughId: string,
-): Promise<TrackLoadResult> {
+): Promise<void> {
   await pauseCurrentIfPlaying();
 
   // Mark as in_progress in database and record resume event
@@ -133,12 +112,10 @@ export async function resumePlaythrough(
 
   // Get the now-active playthrough with full media info
   const playthrough = await getPlaythroughWithMedia(session, playthroughId);
-  const result = await Player.loadPlaythroughIntoPlayer(session, playthrough);
+  await Player.loadPlaythroughIntoPlayer(session, playthrough);
 
   // Track this as the active playthrough for this device
   await setActivePlaythroughIdForDevice(session, playthroughId);
-
-  return result;
 }
 
 // =============================================================================
@@ -157,13 +134,13 @@ export async function resumePlaythrough(
  */
 export async function loadActivePlaythroughIntoPlayer(
   session: Session,
-): Promise<TrackLoadResult | null> {
+): Promise<void> {
   // Check for stored active playthrough ID for this device
   const storedPlaythroughId = await getActivePlaythroughIdForDevice(session);
 
   if (!storedPlaythroughId) {
     console.debug("[Loader] No active playthrough stored for this device");
-    return null;
+    return;
   }
 
   // Verify the stored playthrough exists and is in_progress
@@ -180,7 +157,7 @@ export async function loadActivePlaythroughIntoPlayer(
       storedPlaythroughId,
     );
     await clearActivePlaythroughIdForDevice(session);
-    return null;
+    return;
   }
 
   console.debug(
@@ -190,7 +167,7 @@ export async function loadActivePlaythroughIntoPlayer(
     playthrough.media.id,
   );
 
-  return Player.loadPlaythroughIntoPlayer(session, playthrough);
+  await Player.loadPlaythroughIntoPlayer(session, playthrough);
 }
 
 /**
@@ -204,12 +181,12 @@ export async function loadActivePlaythroughIntoPlayer(
 export async function reloadPlaythroughById(
   session: Session,
   playthroughId: string,
-): Promise<TrackLoadResult> {
+): Promise<void> {
   console.debug("[Loader] Reloading playthrough by ID:", playthroughId);
 
   const playthrough = await getPlaythroughWithMedia(session, playthroughId);
 
-  return Player.loadPlaythroughIntoPlayer(session, playthrough);
+  await Player.loadPlaythroughIntoPlayer(session, playthrough);
 }
 
 /**

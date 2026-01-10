@@ -83,6 +83,12 @@ export function resetPlayerUIState() {
   usePlayerUIState.setState(initialState);
 }
 
+export function setLoadingNewMedia(loading: boolean) {
+  usePlayerUIState.setState({
+    loadingNewMedia: loading,
+  });
+}
+
 export function setPlayerExpandedState(expanded: boolean) {
   usePlayerUIState.setState({
     expanded,

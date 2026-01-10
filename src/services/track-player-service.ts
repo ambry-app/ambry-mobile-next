@@ -32,7 +32,6 @@ import {
 } from "@/types/track-player";
 import { documentDirectoryFilePath } from "@/utils";
 
-import { TrackLoadResult } from "./playthrough-loader";
 import { getSession } from "./session-service";
 
 let progressCheckInterval: NodeJS.Timeout | null = null;
@@ -50,43 +49,9 @@ export async function initialize() {
   console.debug("[TrackPlayer Service] Initializing...");
 
   await setupPlayer();
+  setupTrackPlayerListeners();
+  setupStoreSubscriptions();
 
-  // playbackState
-  TrackPlayer.getPlaybackState().then((playbackState) => {
-    useTrackPlayer.setState({ playbackState });
-    updateIsPlaying();
-  });
-
-  TrackPlayer.addEventListener(Event.PlaybackState, (state) => {
-    useTrackPlayer.setState({ playbackState: state });
-    updateIsPlaying();
-  });
-
-  // playWhenReady
-  TrackPlayer.getPlayWhenReady().then((playWhenReady) => {
-    useTrackPlayer.setState({ playWhenReady });
-    updateIsPlaying();
-  });
-
-  TrackPlayer.addEventListener(Event.PlaybackPlayWhenReadyChanged, (event) => {
-    useTrackPlayer.setState({ playWhenReady: event.playWhenReady });
-    updateIsPlaying();
-  });
-
-  // playthrough data version changes
-  useDataVersion.subscribe((state, prevState) => {
-    if (state.playthroughDataVersion === prevState.playthroughDataVersion)
-      // no change
-      return;
-
-    const { playthrough } = useTrackPlayer.getState();
-    // no playthrough to update
-    if (!playthrough) return;
-
-    updatePlaythrough(playthrough.id);
-  });
-
-  // Done
   useTrackPlayer.setState({ initialized: true });
   console.debug("[TrackPlayer Service] Initialized");
 }
@@ -205,7 +170,7 @@ export function isPlaying() {
 export async function loadPlaythroughIntoPlayer(
   session: Session,
   playthrough: PlaythroughWithMedia,
-): Promise<TrackLoadResult> {
+): Promise<void> {
   console.debug("[TrackPlayer Service] Loading playthrough into player...");
 
   const streaming = playthrough.media.download?.status !== "ready";
@@ -234,18 +199,6 @@ export async function loadPlaythroughIntoPlayer(
     },
     ...buildInitialChapterState(playthrough.media.chapters, progress),
   });
-
-  // FIXME: for now we continue to return this so player-ui-state works. But
-  // eventually the track-player store should become the authority on these
-  // values.
-  return {
-    playthroughId: playthrough.id,
-    mediaId: playthrough.media.id,
-    duration: progress.duration,
-    position: progress.position,
-    playbackRate: actualPlaybackRate,
-    chapters: playthrough.media.chapters,
-  };
 }
 
 /**
@@ -266,6 +219,52 @@ export async function unload() {
  */
 function isInitialized() {
   return useTrackPlayer.getState().initialized;
+}
+
+/**
+ * Set up Track Player event listeners to keep the store in sync.
+ */
+function setupTrackPlayerListeners() {
+  // playbackState
+  TrackPlayer.getPlaybackState().then((playbackState) => {
+    useTrackPlayer.setState({ playbackState });
+    updateIsPlaying();
+  });
+
+  TrackPlayer.addEventListener(Event.PlaybackState, (state) => {
+    useTrackPlayer.setState({ playbackState: state });
+    updateIsPlaying();
+  });
+
+  // playWhenReady
+  TrackPlayer.getPlayWhenReady().then((playWhenReady) => {
+    useTrackPlayer.setState({ playWhenReady });
+    updateIsPlaying();
+  });
+
+  TrackPlayer.addEventListener(Event.PlaybackPlayWhenReadyChanged, (event) => {
+    useTrackPlayer.setState({ playWhenReady: event.playWhenReady });
+    updateIsPlaying();
+  });
+}
+
+/**
+ * Subscribes to the data version store to reactively update playthrough data
+ * when it changes.
+ */
+function setupStoreSubscriptions() {
+  useDataVersion.subscribe((state, prevState) => {
+    if (state.playthroughDataVersion === prevState.playthroughDataVersion)
+      // no change
+      return;
+
+    const session = getSession();
+    const loadedPlaythrough = getLoadedPlaythrough();
+
+    if (!loadedPlaythrough) return;
+
+    updatePlaythrough(session, loadedPlaythrough.id);
+  });
 }
 
 async function setupPlayer() {
@@ -294,9 +293,7 @@ async function updateProgress(progress: ProgressWithPercent) {
 /**
  * Update playthrough data from the DB.
  */
-async function updatePlaythrough(playthroughId: string) {
-  const session = getSession();
-
+async function updatePlaythrough(session: Session, playthroughId: string) {
   const playthrough = await getPlaythrough(session, playthroughId);
 
   useTrackPlayer.setState({

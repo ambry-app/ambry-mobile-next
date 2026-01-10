@@ -10,6 +10,7 @@ import { bumpPlaythroughDataVersion } from "@/stores/data-version";
 import {
   requestExpandPlayer,
   resetPlayerUIState,
+  setLoadingNewMedia,
   usePlayerUIState,
 } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
@@ -153,10 +154,8 @@ export async function initializePlayer(session: Session) {
   usePlayerUIState.setState({ initialized: true });
 
   // Try to load the stored active playthrough if no track was pre-loaded
-  const track = await Loader.loadActivePlaythroughIntoPlayer(session);
-  if (track) {
-    applyTrackLoadResult(track);
-  }
+  await Loader.loadActivePlaythroughIntoPlayer(session);
+  setLoadingNewMedia(false);
 }
 
 /**
@@ -167,25 +166,20 @@ export async function initializePlayer(session: Session) {
 export async function loadAndPlayMedia(session: Session, mediaId: string) {
   console.debug("[Controls] Loading and playing media:", mediaId);
 
-  usePlayerUIState.setState({ loadingNewMedia: true });
+  setLoadingNewMedia(true);
   await expandPlayerAndWait();
 
-  try {
-    const inProgress = await getInProgressPlaythroughWithMedia(
-      session,
-      mediaId,
-    );
-    const result = inProgress
-      ? await Loader.continuePlaythrough(session, inProgress.id)
-      : await Loader.startNewPlaythrough(session, mediaId);
+  const inProgress = await getInProgressPlaythroughWithMedia(session, mediaId);
 
-    applyTrackLoadResult(result);
-    bumpPlaythroughDataVersion();
-    await play();
-  } catch (error) {
-    console.error("[Controls] Failed to load and play media:", error);
-    usePlayerUIState.setState({ loadingNewMedia: false });
+  if (inProgress) {
+    await Loader.continuePlaythrough(session, inProgress.id);
+  } else {
+    await Loader.startNewPlaythrough(session, mediaId);
   }
+
+  setLoadingNewMedia(false);
+  bumpPlaythroughDataVersion();
+  await play();
 }
 
 /**
@@ -197,18 +191,13 @@ export async function continueExistingPlaythrough(
 ) {
   console.debug("[Controls] Continuing existing playthrough:", playthroughId);
 
-  usePlayerUIState.setState({ loadingNewMedia: true });
+  setLoadingNewMedia(true);
   await expandPlayerAndWait();
 
-  try {
-    const result = await Loader.continuePlaythrough(session, playthroughId);
-    applyTrackLoadResult(result);
-    bumpPlaythroughDataVersion();
-    await play();
-  } catch (error) {
-    console.error("[Controls] Failed to continue playthrough:", error);
-    usePlayerUIState.setState({ loadingNewMedia: false });
-  }
+  await Loader.continuePlaythrough(session, playthroughId);
+  setLoadingNewMedia(false);
+  bumpPlaythroughDataVersion();
+  await play();
 }
 
 /**
@@ -217,27 +206,13 @@ export async function continueExistingPlaythrough(
 export async function startFreshPlaythrough(session: Session, mediaId: string) {
   console.debug("[Controls] Starting fresh playthrough for media:", mediaId);
 
-  usePlayerUIState.setState({ loadingNewMedia: true });
+  setLoadingNewMedia(true);
   await expandPlayerAndWait();
 
-  try {
-    const result = await Loader.startNewPlaythrough(session, mediaId);
-    applyTrackLoadResult(result);
-    bumpPlaythroughDataVersion();
-    await play();
-  } catch (error) {
-    console.error("[Controls] Failed to start playthrough:", error);
-    usePlayerUIState.setState({ loadingNewMedia: false });
-  }
-}
-
-/**
- * Apply a track load result to the player UI state.
- */
-function applyTrackLoadResult(result: Loader.TrackLoadResult) {
-  usePlayerUIState.setState({
-    loadingNewMedia: false,
-  });
+  await Loader.startNewPlaythrough(session, mediaId);
+  setLoadingNewMedia(false);
+  bumpPlaythroughDataVersion();
+  await play();
 }
 
 /**
@@ -263,16 +238,9 @@ export async function reloadCurrentPlaythroughIfMedia(
   await pauseIfPlaying();
   await Heartbeat.saveNow();
 
-  const track = await Loader.reloadPlaythroughById(
-    session,
-    loadedPlaythrough.id,
-  );
-
-  applyTrackLoadResult(track);
-
-  if (track.playthroughId === loadedPlaythrough.id) {
-    await play();
-  }
+  await Loader.reloadPlaythroughById(session, loadedPlaythrough.id);
+  setLoadingNewMedia(false);
+  await play();
 }
 
 /**
@@ -284,20 +252,15 @@ export async function resumeAndLoadPlaythrough(
 ) {
   console.debug("[Controls] Resuming playthrough:", playthroughId);
 
-  usePlayerUIState.setState({ loadingNewMedia: true });
+  setLoadingNewMedia(true);
   await expandPlayerAndWait();
 
-  try {
-    const result = await Loader.resumePlaythrough(session, playthroughId);
+  await Loader.resumePlaythrough(session, playthroughId);
 
-    applyTrackLoadResult(result);
-    bumpPlaythroughDataVersion();
+  setLoadingNewMedia(false);
+  bumpPlaythroughDataVersion();
 
-    await play();
-  } catch (error) {
-    console.error("[Controls] Failed to resume playthrough:", error);
-    usePlayerUIState.setState({ loadingNewMedia: false });
-  }
+  await play();
 }
 
 export async function applyPlaythroughAction(
@@ -420,20 +383,15 @@ async function pauseAndRecordEvent(): Promise<boolean> {
     return false;
   }
 
-  try {
-    await Player.pause();
-    const { position } = await Player.getAccurateProgress();
-    await EventRecording.recordPauseEvent(
-      loadedPlaythrough.id,
-      position,
-      playbackRate,
-    );
-    console.debug("[Controls] pauseAndRecordEvent completed");
-    return true;
-  } catch (error) {
-    console.warn("[Controls] Error in pauseAndRecordEvent:", error);
-    return false;
-  }
+  await Player.pause();
+  const { position } = await Player.getAccurateProgress();
+  await EventRecording.recordPauseEvent(
+    loadedPlaythrough.id,
+    position,
+    playbackRate,
+  );
+  console.debug("[Controls] pauseAndRecordEvent completed");
+  return true;
 }
 
 /**
@@ -449,15 +407,11 @@ export async function unloadPlayer(session: Session) {
  * Handles clearing timers and pausing playback.
  */
 export async function tryUnloadPlayer() {
-  try {
-    // There were seek timers here, but they are now managed by seek-service.ts
-    // We just need to ensure playback is paused and player is reset.
-    await pauseIfPlaying();
-    await Player.unload();
-    resetPlayerUIState();
-  } catch (error) {
-    console.warn("[Controls] tryUnloadPlayer error", error);
-  }
+  // There were seek timers here, but they are now managed by seek-service.ts
+  // We just need to ensure playback is paused and player is reset.
+  await pauseIfPlaying();
+  await Player.unload();
+  resetPlayerUIState();
 }
 
 /**
@@ -465,13 +419,9 @@ export async function tryUnloadPlayer() {
  * Used for session cleanup during sign-out.
  */
 export async function forceUnloadPlayer() {
-  try {
-    // There were seek timers here, but they are now managed by seek-service.ts
-    await Player.unload();
-    resetPlayerUIState();
-  } catch (error) {
-    console.warn("[Controls] forceUnloadPlayer error", error);
-  }
+  // There were seek timers here, but they are now managed by seek-service.ts
+  await Player.unload();
+  resetPlayerUIState();
 }
 
 // =============================================================================
