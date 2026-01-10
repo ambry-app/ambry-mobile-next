@@ -38,6 +38,7 @@ export function DownloadsScreen({ session }: { session: Session }) {
 
   return (
     <FlatList
+      contentInsetAdjustmentBehavior="automatic"
       data={media}
       keyExtractor={(media) => media.id}
       renderItem={({ item }) => <DownloadRow media={item} session={session} />}

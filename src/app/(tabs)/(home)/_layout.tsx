@@ -31,14 +31,16 @@ export default function HomeTabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="downloads"
+        name="(downloads)"
         options={{
+          headerShown: false,
           title: "Downloads",
         }}
       />
       <Tabs.Screen
-        name="settings"
+        name="(settings)"
         options={{
+          headerShown: false,
           title: "Settings",
         }}
       />
