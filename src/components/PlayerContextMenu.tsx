@@ -9,7 +9,7 @@ import {
 } from "@/services/playback-controls";
 import { shouldPromptForFinish } from "@/services/playthrough-query-service";
 import { useDownloads } from "@/stores/downloads";
-import { Playthrough } from "@/stores/track-player";
+import { LoadedPlaythrough } from "@/stores/track-player";
 import { Session } from "@/types/session";
 
 import { PlayerContextMenuImpl } from "./PlayerContextMenuImpl";
@@ -23,7 +23,7 @@ type AuthorOrNarrator = {
 
 export type PlayerContextMenuProps = {
   session: Session;
-  playthrough: Playthrough;
+  playthrough: LoadedPlaythrough;
   bookTitle: string;
   authors: AuthorOrNarrator[];
   narrators: AuthorOrNarrator[];

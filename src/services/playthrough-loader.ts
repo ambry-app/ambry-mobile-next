@@ -16,11 +16,8 @@
  * - clearActivePlaythrough: for user-initiated unload
  */
 
-import { Platform } from "react-native";
-
 import { PAUSE_REWIND_SECONDS } from "@/constants";
 import {
-  type ActivePlaythrough,
   clearActivePlaythroughIdForDevice,
   createPlaythrough,
   getActivePlaythroughIdForDevice,
@@ -30,17 +27,13 @@ import {
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
 import { useSession } from "@/stores/session";
-import { useTrackPlayer } from "@/stores/track-player";
 import { Session } from "@/types/session";
-import { Capability, PitchAlgorithm, TrackType } from "@/types/track-player";
-import { documentDirectoryFilePath } from "@/utils";
 
 import * as EventRecording from "./event-recording";
 import * as Heartbeat from "./position-heartbeat";
 import * as SleepTimer from "./sleep-timer-service";
 import { syncPlaythroughs } from "./sync-service";
 import * as Player from "./track-player-service";
-import { setRate } from "./track-player-service";
 
 // =============================================================================
 // Types
@@ -83,11 +76,7 @@ export async function startNewPlaythrough(
 
   // Get the new playthrough with full media info
   const playthrough = await getPlaythroughWithMedia(session, playthroughId);
-  if (!playthrough) {
-    throw new Error(`Playthrough not found after create: ${playthroughId}`);
-  }
-
-  const result = await loadPlaythroughIntoPlayer(session, playthrough);
+  const result = await Player.loadPlaythroughIntoPlayer(session, playthrough);
 
   // Track this as the active playthrough for this device
   await setActivePlaythroughIdForDevice(session, playthroughId);
@@ -114,11 +103,7 @@ export async function continuePlaythrough(
 
   // Get the playthrough with full media info
   const playthrough = await getPlaythroughWithMedia(session, playthroughId);
-  if (!playthrough) {
-    throw new Error(`Playthrough not found: ${playthroughId}`);
-  }
-
-  const result = await loadPlaythroughIntoPlayer(session, playthrough);
+  const result = await Player.loadPlaythroughIntoPlayer(session, playthrough);
 
   // Track this as the active playthrough for this device
   await setActivePlaythroughIdForDevice(session, playthroughId);
@@ -148,11 +133,7 @@ export async function resumePlaythrough(
 
   // Get the now-active playthrough with full media info
   const playthrough = await getPlaythroughWithMedia(session, playthroughId);
-  if (!playthrough) {
-    throw new Error(`Playthrough not found after resume: ${playthroughId}`);
-  }
-
-  const result = await loadPlaythroughIntoPlayer(session, playthrough);
+  const result = await Player.loadPlaythroughIntoPlayer(session, playthrough);
 
   // Track this as the active playthrough for this device
   await setActivePlaythroughIdForDevice(session, playthroughId);
@@ -177,38 +158,6 @@ export async function resumePlaythrough(
 export async function loadActivePlaythroughIntoPlayer(
   session: Session,
 ): Promise<TrackLoadResult | null> {
-  const track = await Player.getTrack(0);
-
-  if (track) {
-    // Track already loaded (e.g., from headless context or previous session)
-    // The description field contains the playthroughId
-    const playthroughId = track.description!;
-    const playbackRate = await Player.getPlaybackRate();
-    const progress = await Player.getAccurateProgress();
-    const position = progress.position;
-    const duration = progress.duration;
-
-    // Get playthrough with full media info
-    const playthrough = await getPlaythroughWithMedia(session, playthroughId);
-
-    if (!playthrough) {
-      console.warn(
-        "[Loader] Track loaded but playthrough not found:",
-        playthroughId,
-      );
-      return null;
-    }
-
-    return {
-      playthroughId,
-      mediaId: playthrough.media.id,
-      position,
-      duration,
-      playbackRate,
-      chapters: playthrough.media.chapters,
-    };
-  }
-
   // Check for stored active playthrough ID for this device
   const storedPlaythroughId = await getActivePlaythroughIdForDevice(session);
 
@@ -222,15 +171,6 @@ export async function loadActivePlaythroughIntoPlayer(
     session,
     storedPlaythroughId,
   );
-
-  if (!playthrough) {
-    console.debug(
-      "[Loader] Stored playthrough not found, clearing:",
-      storedPlaythroughId,
-    );
-    await clearActivePlaythroughIdForDevice(session);
-    return null;
-  }
 
   if (playthrough.status !== "in_progress") {
     console.debug(
@@ -250,7 +190,7 @@ export async function loadActivePlaythroughIntoPlayer(
     playthrough.media.id,
   );
 
-  return loadPlaythroughIntoPlayer(session, playthrough);
+  return Player.loadPlaythroughIntoPlayer(session, playthrough);
 }
 
 /**
@@ -269,11 +209,7 @@ export async function reloadPlaythroughById(
 
   const playthrough = await getPlaythroughWithMedia(session, playthroughId);
 
-  if (!playthrough) {
-    throw new Error(`Playthrough not found: ${playthroughId}`);
-  }
-
-  return loadPlaythroughIntoPlayer(session, playthrough);
+  return Player.loadPlaythroughIntoPlayer(session, playthrough);
 }
 
 /**
@@ -294,58 +230,6 @@ export async function clearActivePlaythrough(session: Session): Promise<void> {
 // =============================================================================
 
 /**
- * Wait for TrackPlayer to report a position close to the expected position.
- * This is needed because seekTo() can return before the seek actually completes,
- * especially for streaming content.
- *
- * @param expectedPosition - The position we seeked to
- * @param timeoutMs - Maximum time to wait (default 2000ms)
- * @param toleranceSeconds - How close is "close enough" (default 5 seconds)
- * @returns The actual position reported by TrackPlayer
- */
-async function waitForSeekToComplete(
-  expectedPosition: number,
-  timeoutMs: number = 2000,
-  toleranceSeconds: number = 5,
-): Promise<number> {
-  const startTime = Date.now();
-  const pollIntervalMs = 50;
-
-  while (Date.now() - startTime < timeoutMs) {
-    const { position } = await Player.getAccurateProgress();
-
-    // If seeking to 0, just accept any position (including 0)
-    if (expectedPosition === 0) {
-      return position;
-    }
-
-    // Check if position is close enough to expected
-    if (Math.abs(position - expectedPosition) < toleranceSeconds) {
-      return position;
-    }
-
-    // Also accept if position is non-zero and we're seeking to non-zero
-    // (handles cases where exact position might differ slightly)
-    if (position > 0) {
-      return position;
-    }
-
-    // Wait before next poll
-    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-  }
-
-  // Timeout - return whatever position we have
-  const { position } = await Player.getAccurateProgress();
-  console.warn(
-    "[Loader] waitForSeekToComplete timed out. Expected:",
-    expectedPosition.toFixed(2),
-    "Got:",
-    position.toFixed(2),
-  );
-  return position;
-}
-
-/**
  * Pause current playback if playing and record the pause event.
  * No-op if nothing is playing.
  */
@@ -359,7 +243,7 @@ async function pauseCurrentIfPlaying() {
   // Rewind slightly so the user has context when they resume
   // (see PAUSE_REWIND_SECONDS in constants.ts for explanation)
 
-  const playbackRate = await Player.getPlaybackRate();
+  const playbackRate = Player.getPlaybackRate();
   const progress = await Player.getAccurateProgress();
   let seekPosition = progress.position - PAUSE_REWIND_SECONDS * playbackRate;
   seekPosition = Math.max(0, Math.min(seekPosition, progress.duration));
@@ -367,12 +251,12 @@ async function pauseCurrentIfPlaying() {
 
   Heartbeat.stop();
 
-  const playthrough = useTrackPlayer.getState().playthrough;
+  const loadedPlaythrough = Player.getLoadedPlaythrough();
 
-  if (playthrough) {
+  if (loadedPlaythrough) {
     try {
       await EventRecording.recordPauseEvent(
-        playthrough.id,
+        loadedPlaythrough.id,
         seekPosition, // Use rewound position
         playbackRate,
       );
@@ -387,102 +271,4 @@ async function pauseCurrentIfPlaying() {
   if (session) {
     syncPlaythroughs(session);
   }
-}
-
-/**
- * Load a playthrough into TrackPlayer.
- */
-async function loadPlaythroughIntoPlayer(
-  session: Session,
-  playthrough: ActivePlaythrough,
-): Promise<TrackLoadResult> {
-  console.debug("[Loader] Loading playthrough into player...");
-
-  const position = playthrough.stateCache?.currentPosition ?? 0;
-  const playbackRate = playthrough.stateCache?.currentRate ?? 1;
-
-  await Player.reset();
-  if (playthrough.media.download?.status === "ready") {
-    // the media is downloaded, load the local file
-    await Player.add({
-      url: documentDirectoryFilePath(playthrough.media.download.filePath),
-      pitchAlgorithm: PitchAlgorithm.Voice,
-      duration: playthrough.media.duration
-        ? parseFloat(playthrough.media.duration)
-        : undefined,
-      title: playthrough.media.book.title,
-      artist: playthrough.media.book.bookAuthors
-        .map((bookAuthor) => bookAuthor.author.name)
-        .join(", "),
-      artwork: playthrough.media.download.thumbnails
-        ? documentDirectoryFilePath(
-            playthrough.media.download.thumbnails.extraLarge,
-          )
-        : undefined,
-      description: playthrough.id,
-    });
-  } else {
-    // the media is not downloaded, load the stream
-    await Player.add({
-      url:
-        Platform.OS === "ios"
-          ? `${session.url}${playthrough.media.hlsPath}`
-          : `${session.url}${playthrough.media.mpdPath}`,
-      type: TrackType.Dash,
-      pitchAlgorithm: PitchAlgorithm.Voice,
-      duration: playthrough.media.duration
-        ? parseFloat(playthrough.media.duration)
-        : undefined,
-      title: playthrough.media.book.title,
-      artist: playthrough.media.book.bookAuthors
-        .map((bookAuthor) => bookAuthor.author.name)
-        .join(", "),
-      artwork: playthrough.media.thumbnails
-        ? `${session.url}/${playthrough.media.thumbnails.extraLarge}`
-        : undefined,
-      description: playthrough.id,
-      headers: { Authorization: `Bearer ${session.token}` },
-    });
-  }
-
-  await Player.seekTo(position);
-  await setRate(playbackRate);
-  await setPlayerOptions();
-
-  // Wait for TrackPlayer to report the correct position after seek
-  // This is important because seekTo() can return before the seek completes,
-  // and downstream code (event recording, UI) needs the real position
-  const actualPosition = await waitForSeekToComplete(position);
-
-  return {
-    playthroughId: playthrough.id,
-    mediaId: playthrough.media.id,
-    duration: parseFloat(playthrough.media.duration || "0"),
-    position: actualPosition,
-    playbackRate,
-    chapters: playthrough.media.chapters,
-  };
-}
-
-async function setPlayerOptions() {
-  await Player.updateOptions({
-    android: {
-      alwaysPauseOnInterruption: true,
-    },
-    capabilities: [
-      Capability.Play,
-      Capability.Pause,
-      Capability.JumpForward,
-      Capability.JumpBackward,
-    ],
-    notificationCapabilities: [
-      Capability.Play,
-      Capability.Pause,
-      Capability.JumpBackward,
-      Capability.JumpForward,
-    ],
-    forwardJumpInterval: 10,
-    backwardJumpInterval: 10,
-    progressUpdateEventInterval: 1,
-  });
 }

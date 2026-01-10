@@ -6,10 +6,14 @@ import { Session } from "@/types/session";
 import { randomUUID } from "@/utils/crypto";
 
 // =============================================================================
-// Playthrough CRUD
+// Playthrough Queries
 // =============================================================================
 
-export async function getInProgressPlaythrough(
+export type InProgressPlaythroughWithMedia = NonNullable<
+  Awaited<ReturnType<typeof getInProgressPlaythroughWithMedia>>
+>;
+
+export async function getInProgressPlaythroughWithMedia(
   session: Session,
   mediaId: string,
 ) {
@@ -21,9 +25,6 @@ export async function getInProgressPlaythrough(
       eq(schema.playthroughs.status, "in_progress"),
       isNull(schema.playthroughs.deletedAt),
     ),
-    // Note: updatedAt is used here for edge-case duplicate handling during migration,
-    // not for user-facing ordering. There should only ever be one in_progress playthrough
-    // per media, so this ordering rarely matters in practice.
     orderBy: desc(schema.playthroughs.updatedAt),
     with: {
       stateCache: true,
@@ -60,16 +61,15 @@ export async function getInProgressPlaythrough(
   });
 }
 
-export type ActivePlaythrough = Exclude<
-  Awaited<ReturnType<typeof getInProgressPlaythrough>>,
-  undefined
+export type PlaythroughWithMedia = Awaited<
+  ReturnType<typeof getPlaythroughWithMedia>
 >;
 
 export async function getPlaythroughWithMedia(
   session: Session,
   playthroughId: string,
 ) {
-  return getDb().query.playthroughs.findFirst({
+  const playthrough = await getDb().query.playthroughs.findFirst({
     where: and(
       eq(schema.playthroughs.url, session.url),
       eq(schema.playthroughs.id, playthroughId),
@@ -107,19 +107,34 @@ export async function getPlaythroughWithMedia(
       },
     },
   });
+
+  if (!playthrough) {
+    throw new Error(`Playthrough not found: ${playthroughId}`);
+  }
+
+  return playthrough;
 }
 
+export type Playthrough = Awaited<ReturnType<typeof getPlaythrough>>;
+
 export async function getPlaythrough(session: Session, playthroughId: string) {
-  return getDb().query.playthroughs.findFirst({
+  const playthrough = await getDb().query.playthroughs.findFirst({
     where: and(
       eq(schema.playthroughs.url, session.url),
       eq(schema.playthroughs.id, playthroughId),
     ),
-    with: {
-      stateCache: true,
-    },
   });
+
+  if (!playthrough) {
+    throw new Error(`Playthrough not found: ${playthroughId}`);
+  }
+
+  return playthrough;
 }
+
+export type FinishedOrAbandonedPlaythrough = NonNullable<
+  Awaited<ReturnType<typeof getFinishedOrAbandonedPlaythrough>>
+>;
 
 export async function getFinishedOrAbandonedPlaythrough(
   session: Session,
@@ -148,6 +163,54 @@ export async function getFinishedOrAbandonedPlaythrough(
     },
   });
 }
+
+export type PlaythroughForMedia = Awaited<
+  ReturnType<typeof getAllPlaythroughsForMedia>
+>[number];
+
+export async function getAllPlaythroughsForMedia(
+  session: Session,
+  mediaId: string,
+) {
+  // Order by lastEventAt from state cache (most recent activity first)
+  // not updatedAt (which is sync metadata)
+  // Using JOIN pattern consistent with other library queries
+  const results = await getDb()
+    .select({
+      id: schema.playthroughs.id,
+      mediaId: schema.playthroughs.mediaId,
+      status: schema.playthroughs.status,
+      startedAt: schema.playthroughs.startedAt,
+      finishedAt: schema.playthroughs.finishedAt,
+      abandonedAt: schema.playthroughs.abandonedAt,
+      updatedAt: schema.playthroughs.updatedAt,
+      stateCache: {
+        currentPosition: schema.playthroughStateCache.currentPosition,
+        currentRate: schema.playthroughStateCache.currentRate,
+        lastEventAt: schema.playthroughStateCache.lastEventAt,
+      },
+    })
+    .from(schema.playthroughs)
+    .leftJoin(
+      schema.playthroughStateCache,
+      eq(schema.playthroughStateCache.playthroughId, schema.playthroughs.id),
+    )
+    .where(
+      and(
+        eq(schema.playthroughs.url, session.url),
+        eq(schema.playthroughs.userEmail, session.email),
+        eq(schema.playthroughs.mediaId, mediaId),
+        isNull(schema.playthroughs.deletedAt),
+      ),
+    )
+    .orderBy(desc(schema.playthroughStateCache.lastEventAt));
+
+  return results;
+}
+
+// =============================================================================
+// Playthrough CRUD
+// =============================================================================
 
 export async function createPlaythrough(
   session: Session,
@@ -362,54 +425,6 @@ export async function updateStateCache(
       },
     });
 }
-
-// =============================================================================
-// Query Functions for UI
-// =============================================================================
-
-export async function getAllPlaythroughsForMedia(
-  session: Session,
-  mediaId: string,
-) {
-  // Order by lastEventAt from state cache (most recent activity first)
-  // not updatedAt (which is sync metadata)
-  // Using JOIN pattern consistent with other library queries
-  const results = await getDb()
-    .select({
-      id: schema.playthroughs.id,
-      mediaId: schema.playthroughs.mediaId,
-      status: schema.playthroughs.status,
-      startedAt: schema.playthroughs.startedAt,
-      finishedAt: schema.playthroughs.finishedAt,
-      abandonedAt: schema.playthroughs.abandonedAt,
-      updatedAt: schema.playthroughs.updatedAt,
-      stateCache: {
-        currentPosition: schema.playthroughStateCache.currentPosition,
-        currentRate: schema.playthroughStateCache.currentRate,
-        lastEventAt: schema.playthroughStateCache.lastEventAt,
-      },
-    })
-    .from(schema.playthroughs)
-    .leftJoin(
-      schema.playthroughStateCache,
-      eq(schema.playthroughStateCache.playthroughId, schema.playthroughs.id),
-    )
-    .where(
-      and(
-        eq(schema.playthroughs.url, session.url),
-        eq(schema.playthroughs.userEmail, session.email),
-        eq(schema.playthroughs.mediaId, mediaId),
-        isNull(schema.playthroughs.deletedAt),
-      ),
-    )
-    .orderBy(desc(schema.playthroughStateCache.lastEventAt));
-
-  return results;
-}
-
-export type PlaythroughForMedia = Awaited<
-  ReturnType<typeof getAllPlaythroughsForMedia>
->[number];
 
 // =============================================================================
 // Debug

@@ -8,9 +8,9 @@ import {
   setSleepTimerTime as setSleepTimerTimeDb,
 } from "@/db/settings";
 import * as Player from "@/services/track-player-service";
+import * as TrackPlayer from "@/services/track-player-wrapper";
 import { useSession } from "@/stores/session";
 import { setTriggerTime, useSleepTimer } from "@/stores/sleep-timer";
-import { useTrackPlayer } from "@/stores/track-player";
 import { Session } from "@/types/session";
 
 import * as EventRecording from "./event-recording";
@@ -138,7 +138,7 @@ async function checkTimer() {
   if (!sleepTimerEnabled || sleepTimerTriggerTime === null) {
     // Sanity check - should not happen
     console.warn("[SleepTimer] checkTimer called but timer not enabled");
-    await Player.setVolume(1.0);
+    await TrackPlayer.setVolume(1.0);
     return;
   }
 
@@ -149,7 +149,8 @@ async function checkTimer() {
     // Time's up - pause and reset
     console.debug("[SleepTimer] Triggering - pausing playback");
 
-    const { playthrough, playbackRate } = useTrackPlayer.getState();
+    const loadedPlaythrough = Player.getLoadedPlaythrough();
+    const playbackRate = Player.getPlaybackRate();
     const { position, duration } = await Player.getAccurateProgress();
 
     // We have to re-implement most of the pause logic from player-controls here
@@ -163,9 +164,13 @@ async function checkTimer() {
     seekPosition = Math.max(0, Math.min(seekPosition, duration));
     await Player.seekTo(seekPosition);
 
-    if (playthrough) {
+    if (loadedPlaythrough) {
       const { position } = await Player.getAccurateProgress();
-      EventRecording.recordPauseEvent(playthrough.id, position, playbackRate);
+      EventRecording.recordPauseEvent(
+        loadedPlaythrough.id,
+        position,
+        playbackRate,
+      );
     }
 
     const session = useSession.getState().session;
@@ -176,7 +181,7 @@ async function checkTimer() {
     // Fade volume in last 30 seconds
     const volume = timeRemaining / SLEEP_TIMER_FADE_OUT_TIME;
     console.debug("[SleepTimer] Fading volume:", volume.toFixed(2));
-    await Player.setVolume(volume);
+    await TrackPlayer.setVolume(volume);
   }
 }
 
@@ -191,7 +196,7 @@ async function resetTriggerTime() {
   const triggerTime = Date.now() + sleepTimer * 1000;
   console.debug("[SleepTimer] Setting trigger time to", new Date(triggerTime));
   setTriggerTime(triggerTime);
-  await Player.setVolume(1.0);
+  await TrackPlayer.setVolume(1.0);
 }
 
 /**
@@ -200,5 +205,5 @@ async function resetTriggerTime() {
 async function clearTriggerTime() {
   console.debug("[SleepTimer] Clearing trigger time");
   setTriggerTime(null);
-  await Player.setVolume(1.0);
+  await TrackPlayer.setVolume(1.0);
 }

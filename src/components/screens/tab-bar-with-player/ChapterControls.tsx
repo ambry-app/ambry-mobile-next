@@ -6,11 +6,11 @@ import {
   skipToBeginningOfChapter,
   skipToEndOfChapter,
 } from "@/services/chapter-service";
-import { usePlayerUIState as usePlayer } from "@/stores/player-ui-state";
+import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";
 
 export function ChapterControls() {
-  const currentChapter = usePlayer((state) => state.currentChapter);
+  const currentChapter = useTrackPlayer((state) => state.currentChapter);
 
   if (!currentChapter) return null;
 

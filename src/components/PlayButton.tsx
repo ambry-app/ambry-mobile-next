@@ -74,11 +74,10 @@ function useStateIcon(
       return "play";
     case State.Buffering:
     case State.Loading:
+    case State.None:
       return "spinner";
     case State.Playing:
       return "pause";
-    case State.None:
-      return "question";
     case State.Error:
       return "triangle-exclamation";
     case State.Ended:

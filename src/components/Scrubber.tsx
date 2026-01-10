@@ -166,12 +166,8 @@ export const Scrubber = memo(function Scrubber({
 }) {
   const { playing } = useTrackPlayer((state) => state.isPlaying);
   const playbackRate = useTrackPlayer((state) => state.playbackRate);
-  const { chapters, duration } = usePlayerUIState(
-    useShallow(({ chapters, duration }) => ({
-      chapters,
-      duration,
-    })),
-  );
+  const chapters = useTrackPlayer((state) => state.chapters);
+  const duration = useTrackPlayer((state) => state.progress.duration);
   const { lastSeekTimestamp, lastSeekSource } = usePlayerUIState(
     useShallow(({ lastSeekTimestamp, lastSeekSource }) => ({
       lastSeekTimestamp,
@@ -180,7 +176,7 @@ export const Scrubber = memo(function Scrubber({
   );
   const markers = chapters?.map((chapter) => chapter.startTime) || [];
 
-  const initialPosition = useRef(usePlayerUIState.getState().position);
+  const initialPosition = useRef(Player.getProgress().position);
   const translateX = useSharedValue(timeToTranslateX(initialPosition.current));
   const [isScrubbing, setIsScrubbing] = useIsScrubbing();
   const maxTranslateX = timeToTranslateX(duration);

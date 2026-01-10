@@ -12,10 +12,11 @@ import { useEffect, useState } from "react";
 
 import { FINISH_PROMPT_THRESHOLD_PERCENT } from "@/constants";
 import {
-  type ActivePlaythrough,
-  getFinishedOrAbandonedPlaythrough as getFinishedOrAbandonedFromDb,
-  getInProgressPlaythrough as getInProgressFromDb,
-  getPlaythroughWithMedia as getPlaythroughByIdFromDb,
+  FinishedOrAbandonedPlaythrough,
+  getFinishedOrAbandonedPlaythrough,
+  getInProgressPlaythroughWithMedia,
+  getPlaythroughWithMedia,
+  type PlaythroughWithMedia,
 } from "@/db/playthroughs";
 import { useDataVersion } from "@/stores/data-version";
 import { useSession } from "@/stores/session";
@@ -23,65 +24,13 @@ import { useTrackPlayer } from "@/stores/track-player";
 import { Session } from "@/types/session";
 
 import { useLibraryData } from "./library-service";
+import * as Player from "./track-player-service";
 
 // Re-export types and functions for UI consumers
 export {
   getAllPlaythroughsForMedia,
   type PlaythroughForMedia,
 } from "@/db/playthroughs";
-export type { ActivePlaythrough };
-
-// Derive type for finished/abandoned playthroughs
-export type FinishedOrAbandonedPlaythrough = NonNullable<
-  Awaited<ReturnType<typeof getFinishedOrAbandonedFromDb>>
->;
-
-// Derive type for playthrough by ID
-export type PlaythroughById = Awaited<
-  ReturnType<typeof getPlaythroughByIdFromDb>
->;
-
-/**
- * Gets the in-progress playthrough for a media item.
- * Returns undefined if no in-progress playthrough exists.
- *
- * @param session - The current user session
- * @param mediaId - The media ID to find playthrough for
- */
-export async function getInProgressPlaythrough(
-  session: Session,
-  mediaId: string,
-): Promise<ActivePlaythrough | undefined> {
-  return getInProgressFromDb(session, mediaId);
-}
-
-/**
- * Gets the most recent finished or abandoned playthrough for a media item.
- * Returns undefined if no such playthrough exists.
- *
- * @param session - The current user session
- * @param mediaId - The media ID to find playthrough for
- */
-export async function getFinishedOrAbandonedPlaythrough(
-  session: Session,
-  mediaId: string,
-): Promise<FinishedOrAbandonedPlaythrough | undefined> {
-  return getFinishedOrAbandonedFromDb(session, mediaId);
-}
-
-/**
- * Gets a playthrough by its ID.
- * Returns undefined if no playthrough with that ID exists.
- *
- * @param session - The current user session
- * @param playthroughId - The playthrough ID to fetch
- */
-export async function getPlaythroughById(
-  session: Session,
-  playthroughId: string,
-): Promise<PlaythroughById> {
-  return getPlaythroughByIdFromDb(session, playthroughId);
-}
 
 // =============================================================================
 // Playthrough Hooks
@@ -100,7 +49,7 @@ export async function getPlaythroughById(
 export type MediaPlaybackState =
   | { type: "loading" }
   | { type: "loaded"; isPlaying: boolean; playthrough: { id: string } }
-  | { type: "in_progress"; playthrough: ActivePlaythrough }
+  | { type: "in_progress"; playthrough: PlaythroughWithMedia }
   | { type: "finished"; playthrough: FinishedOrAbandonedPlaythrough }
   | { type: "abandoned"; playthrough: FinishedOrAbandonedPlaythrough }
   | { type: "none" };
@@ -168,7 +117,10 @@ export function useMediaPlaybackState(
 
     async function fetchPlaythroughState() {
       // Check for in-progress playthrough first
-      const inProgress = await getInProgressPlaythrough(session, mediaId);
+      const inProgress = await getInProgressPlaythroughWithMedia(
+        session,
+        mediaId,
+      );
       if (inProgress) {
         setDbState({ type: "in_progress", playthrough: inProgress });
         return;
@@ -215,7 +167,7 @@ export function usePlaythroughForPrompt(playthroughId: string) {
   const session = useSession((state) => state.session);
   const playthrough = useLibraryData(async () => {
     if (!session) return;
-    return getPlaythroughById(session, playthroughId);
+    return getPlaythroughWithMedia(session, playthroughId);
   }, [playthroughId]);
   return { playthrough, session };
 }
@@ -232,7 +184,8 @@ type ShouldPromptForFinishResult =
 export async function shouldPromptForFinish(
   session: Session,
 ): Promise<ShouldPromptForFinishResult> {
-  const { progress, playthrough } = useTrackPlayer.getState();
+  const playthrough = Player.getLoadedPlaythrough();
+  const progress = Player.getProgress();
 
   if (!playthrough) return { shouldPrompt: false };
 

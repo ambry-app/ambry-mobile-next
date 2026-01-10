@@ -6,10 +6,8 @@ import {
   SeekSource,
   SeekSourceType,
   setLastSeek,
-  setProgress,
   usePlayerUIState,
 } from "@/stores/player-ui-state";
-import { useTrackPlayer } from "@/stores/track-player";
 
 import * as EventRecording from "./event-recording";
 import * as SleepTimer from "./sleep-timer-service";
@@ -78,7 +76,7 @@ export async function seekRelative(amount: number, source: SeekSourceType) {
 
   // Accumulate the seek amount
   accumulator += amount;
-  const playbackRate = useTrackPlayer.getState().playbackRate;
+  const playbackRate = Player.getPlaybackRate();
   targetPosition = basePosition + accumulator * playbackRate;
 
   // Update UI for button animation
@@ -101,7 +99,7 @@ export async function seekImmediateNoLog(amount: number) {
   isApplying = true;
 
   const { position, duration } = await Player.getAccurateProgress();
-  const playbackRate = useTrackPlayer.getState().playbackRate;
+  const playbackRate = Player.getPlaybackRate();
 
   let newPosition = position + amount * playbackRate;
   newPosition = Math.max(0, Math.min(newPosition, duration));
@@ -116,8 +114,6 @@ export async function seekImmediateNoLog(amount: number) {
 
   await Player.seekTo(newPosition);
 
-  // Update player store position and notify scrubber for animation
-  setProgress(newPosition, duration);
   setLastSeek(SeekSource.PAUSE);
 
   isApplying = false;
@@ -165,9 +161,7 @@ async function applyAccumulatedSeek(source: SeekSourceType) {
   isApplying = true;
   seekTimer = null;
 
-  // Smell: `duration` is updated in the player UI state store by polling, and
-  // the poller is only active while the UI is mounted.
-  const { duration } = usePlayerUIState.getState();
+  const { duration } = Player.getProgress();
   const positionToApply = Math.max(0, Math.min(targetPosition, duration));
 
   console.debug("[Seek] Applying seek to", positionToApply.toFixed(1));
@@ -177,9 +171,6 @@ async function applyAccumulatedSeek(source: SeekSourceType) {
   // Store data for the debounced event recording
   eventTo = positionToApply;
   eventTimestamp = new Date();
-
-  // Update player store position
-  setProgress(positionToApply, duration);
 
   // Sleep timer resets on seek, unless it's a pause-related seek
   if (source !== "pause") {
@@ -214,9 +205,10 @@ async function recordSeekEvent() {
     eventTo.toFixed(1),
   );
 
-  const { playthrough, playbackRate } = useTrackPlayer.getState();
+  const loadedPlaythrough = Player.getLoadedPlaythrough();
+  const playbackRate = Player.getPlaybackRate();
 
-  if (!playthrough) return;
+  if (!loadedPlaythrough) return;
 
   const fromPosition = eventFrom;
   const toPosition = eventTo;
@@ -228,7 +220,7 @@ async function recordSeekEvent() {
 
   try {
     await EventRecording.recordSeekEvent(
-      playthrough.id,
+      loadedPlaythrough.id,
       fromPosition,
       toPosition,
       playbackRate,

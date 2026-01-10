@@ -8,7 +8,8 @@ import { useShallow } from "zustand/shallow";
 import { Button } from "@/components";
 import * as schema from "@/db/schema";
 import { seekTo } from "@/services/seek-service";
-import { SeekSource, usePlayerUIState } from "@/stores/player-ui-state";
+import { SeekSource } from "@/stores/player-ui-state";
+import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";
 import { secondsDisplay } from "@/utils";
 import { useBackHandler } from "@/utils/hooks";
@@ -22,7 +23,7 @@ export default function ChapterSelectRoute() {
   });
   const { bottom } = useSafeAreaInsets();
 
-  const { chapters, currentChapter } = usePlayerUIState(
+  const { chapters, currentChapter } = useTrackPlayer(
     useShallow(({ chapters, currentChapter }) => ({
       chapters,
       currentChapter,

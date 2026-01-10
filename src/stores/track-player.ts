@@ -1,27 +1,22 @@
-import { type PlaybackState, Progress, State } from "react-native-track-player";
+/**
+ * Zustand store for Track Player state.
+ *
+ * This is the low-level playback state that all services will need, regardless
+ * of wether the UI is mounted or not. If only the UI needs something, it
+ * belongs in the player-ui-state store instead.
+ *
+ * Chapter state is an exception, since it's so tightly tied to position.
+ */
+
 import { create } from "zustand";
 
-export type Playthrough = {
-  url: string;
+import { Chapter } from "@/types/db-schema";
+import { PlaybackState, Progress, State } from "@/types/track-player";
+
+export type LoadedPlaythrough = {
   id: string;
-  updatedAt: Date;
   mediaId: string;
   status: "in_progress" | "finished" | "abandoned";
-  userEmail: string;
-  startedAt: Date;
-  finishedAt: Date | null;
-  abandonedAt: Date | null;
-  deletedAt: Date | null;
-  createdAt: Date;
-  syncedAt: Date | null;
-  stateCache: {
-    updatedAt: Date;
-    playthroughId: string;
-    currentPosition: number;
-    currentRate: number;
-    lastEventAt: Date;
-    totalListeningTime: number | null;
-  };
 };
 
 export type ProgressWithPercent = Progress & {
@@ -39,10 +34,13 @@ export interface TrackPlayerState {
   playbackRate: number;
   progress: ProgressWithPercent;
   streaming: boolean | undefined;
-  playthrough: Playthrough | undefined;
+  playthrough: LoadedPlaythrough | undefined;
+  chapters: Chapter[];
+  currentChapter: Chapter | null;
+  previousChapter: Chapter | null;
 }
 
-const initialState = {
+export const initialState = {
   playbackState: { state: State.None } as PlaybackState,
   playWhenReady: false,
   isPlaying: {
@@ -53,6 +51,9 @@ const initialState = {
   progress: { position: 0, duration: 0, buffered: 0, percent: 0 },
   streaming: undefined,
   playthrough: undefined,
+  chapters: [],
+  currentChapter: null,
+  previousChapter: null,
 };
 
 export const useTrackPlayer = create<TrackPlayerState>()(() => ({

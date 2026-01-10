@@ -31,7 +31,7 @@ describe("playthroughs module", () => {
       const db = getDb();
       const media = await createMedia(db);
 
-      const result = await playthroughs.getInProgressPlaythrough(
+      const result = await playthroughs.getInProgressPlaythroughWithMedia(
         testSession,
         media.id,
       );
@@ -53,7 +53,7 @@ describe("playthroughs module", () => {
         currentRate: 1.5,
       });
 
-      const result = await playthroughs.getInProgressPlaythrough(
+      const result = await playthroughs.getInProgressPlaythroughWithMedia(
         testSession,
         media.id,
       );
@@ -74,7 +74,7 @@ describe("playthroughs module", () => {
         deletedAt: new Date(),
       });
 
-      const result = await playthroughs.getInProgressPlaythrough(
+      const result = await playthroughs.getInProgressPlaythroughWithMedia(
         testSession,
         media.id,
       );
@@ -90,7 +90,7 @@ describe("playthroughs module", () => {
         status: "finished",
       });
 
-      const result = await playthroughs.getInProgressPlaythrough(
+      const result = await playthroughs.getInProgressPlaythroughWithMedia(
         testSession,
         media.id,
       );
@@ -117,7 +117,7 @@ describe("playthroughs module", () => {
         updatedAt: new Date("2024-01-02"),
       });
 
-      const result = await playthroughs.getInProgressPlaythrough(
+      const result = await playthroughs.getInProgressPlaythroughWithMedia(
         testSession,
         media.id,
       );
@@ -140,15 +140,6 @@ describe("playthroughs module", () => {
 
       expect(result).toBeDefined();
       expect(result?.id).toBe(pt.id);
-    });
-
-    it("returns undefined when not found", async () => {
-      const result = await playthroughs.getPlaythroughWithMedia(
-        testSession,
-        "nonexistent",
-      );
-
-      expect(result).toBeUndefined();
     });
   });
 

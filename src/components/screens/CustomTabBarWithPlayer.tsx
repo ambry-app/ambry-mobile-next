@@ -37,10 +37,10 @@ import { useLibraryData } from "@/services/library-service";
 import {
   clearPendingExpand,
   setPlayerExpandedState,
-  usePlayerUIState as usePlayer,
+  usePlayerUIState,
 } from "@/stores/player-ui-state";
 import { useScreen } from "@/stores/screen";
-import { Playthrough, useTrackPlayer } from "@/stores/track-player";
+import { LoadedPlaythrough, useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";
 import { Session } from "@/types/session";
 import { useBackHandler } from "@/utils/hooks";
@@ -60,17 +60,13 @@ const MiniProgressBar = memo(function MiniProgressBar({
 }: {
   expansion: SharedValue<number>;
 }) {
-  const { position, duration, seekPosition } = usePlayer(
-    useShallow(({ position, duration, seekPosition }) => ({
-      position,
-      duration,
-      seekPosition,
-    })),
-  );
+  const seekPosition = usePlayerUIState((state) => state.seekPosition);
+  const progress = useTrackPlayer((state) => state.progress);
 
   // Use seekPosition if available (during seek accumulation), otherwise use position
-  const displayPosition = seekPosition ?? position;
-  const progressPercent = duration > 0 ? (displayPosition / duration) * 100 : 0;
+  const displayPosition = seekPosition ?? progress.position;
+  const progressPercent =
+    progress.duration > 0 ? (displayPosition / progress.duration) * 100 : 0;
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -111,7 +107,7 @@ const MiniProgressBar = memo(function MiniProgressBar({
 
 type CustomTabBarWithPlayerProps = {
   session: Session;
-  playthrough: Playthrough;
+  playthrough: LoadedPlaythrough;
 };
 
 export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
@@ -121,7 +117,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
 
   const streaming = useTrackPlayer((state) => state.streaming);
 
-  const { loadingNewMedia, expanded, pendingExpandPlayer } = usePlayer(
+  const { loadingNewMedia, expanded, pendingExpandPlayer } = usePlayerUIState(
     useShallow(({ loadingNewMedia, expanded, pendingExpandPlayer }) => ({
       loadingNewMedia,
       expanded,

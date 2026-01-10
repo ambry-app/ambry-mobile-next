@@ -14,7 +14,6 @@ import { Loading, MeasureScreenHeight, ScreenCentered } from "@/components";
 import { getExpoDb } from "@/db/db";
 import { useAppBoot } from "@/services/boot-service";
 import { useRefreshLibraryDataVersion } from "@/services/data-version-service";
-import { usePlayerSubscriptions } from "@/services/playback-controls";
 import { useForegroundSync } from "@/services/sync-service";
 import { useSession } from "@/stores/session";
 import { useTrackPlayer } from "@/stores/track-player";
@@ -115,7 +114,6 @@ function RootStack() {
   const appState = useAppState();
   useForegroundSync(appState);
   useRefreshLibraryDataVersion(appState);
-  usePlayerSubscriptions(appState);
 
   return (
     <Stack>

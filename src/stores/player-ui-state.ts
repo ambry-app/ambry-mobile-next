@@ -1,6 +1,12 @@
-import { create } from "zustand";
+/**
+ * Zustand store for Player UI state.
+ *
+ * This store holds the state that only the UI needs.  If something is needed by
+ * all services regardless of whether the UI is mounted, it belongs in the
+ * track-player store instead.
+ */
 
-import { Chapter } from "@/types/db-schema";
+import { create } from "zustand";
 
 // ============================================================================
 // Types
@@ -26,37 +32,21 @@ export interface LoadedPlaythrough {
 }
 
 export interface PlayerUIState {
-  /* initialization state */
   initialized: boolean;
+
+  /* player UI state */
   loadingNewMedia: boolean;
-
-  /* playback state */
-
-  /** Current TrackPlayer position */
-  position: number;
-  /** Current TrackPlayer duration */
-  duration: number;
-
   expanded: boolean;
+  pendingExpandPlayer: boolean;
 
-  /* chapter state */
-  chapters: Chapter[];
-  currentChapter: Chapter | undefined;
-  previousChapterStartTime: number;
-
-  /* seek state - for UI animation */
+  /* seek UI state */
   userIsSeeking: boolean;
   seekIsApplying: boolean;
   seekEffectiveDiff: number | null;
   seekLastDirection: "left" | "right" | null;
   seekPosition: number | null;
-  // When a seek is applied, this is set to Date.now()
-  // The Scrubber watches for changes to know "a seek just happened"
   lastSeekTimestamp: number | null;
   lastSeekSource: SeekSourceType | null;
-
-  /* UI state */
-  pendingExpandPlayer: boolean;
 }
 
 // ============================================================================
@@ -65,12 +55,8 @@ export interface PlayerUIState {
 
 const initialState = {
   loadingNewMedia: false,
-  position: 0,
-  duration: 0,
   expanded: true,
-  chapters: [],
-  currentChapter: undefined,
-  previousChapterStartTime: 0,
+  pendingExpandPlayer: false,
   userIsSeeking: false,
   seekIsApplying: false,
   seekEffectiveDiff: null,
@@ -78,24 +64,12 @@ const initialState = {
   seekPosition: null,
   lastSeekTimestamp: null,
   lastSeekSource: null,
-  pendingExpandPlayer: false,
 };
 
 export const usePlayerUIState = create<PlayerUIState>()(() => ({
   initialized: false,
   ...initialState,
 }));
-
-// ============================================================================
-// Getters
-// ============================================================================
-
-export type PlaythroughProgress = {
-  loadedPlaythrough: LoadedPlaythrough;
-  progressPercent: number;
-  position: number;
-  duration: number;
-};
 
 // ============================================================================
 // Actions
@@ -128,69 +102,4 @@ export function setLastSeek(source: SeekSourceType) {
     lastSeekTimestamp: Date.now(),
     lastSeekSource: source,
   });
-}
-
-/**
- * Update player position and duration state.
- * This is the main driver for the UI's position display.
- */
-export function setProgress(position: number, duration: number) {
-  usePlayerUIState.setState({ position, duration });
-  maybeUpdateChapterState();
-}
-
-/**
- * Updates the current chapter based on the playback position.
- * Called by setProgress on every position update.
- */
-function maybeUpdateChapterState() {
-  const { position, currentChapter } = usePlayerUIState.getState();
-
-  if (!currentChapter) {
-    return;
-  }
-
-  // Check if position has moved out of the current chapter's bounds
-  if (
-    position < currentChapter.startTime ||
-    (currentChapter.endTime && position >= currentChapter.endTime)
-  ) {
-    const { duration, chapters } = usePlayerUIState.getState();
-    const nextChapter = chapters.find(
-      (chapter) => position < (chapter.endTime || duration),
-    );
-
-    if (nextChapter) {
-      usePlayerUIState.setState({
-        currentChapter: nextChapter,
-        previousChapterStartTime:
-          chapters[chapters.indexOf(nextChapter) - 1]?.startTime || 0,
-      });
-    }
-  }
-}
-
-/**
- * Set the initial chapter state when a new track is loaded.
- */
-export function initialChapterState(
-  chapters: Chapter[],
-  position: number,
-  duration: number,
-) {
-  const currentChapter = chapters.find(
-    (chapter) => position < (chapter.endTime || duration),
-  );
-
-  if (!currentChapter)
-    return {
-      chapters,
-      currentChapter,
-      previousChapterStartTime: 0,
-    };
-
-  const previousChapterStartTime =
-    chapters[chapters.indexOf(currentChapter) - 1]?.startTime || 0;
-
-  return { chapters, currentChapter, previousChapterStartTime };
 }
