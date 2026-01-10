@@ -21,7 +21,6 @@ import * as Lifecycle from "./playthrough-lifecycle";
 import * as Loader from "./playthrough-loader";
 import * as Heartbeat from "./position-heartbeat";
 import { seekImmediateNoLog } from "./seek-service";
-import * as SleepTimer from "./sleep-timer-service";
 import { syncPlaythroughs } from "./sync-service";
 import * as Player from "./track-player-service";
 
@@ -60,7 +59,6 @@ export async function play() {
       console.warn("[Controls] Error recording play event:", error);
     }
   }
-  await SleepTimer.start();
 }
 
 /**
@@ -90,8 +88,6 @@ export async function pause() {
       console.warn("[Controls] Error recording pause event:", error);
     }
   }
-
-  await SleepTimer.stop();
 
   const session = useSession.getState().session;
   if (session) {

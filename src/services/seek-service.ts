@@ -2,15 +2,10 @@ import {
   SEEK_ACCUMULATION_WINDOW,
   SEEK_EVENT_ACCUMULATION_WINDOW,
 } from "@/constants";
-import {
-  SeekSource,
-  SeekSourceType,
-  setLastSeek,
-  usePlayerUIState,
-} from "@/stores/player-ui-state";
+import { usePlayerUIState } from "@/stores/player-ui-state";
+import { SeekSource, SeekSourceType } from "@/stores/track-player";
 
 import * as EventRecording from "./event-recording";
-import * as SleepTimer from "./sleep-timer-service";
 import * as Player from "./track-player-service";
 
 // ============================================================================
@@ -112,9 +107,7 @@ export async function seekImmediateNoLog(amount: number) {
     "without logging",
   );
 
-  await Player.seekTo(newPosition);
-
-  setLastSeek(SeekSource.PAUSE);
+  await Player.seekTo(newPosition, SeekSource.INTERNAL);
 
   isApplying = false;
 }
@@ -166,19 +159,11 @@ async function applyAccumulatedSeek(source: SeekSourceType) {
 
   console.debug("[Seek] Applying seek to", positionToApply.toFixed(1));
 
-  await Player.seekTo(positionToApply);
+  await Player.seekTo(positionToApply, source);
 
   // Store data for the debounced event recording
   eventTo = positionToApply;
   eventTimestamp = new Date();
-
-  // Sleep timer resets on seek, unless it's a pause-related seek
-  if (source !== "pause") {
-    await SleepTimer.maybeResetTriggerTime();
-  }
-
-  // Notify Scrubber
-  setLastSeek(source);
 
   // Clear UI seeking state
   clearSeekUI();

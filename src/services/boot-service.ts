@@ -17,6 +17,9 @@ import { sync } from "@/services/sync-service";
 import { initialize as initializeTrackPlayer } from "@/services/track-player-service";
 import { initializeDevice } from "@/stores/device";
 import { useSession } from "@/stores/session";
+import { logBase } from "@/utils/logger";
+
+const log = logBase.extend("boot-service");
 
 /**
  * Hook that handles application boot sequence.
@@ -47,12 +50,12 @@ export function useAppBoot() {
   useEffect(() => {
     async function boot() {
       if (!session) {
-        console.debug("[AppBoot] No session");
+        log.debug("No session");
         setIsReady(true);
         return;
       }
 
-      console.debug("[AppBoot] Starting");
+      log.debug("Starting");
 
       // Initialize device
       await initializeDevice();
@@ -60,16 +63,15 @@ export function useAppBoot() {
       // Initialize remaining stores (each handles its own "already initialized" check)
       const { needsInitialSync } = await initializeDataVersion(session);
       await initializeDownloads(session);
-      await initializeSleepTimer(session);
 
       // Initial sync if needed
       if (needsInitialSync) {
         try {
-          console.debug("[AppBoot] Initial sync...");
+          log.debug("Initial sync...");
           await sync(session);
-          console.debug("[AppBoot] Initial sync complete");
+          log.debug("Initial sync complete");
         } catch (e) {
-          console.error("[AppBoot] Initial sync error", e);
+          log.error("Initial sync error", e);
         }
       }
       setInitialSyncComplete(true);
@@ -77,15 +79,16 @@ export function useAppBoot() {
       // Initialize player (sets up TrackPlayer and loads active playthrough)
       await initializeTrackPlayer();
       await initializePlayer(session);
+      await initializeSleepTimer(session);
 
       // Register background sync
       try {
         await registerBackgroundSyncTask();
       } catch (e) {
-        console.error("[AppBoot] Background sync registration error", e);
+        log.error("Background sync registration error", e);
       }
 
-      console.debug("[AppBoot] Complete");
+      log.debug("Complete");
       setIsReady(true);
     }
 

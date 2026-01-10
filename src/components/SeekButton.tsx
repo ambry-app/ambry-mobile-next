@@ -1,7 +1,7 @@
 import { StyleProp, ViewStyle } from "react-native";
 
 import { seekRelative } from "@/services/seek-service";
-import { SeekSource } from "@/stores/player-ui-state";
+import { SeekSource } from "@/stores/track-player";
 
 import { IconButton } from "./IconButton";
 

@@ -26,11 +26,11 @@ import {
   setActivePlaythroughIdForDevice,
 } from "@/db/playthroughs";
 import { useSession } from "@/stores/session";
+import { SeekSource } from "@/stores/track-player";
 import { Session } from "@/types/session";
 
 import * as EventRecording from "./event-recording";
 import * as Heartbeat from "./position-heartbeat";
-import * as SleepTimer from "./sleep-timer-service";
 import { syncPlaythroughs } from "./sync-service";
 import * as Player from "./track-player-service";
 
@@ -224,7 +224,7 @@ async function pauseCurrentIfPlaying() {
   const progress = await Player.getAccurateProgress();
   let seekPosition = progress.position - PAUSE_REWIND_SECONDS * playbackRate;
   seekPosition = Math.max(0, Math.min(seekPosition, progress.duration));
-  await Player.seekTo(seekPosition);
+  await Player.seekTo(seekPosition, SeekSource.INTERNAL);
 
   Heartbeat.stop();
 
@@ -241,8 +241,6 @@ async function pauseCurrentIfPlaying() {
       console.warn("[Loader] Error recording pause event:", error);
     }
   }
-
-  SleepTimer.stop();
 
   const session = useSession.getState().session;
   if (session) {

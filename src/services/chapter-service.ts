@@ -1,4 +1,4 @@
-import { SeekSource } from "@/stores/player-ui-state";
+import { SeekSource } from "@/stores/track-player";
 
 import { seekTo } from "./seek-service";
 import * as Player from "./track-player-service";

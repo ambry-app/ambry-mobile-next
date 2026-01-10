@@ -19,12 +19,10 @@ import Animated, {
 } from "react-native-reanimated";
 import Svg, { Line, Path, Rect } from "react-native-svg";
 import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
-import { useShallow } from "zustand/shallow";
 
 import { seekTo } from "@/services/seek-service";
 import * as Player from "@/services/track-player-service";
-import { SeekSource, usePlayerUIState } from "@/stores/player-ui-state";
-import { useTrackPlayer } from "@/stores/track-player";
+import { SeekSource, useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles";
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
@@ -168,12 +166,7 @@ export const Scrubber = memo(function Scrubber({
   const playbackRate = useTrackPlayer((state) => state.playbackRate);
   const chapters = useTrackPlayer((state) => state.chapters);
   const duration = useTrackPlayer((state) => state.progress.duration);
-  const { lastSeekTimestamp, lastSeekSource } = usePlayerUIState(
-    useShallow(({ lastSeekTimestamp, lastSeekSource }) => ({
-      lastSeekTimestamp,
-      lastSeekSource,
-    })),
-  );
+  const lastSeek = useTrackPlayer((state) => state.lastSeek);
   const markers = chapters?.map((chapter) => chapter.startTime) || [];
 
   const initialPosition = useRef(Player.getProgress().position);
@@ -372,10 +365,10 @@ export const Scrubber = memo(function Scrubber({
   // Animate to new position when a seek is applied from outside the scrubber
   useEffect(() => {
     // Don't run this if there's no seek event
-    if (!lastSeekTimestamp) return;
+    if (!lastSeek) return;
 
     // Don't run if the seek wasn't from an external source
-    if (lastSeekSource === SeekSource.SCRUBBER) return;
+    if (lastSeek.source === SeekSource.SCRUBBER) return;
 
     // Don't animate while scrubbing (user is controlling the position)
     if (isScrubbing) return;
@@ -409,13 +402,7 @@ export const Scrubber = memo(function Scrubber({
     };
 
     animateToNewPosition();
-  }, [
-    isScrubbing,
-    translateX,
-    isAnimatingUserSeek,
-    lastSeekTimestamp,
-    lastSeekSource,
-  ]);
+  }, [isScrubbing, translateX, isAnimatingUserSeek, lastSeek]);
 
   // Periodic drift correction - check every 2 seconds without causing re-renders
   // Only runs while playing and not scrubbing

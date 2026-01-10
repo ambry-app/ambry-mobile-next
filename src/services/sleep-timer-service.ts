@@ -11,11 +11,15 @@ import * as Player from "@/services/track-player-service";
 import * as TrackPlayer from "@/services/track-player-wrapper";
 import { useSession } from "@/stores/session";
 import { setTriggerTime, useSleepTimer } from "@/stores/sleep-timer";
+import { Seek, SeekSource, useTrackPlayer } from "@/stores/track-player";
 import { Session } from "@/types/session";
+import { logBase } from "@/utils/logger";
 
 import * as EventRecording from "./event-recording";
 import * as Heartbeat from "./position-heartbeat";
 import { syncPlaythroughs } from "./sync-service";
+
+const log = logBase.extend("sleep-timer-service");
 
 const SLEEP_TIMER_CHECK_INTERVAL = 1000;
 let sleepTimerCheckInterval: NodeJS.Timeout | null = null;
@@ -25,65 +29,27 @@ let sleepTimerCheckInterval: NodeJS.Timeout | null = null;
 // =============================================================================
 
 /**
- * Initialize the sleep timer store.
- * Loads user preferences from DB if not already initialized.
+ * Initialize the sleep timer store. Loads user preferences from DB if not
+ * already initialized.
  */
 export async function initialize(session: Session) {
-  if (useSleepTimer.getState().initialized) {
-    console.debug("[SleepTimer] Already initialized, skipping");
+  if (isInitialized()) {
+    log.debug("Already initialized, skipping");
     return;
   }
-  console.debug("[SleepTimer] Initializing");
+
+  log.debug("Initializing...");
+
   const settings = await getSleepTimerSettings(session.email);
   useSleepTimer.setState({
     initialized: true,
     sleepTimer: settings.sleepTimer,
     sleepTimerEnabled: settings.sleepTimerEnabled,
   });
-}
 
-/**
- * Start the sleep timer interval check and sets the trigger time.
- */
-export async function start() {
-  clearTimerInterval();
-  await resetTriggerTime();
+  setupStoreSubscriptions();
 
-  const { sleepTimerEnabled } = useSleepTimer.getState();
-
-  if (!sleepTimerEnabled) {
-    return;
-  }
-
-  console.debug("[SleepTimer] Starting timer check interval");
-  sleepTimerCheckInterval = setInterval(checkTimer, SLEEP_TIMER_CHECK_INTERVAL);
-}
-
-/**
- * Stop the sleep timer interval check and clears the trigger time.
- */
-export async function stop() {
-  clearTimerInterval();
-  await clearTriggerTime();
-}
-
-function clearTimerInterval() {
-  if (sleepTimerCheckInterval) {
-    clearInterval(sleepTimerCheckInterval);
-    sleepTimerCheckInterval = null;
-    console.debug("[SleepTimer] Stopped timer check interval");
-  }
-}
-
-/**
- * Set/reset the trigger time (if active).
- */
-export async function maybeResetTriggerTime() {
-  const { sleepTimerEnabled, sleepTimerTriggerTime } = useSleepTimer.getState();
-
-  if (!sleepTimerEnabled || !sleepTimerTriggerTime) return;
-
-  return resetTriggerTime();
+  log.debug("Initialized");
 }
 
 /**
@@ -91,7 +57,8 @@ export async function maybeResetTriggerTime() {
  * Clears or sets the trigger time as needed.
  */
 export async function setSleepTimerEnabled(session: Session, enabled: boolean) {
-  console.debug("[SleepTimer] Setting enabled to", enabled);
+  log.debug("Setting enabled to", enabled);
+
   const { playing } = Player.isPlaying();
 
   useSleepTimer.setState({
@@ -111,11 +78,11 @@ export async function setSleepTimerEnabled(session: Session, enabled: boolean) {
 }
 
 /**
- * Sets the duration for the sleep timer and persists it to the database.
- * Resets the trigger time if the timer is currently active.
+ * Sets the duration for the sleep timer and persists it to the database. Resets
+ * the trigger time if the timer is currently active.
  */
 export async function setSleepTimerTime(session: Session, seconds: number) {
-  console.debug("[SleepTimer] Setting time to", seconds, "seconds");
+  log.debug("Setting time to", seconds, "seconds");
 
   const { sleepTimerTriggerTime, sleepTimer: prevSleepTimer } =
     useSleepTimer.getState();
@@ -132,12 +99,139 @@ export async function setSleepTimerTime(session: Session, seconds: number) {
 // Internals
 // =============================================================================
 
+/**
+ * Check if the Sleep Timer store is initialized.
+ */
+function isInitialized() {
+  return useSleepTimer.getState().initialized;
+}
+
+/**
+ * Subscribes to the track-player store to reactively start and stop the sleep
+ * timer based on playback state changes.
+ */
+function setupStoreSubscriptions() {
+  useTrackPlayer.subscribe((state, prevState) => {
+    if (state.isPlaying.playing !== prevState.isPlaying.playing) {
+      handleIsPlayingChange(state.isPlaying.playing);
+    }
+
+    if (
+      state.lastSeek &&
+      state.lastSeek.timestamp !== prevState.lastSeek?.timestamp
+    ) {
+      handleSeek(state.lastSeek);
+    }
+  });
+}
+
+/**
+ * Handle changes to isPlaying state. Starts or stops the sleep timer
+ * accordingly.
+ */
+function handleIsPlayingChange(isPlaying: boolean) {
+  if (isPlaying) {
+    // Started playing
+    log.debug("Detected playback started");
+    start();
+  } else {
+    // Stopped playing
+    log.debug("Detected playback stopped");
+    stop();
+  }
+}
+
+/**
+ * Handle seek events. Resets the sleep timer trigger time on user-initiated
+ * seeks.
+ */
+function handleSeek(seek: Seek) {
+  if (seek.source !== SeekSource.INTERNAL) {
+    // Reset timer on seek
+    log.debug(`Detected seek from ${seek.source}`);
+    maybeResetTriggerTime();
+  }
+}
+
+/**
+ * Start the sleep timer interval check and sets the trigger time.
+ */
+async function start() {
+  clearTimerInterval();
+  await resetTriggerTime();
+
+  const { sleepTimerEnabled } = useSleepTimer.getState();
+
+  if (!sleepTimerEnabled) {
+    return;
+  }
+
+  log.debug("Starting timer check interval");
+  sleepTimerCheckInterval = setInterval(checkTimer, SLEEP_TIMER_CHECK_INTERVAL);
+}
+
+/**
+ * Stop the sleep timer interval check and clears the trigger time.
+ */
+async function stop() {
+  clearTimerInterval();
+  await clearTriggerTime();
+}
+
+/**
+ * Clear the timer check interval.
+ */
+function clearTimerInterval() {
+  if (sleepTimerCheckInterval) {
+    clearInterval(sleepTimerCheckInterval);
+    sleepTimerCheckInterval = null;
+    log.debug("Stopped timer check interval");
+  }
+}
+
+/**
+ * Set/reset the trigger time (if active).
+ */
+async function maybeResetTriggerTime() {
+  const { sleepTimerEnabled, sleepTimerTriggerTime } = useSleepTimer.getState();
+
+  if (!sleepTimerEnabled || !sleepTimerTriggerTime) return;
+
+  return resetTriggerTime();
+}
+
+/**
+ * Set/reset the trigger time based on current time + duration
+ */
+async function resetTriggerTime() {
+  const { sleepTimerEnabled, sleepTimer } = useSleepTimer.getState();
+
+  if (!sleepTimerEnabled) return await clearTriggerTime();
+
+  const triggerTime = Date.now() + sleepTimer * 1000;
+  log.debug("Setting trigger time to", new Date(triggerTime));
+  setTriggerTime(triggerTime);
+  await TrackPlayer.setVolume(1.0);
+}
+
+/**
+ * Clear trigger time
+ */
+async function clearTriggerTime() {
+  log.debug("Clearing trigger time");
+  setTriggerTime(null);
+  await TrackPlayer.setVolume(1.0);
+}
+
+/**
+ * Check the sleep timer and take action if needed.
+ */
 async function checkTimer() {
   const { sleepTimerEnabled, sleepTimerTriggerTime } = useSleepTimer.getState();
 
   if (!sleepTimerEnabled || sleepTimerTriggerTime === null) {
     // Sanity check - should not happen
-    console.warn("[SleepTimer] checkTimer called but timer not enabled");
+    log.warn("checkTimer called but timer not enabled");
     await TrackPlayer.setVolume(1.0);
     return;
   }
@@ -147,22 +241,22 @@ async function checkTimer() {
 
   if (timeRemaining <= 0) {
     // Time's up - pause and reset
-    console.debug("[SleepTimer] Triggering - pausing playback");
+    log.debug("Triggering - pausing playback");
 
     const loadedPlaythrough = Player.getLoadedPlaythrough();
     const playbackRate = Player.getPlaybackRate();
     const { position, duration } = await Player.getAccurateProgress();
 
+    // FIXME:
     // We have to re-implement most of the pause logic from player-controls here
     await Player.pause();
     Heartbeat.stop();
-    stop();
 
     // seek back a bit
     let seekPosition =
       position - SLEEP_TIMER_PAUSE_REWIND_SECONDS * playbackRate;
     seekPosition = Math.max(0, Math.min(seekPosition, duration));
-    await Player.seekTo(seekPosition);
+    await Player.seekTo(seekPosition, SeekSource.INTERNAL);
 
     if (loadedPlaythrough) {
       const { position } = await Player.getAccurateProgress();
@@ -180,30 +274,7 @@ async function checkTimer() {
   } else if (timeRemaining <= SLEEP_TIMER_FADE_OUT_TIME) {
     // Fade volume in last 30 seconds
     const volume = timeRemaining / SLEEP_TIMER_FADE_OUT_TIME;
-    console.debug("[SleepTimer] Fading volume:", volume.toFixed(2));
+    log.debug("Fading volume:", volume.toFixed(2));
     await TrackPlayer.setVolume(volume);
   }
-}
-
-/**
- * Set/reset the trigger time based on current time + duration
- */
-async function resetTriggerTime() {
-  const { sleepTimerEnabled, sleepTimer } = useSleepTimer.getState();
-
-  if (!sleepTimerEnabled) return await clearTriggerTime();
-
-  const triggerTime = Date.now() + sleepTimer * 1000;
-  console.debug("[SleepTimer] Setting trigger time to", new Date(triggerTime));
-  setTriggerTime(triggerTime);
-  await TrackPlayer.setVolume(1.0);
-}
-
-/**
- * Clear trigger time
- */
-async function clearTriggerTime() {
-  console.debug("[SleepTimer] Clearing trigger time");
-  setTriggerTime(null);
-  await TrackPlayer.setVolume(1.0);
 }

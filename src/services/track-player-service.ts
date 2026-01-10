@@ -15,6 +15,7 @@ import { useDataVersion } from "@/stores/data-version";
 import {
   initialState,
   type ProgressWithPercent,
+  SeekSourceType,
   useTrackPlayer,
 } from "@/stores/track-player";
 import { Chapter } from "@/types/db-schema";
@@ -31,64 +32,81 @@ import {
   TrackType,
 } from "@/types/track-player";
 import { documentDirectoryFilePath } from "@/utils";
+import { logBase } from "@/utils/logger";
 
 import { getSession } from "./session-service";
 
+const log = logBase.extend("track-player-service");
+
+const PROGRESS_UPDATE_INTERVAL = 1000;
 let progressCheckInterval: NodeJS.Timeout | null = null;
 
 // =============================================================================
 // Public API
 // =============================================================================
 
+/**
+ * Initialize the Track Player service and store.
+ */
 export async function initialize() {
   if (isInitialized()) {
-    console.debug("[TrackPlayer Service] Already initialized, skipping");
+    log.debug("Already initialized, skipping");
     return;
   }
 
-  console.debug("[TrackPlayer Service] Initializing...");
+  log.debug("Initializing...");
 
   await setupPlayer();
   setupTrackPlayerListeners();
   setupStoreSubscriptions();
 
   useTrackPlayer.setState({ initialized: true });
-  console.debug("[TrackPlayer Service] Initialized");
+  log.debug("Initialized");
 }
 
 // Playback Control
 
-// FIXME:
-// not necessary: progress and other things are tracked reactively via listeners
+/**
+ * Start playback.
+ */
 export async function play() {
-  console.debug("[TrackPlayer Service] play");
+  log.debug("play");
   return TrackPlayer.play();
 }
 
-// FIXME:
-// not necessary: progress and other things are tracked reactively via listeners
+/**
+ * Pause playback.
+ */
 export async function pause() {
-  console.debug("[TrackPlayer Service] pause");
+  log.debug("pause");
   return TrackPlayer.pause();
 }
 
 /**
  * Seek to a specific position in the track.
  *
- * This immediately updates the store's progress after seeking.
+ * This immediately updates the store's progress after seeking, and tracks the
+ * seek event. Chapter state is also updated as needed.
  */
-export async function seekTo(position: number) {
-  console.debug("[TrackPlayer Service] seekTo", position.toFixed(1));
+export async function seekTo(position: number, source: SeekSourceType) {
+  log.debug(`seekTo ${position.toFixed(1)}`);
+
+  const timestamp = Date.now();
+
   await TrackPlayer.seekTo(position);
   const progress = await waitForSeekToComplete(position);
-  updateProgress(progress);
+
+  useTrackPlayer.setState({
+    lastSeek: { timestamp, source },
+    ...buildNewProgress(progress),
+  });
 }
 
 /**
  * Set the playback rate and update the store.
  */
 export async function setPlaybackRate(rate: number) {
-  console.debug("[TrackPlayer Service] setPlaybackRate", rate);
+  log.debug(`setPlaybackRate ${rate}`);
   await TrackPlayer.setRate(rate);
   const currentRate = await TrackPlayer.getRate();
   useTrackPlayer.setState({ playbackRate: currentRate });
@@ -96,14 +114,15 @@ export async function setPlaybackRate(rate: number) {
 
 // State Queries
 
+/**
+ * Get the currently loaded playthrough from the store.
+ */
 export function getLoadedPlaythrough() {
-  console.debug("[TrackPlayer Service] getPlaythrough");
+  log.debug("getPlaythrough");
   const { playthrough } = useTrackPlayer.getState();
   return playthrough;
 }
 
-// TODO: Audit usage of `getAccurateProgress` to
-// see if we can replace with this.
 /**
  * Get progress from the store.
  *
@@ -111,18 +130,18 @@ export function getLoadedPlaythrough() {
  * `getAccurateProgress` instead.
  */
 export function getProgress() {
-  console.debug("[TrackPlayer Service] getProgress");
+  log.debug("getProgress");
   const { progress } = useTrackPlayer.getState();
   return progress;
 }
 
 /**
- * Get progress directly from Track Player, waiting for accurate duration.
+ * Get progress directly from Track Player.
  *
  * This bypasses the store to ensure we get the most up-to-date progress.
  */
 export async function getAccurateProgress() {
-  console.debug("[TrackPlayer Service] getAccurateProgress");
+  log.debug("getAccurateProgress");
   return getProgressWithPercent();
 }
 
@@ -130,7 +149,7 @@ export async function getAccurateProgress() {
  * Get the current chapter from the store.
  */
 export function getCurrentChapter() {
-  console.debug("[TrackPlayer Service] getCurrentChapter");
+  log.debug("getCurrentChapter");
   const { currentChapter } = useTrackPlayer.getState();
   return currentChapter;
 }
@@ -139,7 +158,7 @@ export function getCurrentChapter() {
  * Get the previous chapter from the store.
  */
 export function getPreviousChapter() {
-  console.debug("[TrackPlayer Service] getPreviousChapter");
+  log.debug("getPreviousChapter");
   const { previousChapter } = useTrackPlayer.getState();
   return previousChapter;
 }
@@ -148,7 +167,7 @@ export function getPreviousChapter() {
  * Get the current playback rate from the store.
  */
 export function getPlaybackRate() {
-  console.debug("[TrackPlayer Service] getPlaybackRate");
+  log.debug("getPlaybackRate");
   const { playbackRate } = useTrackPlayer.getState();
   return playbackRate;
 }
@@ -157,7 +176,7 @@ export function getPlaybackRate() {
  * Get isPlaying state from the store.
  */
 export function isPlaying() {
-  console.debug("[TrackPlayer Service] isPlaying");
+  log.debug("isPlaying");
   const { isPlaying } = useTrackPlayer.getState();
   return isPlaying;
 }
@@ -171,7 +190,7 @@ export async function loadPlaythroughIntoPlayer(
   session: Session,
   playthrough: PlaythroughWithMedia,
 ): Promise<void> {
-  console.debug("[TrackPlayer Service] Loading playthrough into player...");
+  log.debug("Loading playthrough into player...");
 
   const streaming = playthrough.media.download?.status !== "ready";
   const position = playthrough.stateCache?.currentPosition ?? 0;
@@ -205,7 +224,7 @@ export async function loadPlaythroughIntoPlayer(
  * Unloads the current playthrough from TrackPlayer and resets state.
  */
 export async function unload() {
-  console.debug("[TrackPlayer Service] unload");
+  log.debug("unload");
   useTrackPlayer.setState(initialState);
   return TrackPlayer.reset();
 }
@@ -267,6 +286,9 @@ function setupStoreSubscriptions() {
   });
 }
 
+/**
+ * Set up the Track Player with default options.
+ */
 async function setupPlayer() {
   try {
     await TrackPlayer.setupPlayer({
@@ -276,18 +298,74 @@ async function setupPlayer() {
       autoHandleInterruptions: true,
     });
   } catch (error) {
-    console.error("[TrackPlayer Service] setupPlayer failed", error);
+    log.error("setupPlayer failed", error);
     return;
   }
 
-  console.debug("[TrackPlayer Service] setupPlayer succeeded");
+  log.debug("setupPlayer succeeded");
 }
 
 /**
- * Update progress in the store.
+ * Build new progress state.
  */
-async function updateProgress(progress: ProgressWithPercent) {
-  useTrackPlayer.setState({ progress, ...buildNewChapterState(progress) });
+function buildNewProgress(progress: ProgressWithPercent) {
+  return { progress, ...buildNewChapterState(progress) };
+}
+
+/**
+ * Build initial chapter state based on chapters and progress.
+ */
+function buildInitialChapterState(
+  chapters: Chapter[],
+  progress: ProgressWithPercent,
+) {
+  return {
+    chapters,
+    ...getCurrentAndPreviousChapter(chapters, progress),
+  };
+}
+
+/**
+ * Build new chapter state based on progress.
+ */
+function buildNewChapterState(progress: ProgressWithPercent) {
+  const { chapters, currentChapter } = useTrackPlayer.getState();
+
+  if (
+    currentChapter &&
+    (progress.position < currentChapter.startTime ||
+      (currentChapter.endTime && progress.position >= currentChapter.endTime))
+  ) {
+    return getCurrentAndPreviousChapter(chapters, progress);
+  } else {
+    return {};
+  }
+}
+
+/**
+ * Get the current and previous chapters based on progress.
+ */
+function getCurrentAndPreviousChapter(
+  chapters: Chapter[],
+  progress: ProgressWithPercent,
+) {
+  if (chapters.length === 0) {
+    return { currentChapter: null, previousChapter: null };
+  }
+
+  let currentChapter: Chapter | null = null;
+  let previousChapter: Chapter | null = null;
+
+  for (let index = 0; index < chapters.length; index++) {
+    const chapter = chapters[index]!;
+    if (progress.position < (chapter.endTime || progress.duration)) {
+      currentChapter = chapter;
+      previousChapter = index > 0 ? chapters[index - 1]! : null;
+      break;
+    }
+  }
+
+  return { currentChapter, previousChapter };
 }
 
 /**
@@ -372,8 +450,8 @@ async function getProgressWaitForDuration(timeoutMs: number = 2000) {
   }
 
   // Timeout reached without getting a valid duration
-  console.warn(
-    "[TrackPlayer Service] getProgressWaitForDuration: Timeout reached while waiting for valid duration",
+  log.warn(
+    "getProgressWaitForDuration: Timeout reached while waiting for valid duration",
   );
   const progress = await TrackPlayer.getProgress();
   return progress;
@@ -387,8 +465,8 @@ function startTrackingProgress() {
 
   progressCheckInterval = setInterval(async () => {
     const progress = await getAccurateProgress();
-    updateProgress(progress);
-  }, 1000);
+    useTrackPlayer.setState(buildNewProgress(progress));
+  }, PROGRESS_UPDATE_INTERVAL);
 }
 
 /**
@@ -427,6 +505,9 @@ function buildAddTrack(
   };
 }
 
+/**
+ * Build AddTrack for downloaded media.
+ */
 function buildDownloadedTrackAdd(playthrough: PlaythroughWithMedia) {
   return {
     url: documentDirectoryFilePath(playthrough.media.download!.filePath),
@@ -438,6 +519,9 @@ function buildDownloadedTrackAdd(playthrough: PlaythroughWithMedia) {
   };
 }
 
+/**
+ * Build AddTrack for streaming media.
+ */
 function buildStreamingTrackAdd(
   session: Session,
   playthrough: PlaythroughWithMedia,
@@ -453,53 +537,6 @@ function buildStreamingTrackAdd(
       : undefined,
     headers: { Authorization: `Bearer ${session.token}` },
   };
-}
-
-function buildInitialChapterState(
-  chapters: Chapter[],
-  progress: ProgressWithPercent,
-) {
-  return {
-    chapters,
-    ...getCurrentAndPreviousChapter(chapters, progress),
-  };
-}
-
-function buildNewChapterState(progress: ProgressWithPercent) {
-  const { chapters, currentChapter } = useTrackPlayer.getState();
-
-  if (
-    currentChapter &&
-    (progress.position < currentChapter.startTime ||
-      (currentChapter.endTime && progress.position >= currentChapter.endTime))
-  ) {
-    return getCurrentAndPreviousChapter(chapters, progress);
-  } else {
-    return {};
-  }
-}
-
-function getCurrentAndPreviousChapter(
-  chapters: Chapter[],
-  progress: ProgressWithPercent,
-) {
-  if (chapters.length === 0) {
-    return { currentChapter: null, previousChapter: null };
-  }
-
-  let currentChapter: Chapter | null = null;
-  let previousChapter: Chapter | null = null;
-
-  for (let index = 0; index < chapters.length; index++) {
-    const chapter = chapters[index]!;
-    if (progress.position < (chapter.endTime || progress.duration)) {
-      currentChapter = chapter;
-      previousChapter = index > 0 ? chapters[index - 1]! : null;
-      break;
-    }
-  }
-
-  return { currentChapter, previousChapter };
 }
 
 /**
@@ -553,15 +590,6 @@ async function waitForSeekToComplete(
     const diff = Math.abs(progress.position - expectedPosition);
     if (diff <= toleranceSeconds) {
       return progress;
-    } else {
-      console.debug(
-        "[TrackPlayer Service] waitForSeekToComplete: diff:",
-        diff.toFixed(2),
-        "Expected:",
-        expectedPosition.toFixed(2),
-        "Got:",
-        progress.position.toFixed(2),
-      );
     }
 
     // Wait before next poll
@@ -570,19 +598,13 @@ async function waitForSeekToComplete(
 
   // Timeout - return whatever position we have
   const progress = await getAccurateProgress();
-  console.warn(
-    "[TrackPlayer Service] waitForSeekToComplete timed out. Expected:",
-    expectedPosition.toFixed(2),
-    "Got:",
-    progress.position.toFixed(2),
+  log.warn(
+    `waitForSeekToComplete timed out. Expected: ${expectedPosition.toFixed(2)} Got: ${progress.position.toFixed(2)}`,
   );
   return progress;
 }
 
 // Debug: Log state changes
-// useTrackPlayer.subscribe((state) => {
-//   console.debug(
-//     "[TrackPlayer Store] State changed:",
-//     JSON.stringify(state, null, 2),
-//   );
-// });
+useTrackPlayer.subscribe((state) => {
+  log.trace(`State changed: ${JSON.stringify(state, null, 2)}`);
+});

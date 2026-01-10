@@ -12,16 +12,6 @@ import { create } from "zustand";
 // Types
 // ============================================================================
 
-export const SeekSource = {
-  BUTTON: "button",
-  CHAPTER: "chapter",
-  REMOTE: "remote",
-  SCRUBBER: "scrubber",
-  PAUSE: "pause",
-} as const;
-
-export type SeekSourceType = (typeof SeekSource)[keyof typeof SeekSource];
-
 /**
  * Represents the currently loaded playthrough in the player.
  * Both mediaId and playthroughId are always set together (or both null when unloaded).
@@ -45,8 +35,6 @@ export interface PlayerUIState {
   seekEffectiveDiff: number | null;
   seekLastDirection: "left" | "right" | null;
   seekPosition: number | null;
-  lastSeekTimestamp: number | null;
-  lastSeekSource: SeekSourceType | null;
 }
 
 // ============================================================================
@@ -101,11 +89,4 @@ export function requestExpandPlayer() {
 
 export function clearPendingExpand() {
   usePlayerUIState.setState({ pendingExpandPlayer: false });
-}
-
-export function setLastSeek(source: SeekSourceType) {
-  usePlayerUIState.setState({
-    lastSeekTimestamp: Date.now(),
-    lastSeekSource: source,
-  });
 }

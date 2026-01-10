@@ -3,12 +3,11 @@ import * as EventRecording from "@/services/event-recording";
 import * as Lifecycle from "@/services/playthrough-lifecycle";
 import * as Heartbeat from "@/services/position-heartbeat";
 import { seekImmediateNoLog, seekRelative } from "@/services/seek-service";
-import * as SleepTimer from "@/services/sleep-timer-service";
 import * as Player from "@/services/track-player-service";
 import * as TrackPlayer from "@/services/track-player-wrapper";
 import { initializeDevice } from "@/stores/device";
-import { SeekSource } from "@/stores/player-ui-state";
 import { useSession } from "@/stores/session";
+import { SeekSource } from "@/stores/track-player";
 import { Event } from "@/types/track-player";
 
 import { syncPlaythroughs } from "./sync-service";
@@ -58,7 +57,6 @@ export const PlaybackService = async function () {
     console.debug("[TrackPlayer Service] PlaybackQueueEnded");
 
     Heartbeat.stop();
-    SleepTimer.stop();
 
     const loadedPlaythrough = Player.getLoadedPlaythrough();
 
@@ -108,7 +106,6 @@ export const PlaybackService = async function () {
   // FIXME: this event doesn't seem to work
   TrackPlayer.addEventListener(Event.RemoteDuck, (args) => {
     console.debug("[TrackPlayer Service] RemoteDuck", args);
-    SleepTimer.maybeResetTriggerTime();
   });
 
   TrackPlayer.addEventListener(Event.RemoteJumpBackward, async (args) => {
@@ -137,7 +134,6 @@ export const PlaybackService = async function () {
     console.debug("[TrackPlayer Service] RemotePause");
 
     Heartbeat.stop();
-    SleepTimer.stop();
 
     await Player.pause();
     await seekImmediateNoLog(-PAUSE_REWIND_SECONDS);
@@ -176,8 +172,6 @@ export const PlaybackService = async function () {
     console.debug("[TrackPlayer Service] RemotePlay");
 
     await Player.play();
-
-    SleepTimer.start();
 
     const loadedPlaythrough = Player.getLoadedPlaythrough();
 

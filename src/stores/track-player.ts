@@ -23,6 +23,21 @@ export type ProgressWithPercent = Progress & {
   percent: number;
 };
 
+export const SeekSource = {
+  BUTTON: "button",
+  CHAPTER: "chapter",
+  REMOTE: "remote",
+  SCRUBBER: "scrubber",
+  INTERNAL: "internal",
+} as const;
+
+export type SeekSourceType = (typeof SeekSource)[keyof typeof SeekSource];
+
+export type Seek = {
+  timestamp: number;
+  source: SeekSourceType;
+};
+
 export interface TrackPlayerState {
   initialized: boolean;
   playbackState: PlaybackState;
@@ -38,6 +53,7 @@ export interface TrackPlayerState {
   chapters: Chapter[];
   currentChapter: Chapter | null;
   previousChapter: Chapter | null;
+  lastSeek: Seek | null;
 }
 
 export const initialState = {
@@ -54,6 +70,7 @@ export const initialState = {
   chapters: [],
   currentChapter: null,
   previousChapter: null,
+  lastSeek: null,
 };
 
 export const useTrackPlayer = create<TrackPlayerState>()(() => ({
