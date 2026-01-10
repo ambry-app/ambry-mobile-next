@@ -422,10 +422,13 @@ describe("playthroughs module", () => {
     it("updates existing cache entry", async () => {
       const db = getDb();
       const pt = await createPlaythrough(db);
+      // Set lastEventAt to the past so the update is not skipped
+      const pastTime = new Date(Date.now() - 1000);
       await createPlaythroughStateCache(db, {
         playthroughId: pt.id,
         currentPosition: 50,
         currentRate: 1.0,
+        lastEventAt: pastTime,
       });
 
       await playthroughs.updateStateCache(pt.id, 200, 2.0);

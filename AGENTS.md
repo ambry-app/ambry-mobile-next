@@ -478,6 +478,38 @@ We follow **Detroit-style testing** (also called "Classical" or "Sociable" testi
 
 **Example**: When testing `sync.ts`, we use the real session store, real database modules, and real GraphQL API functions. We only mock the `fetch` call that actually hits the network. This tests the entire sync flow, not just that `sync.ts` calls the right functions with the right arguments.
 
+### No Spies Rule
+
+**Avoid `jest.spyOn`** unless there is truly no other way to verify the outcome of a test.
+
+Spies test implementation details (which functions were called) rather than observable outcomes (what state changed). This makes tests brittle - they break when you refactor internals even if the behavior is unchanged.
+
+**Bad** - Spying on implementation:
+```typescript
+// Tests HOW the component works, not WHAT it does
+const spy = jest.spyOn(useScreen.getState(), "setDimensions");
+fireEvent(component, "layout", { nativeEvent: { layout: { height: 800, width: 400 } } });
+expect(spy).toHaveBeenCalledWith(800, 400);
+```
+
+**Good** - Verifying observable outcome:
+```typescript
+// Tests the actual result - store state changed correctly
+fireEvent(component, "layout", { nativeEvent: { layout: { height: 800, width: 400 } } });
+expect(useScreen.getState().screenHeight).toBe(800);
+expect(useScreen.getState().screenWidth).toBe(400);
+```
+
+**When spies might be acceptable:**
+- Verifying a side effect occurred (e.g., a native module was called) when there's no observable state to check
+- Suppressing console output during tests (infrastructure, not test assertions)
+
+**Preferred alternatives to spies:**
+- Check store state after actions
+- Check database state after operations
+- Control timing via fetch mock promises (instead of mocking internal functions)
+- Use real implementations with mocked system boundaries
+
 ### Running Tests
 
 ```bash

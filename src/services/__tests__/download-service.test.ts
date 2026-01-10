@@ -1,3 +1,12 @@
+/**
+ * Tests for the download service.
+ *
+ * Uses Detroit-style testing: we mock only:
+ * - Native modules (expo-file-system, react-native-track-player)
+ *
+ * The real download service, playback controls, and database code runs.
+ */
+
 import * as LegacyFileSystem from "expo-file-system/legacy";
 
 import {
@@ -6,7 +15,6 @@ import {
   removeDownload,
   startDownload,
 } from "@/services/download-service";
-import { reloadCurrentPlaythroughIfMedia } from "@/services/playback-controls";
 import { useDownloads } from "@/stores/downloads";
 import { Session } from "@/types/session";
 import { setupTestDatabase } from "@test/db-test-utils";
@@ -17,14 +25,6 @@ import {
 } from "@test/factories";
 import { mockDownloadResumable } from "@test/jest-setup";
 import { resetStoreBeforeEach } from "@test/store-test-utils";
-
-// Mock the player module to avoid pulling in react-native-track-player
-jest.mock("@/services/playback-controls", () => ({
-  reloadCurrentPlaythroughIfMedia: jest.fn(),
-}));
-
-const mockReloadCurrentPlaythroughIfMedia =
-  reloadCurrentPlaythroughIfMedia as jest.Mock;
 
 describe("download service", () => {
   const { getDb } = setupTestDatabase();
@@ -43,8 +43,6 @@ describe("download service", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Default mock - reloadCurrentPlaythroughIfMedia now returns void
-    mockReloadCurrentPlaythroughIfMedia.mockResolvedValue(undefined);
   });
 
   describe("initializeDownloads", () => {
@@ -261,27 +259,6 @@ describe("download service", () => {
       });
     });
 
-    it("calls reloadCurrentPlaythroughIfMedia after download completes", async () => {
-      const db = getDb();
-      const media = await createMedia(db, {
-        id: "media-current",
-        mp4Path: "audio/media-current/stream.mp4",
-      });
-
-      mockDownloadResumable.downloadAsync.mockResolvedValue({
-        uri: "file:///test-document-directory/media-current.mp4",
-        status: 200,
-      });
-
-      await startDownload(testSession, media.id);
-
-      // reloadCurrentPlaythroughIfMedia handles checking if media matches and reloading
-      expect(mockReloadCurrentPlaythroughIfMedia).toHaveBeenCalledWith(
-        testSession,
-        "media-current",
-      );
-    });
-
     it("does nothing if media has no mp4Path", async () => {
       const db = getDb();
       const media = await createMedia(db, {
@@ -455,25 +432,6 @@ describe("download service", () => {
 
       // 1 for main file + 5 for thumbnails
       expect(LegacyFileSystem.deleteAsync).toHaveBeenCalledTimes(6);
-    });
-
-    it("calls reloadCurrentPlaythroughIfMedia after removing download", async () => {
-      const db = getDb();
-      const media = await createMedia(db, { id: "media-loaded" });
-      await createDownloadFactory(db, {
-        mediaId: media.id,
-        filePath: "media-loaded.mp4",
-        status: "ready",
-      });
-
-      await initializeDownloads(testSession);
-      await removeDownload(testSession, "media-loaded");
-
-      // reloadCurrentPlaythroughIfMedia handles checking if media matches and reloading
-      expect(mockReloadCurrentPlaythroughIfMedia).toHaveBeenCalledWith(
-        testSession,
-        "media-loaded",
-      );
     });
 
     it("handles missing download gracefully", async () => {

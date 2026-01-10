@@ -1,66 +1,25 @@
-/* eslint-disable import/first */
-// Mock service dependencies - useDb imports need to be mocked before
-// any modules that use them are imported, to prevent actual DB calls.
-const mockGetDb = jest.fn();
-jest.mock("@/db/db", () => ({
-  getDb: () => mockGetDb(),
-}));
+/**
+ * Tests for the sync service.
+ *
+ * Uses Detroit-style testing: we mock only:
+ * - Native modules (expo-secure-store, expo-file-system, etc.)
+ * - Network boundary (fetch)
+ *
+ * The real sync service, GraphQL API, and database code runs.
+ */
 
-const mockGetUnsyncedPlaythroughs = jest.fn();
-const mockGetUnsyncedEvents = jest.fn();
-const mockMarkPlaythroughsSynced = jest.fn();
-const mockMarkEventsSynced = jest.fn();
-jest.mock("@/db/playthroughs", () => ({
-  getUnsyncedPlaythroughs: (...args: unknown[]) =>
-    mockGetUnsyncedPlaythroughs(...args),
-  getUnsyncedEvents: (...args: unknown[]) => mockGetUnsyncedEvents(...args),
-  markPlaythroughsSynced: (...args: unknown[]) =>
-    mockMarkPlaythroughsSynced(...args),
-  markEventsSynced: (...args: unknown[]) => mockMarkEventsSynced(...args),
-}));
-
-// Mock GraphQL API calls
-const mockGetLibraryChangesSince = jest.fn();
-const mockSyncProgress = jest.fn();
-jest.mock("@/graphql/api", () => ({
-  getLibraryChangesSince: (...args: unknown[]) =>
-    mockGetLibraryChangesSince(...args),
-  syncProgress: (...args: unknown[]) => mockSyncProgress(...args),
-  // Need to export the enums that sync.ts uses - using PascalCase keys like the real enums
-  DeviceTypeInput: {
-    Ios: "IOS",
-    Android: "ANDROID",
-  },
-  PlaybackEventType: {
-    Start: "START",
-    Play: "PLAY",
-    Pause: "PAUSE",
-    Seek: "SEEK",
-    RateChange: "RATE_CHANGE",
-    Finish: "FINISH",
-    Abandon: "ABANDON",
-    Resume: "RESUME",
-  },
-  PlaythroughStatus: {
-    InProgress: "IN_PROGRESS",
-    Finished: "FINISHED",
-    Abandoned: "ABANDONED",
-  },
-}));
-
-const mockClearSession = jest.fn();
-jest.mock("@/stores/session", () => ({
-  useSession: jest.requireActual("@/stores/session").useSession,
-  clearSession: () => mockClearSession(),
-}));
-
-// Mock stores
 import { sync, syncLibrary, syncPlaythroughs } from "@/services/sync-service";
 import { useDataVersion } from "@/stores/data-version";
 import { useDevice } from "@/stores/device";
 import { useSession } from "@/stores/session";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { DEFAULT_TEST_SESSION } from "@test/factories";
+import {
+  graphqlSuccess,
+  graphqlUnauthorized,
+  installFetchMock,
+  mockGraphQL,
+} from "@test/fetch-mock";
 import { resetStoreBeforeEach } from "@test/store-test-utils";
 import {
   emptyLibraryChanges,
@@ -68,13 +27,11 @@ import {
   resetSyncFixtureIdCounter,
 } from "@test/sync-fixtures";
 
-/* eslint-enable import/first */
-
 // =============================================================================
-// Mocks & Test Setup
+// Test Setup
 // =============================================================================
 
-const { getDb } = setupTestDatabase();
+setupTestDatabase();
 
 const session = DEFAULT_TEST_SESSION;
 
@@ -86,7 +43,7 @@ const initialDataVersionState = {
   shelfDataVersion: 0,
 };
 const initialDeviceState = {
-  initialized: false,
+  initialized: true,
   deviceInfo: {
     id: "test-device-id",
     type: "android" as const,
@@ -101,146 +58,112 @@ resetStoreBeforeEach(useSession, initialSessionState);
 resetStoreBeforeEach(useDataVersion, initialDataVersionState);
 resetStoreBeforeEach(useDevice, initialDeviceState);
 
-beforeEach(() => {
-  mockGetDb.mockClear();
-  mockGetLibraryChangesSince.mockClear();
-  mockSyncProgress.mockClear();
-  mockGetUnsyncedPlaythroughs.mockClear();
-  mockGetUnsyncedEvents.mockClear();
-  mockMarkPlaythroughsSynced.mockClear();
-  mockMarkEventsSynced.mockClear();
-  mockClearSession.mockClear();
-  resetSyncFixtureIdCounter();
+describe("sync-service", () => {
+  let mockFetch: ReturnType<typeof installFetchMock>;
 
-  // Default DB mock - just return an empty Drizzle instance
-  mockGetDb.mockReturnValue(getDb());
-
-  // Default return values for playthrough mocks
-  mockGetUnsyncedPlaythroughs.mockResolvedValue([]);
-  mockGetUnsyncedEvents.mockResolvedValue([]);
-});
-
-// =============================================================================
-// sync
-// =============================================================================
-
-describe("sync (orchestration)", () => {
-  it("calls syncLibrary and syncPlaythroughs in parallel", async () => {
-    const serverTime = "2024-01-15T10:00:00.000Z";
-
-    mockGetLibraryChangesSince.mockResolvedValue({
-      success: true,
-      result: emptyLibraryChanges(serverTime),
-    });
-
-    mockSyncProgress.mockResolvedValue({
-      success: true,
-      result: { syncProgress: emptySyncProgressResult(serverTime) },
-    });
-
-    await sync(session);
-
-    expect(mockGetLibraryChangesSince).toHaveBeenCalledTimes(1);
-    expect(mockSyncProgress).toHaveBeenCalledTimes(1);
+  beforeEach(() => {
+    mockFetch = installFetchMock();
+    resetSyncFixtureIdCounter();
   });
 
-  it("completes successfully when sync succeeds", async () => {
-    const serverTime = "2024-01-15T10:00:00.000Z";
+  // ===========================================================================
+  // sync
+  // ===========================================================================
 
-    mockGetLibraryChangesSince.mockResolvedValue({
-      success: true,
-      result: emptyLibraryChanges(serverTime),
+  describe("sync (orchestration)", () => {
+    it("calls syncLibrary and syncPlaythroughs in parallel", async () => {
+      const serverTime = "2024-01-15T10:00:00.000Z";
+
+      // First call: libraryChangesSince
+      mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges(serverTime)));
+
+      // Second call: syncProgress
+      mockGraphQL(
+        mockFetch,
+        graphqlSuccess({ syncProgress: emptySyncProgressResult(serverTime) }),
+      );
+
+      await sync(session);
+
+      // Both calls should have been made
+      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
-    mockSyncProgress.mockResolvedValue({
-      success: true,
-      result: { syncProgress: emptySyncProgressResult(serverTime) },
+    it("completes successfully when sync succeeds", async () => {
+      const serverTime = "2024-01-15T10:00:00.000Z";
+
+      mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges(serverTime)));
+      mockGraphQL(
+        mockFetch,
+        graphqlSuccess({ syncProgress: emptySyncProgressResult(serverTime) }),
+      );
+
+      const result = await sync(session);
+
+      expect(result).toEqual([undefined, undefined]);
     });
-
-    const result = await sync(session);
-
-    expect(result).toEqual([undefined, undefined]);
-  });
-});
-
-// =============================================================================
-// syncLibrary
-// =============================================================================
-
-describe("syncLibrary", () => {
-  it("updates libraryDataVersion store after sync", async () => {
-    const serverTime = "2024-01-15T10:00:00.000Z";
-
-    mockGetLibraryChangesSince.mockResolvedValue({
-      success: true,
-      result: emptyLibraryChanges(serverTime),
-    });
-
-    await syncLibrary(session);
-
-    const { libraryDataVersion } = useDataVersion.getState();
-    expect(libraryDataVersion).toBe(new Date(serverTime).getTime());
-  });
-
-  it("calls clearSession on unauthorized error", async () => {
-    mockGetLibraryChangesSince.mockResolvedValue({
-      success: false,
-      error: { code: "ExecuteAuthenticatedErrorCodeUnauthorized" },
-    });
-
-    await syncLibrary(session);
-
-    expect(mockClearSession).toHaveBeenCalledTimes(1);
-  });
-});
-
-// =============================================================================
-// syncPlaythroughs
-// =============================================================================
-
-describe("syncPlaythroughs", () => {
-  it("calls clearSession on unauthorized error", async () => {
-    // Ensure device is initialized
-    useDevice.setState({
-      initialized: true,
-      deviceInfo: initialDeviceState.deviceInfo,
-    });
-
-    mockSyncProgress.mockResolvedValue({
-      success: false,
-      error: { code: "ExecuteAuthenticatedErrorCodeUnauthorized" },
-    });
-
-    await syncPlaythroughs(session);
-
-    expect(mockClearSession).toHaveBeenCalledTimes(1);
   });
 
-  it("bumps playthroughDataVersion on successful sync", async () => {
-    // Ensure device is initialized
-    useDevice.setState({
-      initialized: true,
-      deviceInfo: initialDeviceState.deviceInfo,
+  // ===========================================================================
+  // syncLibrary
+  // ===========================================================================
+
+  describe("syncLibrary", () => {
+    it("updates libraryDataVersion store after sync", async () => {
+      const serverTime = "2024-01-15T10:00:00.000Z";
+
+      mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges(serverTime)));
+
+      await syncLibrary(session);
+
+      const { libraryDataVersion } = useDataVersion.getState();
+      expect(libraryDataVersion).toBe(new Date(serverTime).getTime());
     });
 
-    mockSyncProgress.mockResolvedValue({
-      success: true,
-      result: {
-        syncProgress: emptySyncProgressResult("2024-01-01T00:00:00.000Z"),
-      },
+    it("clears session on unauthorized error", async () => {
+      mockGraphQL(mockFetch, graphqlUnauthorized());
+
+      await syncLibrary(session);
+
+      // Session should be cleared
+      const { session: currentSession } = useSession.getState();
+      expect(currentSession).toBeNull();
     });
-
-    const initialPlaythroughVersion =
-      useDataVersion.getState().playthroughDataVersion;
-    await syncPlaythroughs(session);
-    const newPlaythroughVersion =
-      useDataVersion.getState().playthroughDataVersion;
-
-    expect(newPlaythroughVersion).not.toBe(initialPlaythroughVersion);
-    expect(typeof newPlaythroughVersion).toBe("number");
   });
 
-  // Note: The "returns early if device not initialized" test was removed because
-  // getDeviceInfo() auto-initializes the device. Device initialization is handled
-  // at the device store level, not in syncPlaythroughs.
+  // ===========================================================================
+  // syncPlaythroughs
+  // ===========================================================================
+
+  describe("syncPlaythroughs", () => {
+    it("clears session on unauthorized error", async () => {
+      mockGraphQL(mockFetch, graphqlUnauthorized());
+
+      await syncPlaythroughs(session);
+
+      // Session should be cleared
+      const { session: currentSession } = useSession.getState();
+      expect(currentSession).toBeNull();
+    });
+
+    it("bumps playthroughDataVersion on successful sync", async () => {
+      const serverTime = "2024-01-01T00:00:00.000Z";
+
+      mockGraphQL(
+        mockFetch,
+        graphqlSuccess({ syncProgress: emptySyncProgressResult(serverTime) }),
+      );
+
+      const initialPlaythroughVersion =
+        useDataVersion.getState().playthroughDataVersion;
+
+      await syncPlaythroughs(session);
+
+      const newPlaythroughVersion =
+        useDataVersion.getState().playthroughDataVersion;
+
+      expect(newPlaythroughVersion).not.toBe(initialPlaythroughVersion);
+      expect(typeof newPlaythroughVersion).toBe("number");
+    });
+  });
 });

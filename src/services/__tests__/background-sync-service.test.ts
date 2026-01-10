@@ -1,5 +1,13 @@
-// Import the service module AFTER mocks are set up
-// This ensures defineTask callback is captured
+/**
+ * Tests for the background sync service.
+ *
+ * Uses Detroit-style testing: we mock only:
+ * - Native modules (expo-task-manager, expo-background-task)
+ * - Network boundary (fetch)
+ *
+ * The real sync service and database code runs.
+ */
+
 import {
   registerBackgroundSyncTask,
   unregisterBackgroundSyncTask,
@@ -9,15 +17,19 @@ import { useSession } from "@/stores/session";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { DEFAULT_TEST_SESSION } from "@test/factories";
 import {
+  graphqlSuccess,
+  installFetchMock,
+  mockGraphQL,
+  mockNetworkError,
+} from "@test/fetch-mock";
+import {
   getDefinedTaskCallback,
   mockExpoDbExecSync,
-  mockGetLibraryChangesSince,
   mockIsTaskRegisteredAsync,
   mockRegisterTaskAsync,
-  mockSyncProgress,
   mockUnregisterTaskAsync,
 } from "@test/jest-setup";
-import { emptyLibraryChanges } from "@test/sync-fixtures";
+import { emptyLibraryChanges, emptySyncProgressResult } from "@test/sync-fixtures";
 
 // Setup test database (needed for sync operations)
 setupTestDatabase();
@@ -25,21 +37,17 @@ setupTestDatabase();
 const session = DEFAULT_TEST_SESSION;
 
 describe("background-sync-service", () => {
+  let mockFetch: ReturnType<typeof installFetchMock>;
+
   beforeEach(() => {
-    // Reset mocks
+    // Install fresh fetch mock
+    mockFetch = installFetchMock();
+
+    // Reset native module mocks
     mockIsTaskRegisteredAsync.mockReset();
     mockRegisterTaskAsync.mockReset();
     mockUnregisterTaskAsync.mockReset();
     mockExpoDbExecSync.mockReset();
-    mockGetLibraryChangesSince.mockReset();
-    mockSyncProgress.mockReset();
-
-    // Default mock implementations using proper fixtures
-    mockGetLibraryChangesSince.mockResolvedValue({
-      success: true,
-      result: emptyLibraryChanges(),
-    });
-    mockSyncProgress.mockResolvedValue({ success: true, result: {} });
 
     // Set up device store (needed for syncPlaythroughs)
     useDevice.setState({
@@ -123,12 +131,22 @@ describe("background-sync-service", () => {
       const result = await taskCallback!();
 
       expect(result).toBe("success");
-      // Sync should not have been called
-      expect(mockGetLibraryChangesSince).not.toHaveBeenCalled();
+      // Sync should not have been called (no fetch)
+      expect(mockFetch).not.toHaveBeenCalled();
     });
 
     it("runs full sync cycle and returns success when session exists", async () => {
       useSession.setState({ session });
+
+      const serverTime = new Date().toISOString();
+
+      // Mock libraryChangesSince response (first call)
+      mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges(serverTime)));
+
+      // Mock syncProgress response (second call)
+      mockGraphQL(mockFetch, graphqlSuccess({
+        syncProgress: emptySyncProgressResult(serverTime),
+      }));
 
       const taskCallback = getDefinedTaskCallback();
       const result = await taskCallback!();
@@ -136,8 +154,8 @@ describe("background-sync-service", () => {
       // Should return success (not fail)
       expect(result).toBe("success");
 
-      // Verify syncDownLibrary was called (syncs library changes from server)
-      expect(mockGetLibraryChangesSince).toHaveBeenCalled();
+      // Verify API was called (sync happened)
+      expect(mockFetch).toHaveBeenCalled();
 
       // Verify WAL checkpoint was executed (confirms we reached the success path)
       expect(mockExpoDbExecSync).toHaveBeenCalledWith(
@@ -147,7 +165,9 @@ describe("background-sync-service", () => {
 
     it("returns failed when sync throws an error", async () => {
       useSession.setState({ session });
-      mockGetLibraryChangesSince.mockRejectedValue(new Error("Sync error"));
+
+      // Mock network error
+      mockNetworkError(mockFetch, "Sync error");
 
       const taskCallback = getDefinedTaskCallback();
       const result = await taskCallback!();

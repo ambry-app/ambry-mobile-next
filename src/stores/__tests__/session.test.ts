@@ -1,28 +1,35 @@
 /**
  * Tests for the session store.
+ *
+ * Uses Detroit-style testing: we mock only the network boundary (fetch),
+ * letting the real API functions and store code run.
  */
 
 import { CreateSessionErrorCode } from "@/graphql/api";
 import { signIn, signOut } from "@/services/auth-service";
 import { clearSession, useSession } from "@/stores/session";
+import { clearSecureStore } from "@test/jest-setup";
 import {
-  clearSecureStore,
-  mockCreateSession,
-  mockDeleteSession,
-} from "@test/jest-setup";
+  graphqlError,
+  graphqlSuccess,
+  installFetchMock,
+  mockGraphQL,
+  mockNetworkError,
+} from "@test/fetch-mock";
 
 // Initial state for resetting between tests
 const initialSessionState = { session: null };
 
 describe("session store", () => {
+  let mockFetch: ReturnType<typeof installFetchMock>;
+
   beforeEach(() => {
     // Reset store state
     useSession.setState(initialSessionState);
     // Clear SecureStore
     clearSecureStore();
-    // Reset mocks
-    mockCreateSession.mockReset();
-    mockDeleteSession.mockReset();
+    // Install fresh fetch mock
+    mockFetch = installFetchMock();
   });
 
   // ===========================================================================
@@ -47,18 +54,18 @@ describe("session store", () => {
     const testToken = "auth-token-123";
 
     it("sets session on successful sign in", async () => {
-      mockCreateSession.mockResolvedValue({
-        success: true,
-        result: { token: testToken },
-      });
+      // Mock successful GraphQL response
+      mockGraphQL(mockFetch, graphqlSuccess({ createSession: { token: testToken } }));
 
       const result = await signIn(testUrl, testEmail, testPassword);
 
       expect(result.success).toBe(true);
-      expect(mockCreateSession).toHaveBeenCalledWith(
-        testUrl,
-        testEmail,
-        testPassword,
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${testUrl}/gql`,
+        expect.objectContaining({
+          method: "POST",
+          body: expect.stringContaining("CreateSession"),
+        }),
       );
 
       const state = useSession.getState();
@@ -70,10 +77,8 @@ describe("session store", () => {
     });
 
     it("returns error on invalid credentials", async () => {
-      mockCreateSession.mockResolvedValue({
-        success: false,
-        error: { code: CreateSessionErrorCode.INVALID_CREDENTIALS },
-      });
+      // Mock GraphQL error response for invalid credentials
+      mockGraphQL(mockFetch, graphqlError("invalid username or password"));
 
       const result = await signIn(testUrl, testEmail, testPassword);
 
@@ -90,10 +95,8 @@ describe("session store", () => {
     });
 
     it("returns error on network failure", async () => {
-      mockCreateSession.mockResolvedValue({
-        success: false,
-        error: { code: "NETWORK_ERROR" },
-      });
+      // Mock network error
+      mockNetworkError(mockFetch, "Network request failed");
 
       const result = await signIn(testUrl, testEmail, testPassword);
 
@@ -119,13 +122,20 @@ describe("session store", () => {
     it("clears session and calls deleteSession API", async () => {
       // Set up initial session
       useSession.setState({ session: testSession });
-      mockDeleteSession.mockResolvedValue({ success: true });
+
+      // Mock successful deleteSession response
+      mockGraphQL(mockFetch, graphqlSuccess({ deleteSession: { deleted: true } }));
 
       await signOut();
 
-      expect(mockDeleteSession).toHaveBeenCalledWith(
-        testSession.url,
-        testSession.token,
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${testSession.url}/gql`,
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${testSession.token}`,
+          }),
+        }),
       );
 
       const state = useSession.getState();
@@ -137,7 +147,7 @@ describe("session store", () => {
 
       await signOut();
 
-      expect(mockDeleteSession).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 
@@ -158,8 +168,8 @@ describe("session store", () => {
 
       clearSession();
 
-      // Should NOT call deleteSession API
-      expect(mockDeleteSession).not.toHaveBeenCalled();
+      // Should NOT call the API
+      expect(mockFetch).not.toHaveBeenCalled();
 
       // Session should be cleared
       const state = useSession.getState();
