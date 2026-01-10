@@ -1,9 +1,11 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
 import { and, asc, eq } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/types/session";
+import { requireValue } from "@/utils/require-value";
+
 import { combineAuthorsAndNarrators } from "./shared-queries";
-import { requireValue } from "@/src/utils";
 
 export async function getSeriesDetails(session: Session, seriesId: string) {
   const series = await getSeries(session, seriesId);
@@ -19,7 +21,7 @@ export async function getSeriesDetails(session: Session, seriesId: string) {
 }
 
 async function getSeries(session: Session, seriesId: string) {
-  const rows = await db
+  const rows = await getDb()
     .select({
       id: schema.series.id,
       name: schema.series.name,
@@ -33,7 +35,7 @@ async function getSeries(session: Session, seriesId: string) {
 }
 
 async function getSeriesAuthors(session: Session, seriesId: string) {
-  const rows = await db
+  const rows = await getDb()
     .selectDistinct({
       id: schema.authors.id,
       name: schema.authors.name,
@@ -84,7 +86,7 @@ async function getSeriesAuthors(session: Session, seriesId: string) {
 }
 
 async function getSeriesNarrators(session: Session, seriesId: string) {
-  const rows = await db
+  const rows = await getDb()
     .selectDistinct({
       id: schema.narrators.id,
       name: schema.narrators.name,

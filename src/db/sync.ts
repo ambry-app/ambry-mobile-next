@@ -1,27 +1,144 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
+import { and, eq, inArray, sql } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
 import {
-  getLibraryChangesSince,
-  getUserChangesSince,
-  updatePlayerState,
-} from "@/src/graphql/api";
-import { ExecuteAuthenticatedErrorCode } from "@/src/graphql/client/execute";
-import { useDataVersion } from "@/src/stores/data-version";
-import { forceUnloadPlayer } from "@/src/stores/player";
-import { Session, forceSignOut } from "@/src/stores/session";
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+  getUnsyncedEvents,
+  getUnsyncedPlaythroughs,
+  markEventsSynced,
+  markPlaythroughsSynced,
+} from "@/db/playthroughs";
+import * as schema from "@/db/schema";
+import { Thumbnails } from "@/db/schema";
+import { Session } from "@/types/session";
+import { groupBy } from "@/utils/group-by";
+import { logBase } from "@/utils/logger";
 
-export async function getServerSyncTimestamps(session: Session) {
-  const result = await db
-    .select({
-      lastDownSync: schema.syncedServers.lastDownSync,
-      newDataAsOf: schema.syncedServers.newDataAsOf,
-    })
-    .from(schema.syncedServers)
-    .where(eq(schema.syncedServers.url, session.url))
-    .limit(1);
+const log = logBase.extend("db-sync");
 
-  return result[0] || { lastDownSync: null, newDataAsOf: null };
+// =============================================================================
+// Library Sync - DB Operations
+// =============================================================================
+
+/**
+ * Information about the last library sync for a server.
+ */
+export interface LibrarySyncInfo {
+  lastSyncTime: Date | null;
+  libraryDataVersion: Date | null;
+}
+
+/**
+ * Get the last library sync info for a server.
+ */
+export async function getLastLibrarySyncInfo(
+  session: Session,
+): Promise<LibrarySyncInfo> {
+  const syncedServer = await getDb().query.syncedServers.findFirst({
+    where: eq(schema.syncedServers.url, session.url),
+  });
+
+  return {
+    lastSyncTime: syncedServer?.lastSyncTime ?? null,
+    libraryDataVersion: syncedServer?.libraryDataVersion ?? null,
+  };
+}
+
+// Input types for library changes - matches GraphQL response shape
+export interface LibraryChangesInput {
+  peopleChangedSince: {
+    id: string;
+    name: string;
+    description: string | null;
+    thumbnails: Thumbnails | null;
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  authorsChangedSince: {
+    id: string;
+    person: { id: string };
+    name: string;
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  narratorsChangedSince: {
+    id: string;
+    person: { id: string };
+    name: string;
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  booksChangedSince: {
+    id: string;
+    title: string;
+    published: string;
+    publishedFormat: string;
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  bookAuthorsChangedSince: {
+    id: string;
+    book: { id: string };
+    author: { id: string };
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  seriesChangedSince: {
+    id: string;
+    name: string;
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  seriesBooksChangedSince: {
+    id: string;
+    book: { id: string };
+    series: { id: string };
+    bookNumber: string;
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  mediaChangedSince: {
+    id: string;
+    book: { id: string };
+    status: string;
+    description: string | null;
+    thumbnails: Thumbnails | null;
+    published: string | null;
+    publishedFormat: string;
+    publisher: string | null;
+    notes: string | null;
+    abridged: boolean;
+    fullCast: boolean;
+    mp4Path: string | null;
+    mpdPath: string | null;
+    hlsPath: string | null;
+    duration: string | null;
+    chapters: {
+      id: string;
+      title: string | null;
+      startTime: number;
+      endTime: number;
+    }[];
+    supplementalFiles: {
+      filename: string;
+      label: string | null;
+      mime: string;
+      path: string;
+    }[];
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  mediaNarratorsChangedSince: {
+    id: string;
+    media: { id: string };
+    narrator: { id: string };
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  deletionsSince: {
+    type: string;
+    recordId: string;
+  }[];
+  serverTime: string;
 }
 
 const deletionsTables = {
@@ -36,41 +153,23 @@ const deletionsTables = {
   PERSON: schema.people,
 };
 
-export async function syncDown(session: Session) {
-  return Promise.all([syncDownLibrary(session), syncDownUser(session)]);
+/**
+ * Result of applying library changes to the database.
+ */
+export interface ApplyLibraryChangesResult {
+  newDataAsOf: Date | null;
 }
 
-export async function syncDownLibrary(session: Session) {
-  console.debug("[SyncDown] syncing library...");
-
-  const syncedServer = await db.query.syncedServers.findFirst({
-    where: eq(schema.syncedServers.url, session.url),
-  });
-
-  const lastSync = syncedServer?.lastDownSync;
-  const result = await getLibraryChangesSince(session, lastSync);
-
-  if (!result.success) {
-    switch (result.error.code) {
-      case ExecuteAuthenticatedErrorCode.UNAUTHORIZED:
-        console.warn("[SyncDown] unauthorized, signing out...");
-        await resetAndSignOut();
-        return;
-      case ExecuteAuthenticatedErrorCode.NETWORK_ERROR:
-        console.error("[SyncDown] network error, we'll try again later");
-        return;
-      case ExecuteAuthenticatedErrorCode.SERVER_ERROR:
-      case ExecuteAuthenticatedErrorCode.GQL_ERROR:
-        console.error("[SyncDown] server error, we'll try again later");
-        return;
-      default:
-        return result.error satisfies never;
-    }
-  }
-
-  const changes = result.result;
-
-  if (!changes) return;
+/**
+ * Apply library changes from the server to the local database.
+ * Returns the new data version timestamp if there were changes.
+ */
+export async function applyLibraryChanges(
+  session: Session,
+  changes: LibraryChangesInput,
+  previousSyncInfo: LibrarySyncInfo,
+): Promise<ApplyLibraryChangesResult> {
+  log.info("applying library changes...");
 
   const peopleValues = changes.peopleChangedSince.map((person) => {
     return {
@@ -209,10 +308,28 @@ export async function syncDownLibrary(session: Session) {
     (deletion) => deletion.recordId,
   );
 
-  let newDataAsOf: Date | null = null;
-  await db.transaction(async (tx) => {
+  const serverTime = new Date(changes.serverTime);
+
+  const countChanges =
+    changes.authorsChangedSince.length +
+    changes.bookAuthorsChangedSince.length +
+    changes.booksChangedSince.length +
+    changes.deletionsSince.length +
+    changes.mediaChangedSince.length +
+    changes.mediaNarratorsChangedSince.length +
+    changes.narratorsChangedSince.length +
+    changes.peopleChangedSince.length +
+    changes.seriesBooksChangedSince.length +
+    changes.seriesChangedSince.length;
+
+  const newDataAsOf =
+    countChanges > 0 || previousSyncInfo.lastSyncTime === null
+      ? serverTime
+      : previousSyncInfo.libraryDataVersion;
+
+  await getDb().transaction(async (tx) => {
     if (peopleValues.length !== 0) {
-      console.debug("[SyncDown] inserting", peopleValues.length, "people...");
+      log.debug("inserting", peopleValues.length, "people...");
       await tx
         .insert(schema.people)
         .values(peopleValues)
@@ -225,11 +342,11 @@ export async function syncDownLibrary(session: Session) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[SyncDown] people inserted");
+      log.debug("people inserted");
     }
 
     if (authorValues.length !== 0) {
-      console.debug("[SyncDown] inserting", authorValues.length, "authors...");
+      log.debug("inserting", authorValues.length, "authors...");
       await tx
         .insert(schema.authors)
         .values(authorValues)
@@ -240,15 +357,11 @@ export async function syncDownLibrary(session: Session) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[SyncDown] authors inserted");
+      log.debug("authors inserted");
     }
 
     if (narratorValues.length !== 0) {
-      console.debug(
-        "[SyncDown] inserting",
-        narratorValues.length,
-        "narrators...",
-      );
+      log.debug(`inserting ${narratorValues.length} narrators...`);
       await tx
         .insert(schema.narrators)
         .values(narratorValues)
@@ -259,11 +372,11 @@ export async function syncDownLibrary(session: Session) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[SyncDown] narrators inserted");
+      log.debug("narrators inserted");
     }
 
     if (booksValues.length !== 0) {
-      console.debug("[SyncDown] inserting", booksValues.length, "books...");
+      log.debug("inserting", booksValues.length, "books...");
       await tx
         .insert(schema.books)
         .values(booksValues)
@@ -276,15 +389,11 @@ export async function syncDownLibrary(session: Session) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[SyncDown] books inserted");
+      log.debug("books inserted");
     }
 
     if (bookAuthorsValues.length !== 0) {
-      console.debug(
-        "[SyncDown] inserting",
-        bookAuthorsValues.length,
-        "book authors...",
-      );
+      log.debug(`inserting ${bookAuthorsValues.length} book authors...`);
       await tx
         .insert(schema.bookAuthors)
         .values(bookAuthorsValues)
@@ -294,11 +403,11 @@ export async function syncDownLibrary(session: Session) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[SyncDown] book authors inserted");
+      log.debug("book authors inserted");
     }
 
     if (seriesValues.length !== 0) {
-      console.debug("[SyncDown] inserting", seriesValues.length, "series...");
+      log.debug("inserting", seriesValues.length, "series...");
       await tx
         .insert(schema.series)
         .values(seriesValues)
@@ -309,15 +418,11 @@ export async function syncDownLibrary(session: Session) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[SyncDown] series inserted");
+      log.debug("series inserted");
     }
 
     if (seriesBooksValues.length !== 0) {
-      console.debug(
-        "[SyncDown] inserting",
-        seriesBooksValues.length,
-        "series books...",
-      );
+      log.debug(`inserting ${seriesBooksValues.length} series books...`);
       await tx
         .insert(schema.seriesBooks)
         .values(seriesBooksValues)
@@ -328,11 +433,11 @@ export async function syncDownLibrary(session: Session) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[SyncDown] series books inserted");
+      log.debug("series books inserted");
     }
 
     if (mediaValues.length !== 0) {
-      console.debug("[SyncDown] inserting", mediaValues.length, "media...");
+      log.debug("inserting", mediaValues.length, "media...");
       await tx
         .insert(schema.media)
         .values(mediaValues)
@@ -358,15 +463,11 @@ export async function syncDownLibrary(session: Session) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[SyncDown] media inserted");
+      log.debug("media inserted");
     }
 
     if (mediaNarratorsValues.length !== 0) {
-      console.debug(
-        "[SyncDown] inserting",
-        mediaNarratorsValues.length,
-        "media narrators...",
-      );
+      log.debug(`inserting ${mediaNarratorsValues.length} media narrators...`);
       await tx
         .insert(schema.mediaNarrators)
         .values(mediaNarratorsValues)
@@ -376,260 +477,270 @@ export async function syncDownLibrary(session: Session) {
             updatedAt: sql`excluded.updated_at`,
           },
         });
-      console.debug("[SyncDown] media narrators inserted");
+      log.debug("media narrators inserted");
     }
 
     for (const [deletionType, table] of Object.entries(deletionsTables)) {
       if (deletionIds[deletionType]) {
-        console.debug(
-          "[SyncDown] deleting",
-          deletionIds[deletionType].length,
-          deletionType,
+        log.debug(
+          `deleting ${deletionIds[deletionType].length} ${deletionType}`,
         );
         await tx
           .delete(table)
           .where(inArray(table.id, deletionIds[deletionType]));
-        console.debug("[SyncDown] deleted", deletionType);
+        log.debug(`deleted ${deletionType}`);
       }
     }
-
-    const serverTime = new Date(changes.serverTime);
-
-    const countChanges =
-      changes.authorsChangedSince.length +
-      changes.bookAuthorsChangedSince.length +
-      changes.booksChangedSince.length +
-      changes.deletionsSince.length +
-      changes.mediaChangedSince.length +
-      changes.mediaNarratorsChangedSince.length +
-      changes.narratorsChangedSince.length +
-      changes.peopleChangedSince.length +
-      changes.seriesBooksChangedSince.length +
-      changes.seriesChangedSince.length;
-
-    newDataAsOf =
-      countChanges > 0 || syncedServer === undefined
-        ? serverTime
-        : syncedServer.newDataAsOf;
 
     await tx
       .insert(schema.syncedServers)
       .values({
         url: session.url,
-        lastDownSync: serverTime,
-        newDataAsOf: newDataAsOf,
+        lastSyncTime: serverTime,
+        libraryDataVersion: newDataAsOf,
       })
       .onConflictDoUpdate({
         target: [schema.syncedServers.url],
         set: {
-          lastDownSync: sql`excluded.last_down_sync`,
-          newDataAsOf: sql`excluded.new_data_as_of`,
+          lastSyncTime: sql`excluded.last_sync_time`,
+          libraryDataVersion: sql`excluded.library_data_version`,
         },
       });
   });
 
-  // Update global data version store
-  if (newDataAsOf) useDataVersion.getState().setLibraryDataVersion(newDataAsOf);
-
-  console.debug("[SyncDown] library sync complete");
+  log.info("library changes applied");
+  return { newDataAsOf };
 }
 
-export async function syncDownUser(session: Session) {
-  console.debug("[SyncDown] syncing user player states...");
+// =============================================================================
+// Playthrough Sync - DB Operations
+// =============================================================================
 
-  const serverProfile = await db.query.serverProfiles.findFirst({
+/**
+ * Data needed to build a sync request for playthroughs.
+ */
+export interface PlaythroughSyncData {
+  unsyncedPlaythroughs: Awaited<ReturnType<typeof getUnsyncedPlaythroughs>>;
+  unsyncedEvents: Awaited<ReturnType<typeof getUnsyncedEvents>>;
+  lastSyncTime: Date | null;
+}
+
+/**
+ * Get all unsynced playthrough data needed for a sync request.
+ */
+export async function getPlaythroughSyncData(
+  session: Session,
+): Promise<PlaythroughSyncData> {
+  // Get unsynced playthroughs
+  const unsyncedPlaythroughs = await getUnsyncedPlaythroughs(session);
+
+  // Get all playthrough IDs (both synced and unsynced) to fetch their unsynced events
+  const allPlaythroughIds = await getDb()
+    .select({ id: schema.playthroughs.id })
+    .from(schema.playthroughs)
+    .where(
+      and(
+        eq(schema.playthroughs.url, session.url),
+        eq(schema.playthroughs.userEmail, session.email),
+      ),
+    );
+
+  const unsyncedEvents = await getUnsyncedEvents(
+    allPlaythroughIds.map((p) => p.id),
+  );
+
+  // Get last sync time from server profile
+  const serverProfile = await getDb().query.serverProfiles.findFirst({
     where: and(
       eq(schema.serverProfiles.url, session.url),
       eq(schema.serverProfiles.userEmail, session.email),
     ),
   });
 
-  const lastSync = serverProfile?.lastDownSync;
-  const result = await getUserChangesSince(session, lastSync);
-
-  if (!result.success) {
-    switch (result.error.code) {
-      case ExecuteAuthenticatedErrorCode.UNAUTHORIZED:
-        console.warn("[SyncDown] unauthorized, signing out...");
-        await resetAndSignOut();
-        return;
-      case ExecuteAuthenticatedErrorCode.NETWORK_ERROR:
-        console.error("[SyncDown] network error, we'll try again later");
-        return;
-      case ExecuteAuthenticatedErrorCode.SERVER_ERROR:
-      case ExecuteAuthenticatedErrorCode.GQL_ERROR:
-        console.error("[SyncDown] server error, we'll try again later");
-        return;
-      default:
-        return result.error satisfies never;
-    }
-  }
-
-  const changes = result.result;
-
-  if (!changes) return;
-
-  const playerStatesValues = changes.playerStatesChangedSince.map(
-    (playerState) => {
-      return {
-        url: session.url,
-        id: playerState.id,
-        userEmail: session.email,
-        mediaId: playerState.media.id,
-        status: playerState.status.toLowerCase() as
-          | "not_started"
-          | "in_progress"
-          | "finished",
-        playbackRate: playerState.playbackRate,
-        position: playerState.position,
-        insertedAt: new Date(playerState.insertedAt),
-        updatedAt: new Date(playerState.updatedAt),
-      };
-    },
+  log.debug(
+    `found ${unsyncedPlaythroughs.length} unsynced playthroughs, ${unsyncedEvents.length} unsynced events`,
   );
 
-  await db.transaction(async (tx) => {
-    if (playerStatesValues.length !== 0) {
-      console.debug(
-        "[SyncDown] inserting",
-        playerStatesValues.length,
-        "player states...",
-      );
+  return {
+    unsyncedPlaythroughs,
+    unsyncedEvents,
+    lastSyncTime: serverProfile?.lastSyncTime ?? null,
+  };
+}
+
+// Input types for playthrough sync result - matches GraphQL response shape
+export interface PlaythroughSyncResultInput {
+  playthroughs: {
+    id: string;
+    status: string;
+    startedAt: string;
+    finishedAt?: string | null;
+    abandonedAt?: string | null;
+    deletedAt?: string | null;
+    insertedAt: string;
+    updatedAt: string;
+    media: { id: string };
+  }[];
+  events: {
+    id: string;
+    playthroughId: string;
+    deviceId?: string | null;
+    type: string;
+    timestamp: string;
+    position?: number | null;
+    playbackRate?: number | null;
+    fromPosition?: number | null;
+    toPosition?: number | null;
+    previousRate?: number | null;
+  }[];
+  serverTime: string;
+}
+
+/**
+ * Apply the result of a playthrough sync to the local database.
+ * Marks sent items as synced and upserts received data.
+ */
+export async function applyPlaythroughSyncResult(
+  session: Session,
+  syncResult: PlaythroughSyncResultInput,
+  sentPlaythroughIds: string[],
+  sentEventIds: string[],
+): Promise<void> {
+  const serverTime = new Date(syncResult.serverTime);
+
+  // Mark our sent items as synced
+  if (sentPlaythroughIds.length > 0) {
+    await markPlaythroughsSynced(sentPlaythroughIds, serverTime);
+  }
+
+  if (sentEventIds.length > 0) {
+    await markEventsSynced(sentEventIds, serverTime);
+  }
+
+  // Batch all database operations in a single transaction for better performance
+  await getDb().transaction(async (tx) => {
+    // Upsert received playthroughs from server
+    for (const playthrough of syncResult.playthroughs) {
+      const playthroughData = {
+        id: playthrough.id,
+        url: session.url,
+        userEmail: session.email,
+        mediaId: playthrough.media.id,
+        status: playthrough.status.toLowerCase() as
+          | "in_progress"
+          | "finished"
+          | "abandoned",
+        startedAt: new Date(playthrough.startedAt),
+        finishedAt: playthrough.finishedAt
+          ? new Date(playthrough.finishedAt)
+          : null,
+        abandonedAt: playthrough.abandonedAt
+          ? new Date(playthrough.abandonedAt)
+          : null,
+        deletedAt: playthrough.deletedAt
+          ? new Date(playthrough.deletedAt)
+          : null,
+        createdAt: new Date(playthrough.insertedAt),
+        updatedAt: new Date(playthrough.updatedAt),
+        syncedAt: serverTime,
+      };
+
       await tx
-        .insert(schema.playerStates)
-        .values(playerStatesValues)
+        .insert(schema.playthroughs)
+        .values(playthroughData)
         .onConflictDoUpdate({
-          target: [schema.playerStates.url, schema.playerStates.id],
+          target: [schema.playthroughs.url, schema.playthroughs.id],
           set: {
-            status: sql`excluded.status`,
-            playbackRate: sql`excluded.playback_rate`,
-            position: sql`excluded.position`,
-            updatedAt: sql`excluded.updated_at`,
+            status: playthroughData.status,
+            startedAt: playthroughData.startedAt,
+            finishedAt: playthroughData.finishedAt,
+            abandonedAt: playthroughData.abandonedAt,
+            deletedAt: playthroughData.deletedAt,
+            updatedAt: playthroughData.updatedAt,
+            syncedAt: playthroughData.syncedAt,
           },
         });
-      console.debug("[SyncDown] player states inserted");
     }
 
-    const serverTime = new Date(changes.serverTime);
+    // Upsert received events from server
+    for (const event of syncResult.events) {
+      const eventData = {
+        id: event.id,
+        playthroughId: event.playthroughId,
+        deviceId: event.deviceId,
+        type: event.type.toLowerCase() as
+          | "start"
+          | "play"
+          | "pause"
+          | "seek"
+          | "rate_change"
+          | "finish"
+          | "abandon"
+          | "resume",
+        timestamp: new Date(event.timestamp),
+        position: event.position,
+        playbackRate: event.playbackRate,
+        fromPosition: event.fromPosition,
+        toPosition: event.toPosition,
+        previousRate: event.previousRate,
+        syncedAt: serverTime,
+      };
 
-    const countChanges = changes.playerStatesChangedSince.length;
+      await tx
+        .insert(schema.playbackEvents)
+        .values(eventData)
+        .onConflictDoUpdate({
+          target: schema.playbackEvents.id,
+          set: {
+            syncedAt: eventData.syncedAt,
+          },
+        });
 
-    const newDataAsOf =
-      countChanges > 0 || serverProfile === undefined
-        ? serverTime
-        : serverProfile.newDataAsOf;
+      // Update state cache for received events (if playback event with position)
+      if (event.position != null && event.playbackRate != null) {
+        const now = new Date();
+        const lastEventAt = new Date(event.timestamp);
+        // Convert to Unix timestamp (milliseconds) for SQLite integer comparison
+        const lastEventAtMs = lastEventAt.getTime();
 
+        await tx
+          .insert(schema.playthroughStateCache)
+          .values({
+            playthroughId: event.playthroughId,
+            currentPosition: event.position,
+            currentRate: event.playbackRate,
+            lastEventAt,
+            updatedAt: now,
+          })
+          .onConflictDoUpdate({
+            target: schema.playthroughStateCache.playthroughId,
+            set: {
+              currentPosition: event.position,
+              currentRate: event.playbackRate,
+              lastEventAt: sql`MAX(${schema.playthroughStateCache.lastEventAt}, ${lastEventAtMs})`,
+              updatedAt: now,
+            },
+          });
+      }
+    }
+
+    // Update server profile with new sync time
     await tx
       .insert(schema.serverProfiles)
       .values({
         url: session.url,
         userEmail: session.email,
-        lastDownSync: serverTime,
-        newDataAsOf: newDataAsOf,
+        lastSyncTime: serverTime,
       })
       .onConflictDoUpdate({
         target: [schema.serverProfiles.url, schema.serverProfiles.userEmail],
         set: {
-          lastDownSync: sql`excluded.last_down_sync`,
-          newDataAsOf: sql`excluded.new_data_as_of`,
+          lastSyncTime: sql`excluded.last_sync_time`,
         },
       });
   });
 
-  console.debug("[SyncDown] user player state sync complete");
-}
-
-export async function syncUp(session: Session) {
-  console.debug("[SyncUp] syncing...");
-
-  const server = await db.query.serverProfiles.findFirst({
-    where: and(
-      eq(schema.serverProfiles.url, session.url),
-      eq(schema.serverProfiles.userEmail, session.email),
-    ),
-  });
-
-  const lastSync = server?.lastUpSync;
-  const now = new Date();
-
-  const changedPlayerStates = await db.query.localPlayerStates.findMany({
-    columns: { mediaId: true, playbackRate: true, position: true },
-    where: and(
-      eq(schema.localPlayerStates.url, session.url),
-      eq(schema.localPlayerStates.userEmail, session.email),
-      gte(schema.localPlayerStates.updatedAt, lastSync || new Date(0)),
-    ),
-  });
-
-  console.debug(
-    "[SyncUp] syncing",
-    changedPlayerStates.length,
-    "player states",
+  log.info(
+    `Playthrough sync applied - received ${syncResult.playthroughs.length} playthroughs, ${syncResult.events.length} events`,
   );
-
-  for (const playerState of changedPlayerStates) {
-    const result = await updatePlayerState(
-      session,
-      playerState.mediaId,
-      playerState.position,
-      playerState.playbackRate,
-    );
-
-    if (!result.success) {
-      switch (result.error.code) {
-        case ExecuteAuthenticatedErrorCode.UNAUTHORIZED:
-          console.warn("[SyncUp] unauthorized, signing out...");
-          await resetAndSignOut();
-          return;
-        case ExecuteAuthenticatedErrorCode.NETWORK_ERROR:
-          console.error("[SyncUp] network error, we'll try again later");
-          return;
-        case ExecuteAuthenticatedErrorCode.SERVER_ERROR:
-        case ExecuteAuthenticatedErrorCode.GQL_ERROR:
-          console.error("[SyncUp] server error, we'll try again later");
-          return;
-        default:
-          return result.error satisfies never;
-      }
-    }
-  }
-
-  console.debug("[SyncUp] server request(s) complete");
-
-  await db
-    .insert(schema.serverProfiles)
-    .values({
-      url: session.url,
-      userEmail: session.email,
-      lastUpSync: now,
-    })
-    .onConflictDoUpdate({
-      target: [schema.serverProfiles.url, schema.serverProfiles.userEmail],
-      set: {
-        lastUpSync: sql`excluded.last_up_sync`,
-      },
-    });
-
-  console.debug("[SyncUp] sync complete");
 }
-
-async function resetAndSignOut() {
-  await forceUnloadPlayer();
-  forceSignOut();
-}
-
-const groupBy = <T, K extends keyof any, V>(
-  list: T[],
-  getKey: (item: T) => K,
-  getValue: (item: T) => V,
-) => {
-  return list.reduce(
-    (previous, currentItem) => {
-      const group = getKey(currentItem);
-      if (!previous[group]) previous[group] = [];
-      previous[group].push(getValue(currentItem));
-      return previous;
-    },
-    {} as Record<K, V[]>,
-  );
-};

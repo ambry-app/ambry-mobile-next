@@ -1,12 +1,16 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
-import { flatMapGroups } from "@/src/utils";
 import { and, desc, eq } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/types/session";
+import { flatMapGroups } from "@/utils/flat-map-groups";
+
 import {
   getAuthorsForBooks,
   getMediaForBooks,
   getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
+  getSavedForLaterStatusForMedia,
 } from "./shared-queries";
 
 export type AuthorsWithBooks = Awaited<ReturnType<typeof getBooksByAuthors>>;
@@ -37,16 +41,23 @@ export async function getBooksByAuthors(
 
   const mediaIds = flatMapGroups(mediaForBooks, (media) => media.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
+  const savedForLater = await getSavedForLaterStatusForMedia(session, mediaIds);
 
   // NOTE: small improvement possible by missing out authors that have no books
   return authors.map((author) => ({
     ...author,
-    books: (booksForAuthors[author.id] ?? []).map((book) => ({
+    books: booksForAuthors[author.id]!.map((book) => ({
       ...book,
-      authors: authorsForBooks[book.id] ?? [],
+      authors: authorsForBooks[book.id]!,
       media: (mediaForBooks[book.id] ?? []).map((media) => ({
         ...media,
         narrators: narratorsForMedia[media.id] ?? [],
+        playthroughStatus: playthroughStatuses[media.id] ?? null,
+        isOnSavedShelf: savedForLater.has(media.id),
       })),
     })),
   }));
@@ -73,7 +84,7 @@ async function getBooksForAuthor(
   authorId: string,
   limit: number,
 ) {
-  return db
+  return getDb()
     .select({
       id: schema.books.id,
       title: schema.books.title,

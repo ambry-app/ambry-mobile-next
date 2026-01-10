@@ -1,10 +1,17 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
-import { flatMapGroups } from "@/src/utils";
 import { and, desc, eq, ne, or, sql } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/types/session";
+import { flatMapGroups } from "@/utils/flat-map-groups";
+
 import { MediaHeaderInfo } from "./get-media-header-info";
-import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
+import {
+  getAuthorsForBooks,
+  getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
+  getSavedForLaterStatusForMedia,
+} from "./shared-queries";
 
 export type NarratorsWithOtherMedia = Awaited<
   ReturnType<typeof getOtherMediaByNarrators>
@@ -29,12 +36,19 @@ export async function getOtherMediaByNarrators(
 
   const mediaIds = flatMapGroups(mediaByNarratorId, (media) => media.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
+  const savedForLater = await getSavedForLaterStatusForMedia(session, mediaIds);
 
   return media.narrators.map((narrator) => ({
     ...narrator,
     media: (mediaByNarratorId[narrator.id] ?? []).map((m) => ({
       ...m,
       narrators: narratorsForMedia[m.id] ?? [],
+      playthroughStatus: playthroughStatuses[m.id] ?? null,
+      isOnSavedShelf: savedForLater.has(m.id),
       book: {
         ...m.book,
         authors: authorsForBooks[m.book.id] ?? [],
@@ -83,7 +97,7 @@ async function getMediaForNarrator(
   withoutAuthorIds: string[],
   limit: number,
 ) {
-  const results = await db
+  const results = await getDb()
     .select({
       id: schema.media.id,
       thumbnails: schema.media.thumbnails,
@@ -166,5 +180,7 @@ async function getMediaForNarrator(
     )
     .limit(limit);
 
-  return results.map(({ authorIds, seriesIds, ...rest }) => rest);
+  return results.map(
+    ({ authorIds: _authorIds, seriesIds: _seriesIds, ...rest }) => rest,
+  );
 }

@@ -1,28 +1,34 @@
-import usePrevious from "@react-hook/previous";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, StyleSheet, TextInput } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import {
+  Gesture,
+  GestureDetector,
+  type PanGesture,
+} from "react-native-gesture-handler";
 import Animated, {
   Easing,
+  SharedValue,
   useAnimatedProps,
+  useAnimatedReaction,
   useAnimatedStyle,
+  useDerivedValue,
+  useFrameCallback,
   useSharedValue,
   withDecay,
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Line, Path, Rect } from "react-native-svg";
-import { scheduleOnRN } from "react-native-worklets";
+import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
+
+import { seekTo } from "@/services/seek-service";
+import * as Player from "@/services/track-player-service";
+import { SeekSource, useTrackPlayer } from "@/stores/track-player";
+import { Colors } from "@/styles/colors";
+import { logBase } from "@/utils/logger";
+
+const log = logBase.extend("scrubber");
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
-
-type Theme = {
-  strong: string;
-  normal: string;
-  dimmed: string;
-  emphasized: string;
-  accent: string;
-  weak: string;
-};
 
 const SPACING = 10; // pixels between ticks
 const FACTOR = SPACING / 5; // 5 seconds per tick
@@ -31,6 +37,10 @@ const WIDTH = Dimensions.get("window").width;
 const HEIGHT = 60;
 const HALF_WIDTH = WIDTH / 2;
 const NUM_TICKS = Math.ceil(WIDTH / SPACING);
+
+const DRIFT_CORRECTION_INTERVAL = 5000;
+
+const DECAY_VELOCITY_CUTOFF = 100;
 
 const clamp = (value: number, lowerBound: number, upperBound: number) => {
   "worklet";
@@ -59,6 +69,7 @@ function friction(value: number) {
 }
 
 function timeToTranslateX(time: number) {
+  "worklet";
   return time * -FACTOR;
 }
 
@@ -94,11 +105,7 @@ function useIsScrubbing() {
   ];
 }
 
-type TicksProps = {
-  theme: Theme;
-};
-
-const Ticks = memo(function Ticks({ theme }: TicksProps) {
+const Ticks = memo(function Ticks() {
   return (
     <Svg height={HEIGHT} width={WIDTH + 120}>
       {Array.from({ length: NUM_TICKS + 12 }, (_, i) => (
@@ -110,10 +117,10 @@ const Ticks = memo(function Ticks({ theme }: TicksProps) {
           y2={i % 12 === 0 ? 40 : i % 6 === 0 ? 32 : 24}
           stroke={
             i % 12 === 0
-              ? theme.emphasized
+              ? colors.emphasized
               : i % 6 === 0
-                ? theme.normal
-                : theme.dimmed
+                ? colors.normal
+                : colors.dimmed
           }
           strokeWidth="1"
         />
@@ -124,10 +131,9 @@ const Ticks = memo(function Ticks({ theme }: TicksProps) {
 
 type MarkersProps = {
   markers: number[];
-  theme: Theme;
 };
 
-const Markers = memo(function Markers({ markers, theme }: MarkersProps) {
+const Markers = memo(function Markers({ markers }: MarkersProps) {
   return markers.map((marker, i) => {
     return (
       <Svg
@@ -137,14 +143,14 @@ const Markers = memo(function Markers({ markers, theme }: MarkersProps) {
         style={[styles.marker, { left: marker * FACTOR }]}
       >
         <Rect
-          x="0"
-          y="0"
+          x="0" // eslint-disable-line @typescript-eslint/no-deprecated
+          y="0" // eslint-disable-line @typescript-eslint/no-deprecated
           rx="2.5"
           ry="2.5"
           height="12"
           width="5"
-          fill={theme.accent}
-          stroke={theme.weak}
+          fill={colors.accent}
+          stroke={colors.weak}
           strokeWidth="2"
         />
       </Svg>
@@ -152,38 +158,55 @@ const Markers = memo(function Markers({ markers, theme }: MarkersProps) {
   });
 });
 
-type ScrubberProps = {
-  position: number;
-  duration: number;
-  playbackRate: number;
-  onChange: (newPosition: number) => void;
-  markers: number[];
-  theme: Theme;
-};
-
-export function Scrubber(props: ScrubberProps) {
-  const {
-    position: positionInput,
-    duration,
-    playbackRate,
-    onChange,
-    markers,
-    theme,
-  } = props;
-  // console.log('RENDERING: Scrubber')
+export const Scrubber = memo(function Scrubber({
+  playerPanGesture,
+  animationSuspended,
+}: {
+  playerPanGesture: PanGesture;
+  animationSuspended: SharedValue<boolean>;
+}) {
+  const { playing } = useTrackPlayer((state) => state.isPlaying);
+  const playbackRate = useTrackPlayer((state) => state.playbackRate);
+  const chapters = useTrackPlayer((state) => state.chapters);
+  const duration = useTrackPlayer((state) => state.progress.duration);
+  const lastSeek = useTrackPlayer((state) => state.lastSeek);
+  const playthroughId = useTrackPlayer((state) => state.playthrough?.id);
+  const markers = chapters?.map((chapter) => chapter.startTime) || [];
   const translateX = useSharedValue(
-    timeToTranslateX(Math.round(positionInput)),
+    timeToTranslateX(Player.getProgress().position),
   );
+  const lastHandledSeekTimestamp = useRef(0);
   const [isScrubbing, setIsScrubbing] = useIsScrubbing();
-  const [isJumping, setIsJumping] = useState(false);
   const maxTranslateX = timeToTranslateX(duration);
-  const previousPosition = usePrevious(positionInput);
-
   const startX = useSharedValue(0);
   const isAnimating = useSharedValue(false);
+  const isAnimatingUserSeek = useSharedValue(false);
   const timecodeOpacity = useSharedValue(0);
+  const lastTimestamp = useSharedValue(0);
+
+  // Snap to new position when playthrough changes
+  useEffect(() => {
+    if (!playthroughId) return;
+
+    const snapToPosition = async () => {
+      try {
+        const { position } = await Player.getAccurateProgress();
+        scheduleOnUI(() => {
+          "worklet";
+          translateX.value = timeToTranslateX(position);
+        });
+      } catch (e) {
+        log.warn("Error snapping to playthrough position:", e);
+      }
+    };
+
+    snapToPosition();
+  }, [playthroughId, translateX]);
 
   const panGestureHandler = Gesture.Pan()
+    .blocksExternalGesture(playerPanGesture)
+    .minDistance(0)
+    .shouldCancelWhenOutside(false)
     .onStart((_event) => {
       scheduleOnRN(setIsScrubbing, true);
       const currentX = translateX.value;
@@ -203,12 +226,27 @@ export function Scrubber(props: ScrubberProps) {
       }
     })
     .onEnd((event) => {
+      const lowVelocity = Math.abs(event.velocityX) < DECAY_VELOCITY_CUTOFF;
+
+      if (lowVelocity) {
+        // Low velocity, leave at current position without decay
+        if (Math.abs(translateX.value - startX.value) >= 1) {
+          // only seek if position changed
+          const newPosition = translateXToTime(translateX.value);
+          scheduleOnRN(seekTo, newPosition, SeekSource.SCRUBBER);
+        }
+        scheduleOnRN(setIsScrubbing, false);
+        return;
+      }
+
       const onFinish = (finished: boolean | undefined) => {
         isAnimating.value = false;
 
         if (finished) {
-          const newPosition = translateXToTime(translateX.value);
-          scheduleOnRN(onChange, newPosition);
+          if (Math.abs(translateX.value - startX.value) !== 0) {
+            const newPosition = translateXToTime(translateX.value);
+            scheduleOnRN(seekTo, newPosition, SeekSource.SCRUBBER);
+          }
           scheduleOnRN(setIsScrubbing, false);
         }
       };
@@ -237,57 +275,56 @@ export function Scrubber(props: ScrubberProps) {
       }
     })
     .onFinalize(() => {
+      // onEnd handles all seeking now; onFinalize just ensures cleanup
       if (!isAnimating.value) {
-        const newPosition = translateXToTime(translateX.value);
-        scheduleOnRN(onChange, newPosition);
         scheduleOnRN(setIsScrubbing, false);
       }
     });
 
-  const animatedScrubberStyle = useAnimatedStyle(() => {
-    const value = translateX.value;
+  // Consolidate all translateX-dependent calculations into one derived value
+  const animatedValues = useDerivedValue(() => {
+    const x = translateX.value;
 
-    if (value < -HALF_WIDTH) {
-      // we're at the end or in the middle somewhere
-      return {
-        transform: [{ translateX: (HALF_WIDTH + value) % (SPACING * 12) }],
-      };
-    } else {
-      // we're at the beginning
-      return {
-        transform: [{ translateX: HALF_WIDTH + value }],
-      };
-    }
-  });
+    // Scrubber transform
+    const scrubberTranslateX =
+      x < -HALF_WIDTH
+        ? (HALF_WIDTH + x) % (SPACING * 12) // end or middle
+        : HALF_WIDTH + x; // beginning
 
-  const animatedMaskStyle = useAnimatedStyle(() => {
-    const value = translateX.value;
-
-    if (value < -HALF_WIDTH && value - HALF_WIDTH <= maxTranslateX) {
+    // Mask width
+    let maskWidth = WIDTH + 120;
+    if (x < -HALF_WIDTH && x - HALF_WIDTH <= maxTranslateX) {
       // we're at the end
-      const translate = (HALF_WIDTH + value) % (SPACING * 12);
-      const diff = maxTranslateX - value;
-      const width = HALF_WIDTH - translate - diff;
-      return {
-        width: width,
-      };
-    } else {
-      // we're at the beginning or in the middle somewhere
-      return {
-        width: WIDTH + 120,
-      };
+      const translate = (HALF_WIDTH + x) % (SPACING * 12);
+      const diff = maxTranslateX - x;
+      maskWidth = HALF_WIDTH - translate - diff;
     }
+
+    // Marker transform
+    const markerTranslateX = HALF_WIDTH + x;
+
+    return {
+      scrubberTranslateX,
+      maskWidth,
+      markerTranslateX,
+    };
   });
 
-  const animatedMarkerStyle = useAnimatedStyle(() => {
-    const value = translateX.value;
+  const animatedScrubberStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: animatedValues.value.scrubberTranslateX }],
+  }));
 
-    return { transform: [{ translateX: HALF_WIDTH + value }] };
-  });
+  const animatedMaskStyle = useAnimatedStyle(() => ({
+    width: animatedValues.value.maskWidth,
+  }));
 
-  const animatedTimecodeStyle = useAnimatedStyle(() => {
-    return { opacity: withTiming(timecodeOpacity.value) };
-  });
+  const animatedMarkerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: animatedValues.value.markerTranslateX }],
+  }));
+
+  const animatedTimecodeStyle = useAnimatedStyle(() => ({
+    opacity: withTiming(timecodeOpacity.value),
+  }));
 
   const animatedTimecodeProps = useAnimatedProps(() => {
     const total = clamp(translateXToTime(translateX.value), 0, duration);
@@ -304,80 +341,206 @@ export function Scrubber(props: ScrubberProps) {
     }
   });
 
+  // Show timecode when scrubbing
   useEffect(() => {
-    timecodeOpacity.value = isScrubbing || isJumping ? 1 : 0;
-  }, [isScrubbing, isJumping, timecodeOpacity]);
+    timecodeOpacity.value = isScrubbing ? 1 : 0;
+  }, [isScrubbing, timecodeOpacity]);
 
+  useFrameCallback((frameInfo) => {
+    "worklet";
+
+    // Pause frame callback during scrubbing or user seek animations or when explicitly paused
+    if (
+      !playing ||
+      isScrubbing ||
+      isAnimatingUserSeek.value ||
+      animationSuspended.value
+    ) {
+      lastTimestamp.value = 0;
+      return;
+    }
+
+    if (lastTimestamp.value > 0) {
+      const deltaSeconds = (frameInfo.timestamp - lastTimestamp.value) / 1000;
+
+      // Advance animation based on playback rate
+      translateX.value -= deltaSeconds * playbackRate * FACTOR;
+
+      // Clamp to valid range
+      translateX.value = clamp(translateX.value, maxTranslateX, 0);
+    }
+
+    lastTimestamp.value = frameInfo.timestamp;
+  });
+
+  // Animate to new position when a seek is applied from outside the scrubber
   useEffect(() => {
+    // Don't run this if there's no seek event
+    if (!lastSeek) return;
+
+    // Don't re-animate for the same seek (effect may re-run due to other deps)
+    if (lastSeek.timestamp === lastHandledSeekTimestamp.current) return;
+
+    // Don't run if the seek wasn't from an external source
+    if (lastSeek.source === SeekSource.SCRUBBER) return;
+
+    // Don't animate while scrubbing (user is controlling the position)
     if (isScrubbing) return;
 
-    const isJump = Math.abs(positionInput - (previousPosition || 0)) > 3;
+    // Mark this seek as handled
+    lastHandledSeekTimestamp.current = lastSeek.timestamp;
 
-    if (!isJump && isJumping) return;
+    const animateToNewPosition = async () => {
+      try {
+        const { position, duration: currentDuration } =
+          await Player.getAccurateProgress();
 
-    if (isJump) {
-      // jump / exponential animation
-      setIsJumping(true);
-      translateX.value = withTiming(
-        timeToTranslateX(positionInput),
-        {
-          duration: 400,
-          easing: Easing.out(Easing.exp),
-        },
-        (completed) => completed && scheduleOnRN(setIsJumping, false),
-      );
-    } else {
-      // playing / linear animation
-      translateX.value = withTiming(timeToTranslateX(positionInput), {
-        duration: 1000 / playbackRate,
-        easing: Easing.linear,
-      });
-    }
+        // When playing, account for the animation duration - animate to where
+        // playback will be when the animation completes, not where it is now
+        const animationDurationSeconds = 0.4;
+        const targetPosition = playing
+          ? Math.min(
+              position + animationDurationSeconds * playbackRate,
+              currentDuration,
+            )
+          : position;
+
+        scheduleOnUI(() => {
+          "worklet";
+          isAnimatingUserSeek.value = true;
+          translateX.value = withTiming(
+            timeToTranslateX(targetPosition),
+            {
+              duration: 400,
+              easing: Easing.out(Easing.exp),
+            },
+            () => {
+              isAnimatingUserSeek.value = false;
+            },
+          );
+        });
+      } catch (e) {
+        // Player might not be ready, ignore
+        log.warn("Error getting progress for seek animation:", e);
+      }
+    };
+
+    animateToNewPosition();
   }, [
-    translateX,
     isScrubbing,
-    positionInput,
-    previousPosition,
+    translateX,
+    isAnimatingUserSeek,
+    lastSeek,
+    playing,
     playbackRate,
-    isJumping,
   ]);
+
+  // Periodic drift correction - check every 5 seconds without causing re-renders
+  // Only runs while playing and not scrubbing
+  useEffect(() => {
+    // Don't run drift correction while scrubbing or paused
+    if (isScrubbing || !playing) return;
+
+    const checkDrift = async () => {
+      if (isAnimatingUserSeek.value || animationSuspended.value) return;
+
+      try {
+        const { position } = await Player.getAccurateProgress();
+        const animatedPos = translateXToTime(translateX.value);
+        const drift = Math.abs(animatedPos - position);
+
+        // Snap if drifted more than 500ms
+        if (drift > 0.5) {
+          log.debug(
+            `Drift detected: ${drift.toFixed(2)}s, correcting animation position.`,
+          );
+          translateX.value = timeToTranslateX(position);
+        }
+      } catch {
+        // TrackPlayer not ready, ignore
+      }
+    };
+
+    // Check immediately on mount/state change
+    checkDrift();
+
+    // Then check periodically
+    const intervalId = setInterval(checkDrift, DRIFT_CORRECTION_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [
+    isScrubbing,
+    playing,
+    translateX,
+    isAnimatingUserSeek,
+    animationSuspended,
+  ]);
+
+  // When un-paused, immediately sync to the correct position
+  const syncPosition = useCallback(async () => {
+    const { position } = await Player.getAccurateProgress();
+    scheduleOnUI(() => {
+      "worklet";
+      translateX.value = timeToTranslateX(position);
+    });
+  }, [translateX]);
+
+  useAnimatedReaction(
+    () => animationSuspended.value,
+    (paused, wasPaused) => {
+      if (wasPaused === true && paused === false) {
+        scheduleOnRN(syncPosition);
+      }
+    },
+    [animationSuspended, syncPosition],
+  );
 
   return (
     <GestureDetector gesture={panGestureHandler}>
-      <Animated.View>
+      <Animated.View style={styles.container}>
         <AnimatedTextInput
           animatedProps={animatedTimecodeProps}
-          style={[
-            styles.timecode,
-            { color: theme.strong },
-            animatedTimecodeStyle,
-          ]}
+          style={[styles.timecode, animatedTimecodeStyle]}
           editable={false}
         />
         <Svg style={styles.indicator} height="8" width="8" viewBox="0 0 8 8">
           <Path
             d="m 0.17 0 c -1 -0 2.83 8 3.83 8 c 1 0 4.83 -8 3.83 -8 z"
-            fill={theme.strong}
-            stroke={theme.weak}
+            fill={colors.strong}
+            stroke={colors.weak}
             strokeWidth="1"
           />
         </Svg>
 
         <Animated.View style={[styles.scrubber, animatedScrubberStyle]}>
           <Animated.View style={[styles.mask, animatedMaskStyle]}>
-            <Ticks theme={theme} />
+            <Ticks />
           </Animated.View>
         </Animated.View>
 
         <Animated.View style={[styles.markers, animatedMarkerStyle]}>
-          <Markers markers={markers} theme={theme} />
+          <Markers markers={markers} />
         </Animated.View>
       </Animated.View>
     </GestureDetector>
   );
-}
+});
+
+const colors = {
+  accent: Colors.lime[400],
+  strong: Colors.zinc[100],
+  emphasized: Colors.zinc[200],
+  normal: Colors.zinc[400],
+  dimmed: Colors.zinc[500],
+  weak: Colors.zinc[800],
+};
 
 const styles = StyleSheet.create({
+  container: {
+    marginTop: -10,
+    paddingTop: 10,
+    backgroundColor: "transparent",
+  },
   timecode: {
     fontWeight: "300",
     fontSize: 16,
@@ -385,6 +548,7 @@ const styles = StyleSheet.create({
     marginBottom: -6,
     textAlign: "center",
     fontVariant: ["tabular-nums"],
+    color: colors.strong,
   },
   indicator: {
     left: HALF_WIDTH - 3.75,

@@ -1,12 +1,19 @@
-import { FadeInOnMount, Loading, SeriesBookTile } from "@/src/components";
-import { PAGE_SIZE } from "@/src/constants";
-import { getSeriesBooksPage, getSeriesDetails } from "@/src/db/library";
-import { useLibraryData } from "@/src/hooks/use-library-data";
-import { usePaginatedLibraryData } from "@/src/hooks/use-paginated-library-data";
-import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
-import { Session } from "@/src/stores/session";
 import { FlatList, StyleSheet } from "react-native";
-import { Header } from "./series-screen";
+
+import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { Loading } from "@/components/Loading";
+import { SeriesBookTile } from "@/components/Tiles";
+import { PAGE_SIZE } from "@/constants";
+import {
+  getSeriesBooksPage,
+  getSeriesDetails,
+  useLibraryData,
+  usePaginatedLibraryData,
+} from "@/services/library-service";
+import { usePullToRefresh } from "@/services/sync-service";
+import { Session } from "@/types/session";
+
+import { Header } from "./series-screen/Header";
 
 type SeriesScreenProps = {
   seriesId: string;

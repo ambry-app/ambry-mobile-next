@@ -1,12 +1,16 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
-import { flatMapGroups } from "@/src/utils";
 import { and, desc, eq, lt } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/types/session";
+import { flatMapGroups } from "@/utils/flat-map-groups";
+
 import {
   getAuthorsForBooks,
   getMediaForBooks,
   getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
+  getSavedForLaterStatusForMedia,
 } from "./shared-queries";
 
 export async function getBooksByAuthorPage(
@@ -23,6 +27,11 @@ export async function getBooksByAuthorPage(
 
   const mediaIds = flatMapGroups(mediaForBooks, (media) => media.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
+  const savedForLater = await getSavedForLaterStatusForMedia(session, mediaIds);
 
   return books.map((book) => ({
     ...book,
@@ -30,6 +39,8 @@ export async function getBooksByAuthorPage(
     media: (mediaForBooks[book.id] ?? []).map((media) => ({
       ...media,
       narrators: narratorsForMedia[media.id] ?? [],
+      playthroughStatus: playthroughStatuses[media.id] ?? null,
+      isOnSavedShelf: savedForLater.has(media.id),
     })),
   }));
 }
@@ -40,7 +51,7 @@ async function getBooks(
   limit: number,
   publishedBefore?: Date,
 ) {
-  return db
+  return getDb()
     .select({
       id: schema.books.id,
       title: schema.books.title,

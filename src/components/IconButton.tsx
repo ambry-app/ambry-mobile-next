@@ -1,4 +1,3 @@
-import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import {
   StyleProp,
   StyleSheet,
@@ -6,6 +5,8 @@ import {
   View,
   ViewStyle,
 } from "react-native";
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+
 import { Loading } from "./Loading";
 
 type IconButtonProps = {
@@ -18,6 +19,7 @@ type IconButtonProps = {
   onLongPress?: () => void;
   children?: React.ReactNode;
   solid?: boolean;
+  testID?: string;
 };
 
 export function IconButton(props: IconButtonProps) {
@@ -34,7 +36,11 @@ export function IconButton(props: IconButtonProps) {
   } = props;
 
   return (
-    <TouchableOpacity onPress={onPress} onLongPress={onLongPress}>
+    <TouchableOpacity
+      onPress={onPress}
+      onLongPress={onLongPress}
+      testID={props.testID}
+    >
       <View style={[styles.container, { padding: size / 2 }, style]}>
         {/* NOTE: for some reason the some icons get cut off when height and
         width is exactly equal to the icon size */}

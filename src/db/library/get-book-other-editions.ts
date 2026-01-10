@@ -1,9 +1,15 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/types/session";
+
 import { MediaHeaderInfo } from "./get-media-header-info";
-import { getNarratorsForMedia } from "./shared-queries";
+import {
+  getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
+  getSavedForLaterStatusForMedia,
+} from "./shared-queries";
 
 export type BookOtherEditions = Awaited<
   ReturnType<typeof getBookOtherEditions>
@@ -21,12 +27,19 @@ export async function getBookOtherEditions(
 
   const mediaIds = otherMedia.map((m) => m.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
+  const savedForLater = await getSavedForLaterStatusForMedia(session, mediaIds);
 
   return {
     ...book,
     media: otherMedia.map((media) => ({
       ...media,
       narrators: narratorsForMedia[media.id] ?? [],
+      playthroughStatus: playthroughStatuses[media.id] ?? null,
+      isOnSavedShelf: savedForLater.has(media.id),
     })),
   };
 }
@@ -37,7 +50,7 @@ async function getOtherMedia(
   withoutMediaId: string,
   limit: number,
 ) {
-  return db
+  return getDb()
     .select({
       id: schema.media.id,
       thumbnails: schema.media.thumbnails,

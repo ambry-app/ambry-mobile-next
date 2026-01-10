@@ -1,8 +1,9 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
-import { requireValue } from "@/src/utils";
 import { and, eq } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/types/session";
+import { requireValue } from "@/utils/require-value";
 
 export type NarratorHeaderInfo = Awaited<
   ReturnType<typeof getNarratorHeaderInfo>
@@ -12,7 +13,7 @@ export async function getNarratorHeaderInfo(
   session: Session,
   narratorId: string,
 ) {
-  const narrator = await db.query.narrators.findFirst({
+  const narrator = await getDb().query.narrators.findFirst({
     columns: {
       id: true,
       name: true,

@@ -1,10 +1,4 @@
-import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
-import useLoadMediaCallback from "@/src/hooks/use-load-media-callback";
-import useNavigateToBookCallback from "@/src/hooks/use-navigate-to-book-callback";
-import { Session } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
-import { router } from "expo-router";
-import React from "react";
+import React, { useCallback } from "react";
 import {
   Pressable,
   StyleProp,
@@ -13,11 +7,47 @@ import {
   View,
   ViewStyle,
 } from "react-native";
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+import { router } from "expo-router";
+
+import {
+  DownloadedThumbnails,
+  PlaythroughStatus,
+  PlaythroughWithMedia,
+  Thumbnails,
+} from "@/services/library-service";
+import { Colors } from "@/styles/colors";
+import { useNavigateToBookCallback } from "@/utils/hooks";
+
 import { BookDetailsText } from "./BookDetailsText";
-import { IconButton } from "./IconButton";
 import { MultiThumbnailImage } from "./MultiThumbnailImage";
 import { ProgressBar } from "./ProgressBar";
 import { ThumbnailImage } from "./ThumbnailImage";
+
+/**
+ * Get the most relevant playthrough status from a list of media.
+ * Priority: in_progress > finished > abandoned
+ */
+function getBestPlaythroughStatus(
+  media: { playthroughStatus?: PlaythroughStatus | null }[],
+): PlaythroughStatus | null {
+  const statuses = media
+    .map((m) => m.playthroughStatus)
+    .filter((s): s is PlaythroughStatus => s != null);
+  if (statuses.includes("in_progress")) return "in_progress";
+  if (statuses.includes("finished")) return "finished";
+  if (statuses.includes("abandoned")) return "abandoned";
+  return null;
+}
+
+/**
+ * Check if any media in a list is on the saved-for-later shelf.
+ */
+function isAnyMediaOnSavedShelf(
+  media: { isOnSavedShelf?: boolean }[],
+): boolean {
+  return media.some((m) => m.isOnSavedShelf);
+}
 
 type Media = {
   id: string;
@@ -28,6 +58,8 @@ type Media = {
   download?: {
     thumbnails: DownloadedThumbnails | null;
   } | null;
+  playthroughStatus?: PlaythroughStatus | null;
+  isOnSavedShelf?: boolean;
 };
 
 type Book = {
@@ -43,29 +75,20 @@ type SeriesBook = {
   bookNumber: string;
 };
 
-type PlayerState = {
-  position: number;
-  playbackRate: number;
-};
-
 type MediaProp = Media & { book: Book };
 type BookProp = Book & { media: Media[] };
 type SeriesBookProp = SeriesBook & { book: BookProp };
-type PlayerStateWithMediaProp = PlayerState & {
-  media: MediaProp & {
-    duration: string | null;
-  };
-};
 
-type MediaTileProps = { media: MediaProp; style?: StyleProp<ViewStyle> };
-type BookTileProps = { book: BookProp; style?: StyleProp<ViewStyle> };
-type SeriesBookTileProps = {
-  seriesBook: SeriesBookProp;
+type MediaTileProps = {
+  media: MediaProp;
   style?: StyleProp<ViewStyle>;
 };
-type PlayerStateTileProps = {
-  session: Session;
-  playerState: PlayerStateWithMediaProp;
+type BookTileProps = {
+  book: BookProp;
+  style?: StyleProp<ViewStyle>;
+};
+type SeriesBookTileProps = {
+  seriesBook: SeriesBookProp;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -74,11 +97,15 @@ type TileProps = {
   media: Media[];
   seriesBook?: SeriesBook;
   style?: StyleProp<ViewStyle>;
+  playthroughStatus?: PlaythroughStatus | null;
+  isOnSavedShelf?: boolean;
 };
 
 type TileImageProps = {
   media: Media[];
   seriesBook?: SeriesBook;
+  playthroughStatus?: PlaythroughStatus | null;
+  isOnSavedShelf?: boolean;
 };
 
 type TileTextProps = {
@@ -95,16 +122,36 @@ type PersonTileProps = {
   style?: StyleProp<ViewStyle>;
 };
 
+type PlaythroughTileProps = {
+  playthrough: PlaythroughWithMedia;
+  style?: StyleProp<ViewStyle>;
+};
+
 export const MediaTile = React.memo(function MediaTile(props: MediaTileProps) {
   const { media, style } = props;
-  const tile = <Tile book={media.book} media={[media]} style={style} />;
-  return tile;
+  return (
+    <Tile
+      book={media.book}
+      media={[media]}
+      style={style}
+      playthroughStatus={media.playthroughStatus}
+      isOnSavedShelf={media.isOnSavedShelf}
+    />
+  );
 });
 
 export const BookTile = React.memo(function BookTile(props: BookTileProps) {
   const { book, style } = props;
   if (book.media.length === 0) return null;
-  return <Tile book={book} media={book.media} style={style} />;
+  return (
+    <Tile
+      book={book}
+      media={book.media}
+      style={style}
+      playthroughStatus={getBestPlaythroughStatus(book.media)}
+      isOnSavedShelf={isAnyMediaOnSavedShelf(book.media)}
+    />
+  );
 });
 
 export const SeriesBookTile = React.memo(function SeriesBookTile(
@@ -118,18 +165,26 @@ export const SeriesBookTile = React.memo(function SeriesBookTile(
       media={seriesBook.book.media}
       seriesBook={seriesBook}
       style={style}
+      playthroughStatus={getBestPlaythroughStatus(seriesBook.book.media)}
+      isOnSavedShelf={isAnyMediaOnSavedShelf(seriesBook.book.media)}
     />
   );
 });
 
 export const Tile = React.memo(function Tile(props: TileProps) {
-  const { book, media, seriesBook, style } = props;
+  const { book, media, seriesBook, style, playthroughStatus, isOnSavedShelf } =
+    props;
   const navigateToBook = useNavigateToBookCallback(book, media);
 
   return (
     <Pressable onPress={navigateToBook}>
       <View style={[styles.container, style]}>
-        <TileImage media={media} seriesBook={seriesBook} />
+        <TileImage
+          media={media}
+          seriesBook={seriesBook}
+          playthroughStatus={playthroughStatus}
+          isOnSavedShelf={isOnSavedShelf}
+        />
         <TileText book={book} media={media} />
       </View>
     </Pressable>
@@ -137,7 +192,7 @@ export const Tile = React.memo(function Tile(props: TileProps) {
 });
 
 export const TileImage = React.memo(function TileImage(props: TileImageProps) {
-  const { media, seriesBook } = props;
+  const { media, seriesBook, playthroughStatus, isOnSavedShelf } = props;
 
   return (
     <View style={styles.tileImageContainer}>
@@ -146,14 +201,51 @@ export const TileImage = React.memo(function TileImage(props: TileImageProps) {
           Book {seriesBook.bookNumber}
         </Text>
       )}
-      <MultiThumbnailImage
-        thumbnailPairs={media.map((m) => ({
-          thumbnails: m.thumbnails,
-          downloadedThumbnails: m.download?.thumbnails || null,
-        }))}
-        size="large"
-        style={styles.bookThumbnail}
-      />
+      <View>
+        <MultiThumbnailImage
+          thumbnailPairs={media.map((m) => ({
+            thumbnails: m.thumbnails,
+            downloadedThumbnails: m.download?.thumbnails || null,
+          }))}
+          size="large"
+          style={styles.bookThumbnail}
+        />
+        {isOnSavedShelf && <SavedForLaterBadge />}
+        {playthroughStatus && (
+          <PlaythroughStatusBadge status={playthroughStatus} />
+        )}
+      </View>
+    </View>
+  );
+});
+
+type PlaythroughStatusBadgeProps = {
+  status: PlaythroughStatus;
+};
+
+const PlaythroughStatusBadge = React.memo(function PlaythroughStatusBadge(
+  props: PlaythroughStatusBadgeProps,
+) {
+  const { status } = props;
+
+  const iconName =
+    status === "finished"
+      ? "check"
+      : status === "in_progress"
+        ? "book-open"
+        : "xmark"; // abandoned
+
+  return (
+    <View style={styles.badge}>
+      <FontAwesome6 name={iconName} size={18} color={Colors.zinc[300]} solid />
+    </View>
+  );
+});
+
+const SavedForLaterBadge = React.memo(function SavedForLaterBadge() {
+  return (
+    <View style={styles.savedBadge}>
+      <FontAwesome6 name="bookmark" size={18} color={Colors.zinc[300]} solid />
     </View>
   );
 });
@@ -214,46 +306,43 @@ export const PersonTile = React.memo(function PersonTile(
   );
 });
 
-export const PlayerStateTile = React.memo(function PlayerStateTile(
-  props: PlayerStateTileProps,
+export const PlaythroughTile = React.memo(function PlaythroughTile(
+  props: PlaythroughTileProps,
 ) {
-  const { playerState, style, session } = props;
-  const loadMedia = useLoadMediaCallback(session, playerState.media.id);
-  const duration = playerState.media.duration
-    ? Number(playerState.media.duration)
+  const { playthrough, style } = props;
+  const duration = playthrough.media.duration
+    ? Number(playthrough.media.duration)
     : false;
-  const percent = duration ? (playerState.position / duration) * 100 : false;
+  const percent = duration ? (playthrough.position / duration) * 100 : false;
+
+  const navigateToMedia = useCallback(() => {
+    router.navigate({
+      pathname: "/media/[id]",
+      params: {
+        id: playthrough.media.id,
+        title: playthrough.media.book.title,
+      },
+    });
+  }, [playthrough.media.id, playthrough.media.book.title]);
 
   return (
-    <Pressable onPress={loadMedia}>
-      <View style={[styles.playerStateTileContainer, style]}>
+    <Pressable onPress={navigateToMedia}>
+      <View style={[styles.playthroughContainer, style]}>
         <View>
-          <View style={styles.playerStateThumbnailContainer}>
-            <ThumbnailImage
-              thumbnails={playerState.media.thumbnails}
-              downloadedThumbnails={playerState.media.download?.thumbnails}
-              size="large"
-              style={styles.playerStateThumbnail}
-            />
-            <IconButton
-              icon="play"
-              size={32}
-              style={styles.playButton}
-              iconStyle={styles.playButtonIcon}
-              color={Colors.zinc[100]}
-              onPress={loadMedia}
-            />
-          </View>
-          {duration !== false && (
-            <ProgressBar position={playerState.position} duration={duration} />
-          )}
+          <ThumbnailImage
+            thumbnails={playthrough.media.thumbnails}
+            downloadedThumbnails={playthrough.media.download?.thumbnails}
+            size="large"
+            style={styles.playthroughThumbnail}
+          />
+          {percent !== false && <ProgressBar percent={percent} />}
           {percent !== false && (
             <Text style={styles.progressText} numberOfLines={1}>
               {percent.toFixed(1)}%
             </Text>
           )}
         </View>
-        <TileText book={playerState.media.book} media={[playerState.media]} />
+        <TileText book={playthrough.media.book} media={[playthrough.media]} />
       </View>
     </Pressable>
   );
@@ -264,7 +353,7 @@ const styles = StyleSheet.create({
     display: "flex",
     gap: 12,
   },
-  playerStateTileContainer: {
+  playthroughContainer: {
     display: "flex",
     gap: 4,
   },
@@ -276,38 +365,14 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 8,
   },
-  playerStateThumbnailContainer: {
-    position: "relative",
-    width: "100%",
-    aspectRatio: 1,
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  playerStateThumbnail: {
-    position: "absolute",
-    width: "100%",
-    aspectRatio: 1,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-  },
-  playButton: {
-    elevation: 4,
-    backgroundColor: Colors.zinc[900],
-    borderRadius: 999,
-  },
-  playButtonIcon: {
-    // play button looks off center, so we need to adjust it a bit
-    transform: [{ translateX: 2 }],
-  },
-  progressText: {
-    fontSize: 14,
-    color: Colors.zinc[400],
-    textAlign: "center",
-  },
   personThumbnail: {
     aspectRatio: 1,
     borderRadius: 999,
+  },
+  playthroughThumbnail: {
+    aspectRatio: 1,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
   },
   bookNumber: {
     fontSize: 16,
@@ -329,5 +394,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.zinc[400],
     textAlign: "center",
+  },
+  progressText: {
+    fontSize: 14,
+    color: Colors.zinc[400],
+    textAlign: "center",
+  },
+  badge: {
+    position: "absolute",
+    bottom: 6,
+    right: 6,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.zinc[800],
+    borderWidth: 0.5,
+    borderColor: Colors.zinc[900],
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  savedBadge: {
+    position: "absolute",
+    bottom: 6,
+    left: 6,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.zinc[800],
+    borderWidth: 0.5,
+    borderColor: Colors.zinc[900],
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

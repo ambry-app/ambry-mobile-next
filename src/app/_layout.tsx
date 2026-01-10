@@ -1,21 +1,28 @@
-import { Loading, MeasureScreenHeight, ScreenCentered } from "@/src/components";
-import { expoDb } from "@/src/db/db";
-import { useAppBoot } from "@/src/hooks/use-app-boot";
-import { usePlayer } from "@/src/stores/player";
-import { useSession } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
-import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
-import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
-import * as Sentry from "@sentry/react-native";
-import "core-js/actual/object/group-by";
-import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
-import { Stack, useNavigationContainerRef } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { StyleSheet, Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
+import * as Sentry from "@sentry/react-native";
+import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
+import { Stack, useNavigationContainerRef } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+
+import { Loading } from "@/components/Loading";
+import { MeasureScreenHeight } from "@/components/MeasureScreenHeight";
+import { ScreenCentered } from "@/components/ScreenCentered";
+import { getExpoDb } from "@/db/db";
+import { useAppBoot } from "@/services/boot-service";
+import { useRefreshLibraryDataVersion } from "@/services/data-version-service";
+import { useForegroundSync } from "@/services/sync-service";
+import { useSession } from "@/stores/session";
+import { useTrackPlayer } from "@/stores/track-player";
+import { Colors } from "@/styles/colors";
+import { useAppState } from "@/utils/hooks";
+
+import "core-js/actual/object/group-by";
 
 SplashScreen.preventAutoHideAsync();
 SplashScreen.setOptions({
@@ -98,13 +105,17 @@ function RootStackLayout() {
 }
 
 function DrizzleStudio() {
-  useDrizzleStudio(expoDb);
+  useDrizzleStudio(getExpoDb());
   return null;
 }
 
 function RootStack() {
   const isLoggedIn = useSession((state) => !!state.session);
-  const playerLoaded = usePlayer((state) => !!state.mediaId);
+  const playerLoaded = useTrackPlayer((state) => !!state.playthrough);
+
+  const appState = useAppState();
+  useForegroundSync(appState);
+  useRefreshLibraryDataVersion(appState);
 
   return (
     <Stack>
@@ -115,10 +126,8 @@ function RootStack() {
           <Stack.Screen name="playback-rate" options={modalOptions} />
           <Stack.Screen name="chapter-select" options={chapterSelectOptions} />
         </Stack.Protected>
-        <Stack.Screen
-          name="download-actions-modal/[id]"
-          options={modalOptions}
-        />
+        <Stack.Screen name="resume-prompt" options={modalOptions} />
+        <Stack.Screen name="mark-finished-prompt" options={modalOptions} />
       </Stack.Protected>
       <Stack.Protected guard={!isLoggedIn}>
         <Stack.Screen name="sign-in" options={{ headerShown: false }} />

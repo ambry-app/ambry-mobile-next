@@ -1,18 +1,18 @@
-import { Colors } from "@/src/styles";
 import { StyleSheet, View } from "react-native";
 
+import { Colors } from "@/styles/colors";
+
 type ProgressBarProps = {
-  position: number;
-  duration: number;
+  percent: number;
 };
 
-export function ProgressBar(props: ProgressBarProps) {
-  const { position, duration } = props;
-  const percent = duration > 0 ? (position / duration) * 100 : 0;
-
+export function ProgressBar({ percent }: ProgressBarProps) {
   return (
     <View style={styles.progressBar}>
-      <View style={[styles.progressBarFill, { width: `${percent}%` }]}></View>
+      <View
+        style={[styles.progressBarFill, { width: `${percent}%` }]}
+        testID={"progress-bar-fill"}
+      ></View>
     </View>
   );
 }

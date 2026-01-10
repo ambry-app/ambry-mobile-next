@@ -1,10 +1,11 @@
-import { FadeInOnMount } from "@/src/components";
-import { useDownloadedMedia } from "@/src/hooks/use-downloaded-media";
-import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
-import { Session } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
 import { FlatList, StyleSheet, Text } from "react-native";
-import { DownloadRow } from "./downloads-screen";
+
+import { useDownloadedMedia } from "@/services/library-service";
+import { usePullToRefresh } from "@/services/sync-service";
+import { Colors } from "@/styles/colors";
+import { Session } from "@/types/session";
+
+import { DownloadRow } from "./downloads-screen/DownloadRow";
 
 export function DownloadsScreen({ session }: { session: Session }) {
   const media = useDownloadedMedia(session);
@@ -24,11 +25,7 @@ export function DownloadsScreen({ session }: { session: Session }) {
     <FlatList
       data={media}
       keyExtractor={(media) => media.id}
-      renderItem={({ item }) => (
-        <FadeInOnMount>
-          <DownloadRow media={item} />
-        </FadeInOnMount>
-      )}
+      renderItem={({ item }) => <DownloadRow media={item} session={session} />}
       refreshing={refreshing}
       onRefresh={onRefresh}
     />

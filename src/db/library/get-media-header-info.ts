@@ -1,8 +1,9 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
-import { requireValue } from "@/src/utils";
 import { and, asc, eq } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/types/session";
+import { requireValue } from "@/utils/require-value";
 
 export type MediaHeaderInfo = Awaited<ReturnType<typeof getMediaHeaderInfo>>;
 
@@ -24,14 +25,13 @@ export async function getMediaHeaderInfo(session: Session, mediaId: string) {
 }
 
 async function getMedia(session: Session, mediaId: string) {
-  const rows = await db
+  const rows = await getDb()
     .select({
       id: schema.media.id,
       fullCast: schema.media.fullCast,
       abridged: schema.media.abridged,
       thumbnails: schema.media.thumbnails,
       duration: schema.media.duration,
-      mp4Path: schema.media.mp4Path,
       description: schema.media.description,
       published: schema.media.published,
       publishedFormat: schema.media.publishedFormat,
@@ -69,7 +69,7 @@ async function getMedia(session: Session, mediaId: string) {
 }
 
 async function getNarrators(session: Session, mediaId: string) {
-  return await db
+  return await getDb()
     .select({
       id: schema.narrators.id,
       name: schema.narrators.name,
@@ -103,7 +103,7 @@ async function getNarrators(session: Session, mediaId: string) {
 }
 
 async function getAuthors(session: Session, bookId: string) {
-  return db
+  return getDb()
     .select({
       id: schema.authors.id,
       name: schema.authors.name,
@@ -137,7 +137,7 @@ async function getAuthors(session: Session, bookId: string) {
 }
 
 async function getSeries(session: Session, bookId: string) {
-  return await db
+  return await getDb()
     .select({
       id: schema.series.id,
       bookNumber: schema.seriesBooks.bookNumber,

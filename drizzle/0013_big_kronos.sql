@@ -1,0 +1,1 @@
+ALTER TABLE `local_user_settings` ADD `sleep_timer_trigger_time` integer;

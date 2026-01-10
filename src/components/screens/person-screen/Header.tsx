@@ -1,6 +1,8 @@
-import { Description, ThumbnailImage } from "@/src/components";
-import { PersonHeaderInfo } from "@/src/db/library";
 import { StyleSheet, View } from "react-native";
+
+import { Description } from "@/components/Description";
+import { ThumbnailImage } from "@/components/ThumbnailImage";
+import { PersonHeaderInfo } from "@/services/library-service";
 
 type HeaderProps = {
   person: PersonHeaderInfo;

@@ -1,35 +1,44 @@
-import { usePlayer } from "@/src/stores/player";
-import { Colors } from "@/src/styles";
-import { secondsDisplay } from "@/src/utils";
+import { memo } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { useShallow } from "zustand/react/shallow";
+
+import { useSeekUIState } from "@/stores/seek-ui-state";
+import { useTrackPlayer } from "@/stores/track-player";
+import { Colors } from "@/styles/colors";
+import { secondsDisplay } from "@/utils/time";
+
 import { ProgressBar } from "./ProgressBar";
 
-export function PlayerProgressBar() {
-  const { position, duration, playbackRate } = usePlayer(
-    useShallow(({ position, duration, playbackRate }) => ({
-      position,
-      duration,
-      playbackRate,
-    })),
-  );
-  const percent = duration > 0 ? (position / duration) * 100 : 0;
+export const PlayerProgressBar = memo(function PlayerProgressBar() {
+  const seekPosition = useSeekUIState((state) => state.seekPosition);
+  const progress = useTrackPlayer((state) => state.progress);
+  const playbackRate = useTrackPlayer((state) => state.playbackRate);
+
+  // Use seekPosition if available (during seek accumulation), otherwise use position
+  const displayPosition = seekPosition ?? progress.position;
+  const displayPercent = seekPosition
+    ? (seekPosition / progress.duration) * 100
+    : progress.percent;
 
   return (
     <View>
-      <ProgressBar position={position} duration={duration} />
+      <ProgressBar percent={displayPercent} />
       <View style={styles.timeDisplayRow}>
-        <Text style={styles.timeDisplayText}>{secondsDisplay(position)}</Text>
         <Text style={styles.timeDisplayText}>
-          -{secondsDisplay(Math.max(duration - position, 0) / playbackRate)}
+          {secondsDisplay(displayPosition)}
+        </Text>
+        <Text style={styles.timeDisplayText}>
+          -
+          {secondsDisplay(
+            Math.max(progress.duration - displayPosition, 0) / playbackRate,
+          )}
         </Text>
         <Text style={[styles.timeDisplayText, styles.percentText]}>
-          {percent.toFixed(1)}%
+          {displayPercent.toFixed(1)}%
         </Text>
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   timeDisplayRow: {

@@ -1,4 +1,4 @@
-import { requestExpandPlayer } from "@/src/stores/player";
+import { expandPlayer } from "@/services/playback-controls";
 
 type PathArgs = {
   path: string;
@@ -7,7 +7,7 @@ type PathArgs = {
 
 export function redirectSystemPath({ path }: PathArgs) {
   if (path === "trackplayer://notification.click") {
-    requestExpandPlayer();
+    expandPlayer();
     return null;
   } else {
     return path;

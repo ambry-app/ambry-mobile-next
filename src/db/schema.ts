@@ -9,6 +9,11 @@ import {
   text,
 } from "drizzle-orm/sqlite-core";
 
+import {
+  DEFAULT_SLEEP_TIMER_ENABLED,
+  DEFAULT_SLEEP_TIMER_SECONDS,
+} from "@/constants";
+
 export type Thumbnails = {
   extraLarge: string;
   large: string;
@@ -394,14 +399,159 @@ export const localPlayerStatesRelations = relations(
   }),
 );
 
+// =============================================================================
+// Playthrough Event Sourcing (new sync model)
+// =============================================================================
+
+export type PlaythroughStatus = "in_progress" | "finished" | "abandoned";
+export type PlaybackEventType =
+  | "start"
+  | "play"
+  | "pause"
+  | "seek"
+  | "rate_change"
+  | "finish"
+  | "abandon"
+  | "resume";
+
+// Represents a user's journey through a book (from start to finish/abandon)
+export const playthroughs = sqliteTable(
+  "playthroughs",
+  {
+    id: text("id").notNull(),
+    url: text("url").notNull(),
+    userEmail: text("user_email").notNull(),
+    mediaId: text("media_id").notNull(),
+    status: text("status", {
+      enum: ["in_progress", "finished", "abandoned"],
+    })
+      .notNull()
+      .default("in_progress"),
+    startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull(),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+    abandonedAt: integer("abandoned_at", { mode: "timestamp_ms" }),
+    deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+    syncedAt: integer("synced_at", { mode: "timestamp_ms" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.url, table.id] }),
+    foreignKey({
+      columns: [table.url, table.mediaId],
+      foreignColumns: [media.url, media.id],
+    }).onDelete("cascade"),
+    index("playthroughs_user_media_idx").on(
+      table.url,
+      table.userEmail,
+      table.mediaId,
+    ),
+    index("playthroughs_synced_at_idx").on(table.syncedAt),
+  ],
+);
+
+export const playthroughsRelations = relations(
+  playthroughs,
+  ({ one, many }) => ({
+    media: one(media, {
+      fields: [playthroughs.url, playthroughs.mediaId],
+      references: [media.url, media.id],
+    }),
+    events: many(playbackEvents),
+    stateCache: one(playthroughStateCache, {
+      fields: [playthroughs.id],
+      references: [playthroughStateCache.playthroughId],
+    }),
+  }),
+);
+
+// Immutable record of something that happened during playback
+export const playbackEvents = sqliteTable(
+  "playback_events",
+  {
+    id: text("id").primaryKey(),
+    playthroughId: text("playthrough_id").notNull(),
+    deviceId: text("device_id"),
+    type: text("type", {
+      enum: [
+        "start",
+        "play",
+        "pause",
+        "seek",
+        "rate_change",
+        "finish",
+        "abandon",
+        "resume",
+      ],
+    }).notNull(),
+    timestamp: integer("timestamp", { mode: "timestamp_ms" }).notNull(),
+    // position/playbackRate required for playback events, null for lifecycle events
+    position: real("position"),
+    playbackRate: real("playback_rate"),
+    // seek only
+    fromPosition: real("from_position"),
+    toPosition: real("to_position"),
+    // rate_change only
+    previousRate: real("previous_rate"),
+    syncedAt: integer("synced_at", { mode: "timestamp_ms" }),
+  },
+  (table) => [
+    index("playback_events_playthrough_timestamp_idx").on(
+      table.playthroughId,
+      table.timestamp,
+    ),
+    index("playback_events_synced_at_idx").on(table.syncedAt),
+  ],
+);
+
+export const playbackEventsRelations = relations(playbackEvents, ({ one }) => ({
+  playthrough: one(playthroughs, {
+    fields: [playbackEvents.playthroughId],
+    references: [playthroughs.id],
+  }),
+}));
+
+// Derived state cache for fast queries (computed from events)
+export const playthroughStateCache = sqliteTable("playthrough_state_cache", {
+  playthroughId: text("playthrough_id").primaryKey(),
+  currentPosition: real("current_position").notNull(),
+  currentRate: real("current_rate").notNull(),
+  lastEventAt: integer("last_event_at", { mode: "timestamp_ms" }).notNull(),
+  totalListeningTime: real("total_listening_time"),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+export const playthroughStateCacheRelations = relations(
+  playthroughStateCache,
+  ({ one }) => ({
+    playthrough: one(playthroughs, {
+      fields: [playthroughStateCache.playthroughId],
+      references: [playthroughs.id],
+    }),
+  }),
+);
+
+export type PlaythroughInsert = typeof playthroughs.$inferInsert;
+export type PlaythroughSelect = typeof playthroughs.$inferSelect;
+export type PlaybackEventInsert = typeof playbackEvents.$inferInsert;
+export type PlaybackEventSelect = typeof playbackEvents.$inferSelect;
+export type PlaythroughStateCacheInsert =
+  typeof playthroughStateCache.$inferInsert;
+export type PlaythroughStateCacheSelect =
+  typeof playthroughStateCache.$inferSelect;
+
+// =============================================================================
+// Sync Metadata
+// =============================================================================
+
 // data related to servers that we have synced with, but unrelated to any
 // specific user account
 export const syncedServers = sqliteTable("synced_servers", {
   url: text("url").notNull().primaryKey(),
-  // the last time we checked the server for new data (library)
-  lastDownSync: integer("last_down_sync", { mode: "timestamp" }),
-  // the last time data was actually updated locally
-  newDataAsOf: integer("new_data_as_of", { mode: "timestamp" }),
+  // timestamp of last sync check for library data (used for incremental sync)
+  lastSyncTime: integer("last_sync_time", { mode: "timestamp" }),
+  // timestamp when library data actually changed locally (used for cache invalidation)
+  libraryDataVersion: integer("library_data_version", { mode: "timestamp" }),
 });
 
 // data related to user accounts on specific servers
@@ -410,12 +560,10 @@ export const serverProfiles = sqliteTable(
   {
     url: text("url").notNull(),
     userEmail: text("user_email").notNull(),
-    // the last time we checked the server for new data (player states)
-    lastDownSync: integer("last_down_sync", { mode: "timestamp" }),
-    // the last time data was actually updated locally
-    newDataAsOf: integer("new_data_as_of", { mode: "timestamp" }),
-    // the last time we sent data to the server (player states)
-    lastUpSync: integer("last_up_sync", { mode: "timestamp" }),
+    // timestamp of last playthrough sync (bidirectional - send unsynced + receive server updates)
+    lastSyncTime: integer("last_sync_time", { mode: "timestamp" }),
+    // the playthrough that was last loaded into the player on this device
+    activePlaythroughId: text("active_playthrough_id"),
   },
   (table) => [primaryKey({ columns: [table.url, table.userEmail] })],
 );
@@ -457,18 +605,18 @@ export const downloadsRelations = relations(downloads, ({ one }) => ({
   }),
 }));
 
-export const defaultSleepTimer = 600;
-export const defaultSleepTimerEnabled = false;
-
 // Local settings are associated to a user. If you log into a different account,
 // you will have different local settings.
 export const localUserSettings = sqliteTable("local_user_settings", {
   userEmail: text("user_email").notNull().primaryKey(),
   preferredPlaybackRate: real("preferred_playback_rate").notNull().default(1),
-  sleepTimer: integer("sleep_timer").notNull().default(defaultSleepTimer),
+  sleepTimer: integer("sleep_timer")
+    .notNull()
+    .default(DEFAULT_SLEEP_TIMER_SECONDS),
   sleepTimerEnabled: integer("sleep_timer_enabled", { mode: "boolean" })
     .notNull()
-    .default(defaultSleepTimerEnabled),
+    .default(DEFAULT_SLEEP_TIMER_ENABLED),
+  sleepTimerTriggerTime: integer("sleep_timer_trigger_time"),
 });
 
 export const shelvedMedia = sqliteTable(

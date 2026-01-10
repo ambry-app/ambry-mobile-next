@@ -1,13 +1,18 @@
-import Logo from "@/assets/images/logo.svg";
-import { FocusableTextInput, IconButton, Loading } from "@/src/components";
-import { CreateSessionErrorCode } from "@/src/graphql/api";
-import { ExecuteErrorCode } from "@/src/graphql/client/execute";
-import { useScreen } from "@/src/stores/screen";
-import { signIn, useSession } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+
+import { FocusableTextInput } from "@/components/FocusableTextInput";
+import { IconButton } from "@/components/IconButton";
+import { Loading } from "@/components/Loading";
+import { getLatestProfile } from "@/db/server";
+import { CreateSessionErrorCode } from "@/graphql/api";
+import { ExecuteErrorCode } from "@/graphql/client/execute";
+import { signIn } from "@/services/auth-service";
+import { useScreen } from "@/stores/screen";
+import { useSession } from "@/stores/session";
+import { Colors } from "@/styles/colors";
+import Logo from "@assets/images/logo.svg";
 
 export default function SignInRoute() {
   const { session } = useSession((state) => state);
@@ -24,6 +29,21 @@ export default function SignInRoute() {
   const { screenWidth } = useScreen();
   const logoWidth = screenWidth - 64;
   const logoHeight = logoWidth / 4.5;
+
+  useEffect(() => {
+    let unmounted = false;
+    async function getInitialValues() {
+      const latestProfile = await getLatestProfile();
+      if (!unmounted && latestProfile) {
+        setHost(latestProfile.url);
+        setEmail(latestProfile.userEmail);
+      }
+    }
+    getInitialValues();
+    return () => {
+      unmounted = true;
+    };
+  }, []);
 
   const doSignIn = useCallback(async () => {
     setIsLoading(true);

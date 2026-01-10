@@ -1,26 +1,25 @@
-import {
-  FadeInOnMount,
-  PlayerProgressBar,
-  TileImage,
-  TileText,
-} from "@/src/components";
-import { getMedia } from "@/src/db/library";
-import { useLibraryData } from "@/src/hooks/use-library-data";
-import { requestExpandPlayer, usePlayer } from "@/src/stores/player";
-import { Session } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+
+import { PlayerProgressBar } from "@/components/PlayerProgressBar";
+import { TileImage, TileText } from "@/components/Tiles";
+import { getMedia, useLibraryData } from "@/services/library-service";
+import { expandPlayer } from "@/services/playback-controls";
+import { useTrackPlayer } from "@/stores/track-player";
+import { Colors } from "@/styles/colors";
+import { Session } from "@/types/session";
 
 type NowPlayingProps = {
   session: Session;
 };
 
 export function NowPlaying({ session }: NowPlayingProps) {
-  const mediaId = usePlayer((state) => state.mediaId);
+  const playthrough = useTrackPlayer((state) => state.playthrough);
 
-  if (!mediaId) return null;
+  // Don't render when player is fully expanded (we're hidden behind it anyway)
+  // collapsedPlayerVisible is false when fully expanded, true when collapsed or animating
+  if (!playthrough) return null;
 
-  return <NowPlayingDetails session={session} mediaId={mediaId} />;
+  return <NowPlayingDetails session={session} mediaId={playthrough.mediaId} />;
 }
 
 type NowPlayingDetailsProps = {
@@ -30,12 +29,11 @@ type NowPlayingDetailsProps = {
 
 function NowPlayingDetails({ session, mediaId }: NowPlayingDetailsProps) {
   const media = useLibraryData(() => getMedia(session, mediaId), [mediaId]);
-  const expandPlayer = () => requestExpandPlayer();
 
   if (!media) return null;
 
   return (
-    <FadeInOnMount style={styles.container}>
+    <View style={styles.container}>
       <Text style={styles.label} numberOfLines={1}>
         Now Playing
       </Text>
@@ -51,7 +49,7 @@ function NowPlayingDetails({ session, mediaId }: NowPlayingDetailsProps) {
           </View>
         </View>
       </Pressable>
-    </FadeInOnMount>
+    </View>
   );
 }
 

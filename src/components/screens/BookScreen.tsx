@@ -1,10 +1,11 @@
-import { FadeInOnMount, Tile } from "@/src/components";
-import { Header } from "@/src/components/screens/book-screen";
-import { PAGE_SIZE } from "@/src/constants";
-import { getBookDetails } from "@/src/db/library";
-import { useLibraryData } from "@/src/hooks/use-library-data";
-import { Session } from "@/src/stores/session";
 import { FlatList, StyleSheet } from "react-native";
+
+import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { Header } from "@/components/screens/book-screen/Header";
+import { Tile } from "@/components/Tiles";
+import { PAGE_SIZE } from "@/constants";
+import { getBookDetails, useLibraryData } from "@/services/library-service";
+import { Session } from "@/types/session";
 
 type BookScreenProps = {
   bookId: string;

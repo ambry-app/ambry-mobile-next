@@ -1,24 +1,22 @@
-import {
-  FadeInOnMount,
-  HeaderButton,
-  SeeAllTile,
-  SeriesBookTile,
-} from "@/src/components";
+import { FlatList, StyleSheet, View } from "react-native";
+import { router } from "expo-router";
+
+import { HeaderButton } from "@/components/HeaderButton";
+import { SeeAllTile } from "@/components/SeeAllTile";
+import { SeriesBookTile } from "@/components/Tiles";
 import {
   HORIZONTAL_LIST_LIMIT,
   HORIZONTAL_TILE_SPACING,
   HORIZONTAL_TILE_WIDTH_RATIO,
-} from "@/src/constants";
+} from "@/constants";
 import {
   getSeriesWithBooks,
   MediaHeaderInfo,
   SeriesWithBooks,
-} from "@/src/db/library";
-import { useLibraryData } from "@/src/hooks/use-library-data";
-import { useScreen } from "@/src/stores/screen";
-import { Session } from "@/src/stores/session";
-import { router } from "expo-router";
-import { FlatList, StyleSheet, View } from "react-native";
+  useLibraryData,
+} from "@/services/library-service";
+import { useScreen } from "@/stores/screen";
+import { Session } from "@/types/session";
 
 type BooksInSeriesProps = {
   media: MediaHeaderInfo;
@@ -30,7 +28,7 @@ export function BooksInSeries(props: BooksInSeriesProps) {
   const seriesList = useLibraryData(() =>
     getSeriesWithBooks(
       session,
-      media.book.series.map(({ bookNumber, ...rest }) => rest),
+      media.book.series.map(({ bookNumber: _bookNumber, ...rest }) => rest),
       HORIZONTAL_LIST_LIMIT,
     ),
   );
@@ -83,6 +81,8 @@ function BooksInOneSeries(props: BooksInOneSeriesProps) {
         horizontal={true}
         showsHorizontalScrollIndicator={false}
         snapToInterval={tileSize + HORIZONTAL_TILE_SPACING}
+        windowSize={3}
+        initialNumToRender={4}
         ListHeaderComponent={<View style={styles.listHeader} />}
         ListFooterComponent={
           hasMore ? (
@@ -95,13 +95,11 @@ function BooksInOneSeries(props: BooksInOneSeriesProps) {
             />
           ) : null
         }
-        renderItem={({ item }) => {
-          return (
-            <FadeInOnMount style={[styles.tile, { width: tileSize }]}>
-              <SeriesBookTile seriesBook={item} />
-            </FadeInOnMount>
-          );
-        }}
+        renderItem={({ item }) => (
+          <View style={[styles.tile, { width: tileSize }]}>
+            <SeriesBookTile seriesBook={item} />
+          </View>
+        )}
       />
     </View>
   );

@@ -1,17 +1,19 @@
-import { Button, IconButton } from "@/src/components";
+import { StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
+
+import { Button } from "@/components/Button";
+import { IconButton } from "@/components/IconButton";
 import {
   skipToBeginningOfChapter,
   skipToEndOfChapter,
-  usePlayer,
-} from "@/src/stores/player";
-import { Colors } from "@/src/styles";
-import { router } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+} from "@/services/chapter-service";
+import { useTrackPlayer } from "@/stores/track-player";
+import { Colors } from "@/styles/colors";
 
 export function ChapterControls() {
-  const chapterState = usePlayer((state) => state.chapterState);
+  const currentChapter = useTrackPlayer((state) => state.currentChapter);
 
-  if (!chapterState) return null;
+  if (!currentChapter) return null;
 
   return (
     <>
@@ -29,7 +31,7 @@ export function ChapterControls() {
           onPress={() => router.navigate("/chapter-select")}
         >
           <Text style={styles.chapterText} numberOfLines={1}>
-            {chapterState.currentChapter.title}
+            {currentChapter.title}
           </Text>
         </Button>
         <IconButton

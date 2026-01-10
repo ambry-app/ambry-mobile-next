@@ -1,12 +1,11 @@
-import {
-  FullLibrary,
-  SearchResults,
-} from "@/src/components/screens/library-screen";
-import { useDebounce } from "@/src/hooks/use-debounce";
-import { Session } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
-import { useNavigation } from "expo-router";
 import { useLayoutEffect, useState } from "react";
+import { useNavigation } from "expo-router";
+
+import { FullLibrary } from "@/components/screens/library-screen/FullLibrary";
+import { SearchResults } from "@/components/screens/library-screen/SearchResults";
+import { Colors } from "@/styles/colors";
+import { Session } from "@/types/session";
+import { useDebounce } from "@/utils/hooks";
 
 type LibraryScreenProps = {
   session: Session;

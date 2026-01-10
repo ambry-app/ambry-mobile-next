@@ -1,8 +1,9 @@
-import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
-import { useSession } from "@/src/stores/session";
-import { documentDirectoryFilePath } from "@/src/utils";
-import { Image, ImageStyle } from "expo-image";
 import { StyleProp } from "react-native";
+import { Image, ImageStyle } from "expo-image";
+
+import { DownloadedThumbnails, Thumbnails } from "@/services/library-service";
+import { useSession } from "@/stores/session";
+import { documentDirectoryFilePath } from "@/utils/paths";
 
 const blurRadius = 1;
 

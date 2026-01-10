@@ -1,13 +1,26 @@
-import { IconButton } from "@/src/components";
-import { MediaHeaderInfo } from "@/src/db/library";
-import useLoadMediaCallback from "@/src/hooks/use-load-media-callback";
-import { useShelvedMedia } from "@/src/hooks/use-shelved-media";
-import { startDownload, useDownloads } from "@/src/stores/downloads";
-import { Session } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
+import { useCallback } from "react";
+import { Share, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { Alert, Share, StyleSheet, View } from "react-native";
 import { useShallow } from "zustand/shallow";
+
+import { IconButton } from "@/components/IconButton";
+import { MediaContextMenu } from "@/components/MediaContextMenu";
+import { PlayButton as PlayerPlayButton } from "@/components/PlayButton";
+import { startDownload } from "@/services/download-service";
+import { MediaHeaderInfo } from "@/services/library-service";
+import {
+  applyPlaythroughAction,
+  PlaythroughAction,
+} from "@/services/playback-controls";
+import {
+  MediaPlaybackState,
+  shouldPromptForFinish,
+  useMediaPlaybackState,
+} from "@/services/playthrough-query-service";
+import { useShelvedMedia } from "@/services/shelf-service";
+import { useDownloads } from "@/stores/downloads";
+import { Colors } from "@/styles/colors";
+import { Session } from "@/types/session";
 
 type ActionBarProps = {
   media: MediaHeaderInfo;
@@ -15,73 +28,18 @@ type ActionBarProps = {
 };
 
 export function ActionBar({ media, session }: ActionBarProps) {
-  const { isOnShelf, toggleOnShelf } = useShelvedMedia(
-    session,
-    media.id,
-    "saved",
-  );
-
   if (!media) return null;
 
   return (
     <View style={styles.container}>
       <View style={styles.buttonsContainer}>
         <DownloadButton media={media} session={session} />
-        <IconButton
-          icon="heart"
-          solid={isOnShelf}
-          size={24}
-          style={styles.button}
-          color={Colors.zinc[100]}
-          onPress={toggleOnShelf}
-        />
+        <SaveButton media={media} session={session} />
         <PlayButton session={session} media={media} />
-        <IconButton
-          icon="share"
-          size={24}
-          style={styles.button}
-          color={Colors.zinc[100]}
-          onPress={async () => {
-            const mediaURL =
-              session.url + "/audiobooks/" + atob(media.id).split(":")[1];
-            Share.share({ message: mediaURL });
-          }}
-        />
-        <IconButton
-          icon="ellipsis-vertical"
-          size={24}
-          style={styles.button}
-          color={Colors.zinc[100]}
-          onPress={() => {
-            Alert.alert(
-              "Coming soon",
-              "This will show a list of additional actions you can take with this audiobook.",
-            );
-          }}
-        />
+        <ShareButton media={media} session={session} />
+        <MediaContextMenu media={media} session={session} />
       </View>
-      {/* <ExplanationText download={download} /> */}
     </View>
-  );
-}
-
-type PlayButtonProps = {
-  media: MediaHeaderInfo;
-  session: Session;
-};
-
-function PlayButton({ session, media }: PlayButtonProps) {
-  const loadMedia = useLoadMediaCallback(session, media.id);
-
-  return (
-    <IconButton
-      icon="play"
-      size={32}
-      style={styles.playButton}
-      iconStyle={styles.playButtonIcon}
-      color={Colors.black}
-      onPress={loadMedia}
-    />
   );
 }
 
@@ -127,35 +85,169 @@ function DownloadButton({ media, session }: DownloadButtonProps) {
       style={styles.button}
       color={Colors.zinc[100]}
       onPress={() => {
-        if (!media.mp4Path) return;
-        startDownload(session, media.id, media.mp4Path, media.thumbnails);
+        startDownload(session, media.id);
         router.navigate("/downloads");
       }}
     />
   );
 }
 
-// type ExplanationTextProps = {
-//   download: Download;
-// };
+type SaveButtonProps = {
+  media: MediaHeaderInfo;
+  session: Session;
+};
 
-// function ExplanationText({ download }: ExplanationTextProps) {
-//   if (download && download.status === "ready") {
-//     return (
-//       <Text style={styles.explanationText}>
-//         You have this audiobook downloaded, it will play from your device and
-//         not require an internet connection.
-//       </Text>
-//     );
-//   } else {
-//     return (
-//       <Text style={styles.explanationText}>
-//         Playing this audiobook will stream it and require an internet connection
-//         and may use your data plan.
-//       </Text>
-//     );
-//   }
-// }
+function SaveButton({ media, session }: SaveButtonProps) {
+  const { isOnShelf, toggleOnShelf } = useShelvedMedia(
+    session,
+    media.id,
+    "saved",
+  );
+
+  return (
+    <IconButton
+      icon="bookmark"
+      solid={isOnShelf}
+      size={24}
+      style={styles.button}
+      color={Colors.zinc[100]}
+      onPress={toggleOnShelf}
+    />
+  );
+}
+
+type PlayButtonProps = {
+  media: MediaHeaderInfo;
+  session: Session;
+};
+
+function PlayButton({ session, media }: PlayButtonProps) {
+  const playbackState = useMediaPlaybackState(session, media.id);
+
+  // Loading state - show button without onPress (effectively disabled)
+  if (playbackState.type === "loading") {
+    return (
+      <IconButton
+        icon="loading"
+        size={32}
+        style={styles.playButton}
+        iconStyle={styles.playButtonIcon}
+        color={Colors.black}
+      />
+    );
+  }
+
+  // If this media is currently loaded, show real-time play/pause button
+  if (playbackState.type === "loaded") {
+    return (
+      <PlayerPlayButton
+        size={32}
+        color={Colors.black}
+        style={styles.playButton}
+        playIconStyle={styles.playButtonIcon}
+      />
+    );
+  }
+
+  // Otherwise show "load media" button
+  return (
+    <LoadMediaButton
+      media={media}
+      session={session}
+      playbackState={playbackState}
+    />
+  );
+}
+
+type LoadMediaButtonProps = {
+  media: MediaHeaderInfo;
+  session: Session;
+  playbackState: MediaPlaybackState;
+};
+
+function LoadMediaButton({
+  media,
+  session,
+  playbackState,
+}: LoadMediaButtonProps) {
+  const handlePress = useCallback(async () => {
+    // if there is a currently loaded playthrough, _and_ that playthrough is at
+    // >= 95% progress, then we navigate to "mark-finished-prompt", with the
+    // continuationAction set appropriately based on the logic here. If there
+    // isn't a loaded playthrough, or it's < 95%, we perform the action here.
+
+    const prompt = await shouldPromptForFinish();
+
+    const action: PlaythroughAction =
+      playbackState.type === "in_progress"
+        ? {
+            type: "continueExistingPlaythrough",
+            playthroughId: playbackState.playthrough.id,
+          }
+        : playbackState.type === "finished" ||
+            playbackState.type === "abandoned"
+          ? {
+              type: "promptForResume",
+              playthroughId: playbackState.playthrough.id,
+            }
+          : {
+              type: "startFreshPlaythrough",
+              mediaId: media.id,
+            };
+
+    if (prompt.shouldPrompt) {
+      router.navigate({
+        pathname: "/mark-finished-prompt",
+        params: {
+          playthroughId: prompt.playthroughId,
+          continuationAction: JSON.stringify(action),
+        },
+      });
+    } else {
+      if (action.type === "promptForResume") {
+        router.navigate({
+          pathname: "/resume-prompt",
+          params: { playthroughId: action.playthroughId },
+        });
+      } else {
+        applyPlaythroughAction(session, action);
+      }
+    }
+  }, [session, media.id, playbackState]);
+
+  return (
+    <IconButton
+      icon="play"
+      size={32}
+      style={styles.playButton}
+      iconStyle={styles.playButtonIcon}
+      color={Colors.black}
+      onPress={handlePress}
+    />
+  );
+}
+
+type ShareButtonProps = {
+  media: MediaHeaderInfo;
+  session: Session;
+};
+
+function ShareButton({ media, session }: ShareButtonProps) {
+  const handleShare = useCallback(async () => {
+    const mediaURL = `${session.url}/audiobooks/${media.id}`;
+    Share.share({ message: mediaURL });
+  }, [session.url, media.id]);
+
+  return (
+    <IconButton
+      icon="share"
+      size={24}
+      style={styles.button}
+      color={Colors.zinc[100]}
+      onPress={handleShare}
+    />
+  );
+}
 
 const styles = StyleSheet.create({
   container: {

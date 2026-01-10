@@ -1,24 +1,23 @@
-import {
-  BookTile,
-  FadeInOnMount,
-  HeaderButton,
-  SeeAllTile,
-} from "@/src/components";
+import { FlatList, StyleSheet, View } from "react-native";
+import { router } from "expo-router";
+
+import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { HeaderButton } from "@/components/HeaderButton";
+import { SeeAllTile } from "@/components/SeeAllTile";
+import { BookTile } from "@/components/Tiles";
 import {
   HORIZONTAL_LIST_LIMIT,
   HORIZONTAL_TILE_SPACING,
   HORIZONTAL_TILE_WIDTH_RATIO,
-} from "@/src/constants";
+} from "@/constants";
 import {
   AuthorWithBooks,
   getBooksByAuthors,
   PersonHeaderInfo,
-} from "@/src/db/library";
-import { useLibraryData } from "@/src/hooks/use-library-data";
-import { useScreen } from "@/src/stores/screen";
-import { Session } from "@/src/stores/session";
-import { router } from "expo-router";
-import { FlatList, StyleSheet, View } from "react-native";
+  useLibraryData,
+} from "@/services/library-service";
+import { useScreen } from "@/stores/screen";
+import { Session } from "@/types/session";
 
 type BooksByAuthorsProps = {
   person: PersonHeaderInfo;

@@ -1,13 +1,12 @@
-import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
-import { Session } from "@/src/stores/session";
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
-import { NowPlaying, RecentInProgress } from "./shelf-screen";
 
-// sections:
-// 1. now listening
-// 2. in-progress
-// 3. saved for later (coming soon)
-// 4. finished (coming soon)
+import { usePullToRefresh } from "@/services/sync-service";
+import { Session } from "@/types/session";
+
+import { NowPlaying } from "./shelf-screen/NowPlaying";
+import { RecentInProgress } from "./shelf-screen/RecentInProgress";
+import { RecentlyFinished } from "./shelf-screen/RecentlyFinished";
+import { SavedForLater } from "./shelf-screen/SavedForLater";
 
 type ShelfScreenProps = {
   session: Session;
@@ -27,6 +26,8 @@ export function ShelfScreen(props: ShelfScreenProps) {
     >
       <NowPlaying session={session} />
       <RecentInProgress session={session} />
+      <RecentlyFinished session={session} />
+      <SavedForLater session={session} />
     </ScrollView>
   );
 }

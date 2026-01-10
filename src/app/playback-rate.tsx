@@ -1,40 +1,33 @@
-import { Button, IconButton } from "@/src/components";
-import { setPlaybackRate, usePlayer } from "@/src/stores/player";
-import { useSession } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
-import { formatPlaybackRate, secondsDisplay } from "@/src/utils";
-import Slider from "@react-native-community/slider";
 import { useCallback, useEffect, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useShallow } from "zustand/react/shallow";
+import Slider from "@react-native-community/slider";
+
+import { Button } from "@/components/Button";
+import { IconButton } from "@/components/IconButton";
+import * as Player from "@/services/track-player-service";
+import { useSession } from "@/stores/session";
+import { useTrackPlayer } from "@/stores/track-player";
+import { Colors } from "@/styles/colors";
+import { formatPlaybackRate } from "@/utils/rate";
+import { secondsDisplay } from "@/utils/time";
 
 export default function PlaybackRateRoute() {
   const { bottom } = useSafeAreaInsets();
-
   const session = useSession((state) => state.session);
+  const playbackRate = useTrackPlayer((state) => state.playbackRate);
+  const progress = useTrackPlayer((state) => state.progress);
 
-  const { position, duration, playbackRate } = usePlayer(
-    useShallow(({ position, duration, playbackRate }) => ({
-      position,
-      duration,
-      playbackRate,
-    })),
-  );
   const [displayPlaybackRate, setDisplayPlaybackRate] = useState(1.0);
 
   useEffect(() => {
     setDisplayPlaybackRate(playbackRate);
   }, [playbackRate]);
 
-  const setPlaybackRateAndDisplay = useCallback(
-    (value: number) => {
-      if (!session) return;
-      setDisplayPlaybackRate(value);
-      setPlaybackRate(session, value);
-    },
-    [session],
-  );
+  const setPlaybackRateAndDisplay = useCallback((value: number) => {
+    setDisplayPlaybackRate(value);
+    Player.setPlaybackRate(value);
+  }, []);
 
   if (!session) return null;
 
@@ -117,7 +110,8 @@ export default function PlaybackRateRoute() {
         <Text style={styles.timeLeftText}>
           Finish in{" "}
           {secondsDisplay(
-            Math.max(duration - position, 0) / displayPlaybackRate,
+            Math.max(progress.duration - progress.position, 0) /
+              displayPlaybackRate,
           )}
         </Text>
       </View>

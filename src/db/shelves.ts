@@ -1,15 +1,19 @@
-import { Session } from "@/src/stores/session";
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, isNull, lt } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/types/session";
+
+import {
+  getAuthorsForBooks,
+  getNarratorsForMedia,
+} from "./library/shared-queries";
 
 export async function addMediaToShelf(
   session: Session,
   mediaId: string,
   shelfName: string,
 ) {
-  // const now = new Date();
-
   const existingRecord = await getShelvedMedia(session, mediaId, shelfName);
 
   // This media is already on this shelf.
@@ -81,7 +85,7 @@ export async function getShelvedMedia(
   mediaId: string,
   shelfName: string,
 ) {
-  return db.query.shelvedMedia.findFirst({
+  return getDb().query.shelvedMedia.findFirst({
     where: and(
       eq(schema.shelvedMedia.url, session.url),
       eq(schema.shelvedMedia.userEmail, session.email),
@@ -96,7 +100,7 @@ export async function isMediaOnShelf(
   mediaId: string,
   shelfName: string,
 ) {
-  const rows = await db
+  const rows = await getDb()
     .select({ deletedAt: schema.shelvedMedia.deletedAt })
     .from(schema.shelvedMedia)
     .where(
@@ -118,7 +122,7 @@ async function reAddShelvedMedia(
 ) {
   const now = new Date();
 
-  return db
+  return getDb()
     .update(schema.shelvedMedia)
     .set({
       deletedAt: null,
@@ -142,7 +146,7 @@ async function insertShelvedMedia(
 ) {
   const now = new Date();
 
-  return db.insert(schema.shelvedMedia).values({
+  return getDb().insert(schema.shelvedMedia).values({
     url: session.url,
     userEmail: session.email,
     shelfName,
@@ -161,7 +165,7 @@ async function deleteShelvedMedia(
 ) {
   const now = new Date();
 
-  return db
+  return getDb()
     .update(schema.shelvedMedia)
     .set({
       deletedAt: now,
@@ -176,3 +180,101 @@ async function deleteShelvedMedia(
       ),
     );
 }
+
+// =============================================================================
+// Query Functions for UI
+// =============================================================================
+
+export async function getSavedMediaPage(
+  session: Session,
+  limit: number,
+  addedBefore?: Date,
+) {
+  const savedMedia = await getSavedMediaRaw(session, limit, addedBefore);
+
+  const mediaIds = savedMedia.map((s) => s.media.id);
+  const bookIds = savedMedia.map((s) => s.media.book.id);
+
+  const authorsForBooks = await getAuthorsForBooks(session, bookIds);
+  const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+
+  return savedMedia.map((s) => ({
+    ...s,
+    media: {
+      ...s.media,
+      book: {
+        ...s.media.book,
+        authors: authorsForBooks[s.media.book.id] || [],
+      },
+      narrators: narratorsForMedia[s.media.id] || [],
+    },
+  }));
+}
+
+async function getSavedMediaRaw(
+  session: Session,
+  limit: number,
+  addedBefore?: Date,
+) {
+  const rows = await getDb()
+    .select({
+      addedAt: schema.shelvedMedia.addedAt,
+      media: {
+        id: schema.media.id,
+        thumbnails: schema.media.thumbnails,
+      },
+      book: {
+        id: schema.books.id,
+        title: schema.books.title,
+      },
+      download: {
+        thumbnails: schema.downloads.thumbnails,
+      },
+    })
+    .from(schema.shelvedMedia)
+    .innerJoin(
+      schema.media,
+      and(
+        eq(schema.media.url, schema.shelvedMedia.url),
+        eq(schema.media.id, schema.shelvedMedia.mediaId),
+      ),
+    )
+    .innerJoin(
+      schema.books,
+      and(
+        eq(schema.books.url, schema.media.url),
+        eq(schema.books.id, schema.media.bookId),
+      ),
+    )
+    .leftJoin(
+      schema.downloads,
+      and(
+        eq(schema.downloads.url, schema.media.url),
+        eq(schema.downloads.mediaId, schema.media.id),
+      ),
+    )
+    .where(
+      and(
+        eq(schema.shelvedMedia.url, session.url),
+        eq(schema.shelvedMedia.userEmail, session.email),
+        eq(schema.shelvedMedia.shelfName, "saved"),
+        isNull(schema.shelvedMedia.deletedAt),
+        addedBefore ? lt(schema.shelvedMedia.addedAt, addedBefore) : undefined,
+      ),
+    )
+    .orderBy(desc(schema.shelvedMedia.addedAt))
+    .limit(limit);
+
+  return rows.map(({ book, download, ...row }) => ({
+    ...row,
+    media: {
+      ...row.media,
+      book,
+      download,
+    },
+  }));
+}
+
+export type SavedMediaWithDetails = Awaited<
+  ReturnType<typeof getSavedMediaPage>
+>[number];

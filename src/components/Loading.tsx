@@ -1,21 +1,16 @@
-import { Colors } from "@/src/styles";
-import { ActivityIndicator, StyleProp, ViewStyle } from "react-native";
+import { ActivityIndicator, ActivityIndicatorProps } from "react-native";
 
-type LoadingProps = {
-  style?: StyleProp<ViewStyle>;
+import { Colors } from "@/styles/colors";
+
+type LoadingProps = ActivityIndicatorProps & {
   color?: string;
   size?: number | "small" | "large";
 };
 
 export function Loading(props: LoadingProps) {
-  const { style, color = Colors.zinc[100], size = "large" } = props;
+  const { color = Colors.zinc[100], size = "large" } = props;
 
   return (
-    <ActivityIndicator
-      style={style}
-      animating={true}
-      size={size}
-      color={color}
-    />
+    <ActivityIndicator animating={true} size={size} color={color} {...props} />
   );
 }

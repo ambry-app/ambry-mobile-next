@@ -1,7 +1,9 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
 import { and, asc, eq } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/types/session";
+
 import { MediaHeaderInfo } from "./get-media-header-info";
 import { combineAuthorsAndNarrators } from "./shared-queries";
 
@@ -16,7 +18,7 @@ export async function getMediaAuthorsAndNarrators(
 }
 
 async function getAuthors(session: Session, bookId: string) {
-  const rows = await db
+  const rows = await getDb()
     .select({
       id: schema.authors.id,
       name: schema.authors.name,
@@ -56,7 +58,7 @@ async function getAuthors(session: Session, bookId: string) {
 }
 
 async function getNarrators(session: Session, mediaId: string) {
-  const rows = await db
+  const rows = await getDb()
     .select({
       id: schema.narrators.id,
       name: schema.narrators.name,

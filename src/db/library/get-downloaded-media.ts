@@ -1,8 +1,15 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/types/session";
+
+import {
+  getAuthorsForBooks,
+  getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
+  getSavedForLaterStatusForMedia,
+} from "./shared-queries";
 
 export type DownloadedMedia = Awaited<
   ReturnType<typeof getDownloadedMedia>
@@ -17,6 +24,11 @@ export async function getDownloadedMedia(session: Session, mediaIds: string[]) {
   const authorsForBooks = await getAuthorsForBooks(session, bookIds);
 
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
+  const savedForLater = await getSavedForLaterStatusForMedia(session, mediaIds);
 
   return media.map((media) => ({
     ...media,
@@ -25,11 +37,13 @@ export async function getDownloadedMedia(session: Session, mediaIds: string[]) {
       authors: authorsForBooks[media.book.id] || [],
     },
     narrators: narratorsForMedia[media.id] || [],
+    playthroughStatus: playthroughStatuses[media.id] ?? null,
+    isOnSavedShelf: savedForLater.has(media.id),
   }));
 }
 
 async function getDownloadedMediaByIds(session: Session, mediaIds: string[]) {
-  return db
+  return getDb()
     .select({
       id: schema.media.id,
       thumbnails: schema.media.thumbnails,

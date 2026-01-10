@@ -1,5 +1,8 @@
-import { seekRelative } from "@/src/stores/player";
 import { StyleProp, ViewStyle } from "react-native";
+
+import { seekRelative } from "@/services/seek-service";
+import { SeekSource } from "@/stores/track-player";
+
 import { IconButton } from "./IconButton";
 
 type SeekButtonProps = {
@@ -15,7 +18,7 @@ export function SeekButton(props: SeekButtonProps) {
 
   return (
     <IconButton
-      onPress={() => seekRelative(amount)}
+      onPress={() => seekRelative(amount, SeekSource.BUTTON)}
       size={size}
       icon={icon}
       color={color}

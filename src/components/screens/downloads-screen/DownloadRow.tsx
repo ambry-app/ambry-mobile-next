@@ -1,24 +1,28 @@
-import {
-  BookDetailsText,
-  IconButton,
-  Loading,
-  ThumbnailImage,
-} from "@/src/components";
-import { DownloadedMedia } from "@/src/db/library";
-import { useThrottle } from "@/src/hooks/use-throttle";
-import { useDownloads } from "@/src/stores/downloads";
-import { Colors } from "@/src/styles";
+import { useCallback } from "react";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { useShallow } from "zustand/shallow";
+
+import { BookDetailsText } from "@/components/BookDetailsText";
+import { DownloadContextMenu } from "@/components/DownloadContextMenu";
+import { Loading } from "@/components/Loading";
+import { ThumbnailImage } from "@/components/ThumbnailImage";
+import { cancelDownload, removeDownload } from "@/services/download-service";
+import { DownloadedMedia } from "@/services/library-service";
+import { useDownloads } from "@/stores/downloads";
+import { Colors } from "@/styles/colors";
+import { Session } from "@/types/session";
+import { useThrottle } from "@/utils/hooks";
+
 import { FileSize } from "./FileSize";
 
 type DownloadRowProps = {
   media: DownloadedMedia;
+  session: Session;
 };
 
-export function DownloadRow({ media }: DownloadRowProps) {
+export function DownloadRow({ media, session }: DownloadRowProps) {
   const { filePath, status } = useDownloads(
     useShallow((state) => {
       const { filePath, status } = state.downloads[media.id] || {};
@@ -26,7 +30,15 @@ export function DownloadRow({ media }: DownloadRowProps) {
     }),
   );
 
-  if (!status) return null;
+  const onDelete = useCallback(() => {
+    removeDownload(session, media.id);
+  }, [session, media.id]);
+
+  const onCancel = useCallback(() => {
+    cancelDownload(session, media.id);
+  }, [session, media.id]);
+
+  if (!session || !status) return null;
 
   const navigateToBook = () => {
     router.navigate({
@@ -34,15 +46,6 @@ export function DownloadRow({ media }: DownloadRowProps) {
       params: {
         id: media.id,
         title: media.book.title,
-      },
-    });
-  };
-
-  const openModal = () => {
-    router.navigate({
-      pathname: "/download-actions-modal/[id]",
-      params: {
-        id: media.id,
       },
     });
   };
@@ -79,14 +82,11 @@ export function DownloadRow({ media }: DownloadRowProps) {
           )}
         </View>
         <LoadingIndicator mediaId={media.id} />
-        <View>
-          <IconButton
-            size={16}
-            icon="ellipsis-vertical"
-            color={Colors.zinc[100]}
-            onPress={openModal}
-          />
-        </View>
+        <DownloadContextMenu
+          status={status}
+          onDelete={onDelete}
+          onCancel={onCancel}
+        />
       </View>
       <DownloadProgressBar mediaId={media.id} />
     </>

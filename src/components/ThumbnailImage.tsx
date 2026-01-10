@@ -1,9 +1,10 @@
-import { DownloadedThumbnails, Thumbnails } from "@/src/db/schema";
-import { useSession } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
-import { documentDirectoryFilePath } from "@/src/utils";
-import { Image, ImageStyle } from "expo-image";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import { Image, ImageStyle } from "expo-image";
+
+import { DownloadedThumbnails, Thumbnails } from "@/services/library-service";
+import { useSession } from "@/stores/session";
+import { Colors } from "@/styles/colors";
+import { documentDirectoryFilePath } from "@/utils/paths";
 
 type ThumbnailImageProps = {
   downloadedThumbnails?: DownloadedThumbnails | null;

@@ -1,13 +1,19 @@
-import { graphql } from "@/src/graphql/client";
+import { graphql } from "@/graphql/client";
 import {
   execute,
   executeAuthenticated,
   ExecuteAuthenticatedError,
   ExecuteError,
   ExecuteErrorCode,
-} from "@/src/graphql/client/execute";
-import { Session } from "@/src/stores/session";
-import { Result } from "@/src/types/result";
+} from "@/graphql/client/execute";
+import {
+  DeviceTypeInput,
+  PlaybackEventType,
+  PlaythroughStatus,
+  type SyncProgressInput,
+} from "@/graphql/client/graphql";
+import { Result } from "@/types/result";
+import { Session } from "@/types/session";
 
 const libraryChangesSinceQuery = graphql(`
   query LibraryChangesSince($since: DateTime) {
@@ -154,67 +160,6 @@ export function getLibraryChangesSince(
   );
 }
 
-const userChangesSinceQuery = graphql(`
-  query UserChangesSince($since: DateTime) {
-    playerStatesChangedSince(since: $since) {
-      id
-      media {
-        id
-      }
-      status
-      playbackRate
-      position
-      insertedAt
-      updatedAt
-    }
-    serverTime
-  }
-`);
-
-export function getUserChangesSince(
-  session: Session,
-  since: Date | null | undefined,
-) {
-  return executeAuthenticated(
-    session.url,
-    session.token,
-    userChangesSinceQuery,
-    {
-      since,
-    },
-  );
-}
-
-const updatePlayerStateMutation = graphql(`
-  mutation UpdatePlayerState($input: UpdatePlayerStateInput!) {
-    updatePlayerState(input: $input) {
-      playerState {
-        updatedAt
-      }
-    }
-  }
-`);
-
-export function updatePlayerState(
-  session: Session,
-  mediaId: string,
-  position: number,
-  playbackRate: number,
-) {
-  return executeAuthenticated(
-    session.url,
-    session.token,
-    updatePlayerStateMutation,
-    {
-      input: {
-        mediaId,
-        position,
-        playbackRate,
-      },
-    },
-  );
-}
-
 const createSessionMutation = graphql(`
   mutation CreateSession($input: CreateSessionInput!) {
     createSession(input: $input) {
@@ -275,6 +220,58 @@ const deleteSessionMutation = graphql(`
     }
   }
 `);
+
+// =============================================================================
+// Playthrough Sync (new event-sourced model)
+// =============================================================================
+
+const syncProgressMutation = graphql(`
+  mutation SyncProgress($input: SyncProgressInput!) {
+    syncProgress(input: $input) {
+      playthroughs {
+        id
+        status
+        startedAt
+        finishedAt
+        abandonedAt
+        deletedAt
+        insertedAt
+        updatedAt
+        media {
+          id
+        }
+      }
+      events {
+        id
+        playthroughId
+        deviceId
+        type
+        timestamp
+        position
+        playbackRate
+        fromPosition
+        toPosition
+        previousRate
+      }
+      serverTime
+    }
+  }
+`);
+
+// Re-export generated types for use in sync.ts
+export type { SyncProgressInput };
+export { DeviceTypeInput, PlaybackEventType, PlaythroughStatus };
+
+export function syncProgress(session: Session, input: SyncProgressInput) {
+  return executeAuthenticated(
+    session.url,
+    session.token,
+    syncProgressMutation,
+    {
+      input,
+    },
+  );
+}
 
 export async function deleteSession(
   url: string,

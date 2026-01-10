@@ -1,23 +1,40 @@
-import { useDebounce } from "@/src/hooks/use-debounce";
-import { playOrPause, usePlayer } from "@/src/stores/player";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
-import { State } from "react-native-track-player";
+
+import { PAUSE_REWIND_SECONDS } from "@/constants";
+import * as Player from "@/services/track-player-service";
+import { PlayPauseSource, useTrackPlayer } from "@/stores/track-player";
+import { State } from "@/types/track-player";
+import { useDebounce } from "@/utils/hooks";
+
 import { IconButton } from "./IconButton";
 import { Loading } from "./Loading";
+
+function play() {
+  Player.play(PlayPauseSource.USER);
+}
+
+function pause() {
+  Player.pause(PlayPauseSource.USER, PAUSE_REWIND_SECONDS);
+}
 
 type PlayButtonProps = {
   size: number;
   color: string;
   style?: StyleProp<ViewStyle>;
+  /** Style applied only when showing the play icon (useful for visual centering adjustments) */
+  playIconStyle?: StyleProp<ViewStyle>;
 };
 
 export function PlayButton(props: PlayButtonProps) {
-  const { size, color, style } = props;
-  const state = usePlayer((state) => state.state);
-  const debouncedState = useDebounce(state, 100);
-  const icon = stateIcon(debouncedState);
+  const { size, color, style, playIconStyle } = props;
+  const { playing, bufferingDuringPlay } = useTrackPlayer(
+    (state) => state.isPlaying,
+  );
+  // const { playing, bufferingDuringPlay } = useIsPlaying();
+  const icon = useStateIcon(playing, bufferingDuringPlay);
+  const iconStyle = icon === "play" ? playIconStyle : undefined;
 
-  if (!debouncedState || !icon || icon === "spinner") {
+  if (!icon || icon === "spinner") {
     return (
       <View style={[styles.container, { padding: size / 2 }, style]}>
         {/* NOTE: this sizing has to match the sizing of the IconButton component */}
@@ -30,11 +47,12 @@ export function PlayButton(props: PlayButtonProps) {
 
   return (
     <IconButton
-      onPress={playOrPause}
+      onPress={playing ? pause : play}
       size={size}
       icon={icon}
       color={color}
       style={style}
+      iconStyle={iconStyle}
     />
   );
 }
@@ -47,19 +65,28 @@ const styles = StyleSheet.create({
   },
 });
 
-function stateIcon(state: State | undefined): string | undefined {
-  switch (state) {
+function useStateIcon(
+  playing: boolean | undefined,
+  bufferingDuringPlay: boolean | undefined,
+) {
+  const { state } = useTrackPlayer((state) => state.playbackState);
+  const debouncedState = useDebounce(state, 100);
+
+  if (playing) return "pause";
+
+  if (bufferingDuringPlay) return "spinner";
+
+  switch (debouncedState) {
     case State.Paused:
     case State.Stopped:
     case State.Ready:
       return "play";
     case State.Buffering:
     case State.Loading:
+    case State.None:
       return "spinner";
     case State.Playing:
       return "pause";
-    case State.None:
-      return "question";
     case State.Error:
       return "triangle-exclamation";
     case State.Ended:

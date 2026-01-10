@@ -1,31 +1,44 @@
-import { FadeInOnMount, Loading, PlayerStateTile } from "@/src/components";
-import { PAGE_SIZE } from "@/src/constants";
-import { getPlayerStatesPage } from "@/src/db/library";
-import { usePaginatedLibraryData } from "@/src/hooks/use-paginated-library-data";
-import { usePullToRefresh } from "@/src/hooks/use-pull-to-refresh";
-import { usePlayer } from "@/src/stores/player";
-import { Session } from "@/src/stores/session";
-import { Colors } from "@/src/styles";
-import { FlatList, StyleSheet, Text } from "react-native";
+import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
+
+import { Loading } from "@/components/Loading";
+import { PlaythroughTile } from "@/components/Tiles";
+import { TimeAgo } from "@/components/TimeAgo";
+import { PAGE_SIZE } from "@/constants";
+import {
+  getPlaythroughsPage,
+  usePaginatedLibraryData,
+} from "@/services/library-service";
+import { usePullToRefresh } from "@/services/sync-service";
+import { useTrackPlayer } from "@/stores/track-player";
+import { Colors } from "@/styles/colors";
+import { Session } from "@/types/session";
 
 type InProgressScreenProps = {
   session: Session;
 };
 
 export function InProgressScreen({ session }: InProgressScreenProps) {
-  const mediaId = usePlayer((state) => state.mediaId);
+  const loadedPlaythroughId = useTrackPlayer((state) => state.playthrough?.id);
   const getPage = (pageSize: number, cursor: Date | undefined) =>
-    getPlayerStatesPage(session, pageSize, "in_progress", mediaId, cursor);
-  const getCursor = (item: { updatedAt: Date }) => item.updatedAt;
+    getPlaythroughsPage(
+      session,
+      pageSize,
+      "in_progress",
+      loadedPlaythroughId,
+      cursor,
+    );
+  // lastListenedAt is used for sorting in_progress playthroughs
+  const getCursor = (item: { lastListenedAt: Date | null }) =>
+    item.lastListenedAt!;
   const page = usePaginatedLibraryData(PAGE_SIZE, getPage, getCursor, [
-    mediaId,
+    loadedPlaythroughId,
   ]);
-  const { items: playerStates, hasMore, loadMore } = page;
+  const { items: playthroughs, hasMore, loadMore } = page;
   const { refreshing, onRefresh } = usePullToRefresh(session);
 
-  if (!playerStates) return null;
+  if (!playthroughs) return null;
 
-  if (playerStates.length === 0) {
+  if (playthroughs.length === 0) {
     return <Text style={styles.text}>You have no unfinished audiobooks!</Text>;
   }
 
@@ -33,14 +46,18 @@ export function InProgressScreen({ session }: InProgressScreenProps) {
     <FlatList
       contentInsetAdjustmentBehavior="automatic"
       style={styles.flatlist}
-      data={playerStates}
-      keyExtractor={(item) => item.media.id}
+      data={playthroughs}
+      keyExtractor={(item) => item.id}
       numColumns={2}
       renderItem={({ item }) => (
-        <FadeInOnMount style={styles.tile}>
-          <PlayerStateTile playerState={item} session={session} />
-        </FadeInOnMount>
+        <View style={styles.tile}>
+          {item.lastListenedAt && <TimeAgo date={item.lastListenedAt} />}
+          <PlaythroughTile playthrough={item} />
+        </View>
       )}
+      removeClippedSubviews={Platform.OS === "android"}
+      maxToRenderPerBatch={10}
+      windowSize={5}
       onEndReached={loadMore}
       onEndReachedThreshold={0.5}
       refreshing={refreshing}

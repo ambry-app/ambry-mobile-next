@@ -1,14 +1,18 @@
-import { Button, IconButton } from "@/src/components";
-import {
-  setSleepTimer,
-  setSleepTimerState,
-  usePlayer,
-} from "@/src/stores/player";
-import { Colors } from "@/src/styles";
-import Slider from "@react-native-community/slider";
 import { useCallback, useEffect, useState } from "react";
 import { Platform, StyleSheet, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Slider from "@react-native-community/slider";
+import { useShallow } from "zustand/shallow";
+
+import { Button } from "@/components/Button";
+import { IconButton } from "@/components/IconButton";
+import {
+  setSleepTimerEnabled,
+  setSleepTimerTime,
+} from "@/services/sleep-timer-service";
+import { useSession } from "@/stores/session";
+import { useSleepTimer } from "@/stores/sleep-timer";
+import { Colors } from "@/styles/colors";
 
 function formatSeconds(seconds: number) {
   return Math.round(seconds / 60);
@@ -16,8 +20,14 @@ function formatSeconds(seconds: number) {
 
 export default function SleepTimerRoute() {
   const { bottom } = useSafeAreaInsets();
+  const session = useSession((state) => state.session);
 
-  const { sleepTimer, sleepTimerEnabled } = usePlayer((state) => state);
+  const { sleepTimer, sleepTimerEnabled } = useSleepTimer(
+    useShallow(({ sleepTimer, sleepTimerEnabled }) => ({
+      sleepTimer,
+      sleepTimerEnabled,
+    })),
+  );
 
   const [displaySleepTimerSeconds, setDisplaySleepTimerSeconds] =
     useState(sleepTimer);
@@ -26,10 +36,15 @@ export default function SleepTimerRoute() {
     setDisplaySleepTimerSeconds(sleepTimer);
   }, [sleepTimer]);
 
-  const setSleepTimerSecondsAndDisplay = useCallback((value: number) => {
-    setDisplaySleepTimerSeconds(value);
-    setSleepTimer(value);
-  }, []);
+  const setSleepTimerSecondsAndDisplay = useCallback(
+    (value: number) => {
+      setDisplaySleepTimerSeconds(value);
+      if (session) setSleepTimerTime(session, value);
+    },
+    [session],
+  );
+
+  if (!session) return null;
 
   return (
     <View style={{ paddingBottom: Platform.OS === "android" ? bottom : 0 }}>
@@ -120,7 +135,7 @@ export default function SleepTimerRoute() {
             thumbColor={Colors.zinc[100]}
             value={sleepTimerEnabled}
             onValueChange={(value) => {
-              setSleepTimerState(value);
+              setSleepTimerEnabled(session, value);
             }}
           />
         </View>

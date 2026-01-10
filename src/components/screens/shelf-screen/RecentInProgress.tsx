@@ -1,51 +1,57 @@
-import {
-  FadeInOnMount,
-  HeaderButton,
-  PlayerStateTile,
-  SeeAllTile,
-} from "@/src/components";
+import { FlatList, StyleSheet, View } from "react-native";
+import { router } from "expo-router";
+
+import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { HeaderButton } from "@/components/HeaderButton";
+import { SeeAllTile } from "@/components/SeeAllTile";
+import { PlaythroughTile } from "@/components/Tiles";
+import { TimeAgo } from "@/components/TimeAgo";
 import {
   HORIZONTAL_LIST_LIMIT,
   HORIZONTAL_TILE_SPACING,
   HORIZONTAL_TILE_WIDTH_RATIO,
-} from "@/src/constants";
-import { getPlayerStatesPage } from "@/src/db/library";
-import { useLibraryData } from "@/src/hooks/use-library-data";
-import { usePlayer } from "@/src/stores/player";
-import { useScreen } from "@/src/stores/screen";
-import { Session } from "@/src/stores/session";
-import { router } from "expo-router";
-import { FlatList, StyleSheet, View } from "react-native";
+} from "@/constants";
+import {
+  getPlaythroughsPage,
+  useLibraryData,
+} from "@/services/library-service";
+import { useDataVersion } from "@/stores/data-version";
+import { useScreen } from "@/stores/screen";
+import { useTrackPlayer } from "@/stores/track-player";
+import { Session } from "@/types/session";
 
 type RecentInProgressProps = {
   session: Session;
 };
 
 export function RecentInProgress({ session }: RecentInProgressProps) {
-  const mediaId = usePlayer((state) => state.mediaId);
+  const loadedPlaythroughId = useTrackPlayer((state) => state.playthrough?.id);
   const screenWidth = useScreen((state) => state.screenWidth);
-  const playerStates = useLibraryData(
+  const playthroughVersion = useDataVersion(
+    (state) => state.playthroughDataVersion,
+  );
+  const playthroughs = useLibraryData(
     () =>
-      getPlayerStatesPage(
+      getPlaythroughsPage(
         session,
         HORIZONTAL_LIST_LIMIT,
         "in_progress",
-        mediaId,
+        loadedPlaythroughId,
       ),
-    [mediaId],
+    [loadedPlaythroughId, playthroughVersion],
   );
 
-  if (!playerStates) return null;
-  if (playerStates.length === 0) return null;
+  if (!playthroughs) return null;
+  if (playthroughs.length === 0) return null;
 
   const navigateToAll = () => {
     router.push({
-      pathname: "/(tabs)/(shelf)/in-progress",
+      pathname: "/(tabs)/(home)/(shelf)/in-progress",
     });
   };
 
   const tileSize = screenWidth / HORIZONTAL_TILE_WIDTH_RATIO;
-  const hasMore = playerStates.length === HORIZONTAL_LIST_LIMIT;
+  const hasMore = playthroughs.length === HORIZONTAL_LIST_LIMIT;
 
   return (
     <View style={styles.container}>
@@ -58,8 +64,8 @@ export function RecentInProgress({ session }: RecentInProgressProps) {
       </View>
       <FlatList
         style={styles.list}
-        data={playerStates}
-        keyExtractor={(item) => item.media.id}
+        data={playthroughs}
+        keyExtractor={(item) => item.id}
         horizontal={true}
         showsHorizontalScrollIndicator={false}
         snapToInterval={tileSize + HORIZONTAL_TILE_SPACING}
@@ -74,7 +80,8 @@ export function RecentInProgress({ session }: RecentInProgressProps) {
         }
         renderItem={({ item }) => (
           <FadeInOnMount style={[styles.tile, { width: tileSize }]}>
-            <PlayerStateTile playerState={item} session={session} />
+            {item.lastListenedAt && <TimeAgo date={item.lastListenedAt} />}
+            <PlaythroughTile playthrough={item} />
           </FadeInOnMount>
         )}
       />

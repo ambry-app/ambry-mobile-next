@@ -24,7 +24,7 @@ CREATE TABLE `__new_media` (
 	FOREIGN KEY (`url`,`book_id`) REFERENCES `books`(`url`,`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-INSERT INTO `__new_media`("url", "id", "status", "book_id", "chapters", "supplemental_files", "full_cast", "abridged", "mpd_path", "hls_path", "mp4_path", "duration", "published", "published_format", "notes", "thumbnails", "description", "publisher", "inserted_at", "updated_at") SELECT "url", "id", "status", "book_id", "chapters", "supplemental_files", "full_cast", "abridged", "mpd_path", "hls_path", "mp4_path", "duration", "published", "published_format", "notes", "thumbnails", "description", "publisher", "inserted_at", "updated_at" FROM `media`;--> statement-breakpoint
+INSERT INTO `__new_media`("url", "id", "status", "book_id", "chapters", "supplemental_files", "full_cast", "abridged", "mpd_path", "hls_path", "mp4_path", "duration", "published", "published_format", "notes", "thumbnails", "description", "publisher", "inserted_at", "updated_at") SELECT "url", "id", "status", "book_id", "chapters", '[]', "full_cast", "abridged", "mpd_path", "hls_path", "mp4_path", "duration", "published", "published_format", NULL, "thumbnails", "description", NULL, "inserted_at", "updated_at" FROM `media`;--> statement-breakpoint
 DROP TABLE `media`;--> statement-breakpoint
 ALTER TABLE `__new_media` RENAME TO `media`;--> statement-breakpoint
 PRAGMA foreign_keys=ON;

@@ -1,9 +1,15 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
-import { requireValue } from "@/src/utils";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
-import { getNarratorsForMedia } from "./shared-queries";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/types/session";
+import { requireValue } from "@/utils/require-value";
+
+import {
+  getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
+  getSavedForLaterStatusForMedia,
+} from "./shared-queries";
 
 export type BookDetails = Awaited<ReturnType<typeof getBookDetails>>;
 
@@ -18,6 +24,11 @@ export async function getBookDetails(
 
   const mediaIds = mediaForBook.map((m) => m.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
+  const savedForLater = await getSavedForLaterStatusForMedia(session, mediaIds);
 
   return {
     ...book,
@@ -25,12 +36,14 @@ export async function getBookDetails(
     media: mediaForBook.map((media) => ({
       ...media,
       narrators: narratorsForMedia[media.id] ?? [],
+      playthroughStatus: playthroughStatuses[media.id] ?? null,
+      isOnSavedShelf: savedForLater.has(media.id),
     })),
   };
 }
 
 async function getBook(session: Session, bookId: string) {
-  const book = await db.query.books.findFirst({
+  const book = await getDb().query.books.findFirst({
     columns: {
       id: true,
       title: true,
@@ -44,7 +57,7 @@ async function getBook(session: Session, bookId: string) {
 }
 
 async function getAuthorsForBook(session: Session, bookId: string) {
-  return db
+  return getDb()
     .select({
       name: schema.authors.name,
     })
@@ -70,7 +83,7 @@ async function getMediaForBook(
   bookId: string,
   limit: number,
 ) {
-  return db
+  return getDb()
     .select({
       id: schema.media.id,
       thumbnails: schema.media.thumbnails,

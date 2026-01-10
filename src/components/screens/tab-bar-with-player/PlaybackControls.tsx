@@ -1,10 +1,15 @@
-import { PlayButton, SeekButton } from "@/src/components";
-import { Colors } from "@/src/styles";
 import { StyleSheet, View } from "react-native";
+
+import { PlayButton } from "@/components/PlayButton";
+import { SeekButton } from "@/components/SeekButton";
+import { Colors } from "@/styles/colors";
+
+import { SeekIndicator } from "./SeekIndicator";
 
 export function PlaybackControls() {
   return (
     <View style={styles.container}>
+      <SeekIndicator />
       <SeekButton
         amount={-60}
         icon="backward"
@@ -36,6 +41,7 @@ export function PlaybackControls() {
 
 const styles = StyleSheet.create({
   container: {
+    position: "relative",
     display: "flex",
     flexDirection: "row",
     alignItems: "center",

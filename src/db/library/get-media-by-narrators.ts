@@ -1,9 +1,16 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
-import { flatMapGroups } from "@/src/utils";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/types/session";
+import { flatMapGroups } from "@/utils/flat-map-groups";
+
+import {
+  getAuthorsForBooks,
+  getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
+  getSavedForLaterStatusForMedia,
+} from "./shared-queries";
 
 export type MediaByNarratorsType = Awaited<
   ReturnType<typeof getMediaByNarrators>
@@ -33,6 +40,11 @@ export async function getMediaByNarrators(
 
   const mediaIds = flatMapGroups(mediaForNarrators, (m) => m.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
+  const savedForLater = await getSavedForLaterStatusForMedia(session, mediaIds);
 
   return narrators.map((narrator) => ({
     ...narrator,
@@ -43,6 +55,8 @@ export async function getMediaByNarrators(
         authors: authorsForBooks[media.book.id] ?? [],
       },
       narrators: narratorsForMedia[media.id] ?? [],
+      playthroughStatus: playthroughStatuses[media.id] ?? null,
+      isOnSavedShelf: savedForLater.has(media.id),
     })),
   }));
 }
@@ -72,7 +86,7 @@ async function getMediaForNarrator(
   narratorId: string,
   limit: number,
 ) {
-  return db
+  return getDb()
     .select({
       id: schema.media.id,
       thumbnails: schema.media.thumbnails,

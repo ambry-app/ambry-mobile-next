@@ -1,13 +1,14 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
-import { requireValue } from "@/src/utils";
 import { and, eq } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/types/session";
+import { requireValue } from "@/utils/require-value";
 
 export type AuthorHeaderInfo = Awaited<ReturnType<typeof getAuthorHeaderInfo>>;
 
 export async function getAuthorHeaderInfo(session: Session, authorId: string) {
-  const author = await db.query.authors.findFirst({
+  const author = await getDb().query.authors.findFirst({
     columns: {
       id: true,
       name: true,

@@ -1,12 +1,17 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
 import { eq, sql } from "drizzle-orm";
+
+import {
+  DEFAULT_SLEEP_TIMER_ENABLED,
+  DEFAULT_SLEEP_TIMER_SECONDS,
+} from "@/constants";
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
 
 export async function setPreferredPlaybackRate(
   userEmail: string,
   rate: number,
 ) {
-  await db
+  await getDb()
     .insert(schema.localUserSettings)
     .values({
       userEmail,
@@ -24,7 +29,7 @@ export async function setSleepTimerEnabled(
   userEmail: string,
   enabled: boolean,
 ) {
-  await db
+  await getDb()
     .insert(schema.localUserSettings)
     .values({
       userEmail,
@@ -39,7 +44,7 @@ export async function setSleepTimerEnabled(
 }
 
 export async function setSleepTimerTime(userEmail: string, seconds: number) {
-  await db
+  await getDb()
     .insert(schema.localUserSettings)
     .values({
       userEmail,
@@ -54,7 +59,7 @@ export async function setSleepTimerTime(userEmail: string, seconds: number) {
 }
 
 export async function getSleepTimerSettings(userEmail: string) {
-  const response = await db.query.localUserSettings.findFirst({
+  const response = await getDb().query.localUserSettings.findFirst({
     columns: {
       sleepTimer: true,
       sleepTimerEnabled: true,
@@ -66,8 +71,8 @@ export async function getSleepTimerSettings(userEmail: string) {
     return response;
   } else {
     return {
-      sleepTimer: schema.defaultSleepTimer,
-      sleepTimerEnabled: schema.defaultSleepTimerEnabled,
+      sleepTimer: DEFAULT_SLEEP_TIMER_SECONDS,
+      sleepTimerEnabled: DEFAULT_SLEEP_TIMER_ENABLED,
     };
   }
 }

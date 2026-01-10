@@ -1,5 +1,7 @@
-import { Colors } from "@/src/styles";
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
+
+import { Colors } from "@/styles/colors";
+
 import { IconButton } from "./IconButton";
 
 type Props = {

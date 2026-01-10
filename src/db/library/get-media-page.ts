@@ -1,8 +1,15 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
 import { and, desc, eq, like, lt, or, sql } from "drizzle-orm";
-import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/types/session";
+
+import {
+  getAuthorsForBooks,
+  getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
+  getSavedForLaterStatusForMedia,
+} from "./shared-queries";
 
 export type MediaPage = Awaited<ReturnType<typeof getMediaPage>>;
 
@@ -20,6 +27,11 @@ export async function getMediaPage(
 
   const mediaIds = media.map((m) => m.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
+  const savedForLater = await getSavedForLaterStatusForMedia(session, mediaIds);
 
   return media.map((media) => ({
     ...media,
@@ -28,6 +40,8 @@ export async function getMediaPage(
       authors: authorsForBooks[media.book.id] || [],
     },
     narrators: narratorsForMedia[media.id] || [],
+    playthroughStatus: playthroughStatuses[media.id] ?? null,
+    isOnSavedShelf: savedForLater.has(media.id),
   }));
 }
 
@@ -43,6 +57,11 @@ export async function getSearchedMedia(
 
   const mediaIds = media.map((m) => m.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
+  const savedForLater = await getSavedForLaterStatusForMedia(session, mediaIds);
 
   return media.map((media) => ({
     ...media,
@@ -51,6 +70,8 @@ export async function getSearchedMedia(
       authors: authorsForBooks[media.book.id] || [],
     },
     narrators: narratorsForMedia[media.id] || [],
+    playthroughStatus: playthroughStatuses[media.id] ?? null,
+    isOnSavedShelf: savedForLater.has(media.id),
   }));
 }
 
@@ -59,7 +80,7 @@ async function recentMedia(
   limit: number,
   insertedBefore?: Date,
 ) {
-  return db
+  return getDb()
     .select({
       id: schema.media.id,
       thumbnails: schema.media.thumbnails,
@@ -105,7 +126,7 @@ async function searchMedia(
   limit: number,
   searchQuery: string,
 ) {
-  return await db
+  return await getDb()
     .selectDistinct({
       id: schema.media.id,
       thumbnails: schema.media.thumbnails,

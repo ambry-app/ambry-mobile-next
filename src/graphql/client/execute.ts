@@ -1,6 +1,6 @@
 import { GraphQLClient } from "graphql-request";
 import type { TypedDocumentString } from "./graphql";
-import type { Result } from "@/src/types/result";
+import type { Result } from "@/types/result";
 
 export enum ExecuteAuthenticatedErrorCode {
   NETWORK_ERROR = "ExecuteAuthenticatedErrorCodeNetworkError",

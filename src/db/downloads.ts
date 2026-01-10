@@ -1,8 +1,12 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
-import { requireValue } from "@/src/utils";
 import { and, desc, eq } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/types/session";
+import { logBase } from "@/utils/logger";
+import { requireValue } from "@/utils/require-value";
+
+const log = logBase.extend("db-downloads");
 
 /**
  * Retrieves all download records associated with the given session.
@@ -11,7 +15,7 @@ import { and, desc, eq } from "drizzle-orm";
  * @returns A promise that resolves to an array of download records, ordered by download date in descending order.
  */
 export async function getAllDownloads(session: Session) {
-  return db.query.downloads.findMany({
+  return getDb().query.downloads.findMany({
     where: eq(schema.downloads.url, session.url),
     orderBy: desc(schema.downloads.downloadedAt),
   });
@@ -25,7 +29,7 @@ export async function getAllDownloads(session: Session) {
  * @returns A promise that resolves to the download record if found, or `undefined` if no matching record exists.
  */
 export async function getDownload(session: Session, mediaId: string) {
-  return db.query.downloads.findFirst({
+  return getDb().query.downloads.findFirst({
     where: and(
       eq(schema.downloads.url, session.url),
       eq(schema.downloads.mediaId, mediaId),
@@ -49,7 +53,7 @@ export async function createDownload(
 ) {
   const now = new Date();
 
-  await db.insert(schema.downloads).values({
+  await getDb().insert(schema.downloads).values({
     url: session.url,
     mediaId: mediaId,
     downloadedAt: now,
@@ -84,7 +88,7 @@ export async function updateDownload(
     status?: "error" | "ready";
   },
 ) {
-  await db
+  await getDb()
     .update(schema.downloads)
     .set({
       ...attributes,
@@ -110,8 +114,8 @@ export async function updateDownload(
  * @returns A promise that resolves when the deletion is complete.
  */
 export async function deleteDownload(session: Session, mediaId: string) {
-  console.debug("[Downloads] Deleting download from database", mediaId);
-  await db
+  log.debug("Deleting download from database", mediaId);
+  await getDb()
     .delete(schema.downloads)
     .where(
       and(

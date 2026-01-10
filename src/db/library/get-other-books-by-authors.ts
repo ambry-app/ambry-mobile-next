@@ -1,13 +1,17 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
-import { flatMapGroups } from "@/src/utils";
 import { and, desc, eq, ne, or, sql } from "drizzle-orm";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/types/session";
+import { flatMapGroups } from "@/utils/flat-map-groups";
+
 import { MediaHeaderInfo } from "./get-media-header-info";
 import {
   getAuthorsForBooks,
   getMediaForBooks,
   getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
+  getSavedForLaterStatusForMedia,
 } from "./shared-queries";
 
 export type AuthorsWithOtherBooks = Awaited<
@@ -30,6 +34,11 @@ export async function getOtherBooksByAuthors(
 
   const mediaIds = flatMapGroups(mediaForBooks, (media) => media.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
+  const savedForLater = await getSavedForLaterStatusForMedia(session, mediaIds);
 
   return book.authors.map((author) => ({
     ...author,
@@ -39,6 +48,8 @@ export async function getOtherBooksByAuthors(
       media: (mediaForBooks[book.id] ?? []).map((media) => ({
         ...media,
         narrators: narratorsForMedia[media.id] ?? [],
+        playthroughStatus: playthroughStatuses[media.id] ?? null,
+        isOnSavedShelf: savedForLater.has(media.id),
       })),
     })),
   }));
@@ -80,7 +91,7 @@ async function getBooksForAuthor(
   withoutSeriesIds: string[],
   limit: number,
 ) {
-  const results = await db
+  const results = await getDb()
     .select({
       id: schema.books.id,
       title: schema.books.title,
@@ -127,5 +138,5 @@ async function getBooksForAuthor(
     .orderBy(desc(schema.books.published))
     .limit(limit);
 
-  return results.map(({ seriesIds, ...rest }) => rest);
+  return results.map(({ seriesIds: _seriesIds, ...rest }) => rest);
 }

@@ -1,8 +1,15 @@
-import { db } from "@/src/db/db";
-import * as schema from "@/src/db/schema";
-import { Session } from "@/src/stores/session";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
+
+import { getDb } from "@/db/db";
+import * as schema from "@/db/schema";
+import { Session } from "@/types/session";
+
+import {
+  getAuthorsForBooks,
+  getNarratorsForMedia,
+  getPlaythroughStatusesForMedia,
+  getSavedForLaterStatusForMedia,
+} from "./shared-queries";
 
 export async function getMediaByNarratorPage(
   session: Session,
@@ -16,6 +23,11 @@ export async function getMediaByNarratorPage(
 
   const mediaIds = media.map((m) => m.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
+  const playthroughStatuses = await getPlaythroughStatusesForMedia(
+    session,
+    mediaIds,
+  );
+  const savedForLater = await getSavedForLaterStatusForMedia(session, mediaIds);
 
   const bookIds = media.map((media) => media.book.id);
   const authorsForBooks = await getAuthorsForBooks(session, bookIds);
@@ -27,6 +39,8 @@ export async function getMediaByNarratorPage(
       authors: authorsForBooks[media.book.id] ?? [],
     },
     narrators: narratorsForMedia[media.id] ?? [],
+    playthroughStatus: playthroughStatuses[media.id] ?? null,
+    isOnSavedShelf: savedForLater.has(media.id),
   }));
 }
 
@@ -38,7 +52,7 @@ async function getMedia(
 ) {
   const publishedExpr = sql<Date>`COALESCE(${schema.media.published}, ${schema.books.published})`;
 
-  return db
+  return getDb()
     .select({
       id: schema.media.id,
       published: publishedExpr,
