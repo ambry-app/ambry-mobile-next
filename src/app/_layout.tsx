@@ -121,9 +121,9 @@ function RootStack() {
     <Stack>
       <Stack.Protected guard={isLoggedIn}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="sleep-timer" options={modalOptions} />
+        <Stack.Screen name="playback-rate" options={modalOptions} />
         <Stack.Protected guard={playerLoaded}>
-          <Stack.Screen name="sleep-timer" options={modalOptions} />
-          <Stack.Screen name="playback-rate" options={modalOptions} />
           <Stack.Screen name="chapter-select" options={chapterSelectOptions} />
         </Stack.Protected>
         <Stack.Screen name="resume-prompt" options={modalOptions} />
