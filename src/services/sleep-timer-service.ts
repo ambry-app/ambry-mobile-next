@@ -7,7 +7,12 @@
  * changes and user interactions.
  */
 
+import * as ShakeDetector from "shake-detector";
+
 import {
+  MOTION_RESET_DEBOUNCE,
+  MOTION_SAMPLE_WINDOW,
+  MOTION_VARIANCE_THRESHOLD,
   SLEEP_TIMER_FADE_OUT_TIME,
   SLEEP_TIMER_PAUSE_REWIND_SECONDS,
 } from "@/constants";
@@ -18,6 +23,7 @@ import {
 } from "@/db/settings";
 import * as Player from "@/services/track-player-service";
 import * as TrackPlayer from "@/services/track-player-wrapper";
+import { useDebug } from "@/stores/debug";
 import {
   resetForTesting as resetSleepTimerStore,
   setTriggerTime,
@@ -39,6 +45,8 @@ const log = logBase.extend("sleep-timer");
 
 const SLEEP_TIMER_CHECK_INTERVAL = 1000;
 let sleepTimerCheckInterval: NodeJS.Timeout | null = null;
+
+let motionListenerSubscription: { remove: () => void } | null = null;
 
 let unsubscribeFunctions: (() => void)[] = [];
 
@@ -142,6 +150,21 @@ function setupStoreSubscriptions() {
       (seek) => seek && handleSeek(seek),
     ),
   );
+
+  // Restart motion detection when debug mode changes (if currently running)
+  unsubscribeFunctions.push(
+    subscribeToChange(
+      useDebug,
+      (s) => s.debugModeEnabled,
+      () => {
+        if (motionListenerSubscription) {
+          log.debug("Debug mode changed, restarting motion detection");
+          stopMotionDetection();
+          startMotionDetection();
+        }
+      },
+    ),
+  );
 }
 
 /**
@@ -178,6 +201,7 @@ function handleSeek(seek: Seek) {
  */
 async function start() {
   clearTimerInterval();
+  stopMotionDetection();
   await resetTriggerTime();
 
   const { sleepTimerEnabled } = useSleepTimer.getState();
@@ -188,6 +212,7 @@ async function start() {
 
   log.debug("Starting timer check interval");
   sleepTimerCheckInterval = setInterval(checkTimer, SLEEP_TIMER_CHECK_INTERVAL);
+  startMotionDetection();
 }
 
 /**
@@ -195,6 +220,7 @@ async function start() {
  */
 async function stop() {
   clearTimerInterval();
+  stopMotionDetection();
   await clearTriggerTime();
 }
 
@@ -276,6 +302,70 @@ async function checkTimer() {
 }
 
 // =============================================================================
+// Motion Detection
+// =============================================================================
+
+/**
+ * Start the native shake detector module. When motion is detected (variance
+ * exceeds threshold), reset the sleep timer trigger time.
+ */
+function startMotionDetection() {
+  if (motionListenerSubscription) {
+    log.debug("Motion detection already started");
+    return;
+  }
+
+  log.debug("Starting motion detection");
+
+  motionListenerSubscription = ShakeDetector.addMotionListener((event) => {
+    // Update variance for debug display (on every reading)
+    useSleepTimer.setState({ motionVariance: event.variance });
+
+    // Only process if variance exceeds threshold
+    if (event.variance < MOTION_VARIANCE_THRESHOLD) {
+      return;
+    }
+
+    // Debounce: only reset if enough time has passed since last reset
+    const { lastMotionDetected } = useSleepTimer.getState();
+    const now = event.timestamp;
+
+    if (
+      lastMotionDetected === null ||
+      now - lastMotionDetected >= MOTION_RESET_DEBOUNCE
+    ) {
+      log.debug(`Motion detected (variance: ${event.variance.toFixed(2)})`);
+      useSleepTimer.setState({ lastMotionDetected: now });
+      maybeResetTriggerTime();
+    }
+  });
+
+  const { debugModeEnabled } = useDebug.getState();
+  ShakeDetector.start(
+    MOTION_SAMPLE_WINDOW,
+    MOTION_VARIANCE_THRESHOLD,
+    debugModeEnabled,
+  );
+}
+
+/**
+ * Stop the native shake detector module and clear motion state.
+ */
+function stopMotionDetection() {
+  if (motionListenerSubscription) {
+    motionListenerSubscription.remove();
+    motionListenerSubscription = null;
+    log.debug("Stopped motion detection");
+  }
+
+  ShakeDetector.stop();
+
+  useSleepTimer.setState({
+    motionVariance: 0,
+  });
+}
+
+// =============================================================================
 // Testing Helpers
 // =============================================================================
 
@@ -289,6 +379,13 @@ export function resetForTesting() {
     clearInterval(sleepTimerCheckInterval);
     sleepTimerCheckInterval = null;
   }
+
+  // Stop motion detection
+  if (motionListenerSubscription) {
+    motionListenerSubscription.remove();
+    motionListenerSubscription = null;
+  }
+  ShakeDetector.stop();
 
   // Unsubscribe from all subscriptions
   unsubscribeFunctions.forEach((unsubscribe) => unsubscribe());

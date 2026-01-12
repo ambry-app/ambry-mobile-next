@@ -57,4 +57,11 @@ export const DEFAULT_SLEEP_TIMER_SECONDS = 600; // 10 minutes
 export const DEFAULT_SLEEP_TIMER_ENABLED = false;
 export const DEFAULT_PREFERRED_PLAYBACK_RATE = 1.0;
 
+/* Motion detection variance threshold for sleep timer reset */
+export const MOTION_VARIANCE_THRESHOLD = 5.0;
+export const MOTION_SAMPLE_WINDOW = 10;
+
+/* Minimum time between motion-triggered resets (in milliseconds) */
+export const MOTION_RESET_DEBOUNCE = 2000;
+
 export const FOREGROUND_SYNC_INTERVAL = 15 * 60 * 1000; // 15 minutes

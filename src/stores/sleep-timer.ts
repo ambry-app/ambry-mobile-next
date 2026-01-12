@@ -10,6 +10,10 @@ export interface SleepTimerState {
   sleepTimer: number; // Duration in seconds
   sleepTimerEnabled: boolean; // Whether enabled
   sleepTimerTriggerTime: number | null; // Unix timestamp in milliseconds (in-memory only)
+
+  // Motion detection state (for debug display)
+  motionVariance: number; // Last detected variance
+  lastMotionDetected: number | null; // Timestamp of last motion-triggered reset
 }
 
 export const initialState: SleepTimerState = {
@@ -17,6 +21,10 @@ export const initialState: SleepTimerState = {
   sleepTimer: DEFAULT_SLEEP_TIMER_SECONDS,
   sleepTimerEnabled: DEFAULT_SLEEP_TIMER_ENABLED,
   sleepTimerTriggerTime: null,
+
+  // Motion detection
+  motionVariance: 0,
+  lastMotionDetected: null,
 };
 
 export const useSleepTimer = create<SleepTimerState>()(() => initialState);

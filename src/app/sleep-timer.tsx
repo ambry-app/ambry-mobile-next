@@ -6,10 +6,12 @@ import { useShallow } from "zustand/shallow";
 
 import { Button } from "@/components/Button";
 import { IconButton } from "@/components/IconButton";
+import { MOTION_VARIANCE_THRESHOLD } from "@/constants";
 import {
   setSleepTimerEnabled,
   setSleepTimerTime,
 } from "@/services/sleep-timer-service";
+import { useDebug } from "@/stores/debug";
 import { useSession } from "@/stores/session";
 import { useSleepTimer } from "@/stores/sleep-timer";
 import { Colors } from "@/styles/colors";
@@ -21,6 +23,7 @@ function formatSeconds(seconds: number) {
 export default function SleepTimerRoute() {
   const { bottom } = useSafeAreaInsets();
   const session = useSession((state) => state.session);
+  const debugModeEnabled = useDebug((state) => state.debugModeEnabled);
 
   const { sleepTimer, sleepTimerEnabled } = useSleepTimer(
     useShallow(({ sleepTimer, sleepTimerEnabled }) => ({
@@ -139,6 +142,8 @@ export default function SleepTimerRoute() {
             }}
           />
         </View>
+
+        {debugModeEnabled && <MotionDebugInfo />}
       </View>
     </View>
   );
@@ -163,6 +168,49 @@ function SleepTimerSecondsButton(props: SleepTimerSecondsButtonProps) {
         {formatSeconds(seconds)}m
       </Text>
     </Button>
+  );
+}
+
+function MotionDebugInfo() {
+  const { motionVariance, lastMotionDetected } = useSleepTimer(
+    useShallow(({ motionVariance, lastMotionDetected }) => ({
+      motionVariance,
+      lastMotionDetected,
+    })),
+  );
+
+  const isAboveThreshold = motionVariance > MOTION_VARIANCE_THRESHOLD;
+  const lastDetectedAgo = lastMotionDetected
+    ? Math.round((Date.now() - lastMotionDetected) / 1000)
+    : null;
+
+  return (
+    <View style={styles.debugContainer}>
+      <Text style={styles.debugTitle}>Motion Detection Debug</Text>
+      <View style={styles.debugRow}>
+        <Text style={styles.debugLabel}>Variance:</Text>
+        <Text
+          style={[
+            styles.debugValue,
+            isAboveThreshold && styles.debugValueHighlight,
+          ]}
+        >
+          {motionVariance.toFixed(4)}
+        </Text>
+      </View>
+      <View style={styles.debugRow}>
+        <Text style={styles.debugLabel}>Threshold:</Text>
+        <Text style={styles.debugValue}>
+          {MOTION_VARIANCE_THRESHOLD.toFixed(4)}
+        </Text>
+      </View>
+      <View style={styles.debugRow}>
+        <Text style={styles.debugLabel}>Last reset:</Text>
+        <Text style={styles.debugValue}>
+          {lastDetectedAgo !== null ? `${lastDetectedAgo}s ago` : "never"}
+        </Text>
+      </View>
+    </View>
   );
 }
 
@@ -223,5 +271,37 @@ const styles = StyleSheet.create({
   plusMinusButton: {
     backgroundColor: Colors.zinc[800],
     borderRadius: 999,
+  },
+  debugContainer: {
+    backgroundColor: Colors.zinc[900],
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.zinc[700],
+  },
+  debugTitle: {
+    color: Colors.zinc[400],
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  debugRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 2,
+  },
+  debugLabel: {
+    color: Colors.zinc[500],
+    fontSize: 12,
+  },
+  debugValue: {
+    color: Colors.zinc[300],
+    fontSize: 12,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+  },
+  debugValueHighlight: {
+    color: Colors.lime[400],
   },
 });
