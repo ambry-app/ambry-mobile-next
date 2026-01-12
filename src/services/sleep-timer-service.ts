@@ -7,6 +7,8 @@
  * changes and user interactions.
  */
 
+import { Platform } from "react-native";
+import * as ActivityTracker from "activity-tracker";
 import * as ShakeDetector from "shake-detector";
 
 import {
@@ -48,6 +50,7 @@ const SLEEP_TIMER_CHECK_INTERVAL = 1000;
 let sleepTimerCheckInterval: NodeJS.Timeout | null = null;
 
 let motionListenerSubscription: { remove: () => void } | null = null;
+let activityListenerSubscription: { remove: () => void } | null = null;
 
 let unsubscribeFunctions: (() => void)[] = [];
 
@@ -377,6 +380,9 @@ function startMotionDetection() {
     MOTION_VARIANCE_THRESHOLD,
     debugModeEnabled,
   );
+
+  // Also start activity tracking (iOS only for now)
+  startActivityTracking();
 }
 
 /**
@@ -390,10 +396,80 @@ function stopMotionDetection() {
   }
 
   ShakeDetector.stop();
+  stopActivityTracking();
 
   useSleepTimer.setState({
     motionVariance: 0,
   });
+}
+
+// =============================================================================
+// Activity Tracking (iOS)
+// =============================================================================
+
+/**
+ * Start activity tracking for iOS. Logs activity changes for now.
+ * TODO: Integrate with sleep timer logic - only countdown when stationary.
+ */
+async function startActivityTracking() {
+  if (Platform.OS !== "ios") {
+    // For now, only use on iOS since Android has the shake detector
+    return;
+  }
+
+  if (activityListenerSubscription) {
+    log.debug("Activity tracking already started");
+    return;
+  }
+
+  const permissionStatus = await ActivityTracker.getPermissionStatus();
+  log.debug(`Activity tracker permission status: ${permissionStatus}`);
+
+  if (permissionStatus !== ActivityTracker.PermissionStatus.AUTHORIZED) {
+    // Request permission
+    const newStatus = await ActivityTracker.requestPermission();
+    log.debug(`Activity tracker permission after request: ${newStatus}`);
+
+    if (newStatus !== ActivityTracker.PermissionStatus.AUTHORIZED) {
+      log.warn("Activity tracking not authorized");
+      return;
+    }
+  }
+
+  log.debug("Starting activity tracking");
+
+  activityListenerSubscription = ActivityTracker.addActivityChangeListener(
+    (payload) => {
+      payload.events.forEach((event) => {
+        log.info(
+          `Activity: ${event.transitionType} ${event.activityType} (confidence: ${event.confidence})`,
+        );
+      });
+    },
+  );
+
+  const trackingStatus = await ActivityTracker.startTracking();
+  log.debug(`Activity tracking status: ${trackingStatus}`);
+
+  if (trackingStatus !== ActivityTracker.TrackingStatus.STARTED) {
+    log.warn(`Failed to start activity tracking: ${trackingStatus}`);
+    if (activityListenerSubscription) {
+      activityListenerSubscription.remove();
+      activityListenerSubscription = null;
+    }
+  }
+}
+
+/**
+ * Stop activity tracking.
+ */
+function stopActivityTracking() {
+  if (activityListenerSubscription) {
+    activityListenerSubscription.remove();
+    activityListenerSubscription = null;
+    ActivityTracker.stopTracking();
+    log.debug("Stopped activity tracking");
+  }
 }
 
 // =============================================================================
@@ -417,6 +493,13 @@ export function resetForTesting() {
     motionListenerSubscription = null;
   }
   ShakeDetector.stop();
+
+  // Stop activity tracking
+  if (activityListenerSubscription) {
+    activityListenerSubscription.remove();
+    activityListenerSubscription = null;
+  }
+  ActivityTracker.stopTracking();
 
   // Unsubscribe from all subscriptions
   unsubscribeFunctions.forEach((unsubscribe) => unsubscribe());
