@@ -1,6 +1,14 @@
 // iOS version - uses SwiftUI
 import { useCallback } from "react";
-import { Button, Host, List, Section, Switch, Text } from "@expo/ui/swift-ui";
+import {
+  Button,
+  Host,
+  LabeledContent,
+  List,
+  Section,
+  Switch,
+  Text,
+} from "@expo/ui/swift-ui";
 import { router } from "expo-router";
 
 import { signOut } from "@/services/auth-service";
@@ -52,12 +60,16 @@ export default function SettingsRoute() {
         </Section>
 
         <Section title="PLAYBACK">
-          <Button onPress={openPlaybackRateSettings}>
-            Default Speed: {formatPlaybackRate(preferredPlaybackRate)}×
-          </Button>
-          <Button onPress={openSleepTimerSettings}>
-            Sleep Timer: {sleepTimerDisplay}
-          </Button>
+          <LabeledContent label="Default Speed">
+            <Button onPress={openPlaybackRateSettings}>
+              {formatPlaybackRate(preferredPlaybackRate)}×
+            </Button>
+          </LabeledContent>
+          <LabeledContent label="Sleep Timer">
+            <Button onPress={openSleepTimerSettings}>
+              {sleepTimerDisplay}
+            </Button>
+          </LabeledContent>
         </Section>
 
         <Section title="DEBUG">

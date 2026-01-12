@@ -87,7 +87,12 @@ export default function SettingsRoute() {
         <Text style={styles.sectionTitle}>Playback</Text>
         <View style={styles.card}>
           <Pressable style={styles.row} onPress={openPlaybackRateSettings}>
-            <Text style={styles.rowLabel}>Default Speed</Text>
+            <View style={styles.rowLabelContainer}>
+              <Text style={styles.rowLabel}>Default Speed</Text>
+              <Text style={styles.rowDescription}>
+                Starting speed for new audiobooks
+              </Text>
+            </View>
             <View style={styles.rowRight}>
               <Text style={styles.rowValue}>
                 {formatPlaybackRate(preferredPlaybackRate)}×
@@ -101,7 +106,12 @@ export default function SettingsRoute() {
           </Pressable>
           <View style={styles.divider} />
           <Pressable style={styles.row} onPress={openSleepTimerSettings}>
-            <Text style={styles.rowLabel}>Sleep Timer</Text>
+            <View style={styles.rowLabelContainer}>
+              <Text style={styles.rowLabel}>Sleep Timer</Text>
+              <Text style={styles.rowDescription}>
+                Automatically pause playback after a set time
+              </Text>
+            </View>
             <View style={styles.rowRight}>
               <Text style={styles.rowValue}>{sleepTimerDisplay}</Text>
               <FontAwesome6
@@ -133,7 +143,12 @@ export default function SettingsRoute() {
         <Text style={styles.sectionTitle}>Debug</Text>
         <View style={styles.card}>
           <View style={styles.switchRow}>
-            <Text style={styles.rowLabel}>Debug Mode</Text>
+            <View style={styles.switchLabelContainer}>
+              <Text style={styles.rowLabel}>Debug Mode</Text>
+              <Text style={styles.rowDescription}>
+                Show extra info for troubleshooting
+              </Text>
+            </View>
             <Switch
               value={debugModeEnabled}
               onValueChange={setDebugModeEnabled}
@@ -194,6 +209,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  rowLabelContainer: {
+    flex: 1,
+    marginRight: 12,
   },
   rowLabel: {
     color: Colors.zinc[100],
