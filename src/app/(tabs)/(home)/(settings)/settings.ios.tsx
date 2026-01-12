@@ -1,5 +1,6 @@
 // iOS version - uses SwiftUI
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Alert, Linking } from "react-native";
 import {
   Button,
   Host,
@@ -33,6 +34,18 @@ export default function SettingsRoute() {
     (state) => state.sleepTimerMotionDetectionEnabled,
   );
 
+  // Local state for the toggle to handle async permission flow
+  // This ensures the toggle updates correctly even when the Switch component
+  // doesn't properly sync with value prop changes during async operations
+  const [motionToggle, setMotionToggle] = useState(
+    sleepTimerMotionDetectionEnabled,
+  );
+
+  // Sync local state with store when store changes (e.g., on initial load)
+  useEffect(() => {
+    setMotionToggle(sleepTimerMotionDetectionEnabled);
+  }, [sleepTimerMotionDetectionEnabled]);
+
   const handleSignOut = useCallback(async () => {
     await unloadPlayer();
     await signOut();
@@ -48,10 +61,34 @@ export default function SettingsRoute() {
 
   const handleMotionDetectionToggle = useCallback(
     async (enabled: boolean) => {
-      if (session) {
-        // This will request permission if needed on iOS
-        // If permission is denied, the setting won't be enabled
-        await setSleepTimerMotionDetectionEnabled(session, enabled);
+      if (!session) return;
+
+      // Optimistically update local state
+      setMotionToggle(enabled);
+
+      const result = await setSleepTimerMotionDetectionEnabled(
+        session,
+        enabled,
+      );
+
+      // If failed, reset local state
+      if (!result.success) {
+        setMotionToggle(false);
+
+        // If permission was permanently denied, show alert to guide user to Settings
+        if (result.permissionDenied) {
+          Alert.alert(
+            "Permission Required",
+            "Motion detection requires access to Motion & Fitness data. Please enable it in Settings.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Open Settings",
+                onPress: () => Linking.openSettings(),
+              },
+            ],
+          );
+        }
       }
     },
     [session],
@@ -87,7 +124,7 @@ export default function SettingsRoute() {
           </LabeledContent>
           <Switch
             label="Motion Detection"
-            value={sleepTimerMotionDetectionEnabled}
+            value={motionToggle}
             onValueChange={handleMotionDetectionToggle}
             color={Colors.lime[500]}
           />

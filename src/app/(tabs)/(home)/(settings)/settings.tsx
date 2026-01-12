@@ -42,11 +42,9 @@ export default function SettingsRoute() {
 
   const handleMotionDetectionToggle = useCallback(
     async (enabled: boolean) => {
-      if (session) {
-        // This will request permission if needed
-        // If permission is denied, the setting won't be enabled
-        await setSleepTimerMotionDetectionEnabled(session, enabled);
-      }
+      if (!session) return;
+      // On Android, this always succeeds (accelerometer doesn't need permission)
+      await setSleepTimerMotionDetectionEnabled(session, enabled);
     },
     [session],
   );

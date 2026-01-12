@@ -124,28 +124,41 @@ export async function setSleepTimerTime(session: Session, seconds: number) {
 }
 
 /**
+ * Result of attempting to enable motion detection.
+ */
+export type MotionDetectionResult = {
+  success: boolean;
+  permissionDenied?: boolean; // true if user previously denied and must go to Settings
+};
+
+/**
  * Sets whether motion detection should reset the sleep timer. Persists to
  * database and starts/stops motion detection if timer is currently active.
  *
  * When enabling, this will request permission if needed (iOS). If the user
- * denies permission, the setting will not be enabled and this returns false.
+ * denies permission, the setting will not be enabled.
  *
- * @returns true if the setting was changed, false if permission was denied
+ * @returns result indicating success and whether permission was permanently denied
  */
 export async function setSleepTimerMotionDetectionEnabled(
   session: Session,
   enabled: boolean,
-): Promise<boolean> {
+): Promise<MotionDetectionResult> {
   log.debug(`Setting motion detection to ${enabled}`);
 
   // When enabling, check/request permission first
   if (enabled) {
-    const permissionGranted = await requestActivityTrackingPermission();
-    if (!permissionGranted) {
+    const permissionResult = await requestActivityTrackingPermission();
+    if (!permissionResult.granted) {
       log.info(
         "Activity tracking permission denied, not enabling motion detection",
       );
-      return false;
+      // Force state to false to reset the toggle UI
+      useSleepTimer.setState({ sleepTimerMotionDetectionEnabled: false });
+      return {
+        success: false,
+        permissionDenied: permissionResult.permanentlyDenied,
+      };
     }
   }
 
@@ -162,7 +175,7 @@ export async function setSleepTimerMotionDetectionEnabled(
   }
 
   await setSleepTimerMotionDetectionEnabledDb(session.email, enabled);
-  return true;
+  return { success: true };
 }
 
 // =============================================================================
@@ -423,39 +436,45 @@ function stopMotionDetection() {
 // Activity Tracking
 // =============================================================================
 
+type PermissionResult = {
+  granted: boolean;
+  permanentlyDenied: boolean; // User must go to Settings to enable
+};
+
 /**
  * Request permission for activity tracking. On iOS, this triggers the system
  * permission dialog if permission hasn't been determined yet.
  *
- * @returns true if permission is granted, false otherwise
+ * @returns result with granted status and whether permanently denied
  */
-async function requestActivityTrackingPermission(): Promise<boolean> {
+async function requestActivityTrackingPermission(): Promise<PermissionResult> {
   const permissionStatus = await ActivityTracker.getPermissionStatus();
   log.debug(`Activity tracker permission status: ${permissionStatus}`);
 
   // Already authorized
   if (permissionStatus === ActivityTracker.PermissionStatus.AUTHORIZED) {
-    return true;
+    return { granted: true, permanentlyDenied: false };
   }
 
-  // Already denied or restricted - can't request again
+  // Already denied or restricted - can't request again, user must go to Settings
   if (
     permissionStatus === ActivityTracker.PermissionStatus.DENIED ||
     permissionStatus === ActivityTracker.PermissionStatus.RESTRICTED
   ) {
-    return false;
+    return { granted: false, permanentlyDenied: true };
   }
 
-  // NOT_DETERMINED - on iOS, start/stop tracking to trigger the permission prompt
-  log.debug("Permission not determined, triggering permission prompt...");
-  await ActivityTracker.startTracking();
-  await ActivityTracker.stopTracking();
+  // NOT_DETERMINED - request permission (this will show the prompt and wait for response)
+  log.debug("Permission not determined, requesting permission...");
+  const newStatus = await ActivityTracker.requestPermission();
+  log.debug(`Permission status after request: ${newStatus}`);
 
-  // Check the result
-  const newStatus = await ActivityTracker.getPermissionStatus();
-  log.debug(`Permission status after prompt: ${newStatus}`);
+  if (newStatus === ActivityTracker.PermissionStatus.AUTHORIZED) {
+    return { granted: true, permanentlyDenied: false };
+  }
 
-  return newStatus === ActivityTracker.PermissionStatus.AUTHORIZED;
+  // User denied the prompt - now it's permanently denied
+  return { granted: false, permanentlyDenied: true };
 }
 
 /**

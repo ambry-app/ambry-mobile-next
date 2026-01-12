@@ -32,27 +32,53 @@ public class ActivityTrackerModule: Module {
             }
         }
 
-        // On iOS, requesting permission happens implicitly when you start tracking
-        // Just return current status - the prompt will appear on first startTracking call
+        // Request permission by querying historical data, which triggers the system prompt
+        // and waits for the user's response before completing
         AsyncFunction("requestPermission") { (promise: Promise) in
             guard CMMotionActivityManager.isActivityAvailable() else {
                 promise.resolve("UNAVAILABLE")
                 return
             }
 
-            let status = CMMotionActivityManager.authorizationStatus()
-            switch status {
-            case .notDetermined:
-                // Return AUTHORIZED to let startTracking proceed and trigger the prompt
-                promise.resolve("AUTHORIZED")
-            case .restricted:
-                promise.resolve("RESTRICTED")
-            case .denied:
-                promise.resolve("DENIED")
-            case .authorized:
-                promise.resolve("AUTHORIZED")
-            @unknown default:
-                promise.resolve("NOT_DETERMINED")
+            let currentStatus = CMMotionActivityManager.authorizationStatus()
+
+            // If already determined, just return current status
+            if currentStatus != .notDetermined {
+                switch currentStatus {
+                case .authorized:
+                    promise.resolve("AUTHORIZED")
+                case .denied:
+                    promise.resolve("DENIED")
+                case .restricted:
+                    promise.resolve("RESTRICTED")
+                default:
+                    promise.resolve("NOT_DETERMINED")
+                }
+                return
+            }
+
+            // Query historical data to trigger the permission prompt
+            // This will wait for the user to respond before the completion handler fires
+            let now = Date()
+            let oneHourAgo = now.addingTimeInterval(-3600)
+
+            self.motionActivityManager.queryActivityStarting(
+                from: oneHourAgo,
+                to: now,
+                to: OperationQueue.main
+            ) { activities, error in
+                // Check the authorization status after the query completes
+                let newStatus = CMMotionActivityManager.authorizationStatus()
+                switch newStatus {
+                case .authorized:
+                    promise.resolve("AUTHORIZED")
+                case .denied:
+                    promise.resolve("DENIED")
+                case .restricted:
+                    promise.resolve("RESTRICTED")
+                default:
+                    promise.resolve("NOT_DETERMINED")
+                }
             }
         }
 
