@@ -15,6 +15,7 @@
 
 import {
   DEFAULT_SLEEP_TIMER_ENABLED,
+  DEFAULT_SLEEP_TIMER_MOTION_DETECTION_ENABLED,
   DEFAULT_SLEEP_TIMER_SECONDS,
   SLEEP_TIMER_PAUSE_REWIND_SECONDS,
 } from "@/constants";
@@ -36,7 +37,13 @@ import {
   createMedia,
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
-import { resetTrackPlayerFake, trackPlayerFake } from "@test/jest-setup";
+import {
+  mockShakeDetectorStart,
+  mockShakeDetectorStop,
+  resetShakeDetectorMocks,
+  resetTrackPlayerFake,
+  trackPlayerFake,
+} from "@test/jest-setup";
 
 const { getDb } = setupTestDatabase();
 
@@ -73,6 +80,7 @@ describe("sleep-timer-service", () => {
     jest.useFakeTimers();
     jest.clearAllMocks();
     resetTrackPlayerFake();
+    resetShakeDetectorMocks();
     // Initialize track player service to set up event listeners
     await trackPlayerService.initialize();
   });
@@ -92,6 +100,7 @@ describe("sleep-timer-service", () => {
         userEmail: session.email,
         sleepTimer: 1800,
         sleepTimerEnabled: true,
+        sleepTimerMotionDetectionEnabled: true,
       });
 
       await sleepTimerService.initialize(session);
@@ -100,6 +109,7 @@ describe("sleep-timer-service", () => {
       expect(state.initialized).toBe(true);
       expect(state.sleepTimer).toBe(1800);
       expect(state.sleepTimerEnabled).toBe(true);
+      expect(state.sleepTimerMotionDetectionEnabled).toBe(true);
     });
 
     it("uses defaults when no settings exist in database", async () => {
@@ -109,6 +119,9 @@ describe("sleep-timer-service", () => {
       expect(state.initialized).toBe(true);
       expect(state.sleepTimer).toBe(DEFAULT_SLEEP_TIMER_SECONDS);
       expect(state.sleepTimerEnabled).toBe(DEFAULT_SLEEP_TIMER_ENABLED);
+      expect(state.sleepTimerMotionDetectionEnabled).toBe(
+        DEFAULT_SLEEP_TIMER_MOTION_DETECTION_ENABLED,
+      );
     });
 
     it("skips if already initialized", async () => {
@@ -224,6 +237,141 @@ describe("sleep-timer-service", () => {
       await sleepTimerService.setSleepTimerTime(session, 1800);
 
       expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
+    });
+  });
+
+  describe("setSleepTimerMotionDetectionEnabled", () => {
+    beforeEach(async () => {
+      await sleepTimerService.initialize(session);
+    });
+
+    it("updates store state", async () => {
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
+        session,
+        true,
+      );
+
+      expect(useSleepTimer.getState().sleepTimerMotionDetectionEnabled).toBe(
+        true,
+      );
+    });
+
+    it("persists to database", async () => {
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
+        session,
+        true,
+      );
+
+      const db = getDb();
+      const settings = await db.query.localUserSettings.findFirst({
+        where: (s, { eq }) => eq(s.userEmail, session.email),
+      });
+      expect(settings?.sleepTimerMotionDetectionEnabled).toBe(true);
+    });
+
+    it("starts motion detection when enabled and timer is active", async () => {
+      // Start with sleep timer enabled and playing
+      await setupLoadedPlaythrough({ position: 100 });
+      await sleepTimerService.setSleepTimerEnabled(session, true);
+      await trackPlayerService.play(PlayPauseSource.USER);
+      // Use async timer to let the async start() complete
+      await jest.advanceTimersByTimeAsync(100);
+
+      // Motion detection should not be running yet (disabled by default)
+      expect(mockShakeDetectorStart).not.toHaveBeenCalled();
+
+      // Enable motion detection
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
+        session,
+        true,
+      );
+
+      // Motion detection should now be started
+      expect(mockShakeDetectorStart).toHaveBeenCalled();
+    });
+
+    it("stops motion detection when disabled and timer is active", async () => {
+      // Start with motion detection enabled
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
+        session,
+        true,
+      );
+      await setupLoadedPlaythrough({ position: 100 });
+      await sleepTimerService.setSleepTimerEnabled(session, true);
+      await trackPlayerService.play(PlayPauseSource.USER);
+      // Use async timer to let the async start() complete
+      await jest.advanceTimersByTimeAsync(100);
+
+      // Motion detection should be running
+      expect(mockShakeDetectorStart).toHaveBeenCalled();
+      mockShakeDetectorStart.mockClear();
+
+      // Disable motion detection
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
+        session,
+        false,
+      );
+
+      // Motion detection should be stopped
+      expect(mockShakeDetectorStop).toHaveBeenCalled();
+    });
+
+    it("does not start motion detection when timer is not active", async () => {
+      // Enable motion detection without timer active
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
+        session,
+        true,
+      );
+
+      // Motion detection should not start
+      expect(mockShakeDetectorStart).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("motion detection integration", () => {
+    beforeEach(async () => {
+      await sleepTimerService.initialize(session);
+      // Enable motion detection
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
+        session,
+        true,
+      );
+      await sleepTimerService.setSleepTimerEnabled(session, true);
+    });
+
+    it("starts motion detection when playback starts and motion detection is enabled", async () => {
+      await setupLoadedPlaythrough({ position: 100 });
+      await trackPlayerService.play(PlayPauseSource.USER);
+      // Use async timer to let the async start() complete
+      await jest.advanceTimersByTimeAsync(100);
+
+      expect(mockShakeDetectorStart).toHaveBeenCalled();
+    });
+
+    it("stops motion detection when playback pauses", async () => {
+      await setupLoadedPlaythrough({ position: 100 });
+      await trackPlayerService.play(PlayPauseSource.USER);
+      await jest.advanceTimersByTimeAsync(100);
+      mockShakeDetectorStop.mockClear();
+
+      await trackPlayerService.pause(PlayPauseSource.USER);
+      await jest.advanceTimersByTimeAsync(100);
+
+      expect(mockShakeDetectorStop).toHaveBeenCalled();
+    });
+
+    it("does not start motion detection when motion detection is disabled", async () => {
+      // Disable motion detection
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
+        session,
+        false,
+      );
+
+      await setupLoadedPlaythrough({ position: 100 });
+      await trackPlayerService.play(PlayPauseSource.USER);
+      await jest.advanceTimersByTimeAsync(100);
+
+      expect(mockShakeDetectorStart).not.toHaveBeenCalled();
     });
   });
 

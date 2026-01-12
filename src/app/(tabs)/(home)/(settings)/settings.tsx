@@ -7,6 +7,7 @@ import { router } from "expo-router";
 
 import { signOut } from "@/services/auth-service";
 import { unloadPlayer } from "@/services/playback-controls";
+import { setSleepTimerMotionDetectionEnabled } from "@/services/sleep-timer-service";
 import { useDebug } from "@/stores/debug";
 import { usePreferredPlaybackRate } from "@/stores/preferred-playback-rate";
 import { useSession } from "@/stores/session";
@@ -22,6 +23,9 @@ export default function SettingsRoute() {
   );
   const sleepTimer = useSleepTimer((state) => state.sleepTimer);
   const sleepTimerEnabled = useSleepTimer((state) => state.sleepTimerEnabled);
+  const sleepTimerMotionDetectionEnabled = useSleepTimer(
+    (state) => state.sleepTimerMotionDetectionEnabled,
+  );
 
   const handleSignOut = useCallback(async () => {
     await unloadPlayer();
@@ -35,6 +39,15 @@ export default function SettingsRoute() {
   const openSleepTimerSettings = useCallback(() => {
     router.push("/sleep-timer");
   }, []);
+
+  const handleMotionDetectionToggle = useCallback(
+    (enabled: boolean) => {
+      if (session) {
+        setSleepTimerMotionDetectionEnabled(session, enabled);
+      }
+    },
+    [session],
+  );
 
   if (!session) return null;
 
@@ -98,6 +111,20 @@ export default function SettingsRoute() {
               />
             </View>
           </Pressable>
+          <View style={styles.divider} />
+          <View style={styles.switchRow}>
+            <View style={styles.switchLabelContainer}>
+              <Text style={styles.rowLabel}>Motion Detection</Text>
+              <Text style={styles.rowDescription}>
+                Reset sleep timer when motion is detected
+              </Text>
+            </View>
+            <Switch
+              value={sleepTimerMotionDetectionEnabled}
+              onValueChange={handleMotionDetectionToggle}
+              color={Colors.lime[500]}
+            />
+          </View>
         </View>
       </View>
 
@@ -172,9 +199,18 @@ const styles = StyleSheet.create({
     color: Colors.zinc[100],
     fontSize: 16,
   },
+  rowDescription: {
+    color: Colors.zinc[500],
+    fontSize: 13,
+    marginTop: 2,
+  },
   rowValue: {
     color: Colors.zinc[400],
     fontSize: 16,
+  },
+  switchLabelContainer: {
+    flex: 1,
+    marginRight: 12,
   },
   infoLabel: {
     color: Colors.zinc[400],

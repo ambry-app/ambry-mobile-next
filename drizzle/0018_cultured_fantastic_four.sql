@@ -1,0 +1,1 @@
+ALTER TABLE `local_user_settings` ADD `sleep_timer_motion_detection_enabled` integer DEFAULT false NOT NULL;

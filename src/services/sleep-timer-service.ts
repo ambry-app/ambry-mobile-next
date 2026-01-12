@@ -19,6 +19,7 @@ import {
 import {
   getSleepTimerSettings,
   setSleepTimerEnabled as setSleepTimerEnabledDb,
+  setSleepTimerMotionDetectionEnabled as setSleepTimerMotionDetectionEnabledDb,
   setSleepTimerTime as setSleepTimerTimeDb,
 } from "@/db/settings";
 import * as Player from "@/services/track-player-service";
@@ -69,6 +70,7 @@ export async function initialize(session: Session) {
     initialized: true,
     sleepTimer: settings.sleepTimer,
     sleepTimerEnabled: settings.sleepTimerEnabled,
+    sleepTimerMotionDetectionEnabled: settings.sleepTimerMotionDetectionEnabled,
   });
 
   setupStoreSubscriptions();
@@ -117,6 +119,31 @@ export async function setSleepTimerTime(session: Session, seconds: number) {
     await maybeResetTriggerTime();
   }
   await setSleepTimerTimeDb(session.email, seconds);
+}
+
+/**
+ * Sets whether motion detection should reset the sleep timer. Persists to
+ * database and starts/stops motion detection if timer is currently active.
+ */
+export async function setSleepTimerMotionDetectionEnabled(
+  session: Session,
+  enabled: boolean,
+) {
+  log.debug(`Setting motion detection to ${enabled}`);
+
+  useSleepTimer.setState({ sleepTimerMotionDetectionEnabled: enabled });
+
+  // Start/stop motion detection if timer is currently running
+  const { sleepTimerTriggerTime } = useSleepTimer.getState();
+  if (sleepTimerTriggerTime !== null) {
+    if (enabled) {
+      startMotionDetection();
+    } else {
+      stopMotionDetection();
+    }
+  }
+
+  await setSleepTimerMotionDetectionEnabledDb(session.email, enabled);
 }
 
 // =============================================================================
@@ -204,7 +231,8 @@ async function start() {
   stopMotionDetection();
   await resetTriggerTime();
 
-  const { sleepTimerEnabled } = useSleepTimer.getState();
+  const { sleepTimerEnabled, sleepTimerMotionDetectionEnabled } =
+    useSleepTimer.getState();
 
   if (!sleepTimerEnabled) {
     return;
@@ -212,7 +240,10 @@ async function start() {
 
   log.debug("Starting timer check interval");
   sleepTimerCheckInterval = setInterval(checkTimer, SLEEP_TIMER_CHECK_INTERVAL);
-  startMotionDetection();
+
+  if (sleepTimerMotionDetectionEnabled) {
+    startMotionDetection();
+  }
 }
 
 /**

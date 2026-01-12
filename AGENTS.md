@@ -23,9 +23,9 @@ npm run prebuild -- --clean  # Clean rebuild of native code
 ### Code Generation & Database
 
 ```bash
-npm run codegen              # Generate GraphQL types from server schema
-npm run codegen-watch        # Watch mode for GraphQL codegen
-npm run generate-migrations  # Generate Drizzle ORM migrations after schema changes
+npm run codegen                    # Generate GraphQL types from server schema
+npm run codegen:watch              # Watch mode for GraphQL codegen
+npm run drizzle:generate-migrations  # Generate Drizzle ORM migrations after schema changes
 ```
 
 ### Quality & Diagnostics
@@ -45,8 +45,8 @@ npm run doctor               # Check Expo environment health
 ### Building
 
 ```bash
-npm run android-preview      # Build Android preview locally with EAS
-npm run ios-preview          # Build iOS preview locally with EAS
+npm run build:android:preview  # Build Android preview locally with EAS
+npm run build:ios:preview      # Build iOS preview locally with EAS
 ```
 
 ## Architecture Overview
@@ -73,7 +73,7 @@ npm run ios-preview          # Build iOS preview locally with EAS
   - `sync.ts`: Database-level sync helpers
   - `library/`: Query functions organized by entity type
   - `playthroughs.ts`: Playthrough database operations
-- **`/drizzle/`**: Generated database migrations (run `npm run generate-migrations` after schema changes)
+- **`/drizzle/`**: Generated database migrations (run `npm run drizzle:generate-migrations` after schema changes)
 - **`/src/graphql/`**: GraphQL API layer
   - `api.ts`: High-level API functions
   - `client/`: Generated types and execution logic
@@ -224,7 +224,7 @@ State is split across three stores by responsibility:
 **Schema Changes**:
 
 1. Modify `src/db/schema.ts`
-2. Run `npm run generate-migrations`
+2. Run `npm run drizzle:generate-migrations`
 3. Migrations auto-apply on next app boot
 
 ### GraphQL API Layer

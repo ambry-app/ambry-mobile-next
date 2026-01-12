@@ -443,6 +443,39 @@ jest.mock("@/db/db", () => ({
 }));
 
 // =============================================================================
+// Shake Detector Mock (Native Module)
+// =============================================================================
+
+export const mockShakeDetectorStart = jest.fn();
+export const mockShakeDetectorStop = jest.fn();
+export const mockShakeDetectorIsRunning = jest.fn(() => false);
+export const mockShakeDetectorAddMotionListener = jest.fn(
+  (_listener: (event: unknown) => void) => ({
+    remove: jest.fn(),
+  }),
+);
+
+jest.mock("shake-detector", () => ({
+  start: (sampleWindow: number, threshold: number, debugMode: boolean) =>
+    mockShakeDetectorStart(sampleWindow, threshold, debugMode),
+  stop: () => mockShakeDetectorStop(),
+  isRunning: () => mockShakeDetectorIsRunning(),
+  addMotionListener: (listener: (event: unknown) => void) =>
+    mockShakeDetectorAddMotionListener(listener),
+}));
+
+/**
+ * Reset shake detector mocks. Call in beforeEach().
+ */
+export function resetShakeDetectorMocks() {
+  mockShakeDetectorStart.mockClear();
+  mockShakeDetectorStop.mockClear();
+  mockShakeDetectorIsRunning.mockClear();
+  mockShakeDetectorAddMotionListener.mockClear();
+  mockShakeDetectorIsRunning.mockReturnValue(false);
+}
+
+// =============================================================================
 // Console Suppression
 // =============================================================================
 

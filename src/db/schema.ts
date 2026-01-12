@@ -11,6 +11,7 @@ import {
 
 import {
   DEFAULT_SLEEP_TIMER_ENABLED,
+  DEFAULT_SLEEP_TIMER_MOTION_DETECTION_ENABLED,
   DEFAULT_SLEEP_TIMER_SECONDS,
 } from "@/constants";
 
@@ -616,6 +617,12 @@ export const localUserSettings = sqliteTable("local_user_settings", {
   sleepTimerEnabled: integer("sleep_timer_enabled", { mode: "boolean" })
     .notNull()
     .default(DEFAULT_SLEEP_TIMER_ENABLED),
+  sleepTimerMotionDetectionEnabled: integer(
+    "sleep_timer_motion_detection_enabled",
+    { mode: "boolean" },
+  )
+    .notNull()
+    .default(DEFAULT_SLEEP_TIMER_MOTION_DETECTION_ENABLED),
   sleepTimerTriggerTime: integer("sleep_timer_trigger_time"),
 });
 

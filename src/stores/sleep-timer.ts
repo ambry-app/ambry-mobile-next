@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import {
   DEFAULT_SLEEP_TIMER_ENABLED,
+  DEFAULT_SLEEP_TIMER_MOTION_DETECTION_ENABLED,
   DEFAULT_SLEEP_TIMER_SECONDS,
 } from "@/constants";
 
@@ -9,6 +10,7 @@ export interface SleepTimerState {
   initialized: boolean;
   sleepTimer: number; // Duration in seconds
   sleepTimerEnabled: boolean; // Whether enabled
+  sleepTimerMotionDetectionEnabled: boolean; // Whether motion detection resets timer
   sleepTimerTriggerTime: number | null; // Unix timestamp in milliseconds (in-memory only)
 
   // Motion detection state (for debug display)
@@ -20,6 +22,8 @@ export const initialState: SleepTimerState = {
   initialized: false,
   sleepTimer: DEFAULT_SLEEP_TIMER_SECONDS,
   sleepTimerEnabled: DEFAULT_SLEEP_TIMER_ENABLED,
+  sleepTimerMotionDetectionEnabled:
+    DEFAULT_SLEEP_TIMER_MOTION_DETECTION_ENABLED,
   sleepTimerTriggerTime: null,
 
   // Motion detection

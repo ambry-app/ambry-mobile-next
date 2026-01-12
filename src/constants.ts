@@ -55,6 +55,7 @@ export const SLEEP_TIMER_PAUSE_REWIND_SECONDS = 10;
 
 export const DEFAULT_SLEEP_TIMER_SECONDS = 600; // 10 minutes
 export const DEFAULT_SLEEP_TIMER_ENABLED = false;
+export const DEFAULT_SLEEP_TIMER_MOTION_DETECTION_ENABLED = false;
 export const DEFAULT_PREFERRED_PLAYBACK_RATE = 1.0;
 
 /* Motion detection variance threshold for sleep timer reset */

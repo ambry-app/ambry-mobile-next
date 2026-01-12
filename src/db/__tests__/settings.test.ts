@@ -1,11 +1,13 @@
 import {
   DEFAULT_SLEEP_TIMER_ENABLED,
+  DEFAULT_SLEEP_TIMER_MOTION_DETECTION_ENABLED,
   DEFAULT_SLEEP_TIMER_SECONDS,
 } from "@/constants";
 import {
   getSleepTimerSettings,
   setPreferredPlaybackRate,
   setSleepTimerEnabled,
+  setSleepTimerMotionDetectionEnabled,
   setSleepTimerTime,
 } from "@/db/settings";
 import { setupTestDatabase } from "@test/db-test-utils";
@@ -145,12 +147,82 @@ describe("settings", () => {
     });
   });
 
+  describe("setSleepTimerMotionDetectionEnabled", () => {
+    it("creates settings record if none exists", async () => {
+      const db = getDb();
+
+      await setSleepTimerMotionDetectionEnabled(userEmail, true);
+
+      const settings = await db.query.localUserSettings.findFirst({
+        where: (s, { eq }) => eq(s.userEmail, userEmail),
+      });
+
+      expect(settings).toBeDefined();
+      expect(settings?.sleepTimerMotionDetectionEnabled).toBe(true);
+    });
+
+    it("updates existing settings record", async () => {
+      const db = getDb();
+      await createLocalUserSettings(db, {
+        userEmail,
+        sleepTimerMotionDetectionEnabled: false,
+      });
+
+      await setSleepTimerMotionDetectionEnabled(userEmail, true);
+
+      const settings = await db.query.localUserSettings.findFirst({
+        where: (s, { eq }) => eq(s.userEmail, userEmail),
+      });
+
+      expect(settings?.sleepTimerMotionDetectionEnabled).toBe(true);
+    });
+
+    it("can disable motion detection", async () => {
+      const db = getDb();
+      await createLocalUserSettings(db, {
+        userEmail,
+        sleepTimerMotionDetectionEnabled: true,
+      });
+
+      await setSleepTimerMotionDetectionEnabled(userEmail, false);
+
+      const settings = await db.query.localUserSettings.findFirst({
+        where: (s, { eq }) => eq(s.userEmail, userEmail),
+      });
+
+      expect(settings?.sleepTimerMotionDetectionEnabled).toBe(false);
+    });
+
+    it("does not affect other settings when updating", async () => {
+      const db = getDb();
+      await createLocalUserSettings(db, {
+        userEmail,
+        sleepTimer: 900,
+        sleepTimerEnabled: true,
+        sleepTimerMotionDetectionEnabled: false,
+      });
+
+      await setSleepTimerMotionDetectionEnabled(userEmail, true);
+
+      const settings = await db.query.localUserSettings.findFirst({
+        where: (s, { eq }) => eq(s.userEmail, userEmail),
+      });
+
+      expect(settings?.sleepTimerMotionDetectionEnabled).toBe(true);
+      expect(settings?.sleepTimer).toBe(900);
+      expect(settings?.sleepTimerEnabled).toBe(true);
+    });
+  });
+
   describe("getSleepTimerSettings", () => {
     it("returns defaults when no settings exist", async () => {
       const settings = await getSleepTimerSettings(userEmail);
 
       expect(settings.sleepTimer).toBe(DEFAULT_SLEEP_TIMER_SECONDS);
       expect(settings.sleepTimerEnabled).toBe(DEFAULT_SLEEP_TIMER_ENABLED);
+      expect(settings.sleepTimerMotionDetectionEnabled).toBe(
+        DEFAULT_SLEEP_TIMER_MOTION_DETECTION_ENABLED,
+      );
     });
 
     it("returns saved settings when they exist", async () => {
@@ -159,32 +231,37 @@ describe("settings", () => {
         userEmail,
         sleepTimer: 900,
         sleepTimerEnabled: true,
+        sleepTimerMotionDetectionEnabled: true,
       });
 
       const settings = await getSleepTimerSettings(userEmail);
 
       expect(settings.sleepTimer).toBe(900);
       expect(settings.sleepTimerEnabled).toBe(true);
+      expect(settings.sleepTimerMotionDetectionEnabled).toBe(true);
     });
 
-    it("returns only sleepTimer and sleepTimerEnabled fields", async () => {
+    it("returns only sleep timer related fields", async () => {
       const db = getDb();
       await createLocalUserSettings(db, {
         userEmail,
         sleepTimer: 1200,
         sleepTimerEnabled: false,
+        sleepTimerMotionDetectionEnabled: true,
         preferredPlaybackRate: 2.0,
       });
 
       const settings = await getSleepTimerSettings(userEmail);
 
-      // Should only have these two fields
-      expect(Object.keys(settings)).toEqual([
+      // Should only have sleep timer fields, not other settings like playback rate
+      expect(Object.keys(settings).sort()).toEqual([
         "sleepTimer",
         "sleepTimerEnabled",
+        "sleepTimerMotionDetectionEnabled",
       ]);
       expect(settings.sleepTimer).toBe(1200);
       expect(settings.sleepTimerEnabled).toBe(false);
+      expect(settings.sleepTimerMotionDetectionEnabled).toBe(true);
     });
 
     it("returns settings for the correct user", async () => {
@@ -193,11 +270,13 @@ describe("settings", () => {
         userEmail: "user1@example.com",
         sleepTimer: 600,
         sleepTimerEnabled: true,
+        sleepTimerMotionDetectionEnabled: true,
       });
       await createLocalUserSettings(db, {
         userEmail: "user2@example.com",
         sleepTimer: 1800,
         sleepTimerEnabled: false,
+        sleepTimerMotionDetectionEnabled: false,
       });
 
       const user1Settings = await getSleepTimerSettings("user1@example.com");
@@ -205,8 +284,10 @@ describe("settings", () => {
 
       expect(user1Settings.sleepTimer).toBe(600);
       expect(user1Settings.sleepTimerEnabled).toBe(true);
+      expect(user1Settings.sleepTimerMotionDetectionEnabled).toBe(true);
       expect(user2Settings.sleepTimer).toBe(1800);
       expect(user2Settings.sleepTimerEnabled).toBe(false);
+      expect(user2Settings.sleepTimerMotionDetectionEnabled).toBe(false);
     });
   });
 });
