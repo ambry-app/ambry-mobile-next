@@ -4,11 +4,12 @@ import ExpoModulesCore
 public class ActivityTrackerModule: Module {
     private let motionActivityManager = CMMotionActivityManager()
     private var isTracking = false
+    private var lastState: String? = nil
 
     public func definition() -> ModuleDefinition {
         Name("ActivityTracker")
 
-        Events("onActivityChange")
+        Events("onActivityStateChange")
 
         AsyncFunction("getPermissionStatus") { (promise: Promise) in
             guard CMMotionActivityManager.isActivityAvailable() else {
@@ -73,61 +74,60 @@ public class ActivityTrackerModule: Module {
                 return
             }
 
-            self.motionActivityManager.startActivityUpdates(to: OperationQueue.main) { activity in
+            self.motionActivityManager.startActivityUpdates(to: OperationQueue.main) { [weak self] activity in
+                guard let self = self else { return }
                 guard let activity = activity else { return }
 
-                let activityType: String
+                // Determine if stationary or not
+                let state: String
                 if activity.stationary {
-                    activityType = "STATIONARY"
-                } else if activity.walking {
-                    activityType = "WALKING"
-                } else if activity.running {
-                    activityType = "RUNNING"
-                } else if activity.automotive {
-                    activityType = "AUTOMOTIVE"
-                } else if activity.cycling {
-                    activityType = "CYCLING"
+                    state = "STATIONARY"
                 } else {
-                    activityType = "UNKNOWN"
+                    state = "NOT_STATIONARY"
                 }
 
-                let confidence: String
-                switch activity.confidence {
-                case .low:
-                    confidence = "LOW"
-                case .medium:
-                    confidence = "MEDIUM"
-                case .high:
-                    confidence = "HIGH"
-                @unknown default:
-                    confidence = "UNKNOWN"
+                // Only send event if state changed
+                if state != self.lastState {
+                    self.lastState = state
+
+                    let confidence: String
+                    switch activity.confidence {
+                    case .low:
+                        confidence = "LOW"
+                    case .medium:
+                        confidence = "MEDIUM"
+                    case .high:
+                        confidence = "HIGH"
+                    @unknown default:
+                        confidence = "MEDIUM"
+                    }
+
+                    let timestamp = Int64(activity.startDate.timeIntervalSince1970 * 1000)
+
+                    self.sendEvent("onActivityStateChange", [
+                        "state": state,
+                        "confidence": confidence,
+                        "timestamp": timestamp
+                    ])
                 }
-
-                let event: [String: Any] = [
-                    "activityType": activityType,
-                    "transitionType": "ENTER",
-                    "confidence": confidence,
-                    "timestamp": activity.startDate.timeIntervalSince1970 * 1000
-                ]
-
-                self.sendEvent("onActivityChange", [
-                    "events": [event]
-                ])
             }
 
             self.isTracking = true
+            self.lastState = nil
             promise.resolve("STARTED")
         }
 
         AsyncFunction("stopTracking") { (promise: Promise) in
             self.motionActivityManager.stopActivityUpdates()
             self.isTracking = false
+            self.lastState = nil
             promise.resolve("STOPPED")
         }
 
         OnDestroy {
             self.motionActivityManager.stopActivityUpdates()
             self.isTracking = false
+            self.lastState = nil
         }
     }
 }

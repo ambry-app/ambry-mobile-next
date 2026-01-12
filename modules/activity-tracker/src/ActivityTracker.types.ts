@@ -1,50 +1,53 @@
-export enum ActivityType {
-  UNKNOWN = "UNKNOWN",
-  WALKING = "WALKING",
-  RUNNING = "RUNNING",
-  AUTOMOTIVE = "AUTOMOTIVE",
+/**
+ * Simplified activity state - just stationary vs not stationary.
+ */
+export enum ActivityState {
   STATIONARY = "STATIONARY",
-  CYCLING = "CYCLING",
+  NOT_STATIONARY = "NOT_STATIONARY",
 }
 
-export enum TransitionType {
-  ENTER = "ENTER",
-  EXIT = "EXIT",
+/**
+ * Permission status for activity tracking.
+ */
+export enum PermissionStatus {
+  AUTHORIZED = "AUTHORIZED",
+  DENIED = "DENIED",
+  RESTRICTED = "RESTRICTED",
+  NOT_DETERMINED = "NOT_DETERMINED",
+  UNAVAILABLE = "UNAVAILABLE",
 }
 
+/**
+ * Tracking status returned from startTracking.
+ */
+export enum TrackingStatus {
+  STARTED = "STARTED",
+  STOPPED = "STOPPED",
+  UNAUTHORIZED = "UNAUTHORIZED",
+  FAILED = "FAILED",
+}
+
+/**
+ * Confidence level for the activity classification.
+ */
 export enum Confidence {
   LOW = "LOW",
   MEDIUM = "MEDIUM",
   HIGH = "HIGH",
-  UNKNOWN = "UNKNOWN",
 }
 
-export enum PermissionStatus {
-  NOT_DETERMINED = "NOT_DETERMINED",
-  RESTRICTED = "RESTRICTED",
-  DENIED = "DENIED",
-  AUTHORIZED = "AUTHORIZED",
-  UNAVAILABLE = "UNAVAILABLE",
-}
-
-export enum TrackingStatus {
-  STARTED = "STARTED",
-  STOPPED = "STOPPED",
-  FAILED = "FAILED",
-  UNAUTHORIZED = "UNAUTHORIZED",
-}
-
-export type ActivityChangeEvent = {
-  activityType: ActivityType;
-  transitionType: TransitionType;
+/**
+ * Event payload sent from native module.
+ */
+export type ActivityStatePayload = {
+  state: ActivityState;
   confidence: Confidence;
   timestamp: number;
 };
 
-export type ActivityChangePayload = {
-  events: ActivityChangeEvent[];
-};
-
+/**
+ * Events emitted by the ActivityTracker module.
+ */
 export type ActivityTrackerEvents = {
-  onActivityChange: (payload: ActivityChangePayload) => void;
+  onActivityStateChange: (payload: ActivityStatePayload) => void;
 };

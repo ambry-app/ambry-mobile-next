@@ -1,7 +1,7 @@
 import { NativeModule, requireNativeModule } from "expo-modules-core";
 
 import {
-  ActivityChangePayload,
+  ActivityStatePayload,
   ActivityTrackerEvents,
   PermissionStatus,
   TrackingStatus,
@@ -12,7 +12,6 @@ declare class ActivityTrackerModuleType extends NativeModule<ActivityTrackerEven
   requestPermission(): Promise<PermissionStatus>;
   startTracking(): Promise<TrackingStatus>;
   stopTracking(): Promise<TrackingStatus>;
-  isGooglePlayServicesAvailable?: boolean;
 }
 
 const ActivityTrackerModule =
@@ -34,17 +33,14 @@ export async function stopTracking(): Promise<TrackingStatus> {
   return ActivityTrackerModule.stopTracking();
 }
 
-export function addActivityChangeListener(
-  listener: (payload: ActivityChangePayload) => void,
+export function addActivityStateListener(
+  listener: (payload: ActivityStatePayload) => void,
 ): { remove: () => void } {
   const subscription = ActivityTrackerModule.addListener(
-    "onActivityChange",
+    "onActivityStateChange",
     listener,
   );
   return subscription;
 }
-
-export const isGooglePlayServicesAvailable =
-  ActivityTrackerModule.isGooglePlayServicesAvailable ?? false;
 
 export * from "./ActivityTracker.types";

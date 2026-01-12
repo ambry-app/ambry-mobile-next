@@ -7,7 +7,6 @@
  * changes and user interactions.
  */
 
-import { Platform } from "react-native";
 import * as ActivityTracker from "activity-tracker";
 import * as ShakeDetector from "shake-detector";
 
@@ -127,12 +126,28 @@ export async function setSleepTimerTime(session: Session, seconds: number) {
 /**
  * Sets whether motion detection should reset the sleep timer. Persists to
  * database and starts/stops motion detection if timer is currently active.
+ *
+ * When enabling, this will request permission if needed (iOS). If the user
+ * denies permission, the setting will not be enabled and this returns false.
+ *
+ * @returns true if the setting was changed, false if permission was denied
  */
 export async function setSleepTimerMotionDetectionEnabled(
   session: Session,
   enabled: boolean,
-) {
+): Promise<boolean> {
   log.debug(`Setting motion detection to ${enabled}`);
+
+  // When enabling, check/request permission first
+  if (enabled) {
+    const permissionGranted = await requestActivityTrackingPermission();
+    if (!permissionGranted) {
+      log.info(
+        "Activity tracking permission denied, not enabling motion detection",
+      );
+      return false;
+    }
+  }
 
   useSleepTimer.setState({ sleepTimerMotionDetectionEnabled: enabled });
 
@@ -147,6 +162,7 @@ export async function setSleepTimerMotionDetectionEnabled(
   }
 
   await setSleepTimerMotionDetectionEnabledDb(session.email, enabled);
+  return true;
 }
 
 // =============================================================================
@@ -404,19 +420,49 @@ function stopMotionDetection() {
 }
 
 // =============================================================================
-// Activity Tracking (iOS)
+// Activity Tracking
 // =============================================================================
 
 /**
- * Start activity tracking for iOS. Logs activity changes for now.
+ * Request permission for activity tracking. On iOS, this triggers the system
+ * permission dialog if permission hasn't been determined yet.
+ *
+ * @returns true if permission is granted, false otherwise
+ */
+async function requestActivityTrackingPermission(): Promise<boolean> {
+  const permissionStatus = await ActivityTracker.getPermissionStatus();
+  log.debug(`Activity tracker permission status: ${permissionStatus}`);
+
+  // Already authorized
+  if (permissionStatus === ActivityTracker.PermissionStatus.AUTHORIZED) {
+    return true;
+  }
+
+  // Already denied or restricted - can't request again
+  if (
+    permissionStatus === ActivityTracker.PermissionStatus.DENIED ||
+    permissionStatus === ActivityTracker.PermissionStatus.RESTRICTED
+  ) {
+    return false;
+  }
+
+  // NOT_DETERMINED - on iOS, start/stop tracking to trigger the permission prompt
+  log.debug("Permission not determined, triggering permission prompt...");
+  await ActivityTracker.startTracking();
+  await ActivityTracker.stopTracking();
+
+  // Check the result
+  const newStatus = await ActivityTracker.getPermissionStatus();
+  log.debug(`Permission status after prompt: ${newStatus}`);
+
+  return newStatus === ActivityTracker.PermissionStatus.AUTHORIZED;
+}
+
+/**
+ * Start activity tracking. Logs state changes for now.
  * TODO: Integrate with sleep timer logic - only countdown when stationary.
  */
 async function startActivityTracking() {
-  if (Platform.OS !== "ios") {
-    // For now, only use on iOS since Android has the shake detector
-    return;
-  }
-
   if (activityListenerSubscription) {
     log.debug("Activity tracking already started");
     return;
@@ -425,7 +471,7 @@ async function startActivityTracking() {
   const permissionStatus = await ActivityTracker.getPermissionStatus();
   log.debug(`Activity tracker permission status: ${permissionStatus}`);
 
-  // On iOS, if denied or restricted, we can't proceed
+  // If denied or restricted, we can't proceed
   if (
     permissionStatus === ActivityTracker.PermissionStatus.DENIED ||
     permissionStatus === ActivityTracker.PermissionStatus.RESTRICTED
@@ -437,13 +483,11 @@ async function startActivityTracking() {
 
   log.debug("Starting activity tracking");
 
-  activityListenerSubscription = ActivityTracker.addActivityChangeListener(
+  activityListenerSubscription = ActivityTracker.addActivityStateListener(
     (payload) => {
-      payload.events.forEach((event) => {
-        log.info(
-          `Activity: ${event.transitionType} ${event.activityType} (confidence: ${event.confidence})`,
-        );
-      });
+      log.info(
+        `Activity state: ${payload.state} (confidence: ${payload.confidence})`,
+      );
     },
   );
 

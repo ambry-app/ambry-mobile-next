@@ -1,267 +1,199 @@
 package expo.modules.activitytracker
 
-import android.Manifest
-import android.annotation.SuppressLint
-import android.app.PendingIntent
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.content.pm.PackageManager
-import android.os.Build
-import android.util.Log
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import com.google.android.gms.common.ConnectionResult
-import com.google.android.gms.common.GoogleApiAvailability
-import com.google.android.gms.location.ActivityRecognition
-import com.google.android.gms.location.ActivityTransition
-import com.google.android.gms.location.ActivityTransitionRequest
-import com.google.android.gms.location.ActivityTransitionResult
-import com.google.android.gms.location.DetectedActivity
-import expo.modules.kotlin.Promise
-import expo.modules.kotlin.exception.Exceptions
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.os.Handler
+import android.os.Looper
+import android.os.PowerManager
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import kotlin.math.sqrt
 
-class ActivityTrackerModule : Module() {
+class ActivityTrackerModule : Module(), SensorEventListener {
     companion object {
         private const val TAG = "ActivityTracker"
-        private const val EVENT_NAME = "onActivityChange"
-        private const val REQUEST_CODE = 1002
-        private const val ACTION = "expo.modules.activitytracker.ACTIVITY_TRANSITION"
+        private const val EVENT_NAME = "onActivityStateChange"
+
+        // Configuration
+        private const val SAMPLE_WINDOW = 10
+        private const val VARIANCE_THRESHOLD = 0.5 // Lower than shake detector - we want to detect stillness
+        private const val STATIONARY_DELAY_MS = 5000L // 5 seconds of stillness = stationary
     }
 
-    private var receiver: BroadcastReceiver? = null
-    private var isTracking = false
-    private lateinit var context: Context
+    private var sensorManager: SensorManager? = null
+    private var accelerometer: Sensor? = null
+    private var wakeLock: PowerManager.WakeLock? = null
 
-    private val pendingIntent: PendingIntent by lazy {
-        val intent = Intent(ACTION).setPackage(context.packageName)
-        PendingIntent.getBroadcast(
-            context,
-            REQUEST_CODE,
-            intent,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            } else {
-                PendingIntent.FLAG_UPDATE_CURRENT
-            }
-        )
-    }
+    private val samples = mutableListOf<Double>()
+    private var isRunning = false
+    private var currentState: String? = null
+    private var lastMotionTime: Long = 0
+    private var stationaryCheckHandler: Handler? = null
+    private var stationaryCheckRunnable: Runnable? = null
+
+    private val context: Context
+        get() = appContext.reactContext ?: throw IllegalStateException("React context is null")
 
     override fun definition() = ModuleDefinition {
         Name("ActivityTracker")
 
         Events(EVENT_NAME)
 
-        Constants {
-            val availability = GoogleApiAvailability.getInstance()
-                .isGooglePlayServicesAvailable(appContext.reactContext!!)
-            mapOf(
-                "isGooglePlayServicesAvailable" to (availability == ConnectionResult.SUCCESS)
-            )
+        // No permission needed for accelerometer on Android
+        AsyncFunction("getPermissionStatus") {
+            "AUTHORIZED"
         }
 
-        OnCreate {
-            context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
+        AsyncFunction("requestPermission") {
+            "AUTHORIZED"
+        }
+
+        AsyncFunction("startTracking") {
+            startDetection()
+            if (isRunning) "STARTED" else "FAILED"
+        }
+
+        AsyncFunction("stopTracking") {
+            stopDetection()
+            "STOPPED"
         }
 
         OnDestroy {
-            stopTrackingInternal()
-        }
-
-        AsyncFunction("getPermissionStatus") { promise: Promise ->
-            val status = checkPermissionStatus()
-            promise.resolve(status)
-        }
-
-        AsyncFunction("requestPermission") { promise: Promise ->
-            // On Android, we can't programmatically request - just return current status
-            // The app should use PermissionsAndroid.request() from JS side
-            val status = checkPermissionStatus()
-            promise.resolve(status)
-        }
-
-        AsyncFunction("startTracking") { promise: Promise ->
-            if (!isGooglePlayServicesAvailable()) {
-                promise.resolve("FAILED")
-                return@AsyncFunction
-            }
-
-            if (checkPermissionStatus() != "AUTHORIZED") {
-                promise.resolve("UNAUTHORIZED")
-                return@AsyncFunction
-            }
-
-            if (isTracking) {
-                promise.resolve("STARTED")
-                return@AsyncFunction
-            }
-
-            registerReceiver()
-            startActivityTransitionUpdates(promise)
-        }
-
-        AsyncFunction("stopTracking") { promise: Promise ->
-            stopTrackingInternal()
-            promise.resolve("STOPPED")
+            stopDetection()
         }
     }
 
-    private fun checkPermissionStatus(): String {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            when (ContextCompat.checkSelfPermission(context, Manifest.permission.ACTIVITY_RECOGNITION)) {
-                PackageManager.PERMISSION_GRANTED -> "AUTHORIZED"
-                PackageManager.PERMISSION_DENIED -> "DENIED"
-                else -> "NOT_DETERMINED"
-            }
-        } else {
-            // Pre-Android Q doesn't need runtime permission
-            "AUTHORIZED"
-        }
-    }
+    private fun startDetection() {
+        if (isRunning) return
 
-    private fun isGooglePlayServicesAvailable(): Boolean {
-        val availability = GoogleApiAvailability.getInstance()
-            .isGooglePlayServicesAvailable(context)
-        return availability == ConnectionResult.SUCCESS
-    }
+        sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
 
-    @SuppressLint("UnspecifiedRegisterReceiverFlag")
-    private fun registerReceiver() {
-        if (receiver != null) return
-
-        receiver = object : BroadcastReceiver() {
-            override fun onReceive(ctx: Context, intent: Intent) {
-                if (ActivityTransitionResult.hasResult(intent)) {
-                    val result = ActivityTransitionResult.extractResult(intent) ?: return
-
-                    val events = result.transitionEvents.map { event ->
-                        mapOf(
-                            "activityType" to mapActivityType(event.activityType),
-                            "transitionType" to mapTransitionType(event.transitionType),
-                            "confidence" to "UNKNOWN", // Activity transitions don't provide confidence
-                            "timestamp" to event.elapsedRealTimeNanos / 1_000_000 // Convert to ms
-                        )
-                    }
-
-                    if (events.isNotEmpty()) {
-                        sendEvent(EVENT_NAME, mapOf("events" to events))
-                    }
-                }
-            }
-        }
-
-        val intentFilter = IntentFilter(ACTION)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(receiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            context.registerReceiver(receiver, intentFilter)
-        }
-    }
-
-    private fun unregisterReceiver() {
-        receiver?.let {
-            try {
-                context.unregisterReceiver(it)
-            } catch (e: IllegalArgumentException) {
-                // Already unregistered
-            }
-        }
-        receiver = null
-    }
-
-    private fun startActivityTransitionUpdates(promise: Promise) {
-        val transitions = mutableListOf<ActivityTransition>()
-
-        val activities = listOf(
-            DetectedActivity.IN_VEHICLE,
-            DetectedActivity.WALKING,
-            DetectedActivity.ON_BICYCLE,
-            DetectedActivity.RUNNING,
-            DetectedActivity.STILL
-        )
-
-        activities.forEach { activityType ->
-            transitions.add(
-                ActivityTransition.Builder()
-                    .setActivityType(activityType)
-                    .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
-                    .build()
-            )
-            transitions.add(
-                ActivityTransition.Builder()
-                    .setActivityType(activityType)
-                    .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_EXIT)
-                    .build()
-            )
-        }
-
-        val request = ActivityTransitionRequest(transitions)
-
-        if (ActivityCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACTIVITY_RECOGNITION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            promise.resolve("UNAUTHORIZED")
+        if (accelerometer == null) {
             return
         }
 
-        ActivityRecognition.getClient(context)
-            .requestActivityTransitionUpdates(request, pendingIntent)
-            .addOnSuccessListener {
-                Log.i(TAG, "Successfully registered for activity transitions")
-                isTracking = true
-                promise.resolve("STARTED")
+        // Acquire a partial wake lock to keep CPU running while screen is off
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "ActivityTracker::StationaryDetection"
+        )
+        wakeLock?.acquire()
+
+        // Set up handler for stationary check
+        stationaryCheckHandler = Handler(Looper.getMainLooper())
+
+        // Register listener
+        sensorManager?.registerListener(
+            this,
+            accelerometer,
+            SensorManager.SENSOR_DELAY_NORMAL
+        )
+
+        samples.clear()
+        currentState = null
+        lastMotionTime = System.currentTimeMillis()
+        isRunning = true
+
+        // Start checking for stationary state
+        scheduleStationaryCheck()
+    }
+
+    private fun stopDetection() {
+        if (!isRunning) return
+
+        sensorManager?.unregisterListener(this)
+        wakeLock?.let {
+            if (it.isHeld) {
+                it.release()
             }
-            .addOnFailureListener { e ->
-                Log.e(TAG, "Failed to register for activity transitions", e)
-                unregisterReceiver()
-                promise.resolve("FAILED")
+        }
+        wakeLock = null
+
+        stationaryCheckRunnable?.let { stationaryCheckHandler?.removeCallbacks(it) }
+        stationaryCheckHandler = null
+        stationaryCheckRunnable = null
+
+        samples.clear()
+        currentState = null
+        isRunning = false
+    }
+
+    private fun scheduleStationaryCheck() {
+        stationaryCheckRunnable = Runnable {
+            checkForStationary()
+            if (isRunning) {
+                scheduleStationaryCheck()
             }
+        }
+        stationaryCheckHandler?.postDelayed(stationaryCheckRunnable!!, 1000)
     }
 
-    private fun stopTrackingInternal() {
-        if (!isTracking) return
+    private fun checkForStationary() {
+        val now = System.currentTimeMillis()
+        val timeSinceMotion = now - lastMotionTime
 
-        unregisterReceiver()
+        if (timeSinceMotion >= STATIONARY_DELAY_MS && currentState != "STATIONARY") {
+            currentState = "STATIONARY"
+            sendStateEvent("STATIONARY", "HIGH")
+        }
+    }
 
-        if (ActivityCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACTIVITY_RECOGNITION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityRecognition.getClient(context)
-                .removeActivityTransitionUpdates(pendingIntent)
-                .addOnSuccessListener {
-                    Log.i(TAG, "Successfully deregistered from activity transitions")
+    override fun onSensorChanged(event: SensorEvent?) {
+        if (event?.sensor?.type != Sensor.TYPE_ACCELEROMETER) return
+
+        val x = event.values[0]
+        val y = event.values[1]
+        val z = event.values[2]
+
+        // Calculate magnitude of acceleration
+        val magnitude = sqrt((x * x + y * y + z * z).toDouble())
+
+        // Add to rolling window
+        samples.add(magnitude)
+        if (samples.size > SAMPLE_WINDOW) {
+            samples.removeAt(0)
+        }
+
+        // Calculate variance
+        val variance = calculateVariance(samples)
+
+        // Check if motion detected
+        if (variance > VARIANCE_THRESHOLD) {
+            lastMotionTime = System.currentTimeMillis()
+
+            // If we were stationary, now we're not
+            if (currentState != "NOT_STATIONARY") {
+                currentState = "NOT_STATIONARY"
+                val confidence = when {
+                    variance > 2.0 -> "HIGH"
+                    variance > 1.0 -> "MEDIUM"
+                    else -> "LOW"
                 }
-                .addOnFailureListener { e ->
-                    Log.e(TAG, "Failed to deregister from activity transitions", e)
-                }
-        }
-
-        isTracking = false
-    }
-
-    private fun mapActivityType(type: Int): String {
-        return when (type) {
-            DetectedActivity.IN_VEHICLE -> "AUTOMOTIVE"
-            DetectedActivity.WALKING -> "WALKING"
-            DetectedActivity.RUNNING -> "RUNNING"
-            DetectedActivity.ON_BICYCLE -> "CYCLING"
-            DetectedActivity.STILL -> "STATIONARY"
-            else -> "UNKNOWN"
+                sendStateEvent("NOT_STATIONARY", confidence)
+            }
         }
     }
 
-    private fun mapTransitionType(type: Int): String {
-        return when (type) {
-            ActivityTransition.ACTIVITY_TRANSITION_ENTER -> "ENTER"
-            ActivityTransition.ACTIVITY_TRANSITION_EXIT -> "EXIT"
-            else -> "ENTER"
-        }
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+        // Not needed
+    }
+
+    private fun calculateVariance(values: List<Double>): Double {
+        if (values.size < 2) return 0.0
+        val mean = values.average()
+        return values.map { (it - mean) * (it - mean) }.average()
+    }
+
+    private fun sendStateEvent(state: String, confidence: String) {
+        sendEvent(EVENT_NAME, mapOf(
+            "state" to state,
+            "confidence" to confidence,
+            "timestamp" to System.currentTimeMillis()
+        ))
     }
 }

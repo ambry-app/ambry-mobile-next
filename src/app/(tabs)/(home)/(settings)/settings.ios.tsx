@@ -47,9 +47,11 @@ export default function SettingsRoute() {
   }, []);
 
   const handleMotionDetectionToggle = useCallback(
-    (enabled: boolean) => {
+    async (enabled: boolean) => {
       if (session) {
-        setSleepTimerMotionDetectionEnabled(session, enabled);
+        // This will request permission if needed on iOS
+        // If permission is denied, the setting won't be enabled
+        await setSleepTimerMotionDetectionEnabled(session, enabled);
       }
     },
     [session],
