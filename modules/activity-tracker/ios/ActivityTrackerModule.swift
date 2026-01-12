@@ -32,39 +32,26 @@ public class ActivityTrackerModule: Module {
         }
 
         // On iOS, requesting permission happens implicitly when you start tracking
+        // Just return current status - the prompt will appear on first startTracking call
         AsyncFunction("requestPermission") { (promise: Promise) in
             guard CMMotionActivityManager.isActivityAvailable() else {
                 promise.resolve("UNAVAILABLE")
                 return
             }
 
-            // Query a tiny bit of historical data to trigger the permission prompt
-            let now = Date()
-            let oneSecondAgo = now.addingTimeInterval(-1)
-
-            self.motionActivityManager.queryActivityStarting(
-                from: oneSecondAgo,
-                to: now,
-                to: OperationQueue.main
-            ) { _, error in
-                if let error = error as NSError?,
-                   error.domain == CMErrorDomain,
-                   error.code == CMErrorMotionActivityNotAuthorized.rawValue {
-                    promise.resolve("DENIED")
-                    return
-                }
-
-                let status = CMMotionActivityManager.authorizationStatus()
-                switch status {
-                case .authorized:
-                    promise.resolve("AUTHORIZED")
-                case .denied:
-                    promise.resolve("DENIED")
-                case .restricted:
-                    promise.resolve("RESTRICTED")
-                default:
-                    promise.resolve("NOT_DETERMINED")
-                }
+            let status = CMMotionActivityManager.authorizationStatus()
+            switch status {
+            case .notDetermined:
+                // Return AUTHORIZED to let startTracking proceed and trigger the prompt
+                promise.resolve("AUTHORIZED")
+            case .restricted:
+                promise.resolve("RESTRICTED")
+            case .denied:
+                promise.resolve("DENIED")
+            case .authorized:
+                promise.resolve("AUTHORIZED")
+            @unknown default:
+                promise.resolve("NOT_DETERMINED")
             }
         }
 
@@ -74,7 +61,9 @@ public class ActivityTrackerModule: Module {
                 return
             }
 
-            guard CMMotionActivityManager.authorizationStatus() == .authorized else {
+            let status = CMMotionActivityManager.authorizationStatus()
+            // Allow notDetermined - the prompt will appear when we start updates
+            guard status == .authorized || status == .notDetermined else {
                 promise.resolve("UNAUTHORIZED")
                 return
             }

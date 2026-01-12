@@ -13,6 +13,7 @@ import { router } from "expo-router";
 
 import { signOut } from "@/services/auth-service";
 import { unloadPlayer } from "@/services/playback-controls";
+import { setSleepTimerMotionDetectionEnabled } from "@/services/sleep-timer-service";
 import { useDebug } from "@/stores/debug";
 import { usePreferredPlaybackRate } from "@/stores/preferred-playback-rate";
 import { useSession } from "@/stores/session";
@@ -28,6 +29,9 @@ export default function SettingsRoute() {
   );
   const sleepTimer = useSleepTimer((state) => state.sleepTimer);
   const sleepTimerEnabled = useSleepTimer((state) => state.sleepTimerEnabled);
+  const sleepTimerMotionDetectionEnabled = useSleepTimer(
+    (state) => state.sleepTimerMotionDetectionEnabled,
+  );
 
   const handleSignOut = useCallback(async () => {
     await unloadPlayer();
@@ -41,6 +45,15 @@ export default function SettingsRoute() {
   const openSleepTimerSettings = useCallback(() => {
     router.push("/sleep-timer");
   }, []);
+
+  const handleMotionDetectionToggle = useCallback(
+    (enabled: boolean) => {
+      if (session) {
+        setSleepTimerMotionDetectionEnabled(session, enabled);
+      }
+    },
+    [session],
+  );
 
   if (!session) return null;
 
@@ -70,6 +83,12 @@ export default function SettingsRoute() {
               {sleepTimerDisplay}
             </Button>
           </LabeledContent>
+          <Switch
+            label="Motion Detection"
+            value={sleepTimerMotionDetectionEnabled}
+            onValueChange={handleMotionDetectionToggle}
+            color={Colors.lime[500]}
+          />
         </Section>
 
         <Section title="DEBUG">

@@ -425,16 +425,15 @@ async function startActivityTracking() {
   const permissionStatus = await ActivityTracker.getPermissionStatus();
   log.debug(`Activity tracker permission status: ${permissionStatus}`);
 
-  if (permissionStatus !== ActivityTracker.PermissionStatus.AUTHORIZED) {
-    // Request permission
-    const newStatus = await ActivityTracker.requestPermission();
-    log.debug(`Activity tracker permission after request: ${newStatus}`);
-
-    if (newStatus !== ActivityTracker.PermissionStatus.AUTHORIZED) {
-      log.warn("Activity tracking not authorized");
-      return;
-    }
+  // On iOS, if denied or restricted, we can't proceed
+  if (
+    permissionStatus === ActivityTracker.PermissionStatus.DENIED ||
+    permissionStatus === ActivityTracker.PermissionStatus.RESTRICTED
+  ) {
+    log.warn("Activity tracking not authorized");
+    return;
   }
+  // If NOT_DETERMINED, iOS will show the permission prompt when we start tracking
 
   log.debug("Starting activity tracking");
 
