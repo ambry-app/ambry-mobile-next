@@ -39,6 +39,7 @@ const HALF_WIDTH = WIDTH / 2;
 const NUM_TICKS = Math.ceil(WIDTH / SPACING);
 
 const DRIFT_CORRECTION_INTERVAL = 5000;
+const DRIFT_CORRECTION_THRESHOLD = 0.25; // seconds
 
 const DECAY_VELOCITY_CUTOFF = 100;
 
@@ -450,7 +451,7 @@ export const Scrubber = memo(function Scrubber({
         const drift = Math.abs(animatedPos - position);
 
         // Snap if drifted more than 500ms
-        if (drift > 0.5) {
+        if (drift > DRIFT_CORRECTION_THRESHOLD) {
           log.debug(
             `Drift detected: ${drift.toFixed(2)}s, correcting animation position.`,
           );

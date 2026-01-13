@@ -2,18 +2,20 @@
  * Sleep Timer Service
  *
  * Manages the sleep timer functionality, allowing users to set a timer that
- * will pause playback after a specified duration. Integrates with the track
- * player store to reactively start and stop the timer based on playback state
- * changes and user interactions.
+ * will pause playback after a specified duration. When motion detection is
+ * enabled, the timer only runs when the user is stationary - if they're
+ * moving around, the timer pauses (since they're clearly still awake).
+ *
+ * Architecture:
+ * - All state changes flow through `updateTimerState()` which evaluates conditions
+ *   and starts/stops the timer check and activity tracking as needed
+ * - Timer runs when: playing && enabled && (!motionDetection || stationary)
+ * - Activity tracking runs when: playing && enabled && motionDetection
  */
 
 import * as ActivityTracker from "activity-tracker";
-import * as ShakeDetector from "shake-detector";
 
 import {
-  MOTION_RESET_DEBOUNCE,
-  MOTION_SAMPLE_WINDOW,
-  MOTION_VARIANCE_THRESHOLD,
   SLEEP_TIMER_FADE_OUT_TIME,
   SLEEP_TIMER_PAUSE_REWIND_SECONDS,
 } from "@/constants";
@@ -23,9 +25,8 @@ import {
   setSleepTimerMotionDetectionEnabled as setSleepTimerMotionDetectionEnabledDb,
   setSleepTimerTime as setSleepTimerTimeDb,
 } from "@/db/settings";
-import * as Player from "@/services/track-player-service";
+import { pause } from "@/services/track-player-service";
 import * as TrackPlayer from "@/services/track-player-wrapper";
-import { useDebug } from "@/stores/debug";
 import {
   resetForTesting as resetSleepTimerStore,
   setTriggerTime,
@@ -45,24 +46,42 @@ import { subscribeToChange } from "@/utils/subscribe";
 
 const log = logBase.extend("sleep-timer");
 
-const SLEEP_TIMER_CHECK_INTERVAL = 1000;
-let sleepTimerCheckInterval: NodeJS.Timeout | null = null;
+// =============================================================================
+// Module State
+// =============================================================================
 
-let motionListenerSubscription: { remove: () => void } | null = null;
-let activityListenerSubscription: { remove: () => void } | null = null;
+const TIMER_CHECK_INTERVAL_MS = 1000;
 
-let unsubscribeFunctions: (() => void)[] = [];
+/** Interval that periodically checks if timer should trigger */
+let timerCheckInterval: NodeJS.Timeout | null = null;
+
+/** Subscription to activity state changes from native module */
+let activitySubscription: { remove: () => void } | null = null;
+
+/** Store subscriptions for cleanup */
+let storeSubscriptions: (() => void)[] = [];
+
+// =============================================================================
+// State Helpers
+// =============================================================================
+
+function isTimerCheckRunning(): boolean {
+  return timerCheckInterval !== null;
+}
+
+function isActivityTrackingActive(): boolean {
+  return activitySubscription !== null;
+}
 
 // =============================================================================
 // Public API
 // =============================================================================
 
 /**
- * Initialize the sleep timer store. Loads user preferences from DB if not
- * already initialized.
+ * Initialize the sleep timer service. Loads user preferences from DB.
  */
 export async function initialize(session: Session) {
-  if (isInitialized()) {
+  if (useSleepTimer.getState().initialized) {
     log.debug("Already initialized, skipping");
     return;
   }
@@ -76,38 +95,22 @@ export async function initialize(session: Session) {
   });
 
   setupStoreSubscriptions();
-
   log.debug("Initialized");
 }
 
 /**
  * Sets the enabled state for the sleep timer and persists it to the database.
- * Clears or sets the trigger time as needed.
  */
 export async function setSleepTimerEnabled(session: Session, enabled: boolean) {
   log.debug(`Setting enabled to ${enabled}`);
-
-  const { playing } = Player.isPlaying();
-
-  useSleepTimer.setState({
-    sleepTimerEnabled: enabled,
-    sleepTimerTriggerTime: null,
-  });
-
-  if (playing) {
-    if (enabled) {
-      await start();
-    } else {
-      await stop();
-    }
-  }
-
+  useSleepTimer.setState({ sleepTimerEnabled: enabled });
+  await updateTimerState();
   await setSleepTimerEnabledDb(session.email, enabled);
 }
 
 /**
- * Sets the duration for the sleep timer and persists it to the database. Resets
- * the trigger time if the timer is currently active.
+ * Sets the duration for the sleep timer and persists it to the database.
+ * Resets the trigger time if the timer is currently active.
  */
 export async function setSleepTimerTime(session: Session, seconds: number) {
   log.debug(`Setting time to ${seconds} seconds`);
@@ -117,9 +120,11 @@ export async function setSleepTimerTime(session: Session, seconds: number) {
 
   useSleepTimer.setState({ sleepTimer: seconds });
 
+  // Reset trigger time if timer is active and duration changed
   if (sleepTimerTriggerTime !== null && prevSleepTimer !== seconds) {
-    await maybeResetTriggerTime();
+    await resetTriggerTime();
   }
+
   await setSleepTimerTimeDb(session.email, seconds);
 }
 
@@ -132,13 +137,11 @@ export type MotionDetectionResult = {
 };
 
 /**
- * Sets whether motion detection should reset the sleep timer. Persists to
- * database and starts/stops motion detection if timer is currently active.
+ * Sets whether motion detection should pause the sleep timer when user is moving.
+ * Persists to database and updates timer state accordingly.
  *
  * When enabling, this will request permission if needed (iOS). If the user
  * denies permission, the setting will not be enabled.
- *
- * @returns result indicating success and whether permission was permanently denied
  */
 export async function setSleepTimerMotionDetectionEnabled(
   session: Session,
@@ -153,7 +156,6 @@ export async function setSleepTimerMotionDetectionEnabled(
       log.info(
         "Activity tracking permission denied, not enabling motion detection",
       );
-      // Force state to false to reset the toggle UI
       useSleepTimer.setState({ sleepTimerMotionDetectionEnabled: false });
       return {
         success: false,
@@ -163,185 +165,103 @@ export async function setSleepTimerMotionDetectionEnabled(
   }
 
   useSleepTimer.setState({ sleepTimerMotionDetectionEnabled: enabled });
-
-  // Start/stop motion detection if timer is currently running
-  const { sleepTimerTriggerTime } = useSleepTimer.getState();
-  if (sleepTimerTriggerTime !== null) {
-    if (enabled) {
-      startMotionDetection();
-    } else {
-      stopMotionDetection();
-    }
-  }
-
+  await updateTimerState();
   await setSleepTimerMotionDetectionEnabledDb(session.email, enabled);
   return { success: true };
 }
 
 // =============================================================================
-// Internals
+// Core Timer Logic
 // =============================================================================
 
 /**
- * Check if the Sleep Timer store is initialized.
+ * Central function that evaluates current conditions and updates timer state.
+ * Call this whenever any relevant state changes (play/pause, enabled, motion, etc.)
+ *
+ * This is the heart of the sleep timer - all decisions flow through here.
  */
-function isInitialized() {
-  return useSleepTimer.getState().initialized;
-}
+async function updateTimerState() {
+  const {
+    playing,
+    sleepTimerEnabled,
+    sleepTimerMotionDetectionEnabled,
+    isStationary,
+  } = useSleepTimer.getState();
 
-/**
- * Subscribes to the track-player store to reactively start and stop the sleep
- * timer based on playback state changes.
- */
-function setupStoreSubscriptions() {
-  unsubscribeFunctions.push(
-    subscribeToChange(
-      useTrackPlayer,
-      (s) => s.lastPlayPause,
-      (event) => event && handlePlayPauseEvent(event),
-    ),
-  );
+  // Activity tracking: needed to detect when user starts/stops moving
+  const shouldTrackActivity =
+    playing && sleepTimerEnabled && sleepTimerMotionDetectionEnabled;
 
-  unsubscribeFunctions.push(
-    subscribeToChange(
-      useTrackPlayer,
-      (s) => s.lastSeek,
-      (seek) => seek && handleSeek(seek),
-    ),
-  );
+  // Timer runs unless user is actively moving (null/unknown = ok to run)
+  const userIsMoving =
+    sleepTimerMotionDetectionEnabled && isStationary === false;
+  const shouldTimerRun = playing && sleepTimerEnabled && !userIsMoving;
 
-  // Restart motion detection when debug mode changes (if currently running)
-  unsubscribeFunctions.push(
-    subscribeToChange(
-      useDebug,
-      (s) => s.debugModeEnabled,
-      () => {
-        if (motionListenerSubscription) {
-          log.debug("Debug mode changed, restarting motion detection");
-          stopMotionDetection();
-          startMotionDetection();
-        }
-      },
-    ),
-  );
-}
-
-/**
- * Handle play/pause events. Starts or stops the sleep timer accordingly.
- * Ignores INTERNAL events (e.g., during reload) to avoid unnecessary resets.
- */
-function handlePlayPauseEvent(event: PlayPauseEvent) {
-  if (event.source === PlayPauseSource.INTERNAL) {
-    log.debug("Ignoring INTERNAL play/pause event");
-    return;
+  // --- Update activity tracking ---
+  if (shouldTrackActivity && !isActivityTrackingActive()) {
+    await startActivityTracking();
+  } else if (!shouldTrackActivity && isActivityTrackingActive()) {
+    stopActivityTracking();
   }
 
-  if (event.type === PlayPauseType.PLAY) {
-    start();
-  } else {
-    stop();
+  // --- Update timer (check interval + trigger time are always in sync) ---
+  if (shouldTimerRun && !isTimerCheckRunning()) {
+    await startTimer();
+  } else if (!shouldTimerRun && isTimerCheckRunning()) {
+    await stopTimer();
   }
 }
 
 /**
- * Handle seek events. Resets the sleep timer trigger time on user-initiated
- * seeks.
+ * Start the timer: set trigger time and begin periodic checks.
  */
-function handleSeek(seek: Seek) {
-  if (seek.source !== SeekSource.INTERNAL) {
-    // Reset timer on seek
-    log.debug(`Detected seek from ${seek.source}`);
-    maybeResetTriggerTime();
-  }
-}
-
-/**
- * Start the sleep timer interval check and sets the trigger time.
- */
-async function start() {
-  clearTimerInterval();
-  stopMotionDetection();
-  await resetTriggerTime();
-
-  const { sleepTimerEnabled, sleepTimerMotionDetectionEnabled } =
-    useSleepTimer.getState();
-
-  if (!sleepTimerEnabled) {
-    return;
-  }
-
-  log.debug("Starting timer check interval");
-  sleepTimerCheckInterval = setInterval(checkTimer, SLEEP_TIMER_CHECK_INTERVAL);
-
-  if (sleepTimerMotionDetectionEnabled) {
-    startMotionDetection();
-  }
-}
-
-/**
- * Stop the sleep timer interval check and clears the trigger time.
- */
-async function stop() {
-  clearTimerInterval();
-  stopMotionDetection();
-  await clearTriggerTime();
-}
-
-/**
- * Clear the timer check interval.
- */
-function clearTimerInterval() {
-  if (sleepTimerCheckInterval) {
-    clearInterval(sleepTimerCheckInterval);
-    sleepTimerCheckInterval = null;
-    log.debug("Stopped timer check interval");
-  }
-}
-
-/**
- * Set/reset the trigger time (if active).
- */
-async function maybeResetTriggerTime() {
-  const { sleepTimerEnabled, sleepTimerTriggerTime } = useSleepTimer.getState();
-
-  if (!sleepTimerEnabled || !sleepTimerTriggerTime) return;
-
-  return resetTriggerTime();
-}
-
-/**
- * Set/reset the trigger time based on current time + duration
- */
-async function resetTriggerTime() {
-  const { sleepTimerEnabled, sleepTimer } = useSleepTimer.getState();
-
-  if (!sleepTimerEnabled) return await clearTriggerTime();
-
+async function startTimer() {
+  const { sleepTimer } = useSleepTimer.getState();
   const triggerTime = Date.now() + sleepTimer * 1000;
-  log.debug(`Setting trigger time to ${new Date(triggerTime)}`);
+
+  log.debug(`Starting timer, trigger at ${new Date(triggerTime)}`);
   setTriggerTime(triggerTime);
   await TrackPlayer.setVolume(1.0);
+  timerCheckInterval = setInterval(checkTimer, TIMER_CHECK_INTERVAL_MS);
 }
 
 /**
- * Clear trigger time
+ * Stop the timer: clear trigger time, stop checks, restore volume.
  */
-async function clearTriggerTime() {
-  log.debug("Clearing trigger time");
+async function stopTimer() {
+  log.debug("Stopping timer");
+
+  if (timerCheckInterval) {
+    clearInterval(timerCheckInterval);
+    timerCheckInterval = null;
+  }
+
   setTriggerTime(null);
   await TrackPlayer.setVolume(1.0);
 }
 
 /**
- * Check the sleep timer and take action if needed.
+ * Reset trigger time to a fresh duration (used on seek events).
+ */
+async function resetTriggerTime() {
+  if (!isTimerCheckRunning()) return;
+
+  const { sleepTimer } = useSleepTimer.getState();
+  const triggerTime = Date.now() + sleepTimer * 1000;
+
+  log.debug(`Resetting trigger time to ${new Date(triggerTime)}`);
+  setTriggerTime(triggerTime);
+  await TrackPlayer.setVolume(1.0);
+}
+
+/**
+ * Periodic check - handles volume fade and triggering pause.
  */
 async function checkTimer() {
-  const { sleepTimerEnabled, sleepTimerTriggerTime } = useSleepTimer.getState();
+  const { sleepTimerTriggerTime } = useSleepTimer.getState();
 
-  if (!sleepTimerEnabled || sleepTimerTriggerTime === null) {
-    // Sanity check - should not happen
-    log.warn("checkTimer called but timer not enabled");
-    await TrackPlayer.setVolume(1.0);
+  if (sleepTimerTriggerTime === null) {
+    // Sanity check - shouldn't happen if state management is correct
     return;
   }
 
@@ -349,15 +269,9 @@ async function checkTimer() {
   const timeRemaining = sleepTimerTriggerTime - now;
 
   if (timeRemaining <= 0) {
-    // Time's up - pause and reset
-    log.info("Triggering - pausing playback");
-
-    await Player.pause(
-      PlayPauseSource.SLEEP_TIMER,
-      SLEEP_TIMER_PAUSE_REWIND_SECONDS,
-    );
+    log.info("Timer triggered - pausing playback");
+    await pause(PlayPauseSource.SLEEP_TIMER, SLEEP_TIMER_PAUSE_REWIND_SECONDS);
   } else if (timeRemaining <= SLEEP_TIMER_FADE_OUT_TIME) {
-    // Fade volume in last 30 seconds
     const volume = timeRemaining / SLEEP_TIMER_FADE_OUT_TIME;
     log.debug(`Fading volume: ${volume.toFixed(2)}`);
     await TrackPlayer.setVolume(volume);
@@ -365,71 +279,73 @@ async function checkTimer() {
 }
 
 // =============================================================================
-// Motion Detection
+// Event Handlers
 // =============================================================================
 
 /**
- * Start the native shake detector module. When motion is detected (variance
- * exceeds threshold), reset the sleep timer trigger time.
+ * Set up subscriptions to track-player store for play/pause and seek events.
  */
-function startMotionDetection() {
-  if (motionListenerSubscription) {
-    log.debug("Motion detection already started");
-    return;
-  }
-
-  log.debug("Starting motion detection");
-
-  motionListenerSubscription = ShakeDetector.addMotionListener((event) => {
-    // Update variance for debug display (on every reading)
-    useSleepTimer.setState({ motionVariance: event.variance });
-
-    // Only process if variance exceeds threshold
-    if (event.variance < MOTION_VARIANCE_THRESHOLD) {
-      return;
-    }
-
-    // Debounce: only reset if enough time has passed since last reset
-    const { lastMotionDetected } = useSleepTimer.getState();
-    const now = event.timestamp;
-
-    if (
-      lastMotionDetected === null ||
-      now - lastMotionDetected >= MOTION_RESET_DEBOUNCE
-    ) {
-      log.debug(`Motion detected (variance: ${event.variance.toFixed(2)})`);
-      useSleepTimer.setState({ lastMotionDetected: now });
-      maybeResetTriggerTime();
-    }
-  });
-
-  const { debugModeEnabled } = useDebug.getState();
-  ShakeDetector.start(
-    MOTION_SAMPLE_WINDOW,
-    MOTION_VARIANCE_THRESHOLD,
-    debugModeEnabled,
+function setupStoreSubscriptions() {
+  storeSubscriptions.push(
+    subscribeToChange(
+      useTrackPlayer,
+      (s) => s.lastPlayPause,
+      (event) => event && handlePlayPauseEvent(event),
+    ),
   );
 
-  // Also start activity tracking (iOS only for now)
-  startActivityTracking();
+  storeSubscriptions.push(
+    subscribeToChange(
+      useTrackPlayer,
+      (s) => s.lastSeek,
+      (seek) => seek && handleSeekEvent(seek),
+    ),
+  );
 }
 
 /**
- * Stop the native shake detector module and clear motion state.
+ * Handle play/pause events. Updates our own `playing` state from the event
+ * (avoiding race conditions with TrackPlayer's isPlaying state).
  */
-function stopMotionDetection() {
-  if (motionListenerSubscription) {
-    motionListenerSubscription.remove();
-    motionListenerSubscription = null;
-    log.debug("Stopped motion detection");
+function handlePlayPauseEvent(event: PlayPauseEvent) {
+  if (event.source === PlayPauseSource.INTERNAL) {
+    log.debug("Ignoring INTERNAL play/pause event");
+    return;
   }
 
-  ShakeDetector.stop();
-  stopActivityTracking();
+  const playing = event.type === PlayPauseType.PLAY;
+  log.debug(`Play/pause event: ${event.type}`);
+  useSleepTimer.setState({ playing });
+  updateTimerState();
+}
 
-  useSleepTimer.setState({
-    motionVariance: 0,
-  });
+/**
+ * Handle seek events. Resets trigger time to give user fresh timer.
+ */
+function handleSeekEvent(seek: Seek) {
+  if (seek.source === SeekSource.INTERNAL) return;
+  log.debug(`Seek event from ${seek.source}, resetting trigger time`);
+  resetTriggerTime();
+}
+
+/**
+ * Handle activity state changes from the native module.
+ */
+function handleActivityStateChange(
+  payload: ActivityTracker.ActivityStatePayload,
+) {
+  const isStationary =
+    payload.state === ActivityTracker.ActivityState.STATIONARY;
+  const prevIsStationary = useSleepTimer.getState().isStationary;
+
+  useSleepTimer.setState({ isStationary });
+
+  if (isStationary !== prevIsStationary) {
+    log.info(
+      `Activity state: ${payload.state} (confidence: ${payload.confidence})`,
+    );
+    updateTimerState();
+  }
 }
 
 // =============================================================================
@@ -438,100 +354,80 @@ function stopMotionDetection() {
 
 type PermissionResult = {
   granted: boolean;
-  permanentlyDenied: boolean; // User must go to Settings to enable
+  permanentlyDenied: boolean;
 };
 
 /**
- * Request permission for activity tracking. On iOS, this triggers the system
- * permission dialog if permission hasn't been determined yet.
- *
- * @returns result with granted status and whether permanently denied
+ * Request permission for activity tracking.
  */
 async function requestActivityTrackingPermission(): Promise<PermissionResult> {
-  const permissionStatus = await ActivityTracker.getPermissionStatus();
-  log.debug(`Activity tracker permission status: ${permissionStatus}`);
+  const status = await ActivityTracker.getPermissionStatus();
+  log.debug(`Activity tracker permission status: ${status}`);
 
-  // Already authorized
-  if (permissionStatus === ActivityTracker.PermissionStatus.AUTHORIZED) {
+  if (status === ActivityTracker.PermissionStatus.AUTHORIZED) {
     return { granted: true, permanentlyDenied: false };
   }
 
-  // Already denied or restricted - can't request again, user must go to Settings
   if (
-    permissionStatus === ActivityTracker.PermissionStatus.DENIED ||
-    permissionStatus === ActivityTracker.PermissionStatus.RESTRICTED
+    status === ActivityTracker.PermissionStatus.DENIED ||
+    status === ActivityTracker.PermissionStatus.RESTRICTED
   ) {
     return { granted: false, permanentlyDenied: true };
   }
 
-  // NOT_DETERMINED - request permission (this will show the prompt and wait for response)
-  log.debug("Permission not determined, requesting permission...");
+  // NOT_DETERMINED - request permission
+  log.debug("Requesting activity tracking permission...");
   const newStatus = await ActivityTracker.requestPermission();
-  log.debug(`Permission status after request: ${newStatus}`);
+  log.debug(`Permission result: ${newStatus}`);
 
-  if (newStatus === ActivityTracker.PermissionStatus.AUTHORIZED) {
-    return { granted: true, permanentlyDenied: false };
-  }
-
-  // User denied the prompt - now it's permanently denied
-  return { granted: false, permanentlyDenied: true };
+  return {
+    granted: newStatus === ActivityTracker.PermissionStatus.AUTHORIZED,
+    permanentlyDenied:
+      newStatus !== ActivityTracker.PermissionStatus.AUTHORIZED,
+  };
 }
 
 /**
- * Start activity tracking. Logs state changes for now.
- * TODO: Integrate with sleep timer logic - only countdown when stationary.
+ * Start listening to activity state changes.
  */
 async function startActivityTracking() {
-  if (activityListenerSubscription) {
-    log.debug("Activity tracking already started");
-    return;
-  }
+  if (activitySubscription) return;
 
-  const permissionStatus = await ActivityTracker.getPermissionStatus();
-  log.debug(`Activity tracker permission status: ${permissionStatus}`);
-
-  // If denied or restricted, we can't proceed
+  const status = await ActivityTracker.getPermissionStatus();
   if (
-    permissionStatus === ActivityTracker.PermissionStatus.DENIED ||
-    permissionStatus === ActivityTracker.PermissionStatus.RESTRICTED
+    status === ActivityTracker.PermissionStatus.DENIED ||
+    status === ActivityTracker.PermissionStatus.RESTRICTED
   ) {
     log.warn("Activity tracking not authorized");
     return;
   }
-  // If NOT_DETERMINED, iOS will show the permission prompt when we start tracking
 
   log.debug("Starting activity tracking");
+  useSleepTimer.setState({ isStationary: null });
 
-  activityListenerSubscription = ActivityTracker.addActivityStateListener(
-    (payload) => {
-      log.info(
-        `Activity state: ${payload.state} (confidence: ${payload.confidence})`,
-      );
-    },
+  activitySubscription = ActivityTracker.addActivityStateListener(
+    handleActivityStateChange,
   );
 
   const trackingStatus = await ActivityTracker.startTracking();
-  log.debug(`Activity tracking status: ${trackingStatus}`);
-
   if (trackingStatus !== ActivityTracker.TrackingStatus.STARTED) {
     log.warn(`Failed to start activity tracking: ${trackingStatus}`);
-    if (activityListenerSubscription) {
-      activityListenerSubscription.remove();
-      activityListenerSubscription = null;
-    }
+    activitySubscription?.remove();
+    activitySubscription = null;
   }
 }
 
 /**
- * Stop activity tracking.
+ * Stop listening to activity state changes.
  */
 function stopActivityTracking() {
-  if (activityListenerSubscription) {
-    activityListenerSubscription.remove();
-    activityListenerSubscription = null;
-    ActivityTracker.stopTracking();
-    log.debug("Stopped activity tracking");
-  }
+  if (!activitySubscription) return;
+
+  log.debug("Stopping activity tracking");
+  activitySubscription.remove();
+  activitySubscription = null;
+  ActivityTracker.stopTracking();
+  useSleepTimer.setState({ isStationary: null });
 }
 
 // =============================================================================
@@ -540,33 +436,21 @@ function stopActivityTracking() {
 
 /**
  * Reset all module-level state for testing.
- * This cleans up subscriptions and resets state to allow fresh initialization.
  */
 export function resetForTesting() {
-  // Clear intervals
-  if (sleepTimerCheckInterval) {
-    clearInterval(sleepTimerCheckInterval);
-    sleepTimerCheckInterval = null;
+  if (timerCheckInterval) {
+    clearInterval(timerCheckInterval);
+    timerCheckInterval = null;
   }
 
-  // Stop motion detection
-  if (motionListenerSubscription) {
-    motionListenerSubscription.remove();
-    motionListenerSubscription = null;
-  }
-  ShakeDetector.stop();
-
-  // Stop activity tracking
-  if (activityListenerSubscription) {
-    activityListenerSubscription.remove();
-    activityListenerSubscription = null;
+  if (activitySubscription) {
+    activitySubscription.remove();
+    activitySubscription = null;
   }
   ActivityTracker.stopTracking();
 
-  // Unsubscribe from all subscriptions
-  unsubscribeFunctions.forEach((unsubscribe) => unsubscribe());
-  unsubscribeFunctions = [];
+  storeSubscriptions.forEach((unsubscribe) => unsubscribe());
+  storeSubscriptions = [];
 
-  // Reset store
   resetSleepTimerStore();
 }

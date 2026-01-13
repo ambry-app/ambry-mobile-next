@@ -6,6 +6,7 @@ import {
   getUnsyncedPlaythroughs,
   markEventsSynced,
   markPlaythroughsSynced,
+  updateStateCache,
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
 import { Thumbnails } from "@/db/schema";
@@ -662,9 +663,9 @@ export async function applyPlaythroughSyncResult(
         });
     }
 
-    // Upsert received events from server
-    for (const event of syncResult.events) {
-      const eventData = {
+    // Bulk upsert received events from server
+    if (syncResult.events.length > 0) {
+      const eventDataArray = syncResult.events.map((event) => ({
         id: event.id,
         playthroughId: event.playthroughId,
         deviceId: event.deviceId,
@@ -684,43 +685,55 @@ export async function applyPlaythroughSyncResult(
         toPosition: event.toPosition,
         previousRate: event.previousRate,
         syncedAt: serverTime,
-      };
+      }));
 
       await tx
         .insert(schema.playbackEvents)
-        .values(eventData)
+        .values(eventDataArray)
         .onConflictDoUpdate({
           target: schema.playbackEvents.id,
           set: {
-            syncedAt: eventData.syncedAt,
+            syncedAt: serverTime,
           },
         });
 
-      // Update state cache for received events (if playback event with position)
-      if (event.position != null && event.playbackRate != null) {
-        const now = new Date();
-        const lastEventAt = new Date(event.timestamp);
-        // Convert to Unix timestamp (milliseconds) for SQLite integer comparison
-        const lastEventAtMs = lastEventAt.getTime();
+      // Find the newest event with position/rate for each playthrough
+      // This fixes a bug where processing events out of order could store
+      // an older position with a newer timestamp
+      const newestByPlaythrough = new Map<
+        string,
+        { position: number; playbackRate: number; timestamp: Date }
+      >();
 
-        await tx
-          .insert(schema.playthroughStateCache)
-          .values({
-            playthroughId: event.playthroughId,
-            currentPosition: event.position,
-            currentRate: event.playbackRate,
-            lastEventAt,
-            updatedAt: now,
-          })
-          .onConflictDoUpdate({
-            target: schema.playthroughStateCache.playthroughId,
-            set: {
-              currentPosition: event.position,
-              currentRate: event.playbackRate,
-              lastEventAt: sql`MAX(${schema.playthroughStateCache.lastEventAt}, ${lastEventAtMs})`,
-              updatedAt: now,
-            },
-          });
+      for (const event of syncResult.events) {
+        if (event.position != null && event.playbackRate != null) {
+          const timestamp = new Date(event.timestamp);
+          const existing = newestByPlaythrough.get(event.playthroughId);
+
+          if (!existing || timestamp > existing.timestamp) {
+            newestByPlaythrough.set(event.playthroughId, {
+              position: event.position,
+              playbackRate: event.playbackRate,
+              timestamp,
+            });
+          }
+        }
+      }
+
+      // Update state cache once per playthrough with the newest event's data
+      // updateStateCache already handles the timestamp comparison to skip
+      // updates when the existing cache is more recent
+      for (const [
+        playthroughId,
+        { position, playbackRate, timestamp },
+      ] of newestByPlaythrough) {
+        await updateStateCache(
+          playthroughId,
+          position,
+          playbackRate,
+          timestamp,
+          tx,
+        );
       }
     }
 

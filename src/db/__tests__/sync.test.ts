@@ -1114,6 +1114,138 @@ describe("sync", () => {
         expect(cache!.currentPosition).toBe(750);
         expect(cache!.currentRate).toBe(1.5);
       });
+
+      it("handles out-of-order events correctly by using newest timestamp", async () => {
+        const db = getDb();
+
+        await setupMediaInDb();
+
+        // Create local playthrough first
+        const now = new Date();
+        await db.insert(schema.playthroughs).values({
+          id: "playthrough-1",
+          url: session.url,
+          userEmail: session.email,
+          mediaId: "media-1",
+          status: "in_progress",
+          startedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          syncedAt: now,
+        });
+
+        const serverTime = "2024-01-15T12:00:00.000Z";
+
+        // Events arrive OUT OF ORDER: newer event first, older event second
+        // This tests that we correctly use the newest event's position,
+        // not the last-processed event's position
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            syncProgress: {
+              ...emptySyncProgressResult(serverTime),
+              events: [
+                // Newer event (3pm) - position 500
+                createSyncPlaybackEvent({
+                  id: "event-newer",
+                  playthroughId: "playthrough-1",
+                  type: PlaybackEventType.Pause,
+                  timestamp: "2024-01-15T15:00:00.000Z",
+                  position: 500,
+                  playbackRate: 1.5,
+                }),
+                // Older event (2pm) - position 1000
+                createSyncPlaybackEvent({
+                  id: "event-older",
+                  playthroughId: "playthrough-1",
+                  type: PlaybackEventType.Play,
+                  timestamp: "2024-01-15T14:00:00.000Z",
+                  position: 1000,
+                  playbackRate: 1.0,
+                }),
+              ],
+            },
+          }),
+        );
+
+        await syncPlaythroughs(session, MOCK_DEVICE_INFO);
+
+        // State cache should have position from the NEWER event (500),
+        // not the last-processed event (1000)
+        const cache = await db.query.playthroughStateCache.findFirst({
+          where: (t, { eq }) => eq(t.playthroughId, "playthrough-1"),
+        });
+        expect(cache).not.toBeNull();
+        expect(cache!.currentPosition).toBe(500);
+        expect(cache!.currentRate).toBe(1.5);
+        expect(cache!.lastEventAt).toEqual(
+          new Date("2024-01-15T15:00:00.000Z"),
+        );
+      });
+
+      it("does not overwrite newer local state cache with older server events", async () => {
+        const db = getDb();
+
+        await setupMediaInDb();
+
+        // Create local playthrough with existing state cache
+        const now = new Date();
+        await db.insert(schema.playthroughs).values({
+          id: "playthrough-1",
+          url: session.url,
+          userEmail: session.email,
+          mediaId: "media-1",
+          status: "in_progress",
+          startedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          syncedAt: now,
+        });
+
+        // Local state cache is more recent (4pm)
+        await db.insert(schema.playthroughStateCache).values({
+          playthroughId: "playthrough-1",
+          currentPosition: 2000,
+          currentRate: 2.0,
+          lastEventAt: new Date("2024-01-15T16:00:00.000Z"),
+          updatedAt: now,
+        });
+
+        const serverTime = "2024-01-15T12:00:00.000Z";
+
+        // Server sends an older event (3pm)
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            syncProgress: {
+              ...emptySyncProgressResult(serverTime),
+              events: [
+                createSyncPlaybackEvent({
+                  id: "event-older-from-server",
+                  playthroughId: "playthrough-1",
+                  type: PlaybackEventType.Pause,
+                  timestamp: "2024-01-15T15:00:00.000Z",
+                  position: 500,
+                  playbackRate: 1.0,
+                }),
+              ],
+            },
+          }),
+        );
+
+        await syncPlaythroughs(session, MOCK_DEVICE_INFO);
+
+        // State cache should NOT be overwritten - local is newer
+        const cache = await db.query.playthroughStateCache.findFirst({
+          where: (t, { eq }) => eq(t.playthroughId, "playthrough-1"),
+        });
+        expect(cache).not.toBeNull();
+        expect(cache!.currentPosition).toBe(2000);
+        expect(cache!.currentRate).toBe(2.0);
+        expect(cache!.lastEventAt).toEqual(
+          new Date("2024-01-15T16:00:00.000Z"),
+        );
+      });
     });
 
     // =========================================================================

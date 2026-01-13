@@ -38,9 +38,8 @@ import {
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
 import {
-  mockShakeDetectorStart,
-  mockShakeDetectorStop,
-  resetShakeDetectorMocks,
+  activityTrackerFake,
+  resetActivityTrackerFake,
   resetTrackPlayerFake,
   trackPlayerFake,
 } from "@test/jest-setup";
@@ -80,7 +79,7 @@ describe("sleep-timer-service", () => {
     jest.useFakeTimers();
     jest.clearAllMocks();
     resetTrackPlayerFake();
-    resetShakeDetectorMocks();
+    resetActivityTrackerFake();
     // Initialize track player service to set up event listeners
     await trackPlayerService.initialize();
   });
@@ -274,11 +273,10 @@ describe("sleep-timer-service", () => {
       await setupLoadedPlaythrough({ position: 100 });
       await sleepTimerService.setSleepTimerEnabled(session, true);
       await trackPlayerService.play(PlayPauseSource.USER);
-      // Use async timer to let the async start() complete
       await jest.advanceTimersByTimeAsync(100);
 
       // Motion detection should not be running yet (disabled by default)
-      expect(mockShakeDetectorStart).not.toHaveBeenCalled();
+      expect(activityTrackerFake.getState().isTracking).toBe(false);
 
       // Enable motion detection
       await sleepTimerService.setSleepTimerMotionDetectionEnabled(
@@ -287,7 +285,7 @@ describe("sleep-timer-service", () => {
       );
 
       // Motion detection should now be started
-      expect(mockShakeDetectorStart).toHaveBeenCalled();
+      expect(activityTrackerFake.getState().isTracking).toBe(true);
     });
 
     it("stops motion detection when disabled and timer is active", async () => {
@@ -299,12 +297,10 @@ describe("sleep-timer-service", () => {
       await setupLoadedPlaythrough({ position: 100 });
       await sleepTimerService.setSleepTimerEnabled(session, true);
       await trackPlayerService.play(PlayPauseSource.USER);
-      // Use async timer to let the async start() complete
       await jest.advanceTimersByTimeAsync(100);
 
       // Motion detection should be running
-      expect(mockShakeDetectorStart).toHaveBeenCalled();
-      mockShakeDetectorStart.mockClear();
+      expect(activityTrackerFake.getState().isTracking).toBe(true);
 
       // Disable motion detection
       await sleepTimerService.setSleepTimerMotionDetectionEnabled(
@@ -313,7 +309,7 @@ describe("sleep-timer-service", () => {
       );
 
       // Motion detection should be stopped
-      expect(mockShakeDetectorStop).toHaveBeenCalled();
+      expect(activityTrackerFake.getState().isTracking).toBe(false);
     });
 
     it("does not start motion detection when timer is not active", async () => {
@@ -323,8 +319,36 @@ describe("sleep-timer-service", () => {
         true,
       );
 
-      // Motion detection should not start
-      expect(mockShakeDetectorStart).not.toHaveBeenCalled();
+      // Motion detection should not start (not playing)
+      expect(activityTrackerFake.getState().isTracking).toBe(false);
+    });
+
+    it("timer starts when disabling motion detection while timer was stopped due to movement", async () => {
+      // Enable motion detection
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
+        session,
+        true,
+      );
+
+      await setupLoadedPlaythrough({ position: 100 });
+      await sleepTimerService.setSleepTimerEnabled(session, true);
+      await trackPlayerService.play(PlayPauseSource.USER);
+      await jest.advanceTimersByTimeAsync(100);
+
+      // Simulate user moving - timer should stop
+      activityTrackerFake.simulateActivityStateChange("NOT_STATIONARY");
+
+      // Timer should NOT be running (user is moving)
+      expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
+
+      // Now disable motion detection
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
+        session,
+        false,
+      );
+
+      // Timer should now start (motion detection disabled = movement doesn't matter)
+      expect(useSleepTimer.getState().sleepTimerTriggerTime).not.toBeNull();
     });
   });
 
@@ -342,22 +366,21 @@ describe("sleep-timer-service", () => {
     it("starts motion detection when playback starts and motion detection is enabled", async () => {
       await setupLoadedPlaythrough({ position: 100 });
       await trackPlayerService.play(PlayPauseSource.USER);
-      // Use async timer to let the async start() complete
       await jest.advanceTimersByTimeAsync(100);
 
-      expect(mockShakeDetectorStart).toHaveBeenCalled();
+      expect(activityTrackerFake.getState().isTracking).toBe(true);
     });
 
     it("stops motion detection when playback pauses", async () => {
       await setupLoadedPlaythrough({ position: 100 });
       await trackPlayerService.play(PlayPauseSource.USER);
       await jest.advanceTimersByTimeAsync(100);
-      mockShakeDetectorStop.mockClear();
+      expect(activityTrackerFake.getState().isTracking).toBe(true);
 
       await trackPlayerService.pause(PlayPauseSource.USER);
       await jest.advanceTimersByTimeAsync(100);
 
-      expect(mockShakeDetectorStop).toHaveBeenCalled();
+      expect(activityTrackerFake.getState().isTracking).toBe(false);
     });
 
     it("does not start motion detection when motion detection is disabled", async () => {
@@ -371,7 +394,99 @@ describe("sleep-timer-service", () => {
       await trackPlayerService.play(PlayPauseSource.USER);
       await jest.advanceTimersByTimeAsync(100);
 
-      expect(mockShakeDetectorStart).not.toHaveBeenCalled();
+      expect(activityTrackerFake.getState().isTracking).toBe(false);
+    });
+  });
+
+  describe("isStationary state and timer behavior", () => {
+    beforeEach(async () => {
+      await sleepTimerService.initialize(session);
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
+        session,
+        true,
+      );
+      await sleepTimerService.setSleepTimerEnabled(session, true);
+      await setupLoadedPlaythrough({ position: 100 });
+    });
+
+    it("timer runs when isStationary is null (unknown)", async () => {
+      // isStationary starts as null (no activity events received yet)
+      expect(useSleepTimer.getState().isStationary).toBeNull();
+
+      await trackPlayerService.play(PlayPauseSource.USER);
+      await jest.advanceTimersByTimeAsync(100);
+
+      // Timer should be running despite unknown stationary state
+      expect(useSleepTimer.getState().sleepTimerTriggerTime).not.toBeNull();
+    });
+
+    it("timer runs when user is stationary", async () => {
+      await trackPlayerService.play(PlayPauseSource.USER);
+      await jest.advanceTimersByTimeAsync(100);
+
+      // Simulate user becoming stationary
+      activityTrackerFake.simulateActivityStateChange("STATIONARY");
+
+      expect(useSleepTimer.getState().isStationary).toBe(true);
+      expect(useSleepTimer.getState().sleepTimerTriggerTime).not.toBeNull();
+    });
+
+    it("timer does NOT run when user is moving", async () => {
+      await trackPlayerService.play(PlayPauseSource.USER);
+      await jest.advanceTimersByTimeAsync(100);
+
+      // Timer starts (isStationary is null initially)
+      expect(useSleepTimer.getState().sleepTimerTriggerTime).not.toBeNull();
+
+      // Simulate user moving
+      activityTrackerFake.simulateActivityStateChange("NOT_STATIONARY");
+
+      // Timer should stop when user is moving
+      expect(useSleepTimer.getState().isStationary).toBe(false);
+      expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
+      // But activity tracking should still be running
+      expect(activityTrackerFake.getState().isTracking).toBe(true);
+    });
+
+    it("timer stops when user starts moving", async () => {
+      await trackPlayerService.play(PlayPauseSource.USER);
+      await jest.advanceTimersByTimeAsync(100);
+
+      // Timer should be running initially (isStationary is null)
+      expect(useSleepTimer.getState().sleepTimerTriggerTime).not.toBeNull();
+
+      // Simulate user starting to move
+      activityTrackerFake.simulateActivityStateChange("NOT_STATIONARY");
+
+      // Timer should have stopped
+      expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
+    });
+
+    it("timer starts when user becomes stationary", async () => {
+      await trackPlayerService.play(PlayPauseSource.USER);
+      await jest.advanceTimersByTimeAsync(100);
+
+      // Simulate user moving first
+      activityTrackerFake.simulateActivityStateChange("NOT_STATIONARY");
+      expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
+
+      // User becomes stationary
+      activityTrackerFake.simulateActivityStateChange("STATIONARY");
+
+      // Timer should now be running
+      expect(useSleepTimer.getState().sleepTimerTriggerTime).not.toBeNull();
+    });
+
+    it("activity tracking continues even when timer is stopped due to movement", async () => {
+      await trackPlayerService.play(PlayPauseSource.USER);
+      await jest.advanceTimersByTimeAsync(100);
+
+      // Simulate user moving
+      activityTrackerFake.simulateActivityStateChange("NOT_STATIONARY");
+
+      // Timer not running, but activity tracking should still be active
+      expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
+      expect(activityTrackerFake.getState().isTracking).toBe(true);
     });
   });
 
@@ -501,7 +616,7 @@ describe("sleep-timer-service", () => {
   describe("timer check and trigger", () => {
     beforeEach(async () => {
       await sleepTimerService.initialize(session);
-      useSleepTimer.setState({ sleepTimer: 60 }); // 60 second timer for easier testing
+      await sleepTimerService.setSleepTimerTime(session, 60); // 60 second timer for easier testing
       await sleepTimerService.setSleepTimerEnabled(session, true);
 
       // Set up loaded playthrough and start playing

@@ -108,7 +108,7 @@ const extensionColors: Record<string, Color> = {
 
 export const logBase = logger.createLogger({
   enabled: __DEV__,
-  severity: "debug",
+  severity: "info",
   levels: {
     silly: 0,
     debug: 1,

@@ -62,16 +62,28 @@ const createInitialState = (): TrackPlayerFakeState => ({
 
 let trackPlayerState = createInitialState();
 
+// Track pending async event emissions so we can cancel them on reset
+let pendingEventEmissions: NodeJS.Immediate[] = [];
+
 // Helper to emit events to listeners
 function emitTrackPlayerEvent(event: string, data: unknown) {
   const listeners = trackPlayerState.eventListeners.get(event) || [];
   listeners.forEach((handler) => handler(data));
 }
 
+// Helper to schedule async event emission (like real native module)
+function scheduleEventEmission(emit: () => void) {
+  const handle = setImmediate(emit);
+  pendingEventEmissions.push(handle);
+}
+
 /**
  * Reset the TrackPlayer fake to initial state. Call in beforeEach().
  */
 export function resetTrackPlayerFake() {
+  // Cancel any pending async event emissions
+  pendingEventEmissions.forEach((handle) => clearImmediate(handle));
+  pendingEventEmissions = [];
   trackPlayerState = createInitialState();
 }
 
@@ -127,20 +139,26 @@ export const mockTrackPlayerSeekTo = jest.fn(async (pos: number) => {
 export const mockTrackPlayerPlay = jest.fn(async () => {
   trackPlayerState.playWhenReady = true;
   trackPlayerState.playbackState = "playing";
-  // Emit events like the real native module does
-  emitTrackPlayerEvent("playback-play-when-ready-changed", {
-    playWhenReady: true,
+  // Emit events asynchronously like the real native module does.
+  // Native events fire AFTER the JS call returns, not synchronously within it.
+  // This is important for testing race conditions between event handlers.
+  scheduleEventEmission(() => {
+    emitTrackPlayerEvent("playback-play-when-ready-changed", {
+      playWhenReady: true,
+    });
+    emitTrackPlayerEvent("playback-state", { state: "playing" });
   });
-  emitTrackPlayerEvent("playback-state", { state: "playing" });
 });
 export const mockTrackPlayerPause = jest.fn(async () => {
   trackPlayerState.playWhenReady = false;
   trackPlayerState.playbackState = "paused";
-  // Emit events like the real native module does
-  emitTrackPlayerEvent("playback-play-when-ready-changed", {
-    playWhenReady: false,
+  // Emit events asynchronously like the real native module does.
+  scheduleEventEmission(() => {
+    emitTrackPlayerEvent("playback-play-when-ready-changed", {
+      playWhenReady: false,
+    });
+    emitTrackPlayerEvent("playback-state", { state: "paused" });
   });
-  emitTrackPlayerEvent("playback-state", { state: "paused" });
 });
 export const mockTrackPlayerSetRate = jest.fn(async (rate: number) => {
   trackPlayerState.rate = rate;
@@ -443,37 +461,137 @@ jest.mock("@/db/db", () => ({
 }));
 
 // =============================================================================
-// Shake Detector Mock (Native Module)
+// Activity Tracker Fake (Native Module)
 // =============================================================================
+// Like TrackPlayer, we use a "fake" instead of mocks - a working implementation
+// that maintains internal state. Tests verify observable outcomes (isStationary
+// state changes) rather than checking if functions were called.
+//
+// Note: Variable must be prefixed with "mock" for jest.mock() to access it.
 
-export const mockShakeDetectorStart = jest.fn();
-export const mockShakeDetectorStop = jest.fn();
-export const mockShakeDetectorIsRunning = jest.fn(() => false);
-export const mockShakeDetectorAddMotionListener = jest.fn(
-  (_listener: (event: unknown) => void) => ({
-    remove: jest.fn(),
-  }),
-);
+interface MockActivityTrackerFakeState {
+  isTracking: boolean;
+  permissionStatus: string;
+  listener: ((event: MockActivityStateEvent) => void) | null;
+}
 
-jest.mock("shake-detector", () => ({
-  start: (sampleWindow: number, threshold: number, debugMode: boolean) =>
-    mockShakeDetectorStart(sampleWindow, threshold, debugMode),
-  stop: () => mockShakeDetectorStop(),
-  isRunning: () => mockShakeDetectorIsRunning(),
-  addMotionListener: (listener: (event: unknown) => void) =>
-    mockShakeDetectorAddMotionListener(listener),
-}));
+interface MockActivityStateEvent {
+  state: "STATIONARY" | "NOT_STATIONARY";
+  confidence: "LOW" | "MEDIUM" | "HIGH";
+  timestamp: number;
+}
+
+const mockCreateInitialActivityTrackerState =
+  (): MockActivityTrackerFakeState => ({
+    isTracking: false,
+    permissionStatus: "AUTHORIZED",
+    listener: null,
+  });
+
+let mockActivityTrackerState = mockCreateInitialActivityTrackerState();
 
 /**
- * Reset shake detector mocks. Call in beforeEach().
+ * Reset the ActivityTracker fake to initial state. Call in beforeEach().
  */
-export function resetShakeDetectorMocks() {
-  mockShakeDetectorStart.mockClear();
-  mockShakeDetectorStop.mockClear();
-  mockShakeDetectorIsRunning.mockClear();
-  mockShakeDetectorAddMotionListener.mockClear();
-  mockShakeDetectorIsRunning.mockReturnValue(false);
+export function resetActivityTrackerFake() {
+  mockActivityTrackerState = mockCreateInitialActivityTrackerState();
 }
+
+/**
+ * Control the ActivityTracker fake for test setup.
+ */
+export const activityTrackerFake = {
+  getState() {
+    return { ...mockActivityTrackerState };
+  },
+
+  /**
+   * Set permission status for testing permission flows.
+   */
+  setPermissionStatus(status: string) {
+    mockActivityTrackerState.permissionStatus = status;
+  },
+
+  /**
+   * Simulate an activity state change from the native module.
+   * This is how tests should trigger isStationary changes.
+   */
+  simulateActivityStateChange(
+    state: "STATIONARY" | "NOT_STATIONARY",
+    confidence: "LOW" | "MEDIUM" | "HIGH" = "HIGH",
+  ) {
+    if (
+      mockActivityTrackerState.listener &&
+      mockActivityTrackerState.isTracking
+    ) {
+      mockActivityTrackerState.listener({
+        state,
+        confidence,
+        timestamp: Date.now(),
+      });
+    }
+  },
+};
+
+jest.mock("activity-tracker", () => ({
+  ActivityState: {
+    STATIONARY: "STATIONARY",
+    NOT_STATIONARY: "NOT_STATIONARY",
+  },
+  PermissionStatus: {
+    AUTHORIZED: "AUTHORIZED",
+    DENIED: "DENIED",
+    RESTRICTED: "RESTRICTED",
+    NOT_DETERMINED: "NOT_DETERMINED",
+    UNAVAILABLE: "UNAVAILABLE",
+  },
+  TrackingStatus: {
+    STARTED: "STARTED",
+    STOPPED: "STOPPED",
+    UNAUTHORIZED: "UNAUTHORIZED",
+    FAILED: "FAILED",
+  },
+  Confidence: {
+    LOW: "LOW",
+    MEDIUM: "MEDIUM",
+    HIGH: "HIGH",
+  },
+  getPermissionStatus: () => {
+    return Promise.resolve(mockActivityTrackerState.permissionStatus);
+  },
+  requestPermission: () => {
+    // Simulate permission request - if not determined, assume user grants
+    if (mockActivityTrackerState.permissionStatus === "NOT_DETERMINED") {
+      mockActivityTrackerState.permissionStatus = "AUTHORIZED";
+    }
+    return Promise.resolve(mockActivityTrackerState.permissionStatus);
+  },
+  startTracking: () => {
+    if (
+      mockActivityTrackerState.permissionStatus !== "AUTHORIZED" &&
+      mockActivityTrackerState.permissionStatus !== "NOT_DETERMINED"
+    ) {
+      return Promise.resolve("UNAUTHORIZED");
+    }
+    mockActivityTrackerState.isTracking = true;
+    return Promise.resolve("STARTED");
+  },
+  stopTracking: () => {
+    mockActivityTrackerState.isTracking = false;
+    mockActivityTrackerState.listener = null;
+    return Promise.resolve("STOPPED");
+  },
+  addActivityStateListener: (
+    listener: (event: MockActivityStateEvent) => void,
+  ) => {
+    mockActivityTrackerState.listener = listener;
+    return {
+      remove: () => {
+        mockActivityTrackerState.listener = null;
+      },
+    };
+  },
+}));
 
 // =============================================================================
 // Console Suppression

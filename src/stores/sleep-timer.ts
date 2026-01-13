@@ -13,9 +13,11 @@ export interface SleepTimerState {
   sleepTimerMotionDetectionEnabled: boolean; // Whether motion detection resets timer
   sleepTimerTriggerTime: number | null; // Unix timestamp in milliseconds (in-memory only)
 
-  // Motion detection state (for debug display)
-  motionVariance: number; // Last detected variance
-  lastMotionDetected: number | null; // Timestamp of last motion-triggered reset
+  // Playback state (updated by play/pause events, avoids race condition with Player.isPlaying())
+  playing: boolean;
+
+  // Activity tracking state
+  isStationary: boolean | null; // null = unknown, true = stationary, false = moving
 }
 
 export const initialState: SleepTimerState = {
@@ -26,12 +28,27 @@ export const initialState: SleepTimerState = {
     DEFAULT_SLEEP_TIMER_MOTION_DETECTION_ENABLED,
   sleepTimerTriggerTime: null,
 
-  // Motion detection
-  motionVariance: 0,
-  lastMotionDetected: null,
+  // Playback state
+  playing: false,
+
+  // Activity tracking
+  isStationary: null,
 };
 
 export const useSleepTimer = create<SleepTimerState>()(() => initialState);
+
+/**
+ * Selector: Returns true when motion detection is actively preventing
+ * the timer from running (i.e., timer would run if user were stationary).
+ */
+export function selectIsMotionPausingTimer(state: SleepTimerState): boolean {
+  return (
+    state.playing &&
+    state.sleepTimerEnabled &&
+    state.sleepTimerMotionDetectionEnabled &&
+    state.isStationary === false
+  );
+}
 
 /**
  * Internal: Set trigger time (called from sleep timer service)
