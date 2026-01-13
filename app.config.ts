@@ -42,6 +42,8 @@ export default {
       infoPlist: {
         UIBackgroundModes: ["audio"],
         ITSAppUsesNonExemptEncryption: false,
+        NSMotionUsageDescription:
+          "Ambry uses motion data to detect when you're stationary so the sleep timer only counts down when you've stopped moving.",
       },
     },
     android: {

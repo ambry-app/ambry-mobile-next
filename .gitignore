@@ -16,6 +16,9 @@ web-build/
 /android
 /ios
 
+# Local module build artifacts
+modules/**/android/build/
+
 # macOS
 .DS_Store
 

@@ -115,6 +115,7 @@
     "react-native-svg": "15.12.1",
     "react-native-track-player": "5.0.0-alpha0",
     "react-native-worklets": "0.5.1",
+    "activity-tracker": "file:./modules/activity-tracker",
     "zustand": "^5.0.5"
   },
   "devDependencies": {

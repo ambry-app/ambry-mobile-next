@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { Platform, StyleSheet, Switch, Text, View } from "react-native";
+import {
+  Alert,
+  Linking,
+  Platform,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Slider from "@react-native-community/slider";
 import { useShallow } from "zustand/shallow";
@@ -8,8 +16,10 @@ import { Button } from "@/components/Button";
 import { IconButton } from "@/components/IconButton";
 import {
   setSleepTimerEnabled,
+  setSleepTimerMotionDetectionEnabled,
   setSleepTimerTime,
 } from "@/services/sleep-timer-service";
+import { useDebug } from "@/stores/debug";
 import { useSession } from "@/stores/session";
 import { useSleepTimer } from "@/stores/sleep-timer";
 import { Colors } from "@/styles/colors";
@@ -21,25 +31,68 @@ function formatSeconds(seconds: number) {
 export default function SleepTimerRoute() {
   const { bottom } = useSafeAreaInsets();
   const session = useSession((state) => state.session);
+  const debugModeEnabled = useDebug((state) => state.debugModeEnabled);
 
-  const { sleepTimer, sleepTimerEnabled } = useSleepTimer(
-    useShallow(({ sleepTimer, sleepTimerEnabled }) => ({
-      sleepTimer,
-      sleepTimerEnabled,
-    })),
-  );
+  const { sleepTimer, sleepTimerEnabled, sleepTimerMotionDetectionEnabled } =
+    useSleepTimer(
+      useShallow(
+        ({
+          sleepTimer,
+          sleepTimerEnabled,
+          sleepTimerMotionDetectionEnabled,
+        }) => ({
+          sleepTimer,
+          sleepTimerEnabled,
+          sleepTimerMotionDetectionEnabled,
+        }),
+      ),
+    );
 
   const [displaySleepTimerSeconds, setDisplaySleepTimerSeconds] =
     useState(sleepTimer);
+  const [displayMotionDetectionEnabled, setDisplayMotionDetectionEnabled] =
+    useState(sleepTimerMotionDetectionEnabled);
 
   useEffect(() => {
     setDisplaySleepTimerSeconds(sleepTimer);
   }, [sleepTimer]);
 
+  useEffect(() => {
+    setDisplayMotionDetectionEnabled(sleepTimerMotionDetectionEnabled);
+  }, [sleepTimerMotionDetectionEnabled]);
+
   const setSleepTimerSecondsAndDisplay = useCallback(
     (value: number) => {
       setDisplaySleepTimerSeconds(value);
       if (session) setSleepTimerTime(session, value);
+    },
+    [session],
+  );
+
+  const handleMotionDetectionToggle = useCallback(
+    async (value: boolean) => {
+      if (!session) return;
+
+      // Optimistic update
+      setDisplayMotionDetectionEnabled(value);
+
+      const result = await setSleepTimerMotionDetectionEnabled(session, value);
+
+      if (!result.success) {
+        // Revert optimistic update
+        setDisplayMotionDetectionEnabled(!value);
+
+        if (result.permissionDenied) {
+          Alert.alert(
+            "Permission Required",
+            "Motion detection requires Motion & Fitness permission. Please enable it in Settings.",
+            [
+              { text: "Cancel", style: "cancel" },
+              { text: "Open Settings", onPress: () => Linking.openSettings() },
+            ],
+          );
+        }
+      }
     },
     [session],
   );
@@ -119,14 +172,7 @@ export default function SleepTimerRoute() {
             setSleepTimerSecondsAndDisplay={setSleepTimerSecondsAndDisplay}
           />
         </View>
-        <View
-          style={{
-            display: "flex",
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
+        <View style={styles.toggleRow}>
           <Text style={styles.sleepTimerEnabledText}>
             Sleep Timer is {sleepTimerEnabled ? "enabled" : "disabled"}
           </Text>
@@ -139,6 +185,23 @@ export default function SleepTimerRoute() {
             }}
           />
         </View>
+
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleLabelContainer}>
+            <Text style={styles.sleepTimerEnabledText}>Motion Detection</Text>
+            <Text style={styles.toggleDescription}>
+              Pauses timer while you're moving
+            </Text>
+          </View>
+          <Switch
+            trackColor={{ false: Colors.zinc[400], true: Colors.lime[500] }}
+            thumbColor={Colors.zinc[100]}
+            value={displayMotionDetectionEnabled}
+            onValueChange={handleMotionDetectionToggle}
+          />
+        </View>
+
+        {debugModeEnabled && <MotionDebugInfo />}
       </View>
     </View>
   );
@@ -163,6 +226,41 @@ function SleepTimerSecondsButton(props: SleepTimerSecondsButtonProps) {
         {formatSeconds(seconds)}m
       </Text>
     </Button>
+  );
+}
+
+function MotionDebugInfo() {
+  const { isStationary, sleepTimerMotionDetectionEnabled } = useSleepTimer(
+    useShallow(({ isStationary, sleepTimerMotionDetectionEnabled }) => ({
+      isStationary,
+      sleepTimerMotionDetectionEnabled,
+    })),
+  );
+
+  const stationaryStatus =
+    isStationary === null ? "Unknown" : isStationary ? "Stationary" : "Moving";
+
+  return (
+    <View style={styles.debugContainer}>
+      <Text style={styles.debugTitle}>Motion Detection Debug</Text>
+      <View style={styles.debugRow}>
+        <Text style={styles.debugLabel}>Enabled:</Text>
+        <Text style={styles.debugValue}>
+          {sleepTimerMotionDetectionEnabled ? "Yes" : "No"}
+        </Text>
+      </View>
+      <View style={styles.debugRow}>
+        <Text style={styles.debugLabel}>Status:</Text>
+        <Text
+          style={[
+            styles.debugValue,
+            isStationary === false && styles.debugValueHighlight,
+          ]}
+        >
+          {stationaryStatus}
+        </Text>
+      </View>
+    </View>
   );
 }
 
@@ -204,6 +302,21 @@ const styles = StyleSheet.create({
   sleepTimerButtonActiveText: {
     color: Colors.black,
   },
+  toggleRow: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  toggleLabelContainer: {
+    flex: 1,
+    marginRight: 16,
+  },
+  toggleDescription: {
+    color: Colors.zinc[500],
+    fontSize: 12,
+    marginTop: 2,
+  },
   sleepTimerEnabledText: {
     color: Colors.zinc[300],
     fontSize: 16,
@@ -223,5 +336,37 @@ const styles = StyleSheet.create({
   plusMinusButton: {
     backgroundColor: Colors.zinc[800],
     borderRadius: 999,
+  },
+  debugContainer: {
+    backgroundColor: Colors.zinc[900],
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.zinc[700],
+  },
+  debugTitle: {
+    color: Colors.zinc[400],
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  debugRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 2,
+  },
+  debugLabel: {
+    color: Colors.zinc[500],
+    fontSize: 12,
+  },
+  debugValue: {
+    color: Colors.zinc[300],
+    fontSize: 12,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+  },
+  debugValueHighlight: {
+    color: Colors.lime[400],
   },
 });

@@ -127,6 +127,13 @@
       "when": 1767904778642,
       "tag": "0017_supreme_silk_fever",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1768199926913,
+      "tag": "0018_cultured_fantastic_four",
+      "breakpoints": true
     }
   ]
 }

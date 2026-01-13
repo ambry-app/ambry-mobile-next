@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import {
   DEFAULT_PREFERRED_PLAYBACK_RATE,
   DEFAULT_SLEEP_TIMER_ENABLED,
+  DEFAULT_SLEEP_TIMER_MOTION_DETECTION_ENABLED,
   DEFAULT_SLEEP_TIMER_SECONDS,
 } from "@/constants";
 import { getDb } from "@/db/db";
@@ -72,11 +73,30 @@ export async function setSleepTimerTime(userEmail: string, seconds: number) {
     });
 }
 
+export async function setSleepTimerMotionDetectionEnabled(
+  userEmail: string,
+  enabled: boolean,
+) {
+  await getDb()
+    .insert(schema.localUserSettings)
+    .values({
+      userEmail,
+      sleepTimerMotionDetectionEnabled: enabled,
+    })
+    .onConflictDoUpdate({
+      target: [schema.localUserSettings.userEmail],
+      set: {
+        sleepTimerMotionDetectionEnabled: sql`excluded.sleep_timer_motion_detection_enabled`,
+      },
+    });
+}
+
 export async function getSleepTimerSettings(userEmail: string) {
   const response = await getDb().query.localUserSettings.findFirst({
     columns: {
       sleepTimer: true,
       sleepTimerEnabled: true,
+      sleepTimerMotionDetectionEnabled: true,
     },
     where: eq(schema.localUserSettings.userEmail, userEmail),
   });
@@ -87,6 +107,8 @@ export async function getSleepTimerSettings(userEmail: string) {
     return {
       sleepTimer: DEFAULT_SLEEP_TIMER_SECONDS,
       sleepTimerEnabled: DEFAULT_SLEEP_TIMER_ENABLED,
+      sleepTimerMotionDetectionEnabled:
+        DEFAULT_SLEEP_TIMER_MOTION_DETECTION_ENABLED,
     };
   }
 }

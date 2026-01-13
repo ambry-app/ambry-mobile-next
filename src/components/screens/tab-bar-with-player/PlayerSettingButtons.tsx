@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { FontAwesome6 } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
@@ -7,7 +8,10 @@ import { useShallow } from "zustand/shallow";
 import { IconButton } from "@/components/IconButton";
 import { setSleepTimerEnabled } from "@/services/sleep-timer-service";
 import { useSession } from "@/stores/session";
-import { useSleepTimer } from "@/stores/sleep-timer";
+import {
+  selectIsMotionPausingTimer,
+  useSleepTimer,
+} from "@/stores/sleep-timer";
 import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles/colors";
 import { formatPlaybackRate } from "@/utils/rate";
@@ -25,23 +29,33 @@ export function PlayerSettingButtons() {
 function SleepTimerButton() {
   const session = useSession((state) => state.session);
   const sleepTimerEnabled = useSleepTimer((state) => state.sleepTimerEnabled);
+  const isMotionPausingTimer = useSleepTimer(selectIsMotionPausingTimer);
 
   return (
-    <IconButton
-      icon="stopwatch"
-      size={16}
-      color={Colors.zinc[100]}
-      style={styles.button}
-      onPress={() => {
-        router.navigate("/sleep-timer");
-      }}
-      onLongPress={() => {
-        if (session) setSleepTimerEnabled(session, !sleepTimerEnabled);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }}
-    >
-      <SleepTimerLabel />
-    </IconButton>
+    <View style={styles.sleepTimerContainer}>
+      <IconButton
+        icon="stopwatch"
+        size={16}
+        color={Colors.zinc[100]}
+        style={styles.button}
+        onPress={() => {
+          router.navigate("/sleep-timer");
+        }}
+        onLongPress={() => {
+          if (session) setSleepTimerEnabled(session, !sleepTimerEnabled);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }}
+      >
+        <SleepTimerLabel />
+      </IconButton>
+      {isMotionPausingTimer && (
+        <FontAwesome6
+          name="person-walking"
+          size={14}
+          color={Colors.zinc[100]}
+        />
+      )}
+    </View>
   );
 }
 
@@ -120,6 +134,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginHorizontal: -20,
+  },
+  sleepTimerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   button: {
     backgroundColor: Colors.zinc[800] + "80",

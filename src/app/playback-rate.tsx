@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Slider from "@react-native-community/slider";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 
 import { Button } from "@/components/Button";
 import { IconButton } from "@/components/IconButton";
@@ -24,6 +24,7 @@ export default function PlaybackRateRoute() {
 
   const session = useSession((state) => state.session);
 
+  const playerLoaded = useTrackPlayer((state) => !!state.playthrough);
   const playerRate = useTrackPlayer((state) => state.playbackRate);
   const preferredRate = usePreferredPlaybackRate(
     (state) => state.preferredPlaybackRate,
@@ -38,6 +39,12 @@ export default function PlaybackRateRoute() {
     setDisplayPlaybackRate(currentRate);
   }, [currentRate]);
 
+  useEffect(() => {
+    if (!isSettingsMode && !playerLoaded) {
+      router.back();
+    }
+  }, [isSettingsMode, playerLoaded]);
+
   const setPlaybackRateAndDisplay = useCallback(
     (value: number) => {
       setDisplayPlaybackRate(value);
@@ -51,6 +58,8 @@ export default function PlaybackRateRoute() {
   );
 
   if (!session) return null;
+
+  if (!isSettingsMode && !playerLoaded) return null;
 
   const title = isSettingsMode ? "Default Playback Speed" : "Playback Speed";
 

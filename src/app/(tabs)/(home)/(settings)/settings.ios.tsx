@@ -1,10 +1,20 @@
 // iOS version - uses SwiftUI
-import { useCallback } from "react";
-import { Button, Host, List, Section, Switch, Text } from "@expo/ui/swift-ui";
+import { useCallback, useEffect, useState } from "react";
+import { Alert, Linking } from "react-native";
+import {
+  Button,
+  Host,
+  LabeledContent,
+  List,
+  Section,
+  Switch,
+  Text,
+} from "@expo/ui/swift-ui";
 import { router } from "expo-router";
 
 import { signOut } from "@/services/auth-service";
 import { unloadPlayer } from "@/services/playback-controls";
+import { setSleepTimerMotionDetectionEnabled } from "@/services/sleep-timer-service";
 import { useDebug } from "@/stores/debug";
 import { usePreferredPlaybackRate } from "@/stores/preferred-playback-rate";
 import { useSession } from "@/stores/session";
@@ -20,6 +30,21 @@ export default function SettingsRoute() {
   );
   const sleepTimer = useSleepTimer((state) => state.sleepTimer);
   const sleepTimerEnabled = useSleepTimer((state) => state.sleepTimerEnabled);
+  const sleepTimerMotionDetectionEnabled = useSleepTimer(
+    (state) => state.sleepTimerMotionDetectionEnabled,
+  );
+
+  // Local state for the toggle to handle async permission flow
+  // This ensures the toggle updates correctly even when the Switch component
+  // doesn't properly sync with value prop changes during async operations
+  const [motionToggle, setMotionToggle] = useState(
+    sleepTimerMotionDetectionEnabled,
+  );
+
+  // Sync local state with store when store changes (e.g., on initial load)
+  useEffect(() => {
+    setMotionToggle(sleepTimerMotionDetectionEnabled);
+  }, [sleepTimerMotionDetectionEnabled]);
 
   const handleSignOut = useCallback(async () => {
     await unloadPlayer();
@@ -33,6 +58,41 @@ export default function SettingsRoute() {
   const openSleepTimerSettings = useCallback(() => {
     router.push("/sleep-timer");
   }, []);
+
+  const handleMotionDetectionToggle = useCallback(
+    async (enabled: boolean) => {
+      if (!session) return;
+
+      // Optimistically update local state
+      setMotionToggle(enabled);
+
+      const result = await setSleepTimerMotionDetectionEnabled(
+        session,
+        enabled,
+      );
+
+      // If failed, reset local state
+      if (!result.success) {
+        setMotionToggle(false);
+
+        // If permission was permanently denied, show alert to guide user to Settings
+        if (result.permissionDenied) {
+          Alert.alert(
+            "Permission Required",
+            "Motion detection requires access to Motion & Fitness data. Please enable it in Settings.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Open Settings",
+                onPress: () => Linking.openSettings(),
+              },
+            ],
+          );
+        }
+      }
+    },
+    [session],
+  );
 
   if (!session) return null;
 
@@ -52,12 +112,22 @@ export default function SettingsRoute() {
         </Section>
 
         <Section title="PLAYBACK">
-          <Button onPress={openPlaybackRateSettings}>
-            Default Speed: {formatPlaybackRate(preferredPlaybackRate)}×
-          </Button>
-          <Button onPress={openSleepTimerSettings}>
-            Sleep Timer: {sleepTimerDisplay}
-          </Button>
+          <LabeledContent label="Default Speed">
+            <Button onPress={openPlaybackRateSettings}>
+              {formatPlaybackRate(preferredPlaybackRate)}×
+            </Button>
+          </LabeledContent>
+          <LabeledContent label="Sleep Timer">
+            <Button onPress={openSleepTimerSettings}>
+              {sleepTimerDisplay}
+            </Button>
+          </LabeledContent>
+          <Switch
+            label="Motion Detection"
+            value={motionToggle}
+            onValueChange={handleMotionDetectionToggle}
+            color={Colors.lime[500]}
+          />
         </Section>
 
         <Section title="DEBUG">

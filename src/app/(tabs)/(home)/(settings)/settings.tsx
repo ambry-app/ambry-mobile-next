@@ -7,6 +7,7 @@ import { router } from "expo-router";
 
 import { signOut } from "@/services/auth-service";
 import { unloadPlayer } from "@/services/playback-controls";
+import { setSleepTimerMotionDetectionEnabled } from "@/services/sleep-timer-service";
 import { useDebug } from "@/stores/debug";
 import { usePreferredPlaybackRate } from "@/stores/preferred-playback-rate";
 import { useSession } from "@/stores/session";
@@ -22,6 +23,9 @@ export default function SettingsRoute() {
   );
   const sleepTimer = useSleepTimer((state) => state.sleepTimer);
   const sleepTimerEnabled = useSleepTimer((state) => state.sleepTimerEnabled);
+  const sleepTimerMotionDetectionEnabled = useSleepTimer(
+    (state) => state.sleepTimerMotionDetectionEnabled,
+  );
 
   const handleSignOut = useCallback(async () => {
     await unloadPlayer();
@@ -35,6 +39,15 @@ export default function SettingsRoute() {
   const openSleepTimerSettings = useCallback(() => {
     router.push("/sleep-timer");
   }, []);
+
+  const handleMotionDetectionToggle = useCallback(
+    async (enabled: boolean) => {
+      if (!session) return;
+      // On Android, this always succeeds (accelerometer doesn't need permission)
+      await setSleepTimerMotionDetectionEnabled(session, enabled);
+    },
+    [session],
+  );
 
   if (!session) return null;
 
@@ -74,7 +87,12 @@ export default function SettingsRoute() {
         <Text style={styles.sectionTitle}>Playback</Text>
         <View style={styles.card}>
           <Pressable style={styles.row} onPress={openPlaybackRateSettings}>
-            <Text style={styles.rowLabel}>Default Speed</Text>
+            <View style={styles.rowLabelContainer}>
+              <Text style={styles.rowLabel}>Default Speed</Text>
+              <Text style={styles.rowDescription}>
+                Starting speed for new audiobooks
+              </Text>
+            </View>
             <View style={styles.rowRight}>
               <Text style={styles.rowValue}>
                 {formatPlaybackRate(preferredPlaybackRate)}×
@@ -88,7 +106,12 @@ export default function SettingsRoute() {
           </Pressable>
           <View style={styles.divider} />
           <Pressable style={styles.row} onPress={openSleepTimerSettings}>
-            <Text style={styles.rowLabel}>Sleep Timer</Text>
+            <View style={styles.rowLabelContainer}>
+              <Text style={styles.rowLabel}>Sleep Timer</Text>
+              <Text style={styles.rowDescription}>
+                Automatically pause playback after a set time
+              </Text>
+            </View>
             <View style={styles.rowRight}>
               <Text style={styles.rowValue}>{sleepTimerDisplay}</Text>
               <FontAwesome6
@@ -98,6 +121,20 @@ export default function SettingsRoute() {
               />
             </View>
           </Pressable>
+          <View style={styles.divider} />
+          <View style={styles.switchRow}>
+            <View style={styles.switchLabelContainer}>
+              <Text style={styles.rowLabel}>Motion Detection</Text>
+              <Text style={styles.rowDescription}>
+                Reset sleep timer when motion is detected
+              </Text>
+            </View>
+            <Switch
+              value={sleepTimerMotionDetectionEnabled}
+              onValueChange={handleMotionDetectionToggle}
+              color={Colors.lime[500]}
+            />
+          </View>
         </View>
       </View>
 
@@ -106,7 +143,12 @@ export default function SettingsRoute() {
         <Text style={styles.sectionTitle}>Debug</Text>
         <View style={styles.card}>
           <View style={styles.switchRow}>
-            <Text style={styles.rowLabel}>Debug Mode</Text>
+            <View style={styles.switchLabelContainer}>
+              <Text style={styles.rowLabel}>Debug Mode</Text>
+              <Text style={styles.rowDescription}>
+                Show extra info for troubleshooting
+              </Text>
+            </View>
             <Switch
               value={debugModeEnabled}
               onValueChange={setDebugModeEnabled}
@@ -168,13 +210,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  rowLabelContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
   rowLabel: {
     color: Colors.zinc[100],
     fontSize: 16,
   },
+  rowDescription: {
+    color: Colors.zinc[500],
+    fontSize: 13,
+    marginTop: 2,
+  },
   rowValue: {
     color: Colors.zinc[400],
     fontSize: 16,
+  },
+  switchLabelContainer: {
+    flex: 1,
+    marginRight: 12,
   },
   infoLabel: {
     color: Colors.zinc[400],

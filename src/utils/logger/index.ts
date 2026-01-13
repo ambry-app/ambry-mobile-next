@@ -55,6 +55,7 @@ const extensionColors: Record<string, Color> = {
   "seek-service": "#c678dd",
   "chapter-service": "#b668cd",
   "sleep-timer": "#a658bd",
+  "preferred-rate": "#9648ad",
   scrubber: "#9648ad",
 
   // ---------------------------------------------------------------------------
