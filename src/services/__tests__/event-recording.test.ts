@@ -69,6 +69,9 @@ function setupSessionAndDevice() {
       modelName: "TestModel",
       osName: "TestOS",
       osVersion: "1.0.0",
+      appId: "app.ambry.mobile.dev",
+      appVersion: "1.0.0",
+      appBuild: "1",
     },
   });
 }

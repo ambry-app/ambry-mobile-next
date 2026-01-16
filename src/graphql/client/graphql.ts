@@ -141,6 +141,9 @@ export enum DeletionType {
 }
 
 export type DeviceInput = {
+  appBuild?: InputMaybe<Scalars['String']['input']>;
+  appId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
   brand?: InputMaybe<Scalars['String']['input']>;
   browser?: InputMaybe<Scalars['String']['input']>;
   browserVersion?: InputMaybe<Scalars['String']['input']>;
@@ -278,6 +281,7 @@ export type PlaybackEvent = {
   deviceId?: Maybe<Scalars['ID']['output']>;
   fromPosition?: Maybe<Scalars['Float']['output']>;
   id: Scalars['ID']['output'];
+  mediaId?: Maybe<Scalars['ID']['output']>;
   playbackRate?: Maybe<Scalars['Float']['output']>;
   playthroughId: Scalars['ID']['output'];
   position?: Maybe<Scalars['Float']['output']>;
@@ -290,6 +294,7 @@ export type PlaybackEvent = {
 export type PlaybackEventInput = {
   fromPosition?: InputMaybe<Scalars['Float']['input']>;
   id: Scalars['ID']['input'];
+  mediaId?: InputMaybe<Scalars['ID']['input']>;
   playbackRate?: InputMaybe<Scalars['Float']['input']>;
   playthroughId: Scalars['ID']['input'];
   position?: InputMaybe<Scalars['Float']['input']>;
@@ -301,6 +306,7 @@ export type PlaybackEventInput = {
 
 export enum PlaybackEventType {
   Abandon = 'ABANDON',
+  Delete = 'DELETE',
   Finish = 'FINISH',
   Pause = 'PAUSE',
   Play = 'PLAY',
@@ -375,6 +381,8 @@ export type RootMutationType = {
   deleteSession?: Maybe<DeleteSessionPayload>;
   /** Initializes a new player state or returns an existing player state for a given Media. */
   loadPlayerState?: Maybe<LoadPlayerStatePayload>;
+  /** V2 sync: events only, no playthroughs. All state is derived from events. */
+  syncEvents?: Maybe<SyncEventsPayload>;
   syncProgress?: Maybe<SyncProgressPayload>;
   updatePlayerState?: Maybe<UpdatePlayerStatePayload>;
 };
@@ -387,6 +395,11 @@ export type RootMutationTypeCreateSessionArgs = {
 
 export type RootMutationTypeLoadPlayerStateArgs = {
   input: LoadPlayerStateInput;
+};
+
+
+export type RootMutationTypeSyncEventsArgs = {
+  input: SyncEventsInput;
 };
 
 
@@ -570,6 +583,18 @@ export type SupplementalFile = {
   path: Scalars['String']['output'];
 };
 
+export type SyncEventsInput = {
+  device: DeviceInput;
+  events: Array<PlaybackEventInput>;
+  lastSyncTime?: InputMaybe<Scalars['DateTime']['input']>;
+};
+
+export type SyncEventsPayload = {
+  __typename?: 'SyncEventsPayload';
+  events: Array<PlaybackEvent>;
+  serverTime: Scalars['DateTime']['output'];
+};
+
 export type SyncProgressInput = {
   device: DeviceInput;
   events: Array<PlaybackEventInput>;
@@ -640,7 +665,7 @@ export type SyncProgressMutationVariables = Exact<{
 }>;
 
 
-export type SyncProgressMutation = { __typename?: 'RootMutationType', syncProgress?: { __typename?: 'SyncProgressPayload', serverTime: any, playthroughs: Array<{ __typename?: 'Playthrough', id: string, status: PlaythroughStatus, startedAt: any, finishedAt?: any | null, abandonedAt?: any | null, deletedAt?: any | null, insertedAt: any, updatedAt: any, media: { __typename?: 'Media', id: string } }>, events: Array<{ __typename?: 'PlaybackEvent', id: string, playthroughId: string, deviceId?: string | null, type: PlaybackEventType, timestamp: any, position?: number | null, playbackRate?: number | null, fromPosition?: number | null, toPosition?: number | null, previousRate?: number | null }> } | null };
+export type SyncProgressMutation = { __typename?: 'RootMutationType', syncProgress?: { __typename?: 'SyncProgressPayload', serverTime: any, playthroughs: Array<{ __typename?: 'Playthrough', id: string, status: PlaythroughStatus, startedAt: any, finishedAt?: any | null, abandonedAt?: any | null, deletedAt?: any | null, insertedAt: any, updatedAt: any, media: { __typename?: 'Media', id: string } }>, events: Array<{ __typename?: 'PlaybackEvent', id: string, playthroughId: string, deviceId?: string | null, mediaId?: string | null, type: PlaybackEventType, timestamp: any, position?: number | null, playbackRate?: number | null, fromPosition?: number | null, toPosition?: number | null, previousRate?: number | null }> } | null };
 
 export class TypedDocumentString<TResult, TVariables>
   extends String
@@ -825,6 +850,7 @@ export const SyncProgressDocument = new TypedDocumentString(`
       id
       playthroughId
       deviceId
+      mediaId
       type
       timestamp
       position

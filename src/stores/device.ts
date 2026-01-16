@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import * as Application from "expo-application";
 import * as Device from "expo-device";
 import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
@@ -59,6 +60,9 @@ export async function initializeDevice() {
     modelName: Device.modelName,
     osName: Device.osName,
     osVersion: Device.osVersion,
+    appId: Application.applicationId,
+    appVersion: Application.nativeApplicationVersion,
+    appBuild: Application.nativeBuildVersion,
   };
 
   useDevice.setState({

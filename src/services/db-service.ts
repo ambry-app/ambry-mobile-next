@@ -6,6 +6,7 @@ import {
   migrateFromPlayerStateToPlaythrough,
   needsPlayerStateMigration,
 } from "@/db/migration-player-state";
+import { getDeviceInfo } from "@/stores/device";
 import { logBase } from "@/utils/logger";
 import migrations from "@drizzle/migrations";
 
@@ -39,7 +40,8 @@ export function useDatabaseMigrations() {
         // PlayerState → Playthrough migration
         if (await needsPlayerStateMigration()) {
           log.info("Running PlayerState migration...");
-          await migrateFromPlayerStateToPlaythrough();
+          const deviceInfo = await getDeviceInfo();
+          await migrateFromPlayerStateToPlaythrough(deviceInfo.id);
           log.info("PlayerState migration complete");
         }
 

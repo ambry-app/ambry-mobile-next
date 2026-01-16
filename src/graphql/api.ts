@@ -245,6 +245,7 @@ const syncProgressMutation = graphql(`
         id
         playthroughId
         deviceId
+        mediaId
         type
         timestamp
         position

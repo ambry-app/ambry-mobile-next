@@ -123,6 +123,7 @@ const eventTypeMap: Record<string, PlaybackEventType> = {
   finish: PlaybackEventType.Finish,
   abandon: PlaybackEventType.Abandon,
   resume: PlaybackEventType.Resume,
+  delete: PlaybackEventType.Delete,
 };
 
 export async function syncPlaythroughs(
@@ -145,6 +146,9 @@ export async function syncPlaythroughs(
       modelName: deviceInfo.modelName,
       osName: deviceInfo.osName,
       osVersion: deviceInfo.osVersion,
+      appId: deviceInfo.appId,
+      appVersion: deviceInfo.appVersion,
+      appBuild: deviceInfo.appBuild,
     },
     playthroughs: syncData.unsyncedPlaythroughs.map((p) => ({
       id: p.id,
@@ -158,6 +162,7 @@ export async function syncPlaythroughs(
     events: syncData.unsyncedEvents.map((e) => ({
       id: e.id,
       playthroughId: e.playthroughId,
+      mediaId: e.mediaId,
       type: eventTypeMap[e.type] ?? PlaybackEventType.Play,
       timestamp: e.timestamp,
       position: e.position,

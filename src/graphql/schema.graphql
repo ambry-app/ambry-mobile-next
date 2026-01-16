@@ -114,6 +114,9 @@ enum DeletionType {
 }
 
 input DeviceInput {
+  appBuild: String
+  appId: String
+  appVersion: String
   brand: String
   browser: String
   browserVersion: String
@@ -232,6 +235,7 @@ type PlaybackEvent {
   deviceId: ID
   fromPosition: Float
   id: ID!
+  mediaId: ID
   playbackRate: Float
   playthroughId: ID!
   position: Float
@@ -244,6 +248,7 @@ type PlaybackEvent {
 input PlaybackEventInput {
   fromPosition: Float
   id: ID!
+  mediaId: ID
   playbackRate: Float
   playthroughId: ID!
   position: Float
@@ -255,6 +260,7 @@ input PlaybackEventInput {
 
 enum PlaybackEventType {
   ABANDON
+  DELETE
   FINISH
   PAUSE
   PLAY
@@ -326,6 +332,10 @@ type RootMutationType {
   Initializes a new player state or returns an existing player state for a given Media.
   """
   loadPlayerState(input: LoadPlayerStateInput!): LoadPlayerStatePayload
+  """
+  V2 sync: events only, no playthroughs. All state is derived from events.
+  """
+  syncEvents(input: SyncEventsInput!): SyncEventsPayload
   syncProgress(input: SyncProgressInput!): SyncProgressPayload
   updatePlayerState(input: UpdatePlayerStateInput!): UpdatePlayerStatePayload
 }
@@ -408,6 +418,17 @@ type SupplementalFile {
   label: String
   mime: String!
   path: String!
+}
+
+input SyncEventsInput {
+  device: DeviceInput!
+  events: [PlaybackEventInput!]!
+  lastSyncTime: DateTime
+}
+
+type SyncEventsPayload {
+  events: [PlaybackEvent!]!
+  serverTime: DateTime!
 }
 
 input SyncProgressInput {

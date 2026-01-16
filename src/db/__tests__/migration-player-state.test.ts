@@ -15,6 +15,9 @@ import * as schema from "@/db/schema";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { createMedia, DEFAULT_TEST_SESSION } from "@test/factories";
 
+// Test device ID for synthetic events
+const TEST_DEVICE_ID = "test-device-id-12345";
+
 // =============================================================================
 // Mock expo-sqlite/kv-store Storage (external Expo native module)
 // =============================================================================
@@ -181,7 +184,7 @@ describe("migrateFromPlayerStateToPlaythrough", () => {
       updatedAt,
     });
 
-    await migrateFromPlayerStateToPlaythrough();
+    await migrateFromPlayerStateToPlaythrough(TEST_DEVICE_ID);
 
     // Verify flag was set
     expect(Storage.setItem).toHaveBeenCalledWith(
@@ -203,13 +206,29 @@ describe("migrateFromPlayerStateToPlaythrough", () => {
       syncedAt: null,
     });
 
-    // Verify pause event was created
-    const events = await db.select().from(schema.playbackEvents);
+    // Verify start and pause events were created
+    const events = await db
+      .select()
+      .from(schema.playbackEvents)
+      .orderBy(schema.playbackEvents.timestamp);
 
-    expect(events).toHaveLength(1);
+    expect(events).toHaveLength(2);
+
+    // Start event
     expect(events[0]).toMatchObject({
       playthroughId: playthroughs[0]!.id,
-      deviceId: null, // Synthetic event
+      type: "start",
+      timestamp: new Date(insertedAt * 1000),
+      position: 0,
+      playbackRate: 1.25,
+      syncedAt: null,
+    });
+    expect(events[0]!.deviceId).toBe(TEST_DEVICE_ID);
+
+    // Pause event
+    expect(events[1]).toMatchObject({
+      playthroughId: playthroughs[0]!.id,
+      deviceId: TEST_DEVICE_ID,
       type: "pause",
       timestamp: new Date(updatedAt * 1000),
       position: 1234.5,
@@ -249,7 +268,7 @@ describe("migrateFromPlayerStateToPlaythrough", () => {
       updatedAt,
     });
 
-    await migrateFromPlayerStateToPlaythrough();
+    await migrateFromPlayerStateToPlaythrough(TEST_DEVICE_ID);
 
     const playthroughs = await db.select().from(schema.playthroughs);
 
@@ -259,16 +278,18 @@ describe("migrateFromPlayerStateToPlaythrough", () => {
       finishedAt: new Date(updatedAt * 1000),
     });
 
-    // Verify both pause and finish events
+    // Verify start, pause, and finish events
     const events = await db
       .select()
       .from(schema.playbackEvents)
       .orderBy(schema.playbackEvents.timestamp);
 
-    expect(events).toHaveLength(2);
-    expect(events[0]!.type).toBe("pause");
-    expect(events[1]!.type).toBe("finish");
-    expect(events[1]!.timestamp).toEqual(new Date(updatedAt * 1000));
+    expect(events).toHaveLength(3);
+    expect(events[0]!.type).toBe("start");
+    expect(events[0]!.timestamp).toEqual(new Date(insertedAt * 1000));
+    expect(events[1]!.type).toBe("pause");
+    expect(events[2]!.type).toBe("finish");
+    expect(events[2]!.timestamp).toEqual(new Date(updatedAt * 1000));
   });
 
   it("skips not_started states (no playthrough created)", async () => {
@@ -284,7 +305,7 @@ describe("migrateFromPlayerStateToPlaythrough", () => {
       status: "not_started",
     });
 
-    await migrateFromPlayerStateToPlaythrough();
+    await migrateFromPlayerStateToPlaythrough(TEST_DEVICE_ID);
 
     const playthroughs = await db.select().from(schema.playthroughs);
 
@@ -319,13 +340,19 @@ describe("migrateFromPlayerStateToPlaythrough", () => {
       updatedAt: 1700001000,
     });
 
-    await migrateFromPlayerStateToPlaythrough();
+    await migrateFromPlayerStateToPlaythrough(TEST_DEVICE_ID);
 
     // Should use local state (newer)
-    const events = await db.select().from(schema.playbackEvents);
+    const events = await db
+      .select()
+      .from(schema.playbackEvents)
+      .orderBy(schema.playbackEvents.timestamp);
 
-    expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({
+    expect(events).toHaveLength(2); // start + pause
+
+    // Pause event should have local state values
+    const pauseEvent = events.find((e) => e.type === "pause");
+    expect(pauseEvent).toMatchObject({
       position: 200.0,
       playbackRate: 1.5,
       timestamp: new Date(1700001000 * 1000),
@@ -361,7 +388,7 @@ describe("migrateFromPlayerStateToPlaythrough", () => {
       status: "in_progress",
     });
 
-    await migrateFromPlayerStateToPlaythrough();
+    await migrateFromPlayerStateToPlaythrough(TEST_DEVICE_ID);
 
     const playthroughs = await db.select().from(schema.playthroughs);
 
@@ -380,7 +407,7 @@ describe("migrateFromPlayerStateToPlaythrough", () => {
 
   it("handles empty tables gracefully", async () => {
     // Tables exist (created by migration) but are empty
-    await migrateFromPlayerStateToPlaythrough();
+    await migrateFromPlayerStateToPlaythrough(TEST_DEVICE_ID);
 
     // Should set flag even with no data
     expect(Storage.setItem).toHaveBeenCalledWith(
@@ -391,7 +418,7 @@ describe("migrateFromPlayerStateToPlaythrough", () => {
 
   it("handles missing tables gracefully", async () => {
     // Tables always exist in schema, but migration handles errors gracefully
-    await migrateFromPlayerStateToPlaythrough();
+    await migrateFromPlayerStateToPlaythrough(TEST_DEVICE_ID);
 
     expect(Storage.setItem).toHaveBeenCalledWith(
       "playerstate_migration_v1",
@@ -415,27 +442,27 @@ describe("migrateFromPlayerStateToPlaythrough", () => {
     });
 
     // Run migration first time
-    await migrateFromPlayerStateToPlaythrough();
+    await migrateFromPlayerStateToPlaythrough(TEST_DEVICE_ID);
 
     const playthroughsAfterFirst = await db.select().from(schema.playthroughs);
     const eventsAfterFirst = await db.select().from(schema.playbackEvents);
 
     expect(playthroughsAfterFirst).toHaveLength(1);
-    expect(eventsAfterFirst).toHaveLength(1);
+    expect(eventsAfterFirst).toHaveLength(2); // start + pause
 
     // Clear the flag to simulate crash before flag was set
     delete mockStorage["playerstate_migration_v1"];
     jest.clearAllMocks();
 
     // Run migration second time - should clean up and recreate same data
-    await migrateFromPlayerStateToPlaythrough();
+    await migrateFromPlayerStateToPlaythrough(TEST_DEVICE_ID);
 
     const playthroughsAfterSecond = await db.select().from(schema.playthroughs);
     const eventsAfterSecond = await db.select().from(schema.playbackEvents);
 
-    // Should still have exactly 1 playthrough and 1 event (no duplicates)
+    // Should still have exactly 1 playthrough and 2 events (no duplicates)
     expect(playthroughsAfterSecond).toHaveLength(1);
-    expect(eventsAfterSecond).toHaveLength(1);
+    expect(eventsAfterSecond).toHaveLength(2); // start + pause
 
     // Data should match
     expect(playthroughsAfterSecond[0]).toMatchObject({

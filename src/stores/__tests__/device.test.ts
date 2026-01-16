@@ -61,7 +61,7 @@ describe("device store", () => {
       expect(useDevice.getState().deviceInfo!.id).toBe(firstId);
     });
 
-    it("populates device info from expo-device", async () => {
+    it("populates device info from expo-device and expo-application", async () => {
       await initializeDevice();
 
       const state = useDevice.getState();
@@ -70,6 +70,9 @@ describe("device store", () => {
         modelName: "TestModel",
         osName: "TestOS",
         osVersion: "1.0.0",
+        appId: "app.ambry.mobile.test",
+        appVersion: "1.0.0",
+        appBuild: "1",
       });
     });
 

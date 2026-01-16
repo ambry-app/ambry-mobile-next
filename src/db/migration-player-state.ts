@@ -78,8 +78,12 @@ export async function needsPlayerStateMigration(): Promise<boolean> {
  *
  * This runs BEFORE any session-dependent initialization and does not
  * require a logged-in user.
+ *
+ * @param deviceId - The current device ID to associate with synthetic events
  */
-export async function migrateFromPlayerStateToPlaythrough(): Promise<void> {
+export async function migrateFromPlayerStateToPlaythrough(
+  deviceId: string,
+): Promise<void> {
   log.info("Starting PlayerState → Playthrough migration");
 
   const db = getDb();
@@ -151,9 +155,9 @@ export async function migrateFromPlayerStateToPlaythrough(): Promise<void> {
   const oldPlayerStates = Array.from(stateMap.values());
   log.debug(`Coalesced to ${oldPlayerStates.length} unique player states`);
 
-  // We don't use deviceId for synthetic events since we don't know
-  // which device originally created each state
-  const deviceId = null;
+  // Use the provided device ID for synthetic events.
+  // While we don't know which device originally created each state,
+  // we use the current device ID since this device is performing the migration.
 
   for (const playerState of oldPlayerStates) {
     // Skip not_started states (in new model, no playthrough = not started)
@@ -186,7 +190,20 @@ export async function migrateFromPlayerStateToPlaythrough(): Promise<void> {
       syncedAt: null, // Mark for sync
     });
 
-    // Create synthetic pause event with old position/rate
+    // Create synthetic start event
+    await db.insert(schema.playbackEvents).values({
+      id: randomUUID(),
+      playthroughId,
+      deviceId,
+      mediaId: playerState.mediaId, // Identifies the media being played
+      type: "start",
+      timestamp: startedAt, // When user first started playing
+      position: 0, // Start events always begin at position 0
+      playbackRate: playerState.playbackRate,
+      syncedAt: null, // Mark for sync
+    });
+
+    // Create synthetic pause event with current position/rate
     await db.insert(schema.playbackEvents).values({
       id: randomUUID(),
       playthroughId,

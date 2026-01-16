@@ -413,7 +413,8 @@ export type PlaybackEventType =
   | "rate_change"
   | "finish"
   | "abandon"
-  | "resume";
+  | "resume"
+  | "delete";
 
 // Represents a user's journey through a book (from start to finish/abandon)
 export const playthroughs = sqliteTable(
@@ -473,6 +474,7 @@ export const playbackEvents = sqliteTable(
     id: text("id").primaryKey(),
     playthroughId: text("playthrough_id").notNull(),
     deviceId: text("device_id"),
+    mediaId: text("media_id"), // Only set on start events - identifies the media being played
     type: text("type", {
       enum: [
         "start",
@@ -483,6 +485,7 @@ export const playbackEvents = sqliteTable(
         "finish",
         "abandon",
         "resume",
+        "delete",
       ],
     }).notNull(),
     timestamp: integer("timestamp", { mode: "timestamp_ms" }).notNull(),
@@ -550,9 +553,9 @@ export type PlaythroughStateCacheSelect =
 export const syncedServers = sqliteTable("synced_servers", {
   url: text("url").notNull().primaryKey(),
   // timestamp of last sync check for library data (used for incremental sync)
-  lastSyncTime: integer("last_sync_time", { mode: "timestamp" }),
+  lastSyncTime: integer("last_sync_time", { mode: "timestamp_ms" }),
   // timestamp when library data actually changed locally (used for cache invalidation)
-  libraryDataVersion: integer("library_data_version", { mode: "timestamp" }),
+  libraryDataVersion: integer("library_data_version", { mode: "timestamp_ms" }),
 });
 
 // data related to user accounts on specific servers
@@ -562,7 +565,7 @@ export const serverProfiles = sqliteTable(
     url: text("url").notNull(),
     userEmail: text("user_email").notNull(),
     // timestamp of last playthrough sync (bidirectional - send unsynced + receive server updates)
-    lastSyncTime: integer("last_sync_time", { mode: "timestamp" }),
+    lastSyncTime: integer("last_sync_time", { mode: "timestamp_ms" }),
     // the playthrough that was last loaded into the player on this device
     activePlaythroughId: text("active_playthrough_id"),
   },

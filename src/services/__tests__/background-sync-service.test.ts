@@ -62,6 +62,9 @@ describe("background-sync-service", () => {
         modelName: "TestModel",
         osName: "Android",
         osVersion: "14",
+        appId: "app.ambry.mobile.dev",
+        appVersion: "1.0.0",
+        appBuild: "1",
       },
     });
   });

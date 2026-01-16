@@ -7,4 +7,7 @@ export interface DeviceInfo {
   modelName: string | null;
   osName: string | null;
   osVersion: string | null;
+  appId: string | null;
+  appVersion: string | null;
+  appBuild: string | null;
 }

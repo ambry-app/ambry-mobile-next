@@ -586,6 +586,7 @@ export interface PlaythroughSyncResultInput {
     id: string;
     playthroughId: string;
     deviceId?: string | null;
+    mediaId?: string | null;
     type: string;
     timestamp: string;
     position?: number | null;
@@ -669,6 +670,7 @@ export async function applyPlaythroughSyncResult(
         id: event.id,
         playthroughId: event.playthroughId,
         deviceId: event.deviceId,
+        mediaId: event.mediaId,
         type: event.type.toLowerCase() as
           | "start"
           | "play"
@@ -677,7 +679,8 @@ export async function applyPlaythroughSyncResult(
           | "rate_change"
           | "finish"
           | "abandon"
-          | "resume",
+          | "resume"
+          | "delete",
         timestamp: new Date(event.timestamp),
         position: event.position,
         playbackRate: event.playbackRate,
@@ -693,6 +696,17 @@ export async function applyPlaythroughSyncResult(
         .onConflictDoUpdate({
           target: schema.playbackEvents.id,
           set: {
+            // Update all fields to allow server-side corrections
+            playthroughId: sql`excluded.playthrough_id`,
+            deviceId: sql`excluded.device_id`,
+            mediaId: sql`excluded.media_id`,
+            type: sql`excluded.type`,
+            timestamp: sql`excluded.timestamp`,
+            position: sql`excluded.position`,
+            playbackRate: sql`excluded.playback_rate`,
+            fromPosition: sql`excluded.from_position`,
+            toPosition: sql`excluded.to_position`,
+            previousRate: sql`excluded.previous_rate`,
             syncedAt: serverTime,
           },
         });
