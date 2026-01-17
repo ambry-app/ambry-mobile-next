@@ -24,7 +24,6 @@ export const initialDeviceState: DeviceState = {
 
 export const useDevice = create<DeviceState>(() => initialDeviceState);
 
-// FIXME: we can probably _not_ call this initialize in so many places
 /**
  * Initialize the device store.
  * Loads or creates device ID from SecureStore and gathers device info.
@@ -69,14 +68,6 @@ export async function initializeDevice() {
     initialized: true,
     deviceInfo,
   });
-}
-
-/**
- * Get device ID synchronously. Returns null if not initialized.
- * Prefer using useDevice() hook in components.
- */
-export function getDeviceIdSync(): string | null {
-  return useDevice.getState().deviceInfo?.id ?? null;
 }
 
 /**

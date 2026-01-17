@@ -3,7 +3,6 @@ import * as Operations from "@/services/playthrough-operations";
 import { seekRelative } from "@/services/seek-service";
 import * as Player from "@/services/track-player-service";
 import * as TrackPlayer from "@/services/track-player-wrapper";
-import { initializeDevice } from "@/stores/device";
 import { PlayPauseSource, SeekSource } from "@/stores/track-player";
 import { Event } from "@/types/track-player";
 import { logBase } from "@/utils/logger";
@@ -156,8 +155,4 @@ export const PlaybackService = async function () {
   // TrackPlayer.addEventListener(Event.RemoteStop, () => {
   //   log.debug("RemoteStop");
   // });
-
-  // Initialize services
-  // Device store must be initialized for getDeviceIdSync() to work in event recording
-  await initializeDevice();
 };

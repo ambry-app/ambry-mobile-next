@@ -55,7 +55,7 @@ export async function startNewPlaythrough(
   session: Session,
   mediaId: string,
 ): Promise<void> {
-  const deviceId = (await getDeviceInfo()).id;
+  const device = await getDeviceInfo();
 
   const playbackRate =
     usePreferredPlaybackRate.getState().preferredPlaybackRate;
@@ -64,7 +64,7 @@ export async function startNewPlaythrough(
   const playthroughId = await recordStartEvent(
     session,
     mediaId,
-    deviceId,
+    device.id,
     playbackRate,
   );
 
@@ -115,10 +115,10 @@ export async function resumePlaythrough(
   session: Session,
   playthroughId: string,
 ): Promise<void> {
-  const deviceId = (await getDeviceInfo()).id;
+  const device = await getDeviceInfo();
 
   // Record resume event (atomic: inserts event + rebuilds playthrough)
-  await recordLifecycleEvent(session, playthroughId, deviceId, "resume");
+  await recordLifecycleEvent(session, playthroughId, device.id, "resume");
 
   // Get the now-active playthrough with full media info
   const playthrough = await getPlaythroughWithMedia(session, playthroughId);
@@ -159,7 +159,7 @@ export async function finishPlaythrough(
     return;
   }
 
-  const deviceId = (await getDeviceInfo()).id;
+  const device = await getDeviceInfo();
 
   log.info("Finishing playthrough:", playthroughId);
 
@@ -167,7 +167,7 @@ export async function finishPlaythrough(
   await recordLifecycleEvent(
     resolvedSession,
     playthroughId,
-    deviceId,
+    device.id,
     "finish",
   );
 
@@ -206,7 +206,7 @@ export async function abandonPlaythrough(
     return;
   }
 
-  const deviceId = (await getDeviceInfo()).id;
+  const device = await getDeviceInfo();
 
   log.info("Abandoning playthrough:", playthroughId);
 
@@ -214,7 +214,7 @@ export async function abandonPlaythrough(
   await recordLifecycleEvent(
     resolvedSession,
     playthroughId,
-    deviceId,
+    device.id,
     "abandon",
   );
 
@@ -246,12 +246,12 @@ export async function deletePlaythrough(
   session: Session,
   playthroughId: string,
 ): Promise<void> {
-  const deviceId = (await getDeviceInfo()).id;
+  const device = await getDeviceInfo();
 
   log.info("Deleting playthrough:", playthroughId);
 
   // Record delete event (atomic: inserts event + rebuilds playthrough)
-  await recordLifecycleEvent(session, playthroughId, deviceId, "delete");
+  await recordLifecycleEvent(session, playthroughId, device.id, "delete");
 
   // Notify UI that playthrough data changed
   bumpPlaythroughDataVersion();

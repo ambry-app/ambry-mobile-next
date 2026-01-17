@@ -230,12 +230,12 @@ async function flushPlayPauseEvent() {
 
   const eventType = finalState === PlayPauseType.PLAY ? "play" : "pause";
 
-  const deviceId = (await getDeviceInfo()).id;
+  const device = await getDeviceInfo();
 
   await recordPlaybackEvent(
     session,
     playthroughId,
-    deviceId,
+    device.id,
     eventType,
     timestamp,
     position,
@@ -308,12 +308,12 @@ async function flushRateChangeEvent() {
     return;
   }
 
-  const deviceId = (await getDeviceInfo()).id;
+  const device = await getDeviceInfo();
 
   await recordPlaybackEvent(
     session,
     playthroughId,
-    deviceId,
+    device.id,
     "rate_change",
     timestamp,
     position,
@@ -381,12 +381,12 @@ async function flushSeekEvent() {
     return;
   }
 
-  const deviceId = (await getDeviceInfo()).id;
+  const device = await getDeviceInfo();
 
   await recordPlaybackEvent(
     session,
     playthroughId,
-    deviceId,
+    device.id,
     "seek",
     timestamp,
     to,

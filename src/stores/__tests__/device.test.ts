@@ -1,11 +1,6 @@
 import { Platform } from "react-native";
 
-import {
-  getDeviceIdSync,
-  initializeDevice,
-  resetForTesting,
-  useDevice,
-} from "@/stores/device";
+import { initializeDevice, resetForTesting, useDevice } from "@/stores/device";
 import { clearSecureStore, setSecureStoreItem } from "@test/jest-setup";
 
 // Mock react-native Platform
@@ -98,19 +93,6 @@ describe("device store", () => {
       await initializeDevice();
 
       expect(useDevice.getState().deviceInfo!.type).toBe("web");
-    });
-  });
-
-  describe("getDeviceIdSync", () => {
-    it("returns null when not initialized", () => {
-      expect(getDeviceIdSync()).toBeNull();
-    });
-
-    it("returns device ID when initialized", async () => {
-      setSecureStoreItem("Ambry_deviceId", "test-device-id");
-      await initializeDevice();
-
-      expect(getDeviceIdSync()).toBe("test-device-id");
     });
   });
 });
