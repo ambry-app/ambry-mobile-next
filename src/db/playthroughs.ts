@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { Database, getDb } from "@/db/db";
+import { rebuildPlaythrough } from "@/db/playthrough-reducer";
 import * as schema from "@/db/schema";
 import { PlaybackEventInsert } from "@/db/schema";
 import { Session } from "@/types/session";
@@ -213,32 +214,28 @@ export async function getAllPlaythroughsForMedia(
 }
 
 // =============================================================================
-// Event Recording
+// Event Recording (Atomic Operations)
+//
+// These functions insert events AND rebuild the playthrough in a single
+// transaction, ensuring the playthrough state is always consistent with events.
 // =============================================================================
 
 /**
- * Insert a playback event into the database.
- * Events are the source of truth - playthroughs are derived from events.
- *
- * @param event - The event data to insert
- * @param db - Optional database/transaction context
- */
-export async function insertEvent(
-  event: PlaybackEventInsert,
-  db: Database = getDb(),
-): Promise<void> {
-  await db.insert(schema.playbackEvents).values(event);
-}
-
-/**
  * Record a start event for a new playthrough.
- * Returns the generated playthrough ID.
+ * Creates a new playthrough by inserting a start event and rebuilding.
+ *
+ * @param session - Current session
+ * @param mediaId - The media being played
+ * @param deviceId - The device recording this event
+ * @param playbackRate - Initial playback rate
+ * @returns The generated playthrough ID
  */
-export function createStartEvent(
+export async function recordStartEvent(
+  session: Session,
   mediaId: string,
   deviceId: string,
-  playbackRate: number = 1.0,
-): { playthroughId: string; event: PlaybackEventInsert } {
+  playbackRate: number,
+): Promise<string> {
   const playthroughId = randomUUID();
   const now = new Date();
 
@@ -246,24 +243,42 @@ export function createStartEvent(
     id: randomUUID(),
     playthroughId,
     deviceId,
-    mediaId, // Required for start events
+    mediaId,
     type: "start",
     timestamp: now,
     position: 0,
     playbackRate,
-    syncedAt: null, // Mark for sync
+    syncedAt: null,
   };
 
-  return { playthroughId, event };
+  await getDb().transaction(async (tx) => {
+    await tx.insert(schema.playbackEvents).values(event);
+    await rebuildPlaythrough(playthroughId, session, tx);
+  });
+
+  log.info(`Recorded start event for new playthrough ${playthroughId}`);
+  return playthroughId;
 }
 
 /**
- * Create a playback event (play, pause, seek, rate_change).
+ * Record a playback event (play, pause, seek, rate_change).
+ * Inserts the event, updates state cache, and rebuilds the playthrough atomically.
+ *
+ * @param session - Current session
+ * @param playthroughId - The playthrough this event belongs to
+ * @param deviceId - The device recording this event
+ * @param type - Event type (play, pause, seek, rate_change)
+ * @param timestamp - When the event occurred
+ * @param position - Current playback position
+ * @param playbackRate - Current playback rate
+ * @param extras - Additional fields for seek/rate_change events
  */
-export function createPlaybackEvent(
+export async function recordPlaybackEvent(
+  session: Session,
   playthroughId: string,
   deviceId: string,
   type: "play" | "pause" | "seek" | "rate_change",
+  timestamp: Date,
   position: number,
   playbackRate: number,
   extras?: {
@@ -271,38 +286,60 @@ export function createPlaybackEvent(
     toPosition?: number;
     previousRate?: number;
   },
-): PlaybackEventInsert {
-  return {
+): Promise<void> {
+  const event: PlaybackEventInsert = {
     id: randomUUID(),
     playthroughId,
     deviceId,
     type,
-    timestamp: new Date(),
+    timestamp,
     position,
     playbackRate,
     fromPosition: extras?.fromPosition,
     toPosition: extras?.toPosition,
     previousRate: extras?.previousRate,
-    syncedAt: null, // Mark for sync
+    syncedAt: null,
   };
+
+  await getDb().transaction(async (tx) => {
+    await tx.insert(schema.playbackEvents).values(event);
+    await updateStateCache(playthroughId, position, tx);
+    await rebuildPlaythrough(playthroughId, session, tx);
+  });
+
+  log.info(`Recorded ${type} event for playthrough ${playthroughId}`);
 }
 
 /**
- * Create a lifecycle event (finish, abandon, resume, delete).
+ * Record a lifecycle event (finish, abandon, resume, delete).
+ * Inserts the event and rebuilds the playthrough atomically.
+ *
+ * @param session - Current session
+ * @param playthroughId - The playthrough this event belongs to
+ * @param deviceId - The device recording this event
+ * @param type - Event type (finish, abandon, resume, delete)
  */
-export function createLifecycleEvent(
+export async function recordLifecycleEvent(
+  session: Session,
   playthroughId: string,
   deviceId: string,
   type: "finish" | "abandon" | "resume" | "delete",
-): PlaybackEventInsert {
-  return {
+): Promise<void> {
+  const event: PlaybackEventInsert = {
     id: randomUUID(),
     playthroughId,
     deviceId,
     type,
     timestamp: new Date(),
-    syncedAt: null, // Mark for sync
+    syncedAt: null,
   };
+
+  await getDb().transaction(async (tx) => {
+    await tx.insert(schema.playbackEvents).values(event);
+    await rebuildPlaythrough(playthroughId, session, tx);
+  });
+
+  log.info(`Recorded ${type} event for playthrough ${playthroughId}`);
 }
 
 // =============================================================================

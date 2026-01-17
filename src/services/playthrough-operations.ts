@@ -17,18 +17,17 @@
  * - Triggering sync
  */
 
-import { rebuildPlaythrough } from "@/db/playthrough-reducer";
 import {
   clearActivePlaythroughIdForDevice,
-  createLifecycleEvent,
-  createStartEvent,
   getActivePlaythroughIdForDevice,
   getPlaythroughWithMedia,
-  insertEvent,
+  recordLifecycleEvent,
+  recordStartEvent,
   setActivePlaythroughIdForDevice,
 } from "@/db/playthroughs";
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
 import { getDeviceInfo } from "@/stores/device";
+import { usePreferredPlaybackRate } from "@/stores/preferred-playback-rate";
 import { useSession } from "@/stores/session";
 import { Session } from "@/types/session";
 import { logBase } from "@/utils/logger";
@@ -58,12 +57,16 @@ export async function startNewPlaythrough(
 ): Promise<void> {
   const deviceId = (await getDeviceInfo()).id;
 
-  // Create and insert start event
-  const { playthroughId, event } = createStartEvent(mediaId, deviceId);
-  await insertEvent(event);
+  const playbackRate =
+    usePreferredPlaybackRate.getState().preferredPlaybackRate;
 
-  // Rebuild playthrough from event
-  await rebuildPlaythrough(playthroughId, session);
+  // Record start event (atomic: inserts event + rebuilds playthrough)
+  const playthroughId = await recordStartEvent(
+    session,
+    mediaId,
+    deviceId,
+    playbackRate,
+  );
 
   // Get the new playthrough with full media info
   const playthrough = await getPlaythroughWithMedia(session, playthroughId);
@@ -114,12 +117,8 @@ export async function resumePlaythrough(
 ): Promise<void> {
   const deviceId = (await getDeviceInfo()).id;
 
-  // Create and insert resume event
-  const event = createLifecycleEvent(playthroughId, deviceId, "resume");
-  await insertEvent(event);
-
-  // Rebuild playthrough from all events
-  await rebuildPlaythrough(playthroughId, session);
+  // Record resume event (atomic: inserts event + rebuilds playthrough)
+  await recordLifecycleEvent(session, playthroughId, deviceId, "resume");
 
   // Get the now-active playthrough with full media info
   const playthrough = await getPlaythroughWithMedia(session, playthroughId);
@@ -164,12 +163,13 @@ export async function finishPlaythrough(
 
   log.info("Finishing playthrough:", playthroughId);
 
-  // Create and insert finish event
-  const event = createLifecycleEvent(playthroughId, deviceId, "finish");
-  await insertEvent(event);
-
-  // Rebuild playthrough from all events
-  await rebuildPlaythrough(playthroughId, resolvedSession);
+  // Record finish event (atomic: inserts event + rebuilds playthrough)
+  await recordLifecycleEvent(
+    resolvedSession,
+    playthroughId,
+    deviceId,
+    "finish",
+  );
 
   // Clear the active playthrough for this device since it's finished
   await clearActivePlaythroughIdForDevice(resolvedSession);
@@ -210,12 +210,13 @@ export async function abandonPlaythrough(
 
   log.info("Abandoning playthrough:", playthroughId);
 
-  // Create and insert abandon event
-  const event = createLifecycleEvent(playthroughId, deviceId, "abandon");
-  await insertEvent(event);
-
-  // Rebuild playthrough from all events
-  await rebuildPlaythrough(playthroughId, resolvedSession);
+  // Record abandon event (atomic: inserts event + rebuilds playthrough)
+  await recordLifecycleEvent(
+    resolvedSession,
+    playthroughId,
+    deviceId,
+    "abandon",
+  );
 
   // Clear the active playthrough for this device since it's abandoned
   await clearActivePlaythroughIdForDevice(resolvedSession);
@@ -249,12 +250,8 @@ export async function deletePlaythrough(
 
   log.info("Deleting playthrough:", playthroughId);
 
-  // Create and insert delete event
-  const event = createLifecycleEvent(playthroughId, deviceId, "delete");
-  await insertEvent(event);
-
-  // Rebuild playthrough from all events
-  await rebuildPlaythrough(playthroughId, session);
+  // Record delete event (atomic: inserts event + rebuilds playthrough)
+  await recordLifecycleEvent(session, playthroughId, deviceId, "delete");
 
   // Notify UI that playthrough data changed
   bumpPlaythroughDataVersion();

@@ -16,7 +16,6 @@ import {
 } from "@/db/playthroughs";
 import * as TrackPlayer from "@/services/track-player-wrapper";
 import { useDataVersion } from "@/stores/data-version";
-import { usePreferredPlaybackRate } from "@/stores/preferred-playback-rate";
 import {
   initialState,
   PlayPauseSource,
@@ -328,11 +327,7 @@ export async function loadPlaythroughIntoPlayer(
   // Get position from whichever source was updated more recently
   // (state cache from heartbeat vs playthrough from events)
   const position = getEffectivePosition(playthrough);
-
-  // Rate lives on playthrough (derived from events), fallback to preferred rate
-  const playbackRate =
-    playthrough.playbackRate ??
-    usePreferredPlaybackRate.getState().preferredPlaybackRate;
+  const playbackRate = playthrough.playbackRate;
 
   const trackAdd = buildAddTrack(session, playthrough);
 

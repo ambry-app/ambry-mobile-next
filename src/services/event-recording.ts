@@ -19,9 +19,6 @@
  *
  * When switching playthroughs, all pending events are flushed immediately to
  * ensure they're recorded for the correct playthrough before the switch.
- *
- * Lifecycle events (start, finish, abandon, resume) are still called explicitly
- * by the playthrough lifecycle service.
  */
 
 import {
@@ -29,10 +26,8 @@ import {
   RATE_CHANGE_EVENT_ACCUMULATION_WINDOW,
   SEEK_EVENT_ACCUMULATION_WINDOW,
 } from "@/constants";
-import { getDb } from "@/db/db";
-import { updateStateCache } from "@/db/playthroughs";
-import * as schema from "@/db/schema";
-import { getDeviceIdSync } from "@/stores/device";
+import { recordPlaybackEvent } from "@/db/playthroughs";
+import { getDeviceInfo } from "@/stores/device";
 import { useSession } from "@/stores/session";
 import {
   PlayPauseEvent,
@@ -43,7 +38,6 @@ import {
   SeekSource,
   useTrackPlayer,
 } from "@/stores/track-player";
-import { randomUUID } from "@/utils/crypto";
 import { logBase } from "@/utils/logger";
 import { subscribeToChange } from "@/utils/subscribe";
 
@@ -106,78 +100,6 @@ export async function initialize() {
   initialized = true;
 
   log.debug("Initialized");
-}
-
-// =============================================================================
-// Lifecycle Events (called explicitly by playthrough-lifecycle)
-// =============================================================================
-
-/**
- * Record a "start" lifecycle event when a new playthrough begins.
- */
-export async function recordStartEvent(playthroughId: string) {
-  const now = new Date();
-
-  await getDb().insert(schema.playbackEvents).values({
-    id: randomUUID(),
-    playthroughId,
-    deviceId: getDeviceIdSync(),
-    type: "start",
-    timestamp: now,
-  });
-
-  log.info("Recorded start event");
-}
-
-/**
- * Record a "finish" lifecycle event when a playthrough is completed.
- */
-export async function recordFinishEvent(playthroughId: string) {
-  const now = new Date();
-
-  await getDb().insert(schema.playbackEvents).values({
-    id: randomUUID(),
-    playthroughId,
-    deviceId: getDeviceIdSync(),
-    type: "finish",
-    timestamp: now,
-  });
-
-  log.info("Recorded finish event");
-}
-
-/**
- * Record an "abandon" lifecycle event when a user abandons a playthrough.
- */
-export async function recordAbandonEvent(playthroughId: string) {
-  const now = new Date();
-
-  await getDb().insert(schema.playbackEvents).values({
-    id: randomUUID(),
-    playthroughId,
-    deviceId: getDeviceIdSync(),
-    type: "abandon",
-    timestamp: now,
-  });
-
-  log.info("Recorded abandon event");
-}
-
-/**
- * Record a "resume" lifecycle event when a user resumes a finished/abandoned playthrough.
- */
-export async function recordResumeEvent(playthroughId: string) {
-  const now = new Date();
-
-  await getDb().insert(schema.playbackEvents).values({
-    id: randomUUID(),
-    playthroughId,
-    deviceId: getDeviceIdSync(),
-    type: "resume",
-    timestamp: now,
-  });
-
-  log.info("Recorded resume event");
 }
 
 // =============================================================================
@@ -308,21 +230,17 @@ async function flushPlayPauseEvent() {
 
   const eventType = finalState === PlayPauseType.PLAY ? "play" : "pause";
 
-  await getDb().transaction(async (tx) => {
-    await tx.insert(schema.playbackEvents).values({
-      id: randomUUID(),
-      playthroughId,
-      deviceId: getDeviceIdSync(),
-      type: eventType,
-      timestamp,
-      position,
-      playbackRate,
-    });
+  const deviceId = (await getDeviceInfo()).id;
 
-    await updateStateCache(playthroughId, position, tx);
-  });
-
-  log.info(`Recorded ${eventType} event at position ${position.toFixed(1)}`);
+  await recordPlaybackEvent(
+    session,
+    playthroughId,
+    deviceId,
+    eventType,
+    timestamp,
+    position,
+    playbackRate,
+  );
 
   if (finalState === PlayPauseType.PAUSE) {
     syncPlaybackEvents(session);
@@ -390,23 +308,17 @@ async function flushRateChangeEvent() {
     return;
   }
 
-  await getDb().transaction(async (tx) => {
-    await tx.insert(schema.playbackEvents).values({
-      id: randomUUID(),
-      playthroughId,
-      deviceId: getDeviceIdSync(),
-      type: "rate_change",
-      timestamp,
-      position,
-      playbackRate: newRate,
-      previousRate,
-    });
+  const deviceId = (await getDeviceInfo()).id;
 
-    await updateStateCache(playthroughId, position, tx);
-  });
-
-  log.info(
-    `Recorded rate change from ${previousRate.toFixed(2)} to ${newRate.toFixed(2)}`,
+  await recordPlaybackEvent(
+    session,
+    playthroughId,
+    deviceId,
+    "rate_change",
+    timestamp,
+    position,
+    newRate,
+    { previousRate },
   );
 }
 
@@ -469,21 +381,16 @@ async function flushSeekEvent() {
     return;
   }
 
-  await getDb().transaction(async (tx) => {
-    await tx.insert(schema.playbackEvents).values({
-      id: randomUUID(),
-      playthroughId,
-      deviceId: getDeviceIdSync(),
-      type: "seek",
-      timestamp,
-      position: to,
-      playbackRate,
-      fromPosition: from,
-      toPosition: to,
-    });
+  const deviceId = (await getDeviceInfo()).id;
 
-    await updateStateCache(playthroughId, to, tx);
-  });
-
-  log.info(`Recorded seek event from ${from.toFixed(1)} to ${to.toFixed(1)}`);
+  await recordPlaybackEvent(
+    session,
+    playthroughId,
+    deviceId,
+    "seek",
+    timestamp,
+    to,
+    playbackRate,
+    { fromPosition: from, toPosition: to },
+  );
 }

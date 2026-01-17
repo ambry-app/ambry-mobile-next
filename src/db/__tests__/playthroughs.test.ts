@@ -431,150 +431,198 @@ describe("playthroughs module", () => {
     });
   });
 
-  describe("event creation helpers", () => {
-    describe("insertEvent", () => {
-      it("inserts event into database", async () => {
+  describe("atomic event recording", () => {
+    describe("recordStartEvent", () => {
+      it("creates start event and playthrough in single transaction", async () => {
         const db = getDb();
-        const pt = await createPlaythrough(db);
-        const eventId = "test-event-id";
+        const media = await createMedia(db);
 
-        // Note: insertEvent uses getDb() internally which is mocked to return
-        // our test database, so we don't need to pass it explicitly
-        await playthroughs.insertEvent({
-          id: eventId,
-          playthroughId: pt.id,
-          type: "play",
-          timestamp: new Date(),
-          position: 100,
-          playbackRate: 1.0,
-        });
+        const playthroughId = await playthroughs.recordStartEvent(
+          session,
+          media.id,
+          "test-device",
+          1.5,
+        );
 
+        // Verify event was created
         const event = await db.query.playbackEvents.findFirst({
-          where: (e, { eq }) => eq(e.id, eventId),
+          where: (e, { eq }) => eq(e.playthroughId, playthroughId),
         });
         expect(event).toBeDefined();
-        expect(event?.playthroughId).toBe(pt.id);
-        expect(event?.type).toBe("play");
-        expect(event?.position).toBe(100);
+        expect(event?.type).toBe("start");
+        expect(event?.mediaId).toBe(media.id);
+        expect(event?.deviceId).toBe("test-device");
+        expect(event?.playbackRate).toBe(1.5);
+
+        // Verify playthrough was created via rebuild
+        const pt = await db.query.playthroughs.findFirst({
+          where: (p, { eq }) => eq(p.id, playthroughId),
+        });
+        expect(pt).toBeDefined();
+        expect(pt?.status).toBe("in_progress");
+        expect(pt?.mediaId).toBe(media.id);
+        expect(pt?.playbackRate).toBe(1.5);
       });
     });
 
-    describe("createStartEvent", () => {
-      it("creates a start event with deviceId and mediaId", () => {
-        const result = playthroughs.createStartEvent(
-          "media-123",
-          "test-device",
-          1.5,
-        );
+    describe("recordPlaybackEvent", () => {
+      it("creates play event and updates playthrough state", async () => {
+        const db = getDb();
+        const pt = await createPlaythrough(db);
 
-        expect(result.playthroughId).toBeDefined();
-        expect(result.event.type).toBe("start");
-        expect(result.event.deviceId).toBe("test-device");
-        expect(result.event.mediaId).toBe("media-123");
-        expect(result.event.position).toBe(0);
-        expect(result.event.playbackRate).toBe(1.5);
-      });
-
-      it("uses default playback rate of 1.0", () => {
-        const result = playthroughs.createStartEvent(
-          "media-123",
-          "test-device",
-        );
-
-        expect(result.event.playbackRate).toBe(1.0);
-      });
-    });
-
-    describe("createPlaybackEvent", () => {
-      it("creates a play event with position and rate", () => {
-        const event = playthroughs.createPlaybackEvent(
-          "pt-123",
+        await playthroughs.recordPlaybackEvent(
+          session,
+          pt.id,
           "test-device",
           "play",
-          500,
-          1.5,
+          new Date(),
+          100,
+          1.0,
         );
 
-        expect(event.type).toBe("play");
-        expect(event.playthroughId).toBe("pt-123");
-        expect(event.deviceId).toBe("test-device");
-        expect(event.position).toBe(500);
-        expect(event.playbackRate).toBe(1.5);
+        // Verify event was created
+        const events = await db.query.playbackEvents.findMany({
+          where: (e, { eq }) => eq(e.playthroughId, pt.id),
+        });
+        const playEvent = events.find((e) => e.type === "play");
+        expect(playEvent).toBeDefined();
+        expect(playEvent?.position).toBe(100);
+
+        // Verify playthrough was updated via rebuild
+        const updatedPt = await db.query.playthroughs.findFirst({
+          where: (p, { eq }) => eq(p.id, pt.id),
+        });
+        expect(updatedPt?.position).toBe(100);
       });
 
-      it("creates a seek event with from/to positions", () => {
-        const event = playthroughs.createPlaybackEvent(
-          "pt-123",
+      it("creates seek event with from/to positions", async () => {
+        const db = getDb();
+        const pt = await createPlaythrough(db);
+
+        await playthroughs.recordPlaybackEvent(
+          session,
+          pt.id,
           "test-device",
           "seek",
+          new Date(),
           600,
           1.0,
           { fromPosition: 100, toPosition: 600 },
         );
 
-        expect(event.type).toBe("seek");
-        expect(event.fromPosition).toBe(100);
-        expect(event.toPosition).toBe(600);
+        const events = await db.query.playbackEvents.findMany({
+          where: (e, { eq }) => eq(e.playthroughId, pt.id),
+        });
+        const seekEvent = events.find((e) => e.type === "seek");
+        expect(seekEvent).toBeDefined();
+        expect(seekEvent?.fromPosition).toBe(100);
+        expect(seekEvent?.toPosition).toBe(600);
       });
 
-      it("creates a rate_change event with previous rate", () => {
-        const event = playthroughs.createPlaybackEvent(
-          "pt-123",
+      it("creates rate_change event with previous rate", async () => {
+        const db = getDb();
+        const pt = await createPlaythrough(db);
+
+        await playthroughs.recordPlaybackEvent(
+          session,
+          pt.id,
           "test-device",
           "rate_change",
+          new Date(),
           500,
           2.0,
           { previousRate: 1.0 },
         );
 
-        expect(event.type).toBe("rate_change");
-        expect(event.playbackRate).toBe(2.0);
-        expect(event.previousRate).toBe(1.0);
+        const events = await db.query.playbackEvents.findMany({
+          where: (e, { eq }) => eq(e.playthroughId, pt.id),
+        });
+        const rateEvent = events.find((e) => e.type === "rate_change");
+        expect(rateEvent).toBeDefined();
+        expect(rateEvent?.playbackRate).toBe(2.0);
+        expect(rateEvent?.previousRate).toBe(1.0);
       });
     });
 
-    describe("createLifecycleEvent", () => {
-      it("creates a finish event", () => {
-        const event = playthroughs.createLifecycleEvent(
-          "pt-123",
+    describe("recordLifecycleEvent", () => {
+      it("creates finish event and updates playthrough status", async () => {
+        const db = getDb();
+        const pt = await createPlaythrough(db);
+
+        await playthroughs.recordLifecycleEvent(
+          session,
+          pt.id,
           "test-device",
           "finish",
         );
 
-        expect(event.type).toBe("finish");
-        expect(event.playthroughId).toBe("pt-123");
-        expect(event.deviceId).toBe("test-device");
-        expect(event.position).toBeUndefined();
+        // Verify event was created
+        const events = await db.query.playbackEvents.findMany({
+          where: (e, { eq }) => eq(e.playthroughId, pt.id),
+        });
+        const finishEvent = events.find((e) => e.type === "finish");
+        expect(finishEvent).toBeDefined();
+
+        // Verify playthrough was updated via rebuild
+        const updatedPt = await db.query.playthroughs.findFirst({
+          where: (p, { eq }) => eq(p.id, pt.id),
+        });
+        expect(updatedPt?.status).toBe("finished");
+        expect(updatedPt?.finishedAt).toBeDefined();
       });
 
-      it("creates an abandon event", () => {
-        const event = playthroughs.createLifecycleEvent(
-          "pt-123",
+      it("creates abandon event and updates playthrough status", async () => {
+        const db = getDb();
+        const pt = await createPlaythrough(db);
+
+        await playthroughs.recordLifecycleEvent(
+          session,
+          pt.id,
           "test-device",
           "abandon",
         );
 
-        expect(event.type).toBe("abandon");
+        const updatedPt = await db.query.playthroughs.findFirst({
+          where: (p, { eq }) => eq(p.id, pt.id),
+        });
+        expect(updatedPt?.status).toBe("abandoned");
+        expect(updatedPt?.abandonedAt).toBeDefined();
       });
 
-      it("creates a resume event", () => {
-        const event = playthroughs.createLifecycleEvent(
-          "pt-123",
+      it("creates resume event and updates playthrough to in_progress", async () => {
+        const db = getDb();
+        // Create a finished playthrough to resume
+        const pt = await createPlaythrough(db, { status: "finished" });
+
+        await playthroughs.recordLifecycleEvent(
+          session,
+          pt.id,
           "test-device",
           "resume",
         );
 
-        expect(event.type).toBe("resume");
+        const updatedPt = await db.query.playthroughs.findFirst({
+          where: (p, { eq }) => eq(p.id, pt.id),
+        });
+        expect(updatedPt?.status).toBe("in_progress");
       });
 
-      it("creates a delete event", () => {
-        const event = playthroughs.createLifecycleEvent(
-          "pt-123",
+      it("creates delete event and updates playthrough with deletedAt", async () => {
+        const db = getDb();
+        const pt = await createPlaythrough(db);
+
+        await playthroughs.recordLifecycleEvent(
+          session,
+          pt.id,
           "test-device",
           "delete",
         );
 
-        expect(event.type).toBe("delete");
+        const updatedPt = await db.query.playthroughs.findFirst({
+          where: (p, { eq }) => eq(p.id, pt.id),
+        });
+        expect(updatedPt?.status).toBe("deleted");
+        expect(updatedPt?.deletedAt).toBeDefined();
       });
     });
   });
