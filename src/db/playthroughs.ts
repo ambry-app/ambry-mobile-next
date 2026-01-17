@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
+import { EVENT_INSERT_CHUNK_SIZE } from "@/constants";
 import { Database, getDb } from "@/db/db";
 import { rebuildPlaythrough } from "@/db/playthrough-reducer";
 import * as schema from "@/db/schema";
@@ -473,37 +474,46 @@ export async function getAllUnsyncedEvents(session: Session) {
 export async function markEventsSynced(
   eventIds: string[],
   syncedAt: Date,
+  db: Database = getDb(),
 ): Promise<void> {
   if (eventIds.length === 0) return;
 
-  await getDb()
+  await db
     .update(schema.playbackEvents)
     .set({ syncedAt })
     .where(inArray(schema.playbackEvents.id, eventIds));
 }
 
 /**
- * Upsert a playback event from server sync.
- * Events are immutable - on conflict we only update syncedAt.
+ * Upserts playback events from server sync. Server is source of truth for
+ * synced events, so we accept full updates.
  */
-export async function upsertPlaybackEvent(
-  event: PlaybackEventInsert,
+export async function upsertPlaybackEvents(
+  events: PlaybackEventInsert[],
   db: Database = getDb(),
 ): Promise<void> {
-  // If syncedAt is provided, update it on conflict; otherwise just ignore conflict
-  if (event.syncedAt !== undefined) {
+  for (let i = 0; i < events.length; i += EVENT_INSERT_CHUNK_SIZE) {
+    const chunk = events.slice(i, i + EVENT_INSERT_CHUNK_SIZE);
+
     await db
       .insert(schema.playbackEvents)
-      .values(event)
+      .values(chunk)
       .onConflictDoUpdate({
         target: schema.playbackEvents.id,
         set: {
-          syncedAt: event.syncedAt,
+          playthroughId: sql`excluded.playthrough_id`,
+          deviceId: sql`excluded.device_id`,
+          mediaId: sql`excluded.media_id`,
+          type: sql`excluded.type`,
+          timestamp: sql`excluded.timestamp`,
+          position: sql`excluded.position`,
+          playbackRate: sql`excluded.playback_rate`,
+          fromPosition: sql`excluded.from_position`,
+          toPosition: sql`excluded.to_position`,
+          previousRate: sql`excluded.previous_rate`,
+          syncedAt: sql`excluded.synced_at`,
         },
       });
-  } else {
-    // No syncedAt to update - just insert or ignore if already exists
-    await db.insert(schema.playbackEvents).values(event).onConflictDoNothing();
   }
 }
 

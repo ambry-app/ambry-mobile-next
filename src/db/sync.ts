@@ -5,7 +5,7 @@ import { rebuildPlaythrough } from "@/db/playthrough-reducer";
 import {
   getAllUnsyncedEvents,
   markEventsSynced,
-  upsertPlaybackEvent,
+  upsertPlaybackEvents,
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
 import { PlaybackEventType, Thumbnails } from "@/db/schema";
@@ -585,69 +585,72 @@ export async function applyEventSyncResult(
 ): Promise<void> {
   const serverTime = new Date(syncResult.serverTime);
 
-  // Mark sent events as synced
-  if (sentEventIds.length > 0) {
-    await markEventsSynced(sentEventIds, serverTime);
-  }
-
   // Track which playthroughs need rebuilding
   const affectedPlaythroughIds = new Set<string>();
 
-  // Upsert received events from server
-  if (syncResult.events.length > 0) {
-    await getDb().transaction(async (tx) => {
-      for (const event of syncResult.events) {
-        const eventData = {
-          id: event.id,
-          playthroughId: event.playthroughId,
-          deviceId: event.deviceId,
-          mediaId: event.mediaId,
-          type: event.type.toLowerCase() as PlaybackEventType,
-          timestamp: new Date(event.timestamp),
-          position: event.position,
-          playbackRate: event.playbackRate,
-          fromPosition: event.fromPosition,
-          toPosition: event.toPosition,
-          previousRate: event.previousRate,
-          syncedAt: serverTime,
-        };
+  const eventsPayload: schema.PlaybackEventInsert[] = syncResult.events.map(
+    (event) => {
+      affectedPlaythroughIds.add(event.playthroughId);
 
-        await upsertPlaybackEvent(eventData, tx);
-        affectedPlaythroughIds.add(event.playthroughId);
-      }
-    });
-  }
+      return {
+        id: event.id,
+        playthroughId: event.playthroughId,
+        deviceId: event.deviceId,
+        mediaId: event.mediaId,
+        type: event.type.toLowerCase() as PlaybackEventType,
+        timestamp: new Date(event.timestamp),
+        position: event.position,
+        playbackRate: event.playbackRate,
+        fromPosition: event.fromPosition,
+        toPosition: event.toPosition,
+        previousRate: event.previousRate,
+        syncedAt: serverTime,
+      };
+    },
+  );
 
-  // Rebuild affected playthroughs from their events
-  // This ensures client and server have identical derived state
-  if (affectedPlaythroughIds.size > 0) {
-    log.debug(`Rebuilding ${affectedPlaythroughIds.size} playthroughs`);
+  await getDb().transaction(async (tx) => {
+    // Mark sent events as synced
+    if (sentEventIds.length > 0) {
+      await markEventsSynced(sentEventIds, serverTime, tx);
+    }
 
-    for (const playthroughId of affectedPlaythroughIds) {
-      try {
-        await rebuildPlaythrough(playthroughId, session);
-      } catch (error) {
-        // Log but don't fail sync - playthrough may be from another user
-        // or events may be incomplete
-        log.warn(`Failed to rebuild playthrough ${playthroughId}:`, error);
+    // Upsert received events from server
+    if (syncResult.events.length > 0) {
+      await upsertPlaybackEvents(eventsPayload, tx);
+    }
+
+    // Rebuild affected playthroughs from their events
+    // This ensures client and server have identical derived state
+    if (affectedPlaythroughIds.size > 0) {
+      log.debug(`Rebuilding ${affectedPlaythroughIds.size} playthroughs`);
+
+      for (const playthroughId of affectedPlaythroughIds) {
+        try {
+          await rebuildPlaythrough(playthroughId, session, tx);
+        } catch (error) {
+          // Log but don't fail sync - playthrough may be from another user
+          // or events may be incomplete
+          log.warn(`Failed to rebuild playthrough ${playthroughId}:`, error);
+        }
       }
     }
-  }
 
-  // Update server profile with new sync time
-  await getDb()
-    .insert(schema.serverProfiles)
-    .values({
-      url: session.url,
-      userEmail: session.email,
-      lastSyncTime: serverTime,
-    })
-    .onConflictDoUpdate({
-      target: [schema.serverProfiles.url, schema.serverProfiles.userEmail],
-      set: {
-        lastSyncTime: sql`excluded.last_sync_time`,
-      },
-    });
+    // Update server profile with new sync time
+    await tx
+      .insert(schema.serverProfiles)
+      .values({
+        url: session.url,
+        userEmail: session.email,
+        lastSyncTime: serverTime,
+      })
+      .onConflictDoUpdate({
+        target: [schema.serverProfiles.url, schema.serverProfiles.userEmail],
+        set: {
+          lastSyncTime: sql`excluded.last_sync_time`,
+        },
+      });
+  });
 
   log.info(`Event sync applied - received ${syncResult.events.length} events`);
 }

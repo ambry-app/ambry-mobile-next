@@ -381,18 +381,21 @@ describe("playthroughs module", () => {
 
   describe("upsert functions", () => {
     describe("upsertPlaybackEvent", () => {
-      it("inserts new event", async () => {
+      it("inserts new events", async () => {
         const db = getDb();
         const pt = await createPlaythrough(db);
+        const now = new Date();
 
-        await playthroughs.upsertPlaybackEvent({
-          id: "e-new",
-          playthroughId: pt.id,
-          type: "play",
-          timestamp: new Date(),
-          position: 100,
-          playbackRate: 1.0,
-        });
+        await playthroughs.upsertPlaybackEvents([
+          {
+            id: "e-new",
+            playthroughId: pt.id,
+            type: "play",
+            timestamp: now,
+            position: 100,
+            syncedAt: now,
+          },
+        ]);
 
         const result = await db.query.playbackEvents.findFirst({
           where: eq(schema.playbackEvents.id, "e-new"),
@@ -400,6 +403,7 @@ describe("playthroughs module", () => {
 
         expect(result).toBeDefined();
         expect(result?.position).toBe(100);
+        expect(result?.syncedAt).not.toBeNull();
       });
 
       it("updates syncedAt on conflict", async () => {
@@ -408,19 +412,25 @@ describe("playthroughs module", () => {
         const event = await createPlaybackEvent(db, {
           id: "e-1",
           playthroughId: pt.id,
+          type: "play",
+          timestamp: new Date(),
+          position: 200,
+          playbackRate: 1.0,
           syncedAt: null,
         });
         const syncedAt = new Date("2024-06-01");
 
-        await playthroughs.upsertPlaybackEvent({
-          id: event.id,
-          playthroughId: pt.id,
-          type: event.type,
-          timestamp: event.timestamp,
-          position: event.position,
-          playbackRate: event.playbackRate,
-          syncedAt,
-        });
+        await playthroughs.upsertPlaybackEvents([
+          {
+            id: event.id,
+            playthroughId: pt.id,
+            type: event.type,
+            timestamp: event.timestamp,
+            position: event.position,
+            playbackRate: event.playbackRate,
+            syncedAt,
+          },
+        ]);
 
         const result = await db.query.playbackEvents.findFirst({
           where: eq(schema.playbackEvents.id, event.id),
