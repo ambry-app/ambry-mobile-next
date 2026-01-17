@@ -8,7 +8,7 @@
  * The real sync service, GraphQL API, and database code runs.
  */
 
-import { sync, syncLibrary, syncPlaythroughs } from "@/services/sync-service";
+import { sync, syncLibrary, syncPlaybackEvents } from "@/services/sync-service";
 import {
   resetForTesting as resetDataVersionStore,
   useDataVersion,
@@ -31,7 +31,7 @@ import {
 } from "@test/fetch-mock";
 import {
   emptyLibraryChanges,
-  emptySyncProgressResult,
+  emptySyncEventsResult,
   resetSyncFixtureIdCounter,
 } from "@test/sync-fixtures";
 
@@ -95,7 +95,7 @@ describe("sync-service", () => {
       mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges(serverTime)));
       mockGraphQL(
         mockFetch,
-        graphqlSuccess({ syncProgress: emptySyncProgressResult(serverTime) }),
+        graphqlSuccess({ syncProgress: emptySyncEventsResult(serverTime) }),
       );
 
       const result = await sync(session);
@@ -139,7 +139,7 @@ describe("sync-service", () => {
     it("clears session on unauthorized error", async () => {
       mockGraphQL(mockFetch, graphqlUnauthorized());
 
-      await syncPlaythroughs(session);
+      await syncPlaybackEvents(session);
 
       // Session should be cleared
       const { session: currentSession } = useSession.getState();
@@ -149,15 +149,12 @@ describe("sync-service", () => {
     it("bumps playthroughDataVersion on successful sync", async () => {
       const serverTime = "2024-01-01T00:00:00.000Z";
 
-      mockGraphQL(
-        mockFetch,
-        graphqlSuccess({ syncProgress: emptySyncProgressResult(serverTime) }),
-      );
+      mockGraphQL(mockFetch, graphqlSuccess(emptySyncEventsResult(serverTime)));
 
       const initialPlaythroughVersion =
         useDataVersion.getState().playthroughDataVersion;
 
-      await syncPlaythroughs(session);
+      await syncPlaybackEvents(session);
 
       const newPlaythroughVersion =
         useDataVersion.getState().playthroughDataVersion;

@@ -6,7 +6,11 @@ import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import { Colors } from "@/styles/colors";
 
-export type PlaythroughStatus = "in_progress" | "finished" | "abandoned";
+export type PlaythroughStatus =
+  | "in_progress"
+  | "finished"
+  | "abandoned"
+  | "deleted";
 
 export type PlaythroughContextMenuImplProps = {
   status: PlaythroughStatus;

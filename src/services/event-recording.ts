@@ -47,7 +47,7 @@ import { randomUUID } from "@/utils/crypto";
 import { logBase } from "@/utils/logger";
 import { subscribeToChange } from "@/utils/subscribe";
 
-import { syncPlaythroughs } from "./sync-service";
+import { syncPlaybackEvents } from "./sync-service";
 
 const log = logBase.extend("event-recording");
 
@@ -319,19 +319,13 @@ async function flushPlayPauseEvent() {
       playbackRate,
     });
 
-    await updateStateCache(
-      playthroughId,
-      position,
-      playbackRate,
-      timestamp,
-      tx,
-    );
+    await updateStateCache(playthroughId, position, tx);
   });
 
   log.info(`Recorded ${eventType} event at position ${position.toFixed(1)}`);
 
   if (finalState === PlayPauseType.PAUSE) {
-    syncPlaythroughs(session);
+    syncPlaybackEvents(session);
   }
 }
 
@@ -408,7 +402,7 @@ async function flushRateChangeEvent() {
       previousRate,
     });
 
-    await updateStateCache(playthroughId, position, newRate, timestamp, tx);
+    await updateStateCache(playthroughId, position, tx);
   });
 
   log.info(
@@ -488,7 +482,7 @@ async function flushSeekEvent() {
       toPosition: to,
     });
 
-    await updateStateCache(playthroughId, to, playbackRate, timestamp, tx);
+    await updateStateCache(playthroughId, to, tx);
   });
 
   log.info(`Recorded seek event from ${from.toFixed(1)} to ${to.toFixed(1)}`);

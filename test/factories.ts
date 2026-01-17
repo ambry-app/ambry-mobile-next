@@ -404,12 +404,12 @@ export async function createMediaNarrator(
 
 type PlaythroughOverrides = Partial<schema.PlaythroughInsert> & {
   media?: MediaOverrides;
-  /** If provided, creates a state cache with this position */
-  position?: number;
-  /** If provided, creates a state cache with this rate (defaults to 1.0 if position is set) */
-  rate?: number;
-  /** If provided, sets lastEventAt on the state cache (requires position or rate to be set) */
-  lastEventAt?: Date;
+  /** If provided, creates a state cache with this position (for crash recovery) */
+  cachePosition?: number;
+  /** If provided, sets updatedAt on the state cache */
+  cacheUpdatedAt?: Date;
+  /** If false, skips creating the start event (default: true) */
+  createStartEvent?: boolean;
 };
 
 export async function createPlaythrough(
@@ -419,9 +419,9 @@ export async function createPlaythrough(
   const now = new Date();
   const {
     media: mediaOverrides,
-    position,
-    rate,
-    lastEventAt,
+    cachePosition,
+    cacheUpdatedAt,
+    createStartEvent: shouldCreateStartEvent = true,
     ...rest
   } = overrides;
   const id = rest.id ?? nextId("playthrough");
@@ -434,32 +434,52 @@ export async function createPlaythrough(
     mediaId = media.id;
   }
 
+  const position = rest.position ?? 0;
+  const playbackRate = rest.playbackRate ?? 1.0;
+  const startedAt = rest.startedAt ?? now;
+  const lastEventAt = rest.lastEventAt ?? startedAt;
+
+  // Build playthrough object - spread rest first, then override with our computed values
+  // This ensures explicit undefined values in rest don't override our defaults
   const playthrough: schema.PlaythroughInsert = {
+    ...rest,
     id,
     url,
     userEmail: DEFAULT_TEST_SESSION.email,
     mediaId,
-    status: "in_progress",
-    startedAt: now,
-    createdAt: now,
-    updatedAt: now,
-    ...rest,
+    status: rest.status ?? "in_progress",
+    startedAt,
+    position,
+    playbackRate,
+    lastEventAt,
+    refreshedAt: now,
   };
 
   await db.insert(schema.playthroughs).values(playthrough);
 
-  // Create state cache if position, rate, or lastEventAt is provided
-  if (
-    position !== undefined ||
-    rate !== undefined ||
-    lastEventAt !== undefined
-  ) {
+  // Create a start event for V2 event-sourced architecture
+  // This ensures rebuildPlaythrough will work correctly
+  if (shouldCreateStartEvent) {
+    const startEvent: schema.PlaybackEventInsert = {
+      id: nextId("event"),
+      playthroughId: id,
+      deviceId: "test-device",
+      mediaId,
+      type: "start",
+      timestamp: startedAt,
+      position,
+      playbackRate,
+      syncedAt: now, // Mark as synced to avoid showing up in unsynced queries
+    };
+    await db.insert(schema.playbackEvents).values(startEvent);
+  }
+
+  // Create state cache if cachePosition or cacheUpdatedAt is provided
+  if (cachePosition !== undefined || cacheUpdatedAt !== undefined) {
     const cache: schema.PlaythroughStateCacheInsert = {
       playthroughId: id,
-      currentPosition: position ?? 0,
-      currentRate: rate ?? 1.0,
-      lastEventAt: lastEventAt ?? now,
-      updatedAt: now,
+      position: cachePosition ?? position,
+      updatedAt: cacheUpdatedAt ?? now,
     };
     await db.insert(schema.playthroughStateCache).values(cache);
   }

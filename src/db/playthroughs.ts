@@ -2,8 +2,12 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { Database, getDb } from "@/db/db";
 import * as schema from "@/db/schema";
+import { PlaybackEventInsert } from "@/db/schema";
 import { Session } from "@/types/session";
 import { randomUUID } from "@/utils/crypto";
+import { logBase } from "@/utils/logger";
+
+const log = logBase.extend("playthroughs");
 
 // =============================================================================
 // Playthrough Queries
@@ -25,7 +29,8 @@ export async function getInProgressPlaythroughWithMedia(
       eq(schema.playthroughs.status, "in_progress"),
       isNull(schema.playthroughs.deletedAt),
     ),
-    orderBy: desc(schema.playthroughs.updatedAt),
+    // Order by lastEventAt (most recent activity first)
+    orderBy: desc(schema.playthroughs.lastEventAt),
     with: {
       stateCache: true,
       media: {
@@ -141,7 +146,6 @@ export async function getFinishedOrAbandonedPlaythrough(
   mediaId: string,
 ) {
   // Order by the relevant completion timestamp (finishedAt or abandonedAt)
-  // not updatedAt (which is sync metadata)
   return getDb().query.playthroughs.findFirst({
     where: and(
       eq(schema.playthroughs.url, session.url),
@@ -172,9 +176,8 @@ export async function getAllPlaythroughsForMedia(
   session: Session,
   mediaId: string,
 ) {
-  // Order by lastEventAt from state cache (most recent activity first)
-  // not updatedAt (which is sync metadata)
-  // Using JOIN pattern consistent with other library queries
+  // Query playthroughs directly - position/rate/lastEventAt are now on the playthrough
+  // Left join state cache for crash recovery position
   const results = await getDb()
     .select({
       id: schema.playthroughs.id,
@@ -183,11 +186,12 @@ export async function getAllPlaythroughsForMedia(
       startedAt: schema.playthroughs.startedAt,
       finishedAt: schema.playthroughs.finishedAt,
       abandonedAt: schema.playthroughs.abandonedAt,
-      updatedAt: schema.playthroughs.updatedAt,
+      position: schema.playthroughs.position,
+      playbackRate: schema.playthroughs.playbackRate,
+      lastEventAt: schema.playthroughs.lastEventAt,
       stateCache: {
-        currentPosition: schema.playthroughStateCache.currentPosition,
-        currentRate: schema.playthroughStateCache.currentRate,
-        lastEventAt: schema.playthroughStateCache.lastEventAt,
+        position: schema.playthroughStateCache.position,
+        updatedAt: schema.playthroughStateCache.updatedAt,
       },
     })
     .from(schema.playthroughs)
@@ -203,227 +207,167 @@ export async function getAllPlaythroughsForMedia(
         isNull(schema.playthroughs.deletedAt),
       ),
     )
-    .orderBy(desc(schema.playthroughStateCache.lastEventAt));
+    .orderBy(desc(schema.playthroughs.lastEventAt));
 
   return results;
 }
 
 // =============================================================================
-// Playthrough CRUD
+// Event Recording
 // =============================================================================
 
-export async function createPlaythrough(
-  session: Session,
+/**
+ * Insert a playback event into the database.
+ * Events are the source of truth - playthroughs are derived from events.
+ *
+ * @param event - The event data to insert
+ * @param db - Optional database/transaction context
+ */
+export async function insertEvent(
+  event: PlaybackEventInsert,
+  db: Database = getDb(),
+): Promise<void> {
+  await db.insert(schema.playbackEvents).values(event);
+}
+
+/**
+ * Record a start event for a new playthrough.
+ * Returns the generated playthrough ID.
+ */
+export function createStartEvent(
   mediaId: string,
-): Promise<string> {
-  const now = new Date();
-  const id = randomUUID();
-
-  await getDb().insert(schema.playthroughs).values({
-    id,
-    url: session.url,
-    userEmail: session.email,
-    mediaId,
-    status: "in_progress",
-    startedAt: now,
-    createdAt: now,
-    updatedAt: now,
-    // syncedAt is null - pending sync
-  });
-
-  return id;
-}
-
-export async function updatePlaythroughStatus(
-  session: Session,
-  playthroughId: string,
-  status: schema.PlaythroughStatus,
-  timestamps: {
-    finishedAt?: Date | null;
-    abandonedAt?: Date | null;
-  } = {},
-) {
+  deviceId: string,
+  playbackRate: number = 1.0,
+): { playthroughId: string; event: PlaybackEventInsert } {
+  const playthroughId = randomUUID();
   const now = new Date();
 
-  await getDb()
-    .update(schema.playthroughs)
-    .set({
-      status,
-      ...timestamps,
-      updatedAt: now,
-      syncedAt: null, // Mark for sync
-    })
-    .where(
-      and(
-        eq(schema.playthroughs.url, session.url),
-        eq(schema.playthroughs.id, playthroughId),
-      ),
-    );
-}
-
-export async function resumePlaythrough(
-  session: Session,
-  playthroughId: string,
-) {
-  const now = new Date();
-
-  await getDb()
-    .update(schema.playthroughs)
-    .set({
-      status: "in_progress",
-      finishedAt: null,
-      abandonedAt: null,
-      updatedAt: now,
-      syncedAt: null,
-    })
-    .where(
-      and(
-        eq(schema.playthroughs.url, session.url),
-        eq(schema.playthroughs.id, playthroughId),
-      ),
-    );
-}
-
-export async function deletePlaythrough(
-  session: Session,
-  playthroughId: string,
-) {
-  const now = new Date();
-
-  await getDb()
-    .update(schema.playthroughs)
-    .set({
-      deletedAt: now,
-      updatedAt: now,
-      syncedAt: null,
-    })
-    .where(
-      and(
-        eq(schema.playthroughs.url, session.url),
-        eq(schema.playthroughs.id, playthroughId),
-      ),
-    );
-}
-
-// =============================================================================
-// State Derivation
-// =============================================================================
-
-export interface DerivedPlaythroughState {
-  currentPosition: number;
-  currentRate: number;
-  lastEventAt: Date;
-}
-
-/**
- * Get derived state from cache (fast path).
- * Falls back to computing from events if cache miss.
- */
-export async function getDerivedState(
-  playthroughId: string,
-): Promise<DerivedPlaythroughState | null> {
-  // Try cache first
-  const cache = await getDb().query.playthroughStateCache.findFirst({
-    where: eq(schema.playthroughStateCache.playthroughId, playthroughId),
-  });
-
-  if (cache) {
-    return {
-      currentPosition: cache.currentPosition,
-      currentRate: cache.currentRate,
-      lastEventAt: cache.lastEventAt,
-    };
-  }
-
-  // Cache miss - compute from events
-  return computeStateFromEvents(playthroughId);
-}
-
-/**
- * Compute state directly from events (slow path, used for cache rebuild).
- */
-export async function computeStateFromEvents(
-  playthroughId: string,
-): Promise<DerivedPlaythroughState | null> {
-  // Get most recent playback event (not lifecycle events)
-  const lastEvent = await getDb().query.playbackEvents.findFirst({
-    where: and(
-      eq(schema.playbackEvents.playthroughId, playthroughId),
-      sql`${schema.playbackEvents.type} IN ('play', 'pause', 'seek', 'rate_change')`,
-    ),
-    orderBy: desc(schema.playbackEvents.timestamp),
-  });
-
-  if (
-    !lastEvent ||
-    lastEvent.position == null ||
-    lastEvent.playbackRate == null
-  ) {
-    return null;
-  }
-
-  const state = {
-    currentPosition: lastEvent.position,
-    currentRate: lastEvent.playbackRate,
-    lastEventAt: lastEvent.timestamp,
+  const event: PlaybackEventInsert = {
+    id: randomUUID(),
+    playthroughId,
+    deviceId,
+    mediaId, // Required for start events
+    type: "start",
+    timestamp: now,
+    position: 0,
+    playbackRate,
+    syncedAt: null, // Mark for sync
   };
 
-  // Update cache for next time
-  await updateStateCache(
-    playthroughId,
-    state.currentPosition,
-    state.currentRate,
-    state.lastEventAt,
-  );
-
-  return state;
+  return { playthroughId, event };
 }
+
+/**
+ * Create a playback event (play, pause, seek, rate_change).
+ */
+export function createPlaybackEvent(
+  playthroughId: string,
+  deviceId: string,
+  type: "play" | "pause" | "seek" | "rate_change",
+  position: number,
+  playbackRate: number,
+  extras?: {
+    fromPosition?: number;
+    toPosition?: number;
+    previousRate?: number;
+  },
+): PlaybackEventInsert {
+  return {
+    id: randomUUID(),
+    playthroughId,
+    deviceId,
+    type,
+    timestamp: new Date(),
+    position,
+    playbackRate,
+    fromPosition: extras?.fromPosition,
+    toPosition: extras?.toPosition,
+    previousRate: extras?.previousRate,
+    syncedAt: null, // Mark for sync
+  };
+}
+
+/**
+ * Create a lifecycle event (finish, abandon, resume, delete).
+ */
+export function createLifecycleEvent(
+  playthroughId: string,
+  deviceId: string,
+  type: "finish" | "abandon" | "resume" | "delete",
+): PlaybackEventInsert {
+  return {
+    id: randomUUID(),
+    playthroughId,
+    deviceId,
+    type,
+    timestamp: new Date(),
+    syncedAt: null, // Mark for sync
+  };
+}
+
+// =============================================================================
+// State Cache (Crash Recovery Only)
+// =============================================================================
 
 /**
  * Update the state cache for a playthrough.
- * Only updates if the event is newer than the current cached state.
+ * This is used by the heartbeat service for crash recovery.
  *
- * @param db - Optional database/transaction context. Defaults to getDb().
- *             Pass a transaction context when calling within a transaction.
+ * The cache only stores position - rate and lastEventAt live on the playthrough.
+ * Only updates if the new timestamp is more recent than the existing cache.
+ *
+ * @param playthroughId - The playthrough to update
+ * @param position - Current playback position
+ * @param db - Optional database/transaction context
  */
 export async function updateStateCache(
   playthroughId: string,
   position: number,
-  rate: number,
-  eventAt?: Date,
   db: Database = getDb(),
-) {
+): Promise<void> {
   const now = new Date();
-  const lastEventAt = eventAt ?? now;
-
-  // Check if there's an existing cache entry with a newer timestamp
-  const existing = await db.query.playthroughStateCache.findFirst({
-    where: eq(schema.playthroughStateCache.playthroughId, playthroughId),
-  });
-
-  // Only update if no existing entry, or if this event is newer
-  if (existing && existing.lastEventAt >= lastEventAt) {
-    return; // Skip - existing cache is more recent
-  }
 
   await db
     .insert(schema.playthroughStateCache)
     .values({
       playthroughId,
-      currentPosition: position,
-      currentRate: rate,
-      lastEventAt,
+      position,
       updatedAt: now,
     })
     .onConflictDoUpdate({
       target: schema.playthroughStateCache.playthroughId,
       set: {
-        currentPosition: position,
-        currentRate: rate,
-        lastEventAt,
+        position,
         updatedAt: now,
       },
     });
+
+  log.debug(`Updated state cache for ${playthroughId}: position=${position}`);
+}
+
+/**
+ * Get the effective position for a playthrough.
+ * Returns the more recent of: state cache position or playthrough position.
+ *
+ * The state cache is updated by the heartbeat service every 30s during playback.
+ * The playthrough position is updated when events are replayed.
+ * We use whichever was updated more recently.
+ */
+export function getEffectivePosition(playthrough: {
+  position: number;
+  lastEventAt: Date;
+  stateCache: { position: number; updatedAt: Date } | null;
+}): number {
+  if (!playthrough.stateCache) {
+    return playthrough.position;
+  }
+
+  // Use whichever was updated more recently
+  if (playthrough.stateCache.updatedAt > playthrough.lastEventAt) {
+    return playthrough.stateCache.position;
+  }
+
+  return playthrough.position;
 }
 
 // =============================================================================
@@ -456,41 +400,43 @@ export type PlaythroughDebugData = NonNullable<
 // Sync Helpers
 // =============================================================================
 
-export async function getUnsyncedPlaythroughs(session: Session) {
-  return getDb().query.playthroughs.findMany({
-    where: and(
-      eq(schema.playthroughs.url, session.url),
-      eq(schema.playthroughs.userEmail, session.email),
-      isNull(schema.playthroughs.syncedAt),
-    ),
-  });
-}
+/**
+ * Get all unsynced events for the current session.
+ * Events are synced to the server, not playthroughs.
+ */
+export async function getAllUnsyncedEvents(session: Session) {
+  // Get all playthroughs for this session
+  const playthroughIds = await getDb()
+    .select({ id: schema.playthroughs.id })
+    .from(schema.playthroughs)
+    .where(
+      and(
+        eq(schema.playthroughs.url, session.url),
+        eq(schema.playthroughs.userEmail, session.email),
+      ),
+    );
 
-export async function getUnsyncedEvents(playthroughIds: string[]) {
   if (playthroughIds.length === 0) return [];
 
   return getDb().query.playbackEvents.findMany({
     where: and(
-      inArray(schema.playbackEvents.playthroughId, playthroughIds),
+      inArray(
+        schema.playbackEvents.playthroughId,
+        playthroughIds.map((p) => p.id),
+      ),
       isNull(schema.playbackEvents.syncedAt),
     ),
     orderBy: schema.playbackEvents.timestamp,
   });
 }
 
-export async function markPlaythroughsSynced(
-  playthroughIds: string[],
+/**
+ * Mark events as synced after successful sync.
+ */
+export async function markEventsSynced(
+  eventIds: string[],
   syncedAt: Date,
-) {
-  if (playthroughIds.length === 0) return;
-
-  await getDb()
-    .update(schema.playthroughs)
-    .set({ syncedAt })
-    .where(inArray(schema.playthroughs.id, playthroughIds));
-}
-
-export async function markEventsSynced(eventIds: string[], syncedAt: Date) {
+): Promise<void> {
   if (eventIds.length === 0) return;
 
   await getDb()
@@ -499,32 +445,17 @@ export async function markEventsSynced(eventIds: string[], syncedAt: Date) {
     .where(inArray(schema.playbackEvents.id, eventIds));
 }
 
-// =============================================================================
-// Upsert functions for down-sync
-// =============================================================================
-
-export async function upsertPlaythrough(playthrough: schema.PlaythroughInsert) {
-  await getDb()
-    .insert(schema.playthroughs)
-    .values(playthrough)
-    .onConflictDoUpdate({
-      target: [schema.playthroughs.url, schema.playthroughs.id],
-      set: {
-        status: playthrough.status,
-        startedAt: playthrough.startedAt,
-        finishedAt: playthrough.finishedAt,
-        abandonedAt: playthrough.abandonedAt,
-        deletedAt: playthrough.deletedAt,
-        updatedAt: playthrough.updatedAt,
-        syncedAt: playthrough.syncedAt,
-      },
-    });
-}
-
-export async function upsertPlaybackEvent(event: schema.PlaybackEventInsert) {
-  // Events are immutable - on conflict we only update syncedAt if provided
+/**
+ * Upsert a playback event from server sync.
+ * Events are immutable - on conflict we only update syncedAt.
+ */
+export async function upsertPlaybackEvent(
+  event: PlaybackEventInsert,
+  db: Database = getDb(),
+): Promise<void> {
+  // If syncedAt is provided, update it on conflict; otherwise just ignore conflict
   if (event.syncedAt !== undefined) {
-    await getDb()
+    await db
       .insert(schema.playbackEvents)
       .values(event)
       .onConflictDoUpdate({
@@ -534,10 +465,8 @@ export async function upsertPlaybackEvent(event: schema.PlaybackEventInsert) {
         },
       });
   } else {
-    await getDb()
-      .insert(schema.playbackEvents)
-      .values(event)
-      .onConflictDoNothing();
+    // No syncedAt to update - just insert or ignore if already exists
+    await db.insert(schema.playbackEvents).values(event).onConflictDoNothing();
   }
 }
 

@@ -75,7 +75,7 @@ async function createTestPlaythrough(
     mediaId: media.id,
     status: "in_progress",
     position: overrides.position,
-    rate: overrides.rate,
+    playbackRate: overrides.rate,
   });
 
   if (overrides.downloaded) {

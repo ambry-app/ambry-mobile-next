@@ -1,15 +1,14 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/db";
+import { rebuildPlaythrough } from "@/db/playthrough-reducer";
 import {
-  getUnsyncedEvents,
-  getUnsyncedPlaythroughs,
+  getAllUnsyncedEvents,
   markEventsSynced,
-  markPlaythroughsSynced,
-  updateStateCache,
+  upsertPlaybackEvent,
 } from "@/db/playthroughs";
 import * as schema from "@/db/schema";
-import { Thumbnails } from "@/db/schema";
+import { PlaybackEventType, Thumbnails } from "@/db/schema";
 import { Session } from "@/types/session";
 import { groupBy } from "@/utils/group-by";
 import { logBase } from "@/utils/logger";
@@ -514,41 +513,26 @@ export async function applyLibraryChanges(
 }
 
 // =============================================================================
-// Playthrough Sync - DB Operations
+// Event Sync - DB Operations (V2 - events only, playthroughs derived)
 // =============================================================================
 
 /**
- * Data needed to build a sync request for playthroughs.
+ * Data needed to build a sync request.
+ * V2: Only events are synced, playthroughs are derived from events.
  */
-export interface PlaythroughSyncData {
-  unsyncedPlaythroughs: Awaited<ReturnType<typeof getUnsyncedPlaythroughs>>;
-  unsyncedEvents: Awaited<ReturnType<typeof getUnsyncedEvents>>;
+export interface EventSyncData {
+  unsyncedEvents: Awaited<ReturnType<typeof getAllUnsyncedEvents>>;
   lastSyncTime: Date | null;
 }
 
 /**
- * Get all unsynced playthrough data needed for a sync request.
+ * Get all unsynced event data needed for a sync request.
  */
-export async function getPlaythroughSyncData(
+export async function getEventSyncData(
   session: Session,
-): Promise<PlaythroughSyncData> {
-  // Get unsynced playthroughs
-  const unsyncedPlaythroughs = await getUnsyncedPlaythroughs(session);
-
-  // Get all playthrough IDs (both synced and unsynced) to fetch their unsynced events
-  const allPlaythroughIds = await getDb()
-    .select({ id: schema.playthroughs.id })
-    .from(schema.playthroughs)
-    .where(
-      and(
-        eq(schema.playthroughs.url, session.url),
-        eq(schema.playthroughs.userEmail, session.email),
-      ),
-    );
-
-  const unsyncedEvents = await getUnsyncedEvents(
-    allPlaythroughIds.map((p) => p.id),
-  );
+): Promise<EventSyncData> {
+  // Get unsynced events for this session
+  const unsyncedEvents = await getAllUnsyncedEvents(session);
 
   // Get last sync time from server profile
   const serverProfile = await getDb().query.serverProfiles.findFirst({
@@ -558,30 +542,16 @@ export async function getPlaythroughSyncData(
     ),
   });
 
-  log.debug(
-    `found ${unsyncedPlaythroughs.length} unsynced playthroughs, ${unsyncedEvents.length} unsynced events`,
-  );
+  log.debug(`found ${unsyncedEvents.length} unsynced events`);
 
   return {
-    unsyncedPlaythroughs,
     unsyncedEvents,
     lastSyncTime: serverProfile?.lastSyncTime ?? null,
   };
 }
 
-// Input types for playthrough sync result - matches GraphQL response shape
-export interface PlaythroughSyncResultInput {
-  playthroughs: {
-    id: string;
-    status: string;
-    startedAt: string;
-    finishedAt?: string | null;
-    abandonedAt?: string | null;
-    deletedAt?: string | null;
-    insertedAt: string;
-    updatedAt: string;
-    media: { id: string };
-  }[];
+// Input types for event sync result - matches GraphQL syncEvents response shape
+export interface EventSyncResultInput {
   events: {
     id: string;
     playthroughId: string;
@@ -599,175 +569,85 @@ export interface PlaythroughSyncResultInput {
 }
 
 /**
- * Apply the result of a playthrough sync to the local database.
- * Marks sent items as synced and upserts received data.
+ * Apply the result of an event sync to the local database.
+ *
+ * V2 flow:
+ * 1. Mark sent events as synced
+ * 2. Upsert received events from server
+ * 3. Rebuild affected playthroughs from their events
+ *
+ * Playthroughs are never synced directly - they are 100% derived from events.
  */
-export async function applyPlaythroughSyncResult(
+export async function applyEventSyncResult(
   session: Session,
-  syncResult: PlaythroughSyncResultInput,
-  sentPlaythroughIds: string[],
+  syncResult: EventSyncResultInput,
   sentEventIds: string[],
 ): Promise<void> {
   const serverTime = new Date(syncResult.serverTime);
 
-  // Mark our sent items as synced
-  if (sentPlaythroughIds.length > 0) {
-    await markPlaythroughsSynced(sentPlaythroughIds, serverTime);
-  }
-
+  // Mark sent events as synced
   if (sentEventIds.length > 0) {
     await markEventsSynced(sentEventIds, serverTime);
   }
 
-  // Batch all database operations in a single transaction for better performance
-  await getDb().transaction(async (tx) => {
-    // Upsert received playthroughs from server
-    for (const playthrough of syncResult.playthroughs) {
-      const playthroughData = {
-        id: playthrough.id,
-        url: session.url,
-        userEmail: session.email,
-        mediaId: playthrough.media.id,
-        status: playthrough.status.toLowerCase() as
-          | "in_progress"
-          | "finished"
-          | "abandoned",
-        startedAt: new Date(playthrough.startedAt),
-        finishedAt: playthrough.finishedAt
-          ? new Date(playthrough.finishedAt)
-          : null,
-        abandonedAt: playthrough.abandonedAt
-          ? new Date(playthrough.abandonedAt)
-          : null,
-        deletedAt: playthrough.deletedAt
-          ? new Date(playthrough.deletedAt)
-          : null,
-        createdAt: new Date(playthrough.insertedAt),
-        updatedAt: new Date(playthrough.updatedAt),
-        syncedAt: serverTime,
-      };
+  // Track which playthroughs need rebuilding
+  const affectedPlaythroughIds = new Set<string>();
 
-      await tx
-        .insert(schema.playthroughs)
-        .values(playthroughData)
-        .onConflictDoUpdate({
-          target: [schema.playthroughs.url, schema.playthroughs.id],
-          set: {
-            status: playthroughData.status,
-            startedAt: playthroughData.startedAt,
-            finishedAt: playthroughData.finishedAt,
-            abandonedAt: playthroughData.abandonedAt,
-            deletedAt: playthroughData.deletedAt,
-            updatedAt: playthroughData.updatedAt,
-            syncedAt: playthroughData.syncedAt,
-          },
-        });
-    }
-
-    // Bulk upsert received events from server
-    if (syncResult.events.length > 0) {
-      const eventDataArray = syncResult.events.map((event) => ({
-        id: event.id,
-        playthroughId: event.playthroughId,
-        deviceId: event.deviceId,
-        mediaId: event.mediaId,
-        type: event.type.toLowerCase() as
-          | "start"
-          | "play"
-          | "pause"
-          | "seek"
-          | "rate_change"
-          | "finish"
-          | "abandon"
-          | "resume"
-          | "delete",
-        timestamp: new Date(event.timestamp),
-        position: event.position,
-        playbackRate: event.playbackRate,
-        fromPosition: event.fromPosition,
-        toPosition: event.toPosition,
-        previousRate: event.previousRate,
-        syncedAt: serverTime,
-      }));
-
-      await tx
-        .insert(schema.playbackEvents)
-        .values(eventDataArray)
-        .onConflictDoUpdate({
-          target: schema.playbackEvents.id,
-          set: {
-            // Update all fields to allow server-side corrections
-            playthroughId: sql`excluded.playthrough_id`,
-            deviceId: sql`excluded.device_id`,
-            mediaId: sql`excluded.media_id`,
-            type: sql`excluded.type`,
-            timestamp: sql`excluded.timestamp`,
-            position: sql`excluded.position`,
-            playbackRate: sql`excluded.playback_rate`,
-            fromPosition: sql`excluded.from_position`,
-            toPosition: sql`excluded.to_position`,
-            previousRate: sql`excluded.previous_rate`,
-            syncedAt: serverTime,
-          },
-        });
-
-      // Find the newest event with position/rate for each playthrough
-      // This fixes a bug where processing events out of order could store
-      // an older position with a newer timestamp
-      const newestByPlaythrough = new Map<
-        string,
-        { position: number; playbackRate: number; timestamp: Date }
-      >();
-
+  // Upsert received events from server
+  if (syncResult.events.length > 0) {
+    await getDb().transaction(async (tx) => {
       for (const event of syncResult.events) {
-        if (event.position != null && event.playbackRate != null) {
-          const timestamp = new Date(event.timestamp);
-          const existing = newestByPlaythrough.get(event.playthroughId);
+        const eventData = {
+          id: event.id,
+          playthroughId: event.playthroughId,
+          deviceId: event.deviceId,
+          mediaId: event.mediaId,
+          type: event.type.toLowerCase() as PlaybackEventType,
+          timestamp: new Date(event.timestamp),
+          position: event.position,
+          playbackRate: event.playbackRate,
+          fromPosition: event.fromPosition,
+          toPosition: event.toPosition,
+          previousRate: event.previousRate,
+          syncedAt: serverTime,
+        };
 
-          if (!existing || timestamp > existing.timestamp) {
-            newestByPlaythrough.set(event.playthroughId, {
-              position: event.position,
-              playbackRate: event.playbackRate,
-              timestamp,
-            });
-          }
-        }
+        await upsertPlaybackEvent(eventData, tx);
+        affectedPlaythroughIds.add(event.playthroughId);
       }
+    });
+  }
 
-      // Update state cache once per playthrough with the newest event's data
-      // updateStateCache already handles the timestamp comparison to skip
-      // updates when the existing cache is more recent
-      for (const [
-        playthroughId,
-        { position, playbackRate, timestamp },
-      ] of newestByPlaythrough) {
-        await updateStateCache(
-          playthroughId,
-          position,
-          playbackRate,
-          timestamp,
-          tx,
-        );
+  // Rebuild affected playthroughs from their events
+  // This ensures client and server have identical derived state
+  if (affectedPlaythroughIds.size > 0) {
+    log.debug(`Rebuilding ${affectedPlaythroughIds.size} playthroughs`);
+
+    for (const playthroughId of affectedPlaythroughIds) {
+      try {
+        await rebuildPlaythrough(playthroughId, session);
+      } catch (error) {
+        // Log but don't fail sync - playthrough may be from another user
+        // or events may be incomplete
+        log.warn(`Failed to rebuild playthrough ${playthroughId}:`, error);
       }
     }
+  }
 
-    // Update server profile with new sync time
-    await tx
-      .insert(schema.serverProfiles)
-      .values({
-        url: session.url,
-        userEmail: session.email,
-        lastSyncTime: serverTime,
-      })
-      .onConflictDoUpdate({
-        target: [schema.serverProfiles.url, schema.serverProfiles.userEmail],
-        set: {
-          lastSyncTime: sql`excluded.last_sync_time`,
-        },
-      });
-  });
+  // Update server profile with new sync time
+  await getDb()
+    .insert(schema.serverProfiles)
+    .values({
+      url: session.url,
+      userEmail: session.email,
+      lastSyncTime: serverTime,
+    })
+    .onConflictDoUpdate({
+      target: [schema.serverProfiles.url, schema.serverProfiles.userEmail],
+      set: {
+        lastSyncTime: sql`excluded.last_sync_time`,
+      },
+    });
 
-  log.info(
-    `Playthrough sync applied - received ${syncResult.playthroughs.length} playthroughs, ${syncResult.events.length} events`,
-  );
+  log.info(`Event sync applied - received ${syncResult.events.length} events`);
 }

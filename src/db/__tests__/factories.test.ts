@@ -203,19 +203,23 @@ describe("test factories", () => {
       expect(event.position).toBe(123.45);
     });
 
-    it("creates a playthrough with position and rate options", async () => {
+    it("creates a playthrough with position and cache options", async () => {
       const db = getDb();
       const playthrough = await createPlaythrough(db, {
         position: 500,
-        rate: 1.5,
+        playbackRate: 1.5,
+        cachePosition: 500,
+        cacheUpdatedAt: new Date("2024-01-01"),
       });
 
-      // State cache should be auto-created
+      expect(playthrough.position).toBe(500);
+      expect(playthrough.playbackRate).toBe(1.5);
+
+      // State cache should be created when cachePosition is provided
       const cache = await db.query.playthroughStateCache.findFirst({
         where: (c, { eq }) => eq(c.playthroughId, playthrough.id),
       });
-      expect(cache?.currentPosition).toBe(500);
-      expect(cache?.currentRate).toBe(1.5);
+      expect(cache?.position).toBe(500);
     });
   });
 

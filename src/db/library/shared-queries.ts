@@ -249,13 +249,9 @@ export async function getPlaythroughStatusesForMedia(
     .select({
       mediaId: schema.playthroughs.mediaId,
       status: schema.playthroughs.status,
-      lastEventAt: schema.playthroughStateCache.lastEventAt,
+      lastEventAt: schema.playthroughs.lastEventAt,
     })
     .from(schema.playthroughs)
-    .leftJoin(
-      schema.playthroughStateCache,
-      eq(schema.playthroughStateCache.playthroughId, schema.playthroughs.id),
-    )
     .where(
       and(
         eq(schema.playthroughs.url, session.url),
@@ -269,14 +265,15 @@ export async function getPlaythroughStatusesForMedia(
       desc(
         sql`CASE WHEN ${schema.playthroughs.status} = 'in_progress' THEN 1 ELSE 0 END`,
       ),
-      desc(schema.playthroughStateCache.lastEventAt),
+      desc(schema.playthroughs.lastEventAt),
     );
 
   // Group by mediaId and take the first (highest priority) status for each
+  // We filter out deleted playthroughs above, so status will always be a valid PlaythroughStatus
   const statusMap: Record<string, PlaythroughStatus> = {};
   for (const p of playthroughs) {
     if (!statusMap[p.mediaId]) {
-      statusMap[p.mediaId] = p.status;
+      statusMap[p.mediaId] = p.status as PlaythroughStatus;
     }
   }
 

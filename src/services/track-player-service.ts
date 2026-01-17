@@ -9,7 +9,11 @@
 
 import { Platform } from "react-native";
 
-import { getPlaythrough, type PlaythroughWithMedia } from "@/db/playthroughs";
+import {
+  getEffectivePosition,
+  getPlaythrough,
+  type PlaythroughWithMedia,
+} from "@/db/playthroughs";
 import * as TrackPlayer from "@/services/track-player-wrapper";
 import { useDataVersion } from "@/stores/data-version";
 import { usePreferredPlaybackRate } from "@/stores/preferred-playback-rate";
@@ -306,6 +310,10 @@ export function isPlaying() {
 
 /**
  * Load a playthrough into TrackPlayer.
+ *
+ * V2: Position is determined by comparing state cache (crash recovery) and
+ * playthrough (derived from events). We use whichever was updated more recently.
+ * Rate comes from the playthrough (derived from events).
  */
 export async function loadPlaythroughIntoPlayer(
   session: Session,
@@ -316,10 +324,16 @@ export async function loadPlaythroughIntoPlayer(
   awaitingIsPlayingMatch = null;
 
   const streaming = playthrough.media.download?.status !== "ready";
-  const position = playthrough.stateCache?.currentPosition ?? 0;
+
+  // Get position from whichever source was updated more recently
+  // (state cache from heartbeat vs playthrough from events)
+  const position = getEffectivePosition(playthrough);
+
+  // Rate lives on playthrough (derived from events), fallback to preferred rate
   const playbackRate =
-    playthrough.stateCache?.currentRate ??
+    playthrough.playbackRate ??
     usePreferredPlaybackRate.getState().preferredPlaybackRate;
+
   const trackAdd = buildAddTrack(session, playthrough);
 
   await TrackPlayer.reset();
@@ -339,7 +353,8 @@ export async function loadPlaythroughIntoPlayer(
     playthrough: {
       id: playthrough.id,
       mediaId: playthrough.mediaId,
-      status: playthrough.status,
+      // Cast is safe - we never load deleted playthroughs into the player
+      status: playthrough.status as "in_progress" | "finished" | "abandoned",
     },
     ...buildInitialChapterState(playthrough.media.chapters, progress),
   });
@@ -521,7 +536,8 @@ async function updatePlaythrough(session: Session, playthroughId: string) {
     playthrough: {
       id: playthrough.id,
       mediaId: playthrough.mediaId,
-      status: playthrough.status,
+      // Cast is safe - we never load deleted playthroughs into the player
+      status: playthrough.status as "in_progress" | "finished" | "abandoned",
     },
   });
 }

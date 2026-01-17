@@ -1,6 +1,17 @@
+/**
+ * Legacy PlayerState Migration
+ *
+ * Migrates from old snapshot-based PlayerState model (one record per media)
+ * to new event-sourced Playthrough model.
+ *
+ * V2: Creates events only, then rebuilds playthroughs from events.
+ * This ensures the same logic is used everywhere.
+ */
+
 import Storage from "expo-sqlite/kv-store";
 
 import { getDb } from "@/db/db";
+import { rebuildPlaythrough } from "@/db/playthrough-reducer";
 import * as schema from "@/db/schema";
 import { randomUUID } from "@/utils/crypto";
 import { logBase } from "@/utils/logger";
@@ -63,18 +74,18 @@ export async function needsPlayerStateMigration(): Promise<boolean> {
 /**
  * Migrates from old PlayerState schema to new Playthrough schema.
  *
- * This migration:
+ * V2: This migration now:
  * 1. Reads ALL old PlayerState records (for all users/sessions)
- * 2. Creates Playthrough records with synthetic events
- * 3. Marks them for sync (syncedAt = null)
- * 4. Sets completion flag (tables will be dropped via Drizzle migration later)
+ * 2. Creates synthetic events for each state
+ * 3. Rebuilds playthroughs from those events using the shared reducer
+ * 4. Creates state cache entries for crash recovery
+ * 5. Sets completion flag
  *
  * Client-side migration approach: Client is source of truth.
- * Server receives these playthroughs as NEW data when client syncs up.
+ * Server receives these events as NEW data when client syncs up.
  *
  * Note: Migrates all users' states at once to avoid data loss if user
- * switches accounts. DeviceId is set to null for synthetic events since
- * we don't know which device created the original states.
+ * switches accounts.
  *
  * This runs BEFORE any session-dependent initialization and does not
  * require a logged-in user.
@@ -84,7 +95,7 @@ export async function needsPlayerStateMigration(): Promise<boolean> {
 export async function migrateFromPlayerStateToPlaythrough(
   deviceId: string,
 ): Promise<void> {
-  log.info("Starting PlayerState → Playthrough migration");
+  log.info("Starting PlayerState → Playthrough migration (V2)");
 
   const db = getDb();
 
@@ -170,25 +181,10 @@ export async function migrateFromPlayerStateToPlaythrough(
       `Migrating player state for ${playerState.userEmail}@${playerState.url}/${playerState.mediaId}`,
     );
 
-    const now = new Date();
     const playthroughId = randomUUID();
     // SQLite timestamps are in seconds, convert to milliseconds for Date
     const startedAt = new Date(playerState.insertedAt * 1000);
     const updatedAt = new Date(playerState.updatedAt * 1000);
-
-    // Create playthrough (use playerState's url/email, not current session)
-    await db.insert(schema.playthroughs).values({
-      id: playthroughId,
-      url: playerState.url,
-      userEmail: playerState.userEmail,
-      mediaId: playerState.mediaId,
-      status: playerState.status === "finished" ? "finished" : "in_progress",
-      startedAt, // When user first started playing
-      finishedAt: playerState.status === "finished" ? updatedAt : null,
-      createdAt: now, // Migration time
-      updatedAt, // When user last played (for ordering)
-      syncedAt: null, // Mark for sync
-    });
 
     // Create synthetic start event
     await db.insert(schema.playbackEvents).values({
@@ -227,14 +223,19 @@ export async function migrateFromPlayerStateToPlaythrough(
       });
     }
 
-    // Create state cache for this playthrough
+    // Rebuild playthrough from events using the shared reducer
+    // This creates the playthrough record with correct derived state
+    await rebuildPlaythrough(playthroughId, {
+      url: playerState.url,
+      email: playerState.userEmail,
+      token: "", // Not used by rebuildPlaythrough
+    });
+
+    // Create state cache for crash recovery
     await db.insert(schema.playthroughStateCache).values({
       playthroughId,
-      currentPosition: playerState.position,
-      currentRate: playerState.playbackRate,
-      lastEventAt: updatedAt, // When user last played
-      totalListeningTime: 0, // Can't calculate from single pause event
-      updatedAt, // Match playthrough's updatedAt
+      position: playerState.position,
+      updatedAt, // Match playthrough's lastEventAt
     });
   }
 

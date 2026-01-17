@@ -203,7 +203,7 @@ describe("migrateFromPlayerStateToPlaythrough", () => {
       status: "in_progress",
       startedAt: new Date(insertedAt * 1000),
       finishedAt: null,
-      syncedAt: null,
+      // Note: syncedAt was removed from playthroughs - sync is tracked per-event now
     });
 
     // Verify start and pause events were created
@@ -242,10 +242,7 @@ describe("migrateFromPlayerStateToPlaythrough", () => {
     expect(cache).toHaveLength(1);
     expect(cache[0]).toMatchObject({
       playthroughId: playthroughs[0]!.id,
-      currentPosition: 1234.5,
-      currentRate: 1.25,
-      lastEventAt: new Date(updatedAt * 1000),
-      totalListeningTime: 0,
+      position: 1234.5,
     });
   });
 

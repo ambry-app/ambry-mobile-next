@@ -94,7 +94,10 @@ describe("event-recording", () => {
   describe("lifecycle events", () => {
     it("records start event", async () => {
       const db = getDb();
-      const playthrough = await createPlaythrough(db);
+      // Don't create start event - we're testing event recording directly
+      const playthrough = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
 
       await eventRecording.recordStartEvent(playthrough.id);
 
@@ -107,7 +110,10 @@ describe("event-recording", () => {
 
     it("records finish event", async () => {
       const db = getDb();
-      const playthrough = await createPlaythrough(db);
+      // Don't create start event - we're testing event recording directly
+      const playthrough = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
 
       await eventRecording.recordFinishEvent(playthrough.id);
 
@@ -119,7 +125,10 @@ describe("event-recording", () => {
 
     it("records abandon event", async () => {
       const db = getDb();
-      const playthrough = await createPlaythrough(db);
+      // Don't create start event - we're testing event recording directly
+      const playthrough = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
 
       await eventRecording.recordAbandonEvent(playthrough.id);
 
@@ -131,7 +140,10 @@ describe("event-recording", () => {
 
     it("records resume event", async () => {
       const db = getDb();
-      const playthrough = await createPlaythrough(db);
+      // Don't create start event - we're testing event recording directly
+      const playthrough = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
 
       await eventRecording.recordResumeEvent(playthrough.id);
 
@@ -150,7 +162,10 @@ describe("event-recording", () => {
 
     it("records play event after debounce window", async () => {
       const db = getDb();
-      const playthrough = await createPlaythrough(db);
+      // Don't create start event - we're testing event recording directly
+      const playthrough = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
 
       // Simulate a play event by setting lastPlayPause in the store
       useTrackPlayer.setState({
@@ -185,7 +200,10 @@ describe("event-recording", () => {
 
     it("records pause event after debounce window", async () => {
       const db = getDb();
-      const playthrough = await createPlaythrough(db);
+      // Don't create start event - we're testing event recording directly
+      const playthrough = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
       // Mock fetch for sync (called on pause)
       const mockFetch = installFetchMock();
       mockGraphQL(mockFetch, {
@@ -219,7 +237,10 @@ describe("event-recording", () => {
 
     it("ignores INTERNAL source events", async () => {
       const db = getDb();
-      const playthrough = await createPlaythrough(db);
+      // Don't create start event - we're testing event recording directly
+      const playthrough = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
 
       useTrackPlayer.setState({
         playthrough: {
@@ -245,7 +266,10 @@ describe("event-recording", () => {
 
     it("cancels if toggled back to original state within window", async () => {
       const db = getDb();
-      const playthrough = await createPlaythrough(db);
+      // Don't create start event - we're testing event recording directly
+      const playthrough = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
 
       // First: pause
       useTrackPlayer.setState({
@@ -294,7 +318,10 @@ describe("event-recording", () => {
 
     it("records rate change event after debounce window", async () => {
       const db = getDb();
-      const playthrough = await createPlaythrough(db);
+      // Don't create start event - we're testing event recording directly
+      const playthrough = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
 
       useTrackPlayer.setState({
         playthrough: {
@@ -323,7 +350,10 @@ describe("event-recording", () => {
 
     it("accumulates rate changes and records first-to-last", async () => {
       const db = getDb();
-      const playthrough = await createPlaythrough(db);
+      // Don't create start event - we're testing event recording directly
+      const playthrough = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
 
       // Change from 1.0 to 1.25
       useTrackPlayer.setState({
@@ -378,7 +408,10 @@ describe("event-recording", () => {
 
     it("skips if rate returns to original within window", async () => {
       const db = getDb();
-      const playthrough = await createPlaythrough(db);
+      // Don't create start event - we're testing event recording directly
+      const playthrough = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
 
       // Change from 1.0 to 1.5
       useTrackPlayer.setState({
@@ -424,7 +457,10 @@ describe("event-recording", () => {
 
     it("records seek event after debounce window", async () => {
       const db = getDb();
-      const playthrough = await createPlaythrough(db);
+      // Don't create start event - we're testing event recording directly
+      const playthrough = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
 
       useTrackPlayer.setState({
         playthrough: {
@@ -454,7 +490,10 @@ describe("event-recording", () => {
 
     it("accumulates seeks and records first-from to last-to", async () => {
       const db = getDb();
-      const playthrough = await createPlaythrough(db);
+      // Don't create start event - we're testing event recording directly
+      const playthrough = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
 
       // First seek: 50 -> 100
       useTrackPlayer.setState({
@@ -498,7 +537,10 @@ describe("event-recording", () => {
 
     it("ignores INTERNAL source seeks", async () => {
       const db = getDb();
-      const playthrough = await createPlaythrough(db);
+      // Don't create start event - we're testing event recording directly
+      const playthrough = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
 
       useTrackPlayer.setState({
         playthrough: {
@@ -524,7 +566,10 @@ describe("event-recording", () => {
 
     it("skips trivial seeks (< 2 seconds)", async () => {
       const db = getDb();
-      const playthrough = await createPlaythrough(db);
+      // Don't create start event - we're testing event recording directly
+      const playthrough = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
 
       useTrackPlayer.setState({
         playthrough: {
@@ -556,9 +601,15 @@ describe("event-recording", () => {
 
     it("flushes pending events when playthrough changes", async () => {
       const db = getDb();
-      const playthrough1 = await createPlaythrough(db);
+      // Don't create start events - we're testing event recording directly
+      const playthrough1 = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
       const media2 = await createMedia(db);
-      const playthrough2 = await createPlaythrough(db, { mediaId: media2.id });
+      const playthrough2 = await createPlaythrough(db, {
+        mediaId: media2.id,
+        createStartEvent: false,
+      });
       // Mock fetch for sync
       const mockFetch = installFetchMock();
       mockGraphQL(mockFetch, {
@@ -611,7 +662,10 @@ describe("event-recording", () => {
 
     it("updates state cache when recording play event", async () => {
       const db = getDb();
-      const playthrough = await createPlaythrough(db);
+      // Don't create start event - we're testing event recording directly
+      const playthrough = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
 
       useTrackPlayer.setState({
         playthrough: {
@@ -636,13 +690,15 @@ describe("event-recording", () => {
       });
 
       expect(cache).not.toBeNull();
-      expect(cache!.currentPosition).toBe(123);
-      expect(cache!.currentRate).toBe(1.5);
+      expect(cache!.position).toBe(123);
     });
 
     it("updates state cache when recording seek event", async () => {
       const db = getDb();
-      const playthrough = await createPlaythrough(db);
+      // Don't create start event - we're testing event recording directly
+      const playthrough = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
 
       useTrackPlayer.setState({
         playthrough: {
@@ -667,8 +723,7 @@ describe("event-recording", () => {
       });
 
       expect(cache).not.toBeNull();
-      expect(cache!.currentPosition).toBe(200);
-      expect(cache!.currentRate).toBe(1.25);
+      expect(cache!.position).toBe(200);
     });
   });
 
@@ -681,7 +736,10 @@ describe("event-recording", () => {
 
     it("does not record events when no session", async () => {
       const db = getDb();
-      const playthrough = await createPlaythrough(db);
+      // Don't create start event - we're testing event recording directly
+      const playthrough = await createPlaythrough(db, {
+        createStartEvent: false,
+      });
 
       useTrackPlayer.setState({
         playthrough: {

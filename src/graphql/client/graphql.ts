@@ -660,12 +660,12 @@ export type DeleteSessionMutationVariables = Exact<{ [key: string]: never; }>;
 
 export type DeleteSessionMutation = { __typename?: 'RootMutationType', deleteSession?: { __typename?: 'DeleteSessionPayload', deleted: boolean } | null };
 
-export type SyncProgressMutationVariables = Exact<{
-  input: SyncProgressInput;
+export type SyncEventsMutationVariables = Exact<{
+  input: SyncEventsInput;
 }>;
 
 
-export type SyncProgressMutation = { __typename?: 'RootMutationType', syncProgress?: { __typename?: 'SyncProgressPayload', serverTime: any, playthroughs: Array<{ __typename?: 'Playthrough', id: string, status: PlaythroughStatus, startedAt: any, finishedAt?: any | null, abandonedAt?: any | null, deletedAt?: any | null, insertedAt: any, updatedAt: any, media: { __typename?: 'Media', id: string } }>, events: Array<{ __typename?: 'PlaybackEvent', id: string, playthroughId: string, deviceId?: string | null, mediaId?: string | null, type: PlaybackEventType, timestamp: any, position?: number | null, playbackRate?: number | null, fromPosition?: number | null, toPosition?: number | null, previousRate?: number | null }> } | null };
+export type SyncEventsMutation = { __typename?: 'RootMutationType', syncEvents?: { __typename?: 'SyncEventsPayload', serverTime: any, events: Array<{ __typename?: 'PlaybackEvent', id: string, playthroughId: string, deviceId?: string | null, mediaId?: string | null, type: PlaybackEventType, timestamp: any, position?: number | null, playbackRate?: number | null, fromPosition?: number | null, toPosition?: number | null, previousRate?: number | null }> } | null };
 
 export class TypedDocumentString<TResult, TVariables>
   extends String
@@ -830,22 +830,9 @@ export const DeleteSessionDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<DeleteSessionMutation, DeleteSessionMutationVariables>;
-export const SyncProgressDocument = new TypedDocumentString(`
-    mutation SyncProgress($input: SyncProgressInput!) {
-  syncProgress(input: $input) {
-    playthroughs {
-      id
-      status
-      startedAt
-      finishedAt
-      abandonedAt
-      deletedAt
-      insertedAt
-      updatedAt
-      media {
-        id
-      }
-    }
+export const SyncEventsDocument = new TypedDocumentString(`
+    mutation SyncEvents($input: SyncEventsInput!) {
+  syncEvents(input: $input) {
     events {
       id
       playthroughId
@@ -862,4 +849,4 @@ export const SyncProgressDocument = new TypedDocumentString(`
     serverTime
   }
 }
-    `) as unknown as TypedDocumentString<SyncProgressMutation, SyncProgressMutationVariables>;
+    `) as unknown as TypedDocumentString<SyncEventsMutation, SyncEventsMutationVariables>;

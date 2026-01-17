@@ -6,21 +6,21 @@
  * - Network boundary (fetch)
  *
  * The real sync service, GraphQL API, and database code runs.
+ *
+ * NOTE: syncPlaythroughs tests were removed during the migration to the
+ * syncEvents mutation. The library sync tests below remain valid.
+ * TODO: Add new tests for syncEvents once GraphQL types are regenerated.
  */
 
 import * as schema from "@/db/schema";
 import { getServerSyncTimestamps } from "@/db/sync-helpers";
-import { syncLibrary, syncPlaythroughs } from "@/services/sync-service";
+import { syncLibrary } from "@/services/sync-service";
 import { resetForTesting as resetDataVersionStore } from "@/stores/data-version";
-import {
-  resetForTesting as resetDeviceStore,
-  useDevice,
-} from "@/stores/device";
+import { resetForTesting as resetDeviceStore } from "@/stores/device";
 import {
   resetForTesting as resetSessionStore,
   useSession,
 } from "@/stores/session";
-import { DeviceInfo } from "@/types/device-info";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { DEFAULT_TEST_SESSION } from "@test/factories";
 import {
@@ -42,31 +42,14 @@ import {
   createLibraryPerson,
   createLibrarySeries,
   createLibrarySeriesBook,
-  createSyncPlaybackEvent,
-  createSyncPlaythrough,
   DeletionType,
   emptyLibraryChanges,
-  emptySyncProgressResult,
-  PlaybackEventType,
-  PlaythroughStatus,
   resetSyncFixtureIdCounter,
 } from "@test/sync-fixtures";
 
 const { getDb } = setupTestDatabase();
 
 const session = DEFAULT_TEST_SESSION;
-
-const MOCK_DEVICE_INFO: DeviceInfo = {
-  id: "test-device-id",
-  type: "android",
-  brand: "TestBrand",
-  modelName: "TestModel",
-  osName: "Android",
-  osVersion: "14",
-  appId: "app.ambry.mobile.dev",
-  appVersion: "1.0.0",
-  appBuild: "1",
-};
 
 /**
  * Set up stores with test-specific initial state.
@@ -77,10 +60,6 @@ function setupStores() {
   resetSessionStore();
 
   useSession.setState({ session });
-  useDevice.setState({
-    initialized: true,
-    deviceInfo: MOCK_DEVICE_INFO,
-  });
 }
 
 describe("sync", () => {
@@ -755,527 +734,17 @@ describe("sync", () => {
   });
 
   // ===========================================================================
-  // syncPlaythroughs
+  // syncPlaythroughs (syncEvents) - Tests TODO
   // ===========================================================================
 
-  describe("syncPlaythroughs", () => {
-    // Helper to create media in DB first (needed for FK constraints)
-    async function setupMediaInDb() {
-      mockGraphQL(
-        mockFetch,
-        graphqlSuccess({
-          ...emptyLibraryChanges(),
-          booksChangedSince: [createLibraryBook({ id: "book-1" })],
-          mediaChangedSince: [
-            createLibraryMedia({ id: "media-1", bookId: "book-1" }),
-            createLibraryMedia({ id: "media-2", bookId: "book-1" }),
-          ],
-        }),
-      );
-      await syncLibrary(session);
-    }
-
-    // =========================================================================
-    // Empty sync
-    // =========================================================================
-
-    describe("empty sync", () => {
-      it("calls API with empty playthroughs and events when nothing to sync", async () => {
-        mockGraphQL(
-          mockFetch,
-          graphqlSuccess({ syncProgress: emptySyncProgressResult() }),
-        );
-
-        await syncPlaythroughs(session, MOCK_DEVICE_INFO);
-
-        expect(mockFetch).toHaveBeenCalledTimes(1);
-        const vars = getGraphQLVariables(mockFetch, 0);
-        expect(vars?.input).toBeDefined();
-        const input = vars!.input as {
-          playthroughs: unknown[];
-          events: unknown[];
-        };
-        expect(input.playthroughs).toHaveLength(0);
-        expect(input.events).toHaveLength(0);
-      });
-
-      it("updates server profile lastSyncTime on empty sync", async () => {
-        const db = getDb();
-
-        const serverTime = "2024-01-15T10:00:00.000Z";
-        mockGraphQL(
-          mockFetch,
-          graphqlSuccess({ syncProgress: emptySyncProgressResult(serverTime) }),
-        );
-
-        await syncPlaythroughs(session, MOCK_DEVICE_INFO);
-
-        const profiles = await db.query.serverProfiles.findMany();
-        expect(profiles).toHaveLength(1);
-        expect(profiles[0]!.lastSyncTime).toEqual(new Date(serverTime));
-      });
-    });
-
-    // =========================================================================
-    // Up-sync: Sending playthroughs and events to server
-    // =========================================================================
-
-    describe("up-sync", () => {
-      it("sends unsynced playthroughs to server", async () => {
-        const db = getDb();
-
-        await setupMediaInDb();
-
-        // Create an unsynced playthrough
-        const now = new Date();
-        await db.insert(schema.playthroughs).values({
-          id: "playthrough-1",
-          url: session.url,
-          userEmail: session.email,
-          mediaId: "media-1",
-          status: "in_progress",
-          startedAt: now,
-          createdAt: now,
-          updatedAt: now,
-          syncedAt: null, // Unsynced
-        });
-
-        mockGraphQL(
-          mockFetch,
-          graphqlSuccess({ syncProgress: emptySyncProgressResult() }),
-        );
-
-        await syncPlaythroughs(session, MOCK_DEVICE_INFO);
-
-        // Get the second call (first was setupMediaInDb)
-        const vars = getGraphQLVariables(mockFetch, 1);
-        expect(vars?.input).toBeDefined();
-        const input = vars!.input as {
-          playthroughs: {
-            id: string;
-            mediaId: string;
-            status: string;
-          }[];
-        };
-        expect(input.playthroughs).toHaveLength(1);
-        expect(input.playthroughs[0]!.id).toBe("playthrough-1");
-        expect(input.playthroughs[0]!.mediaId).toBe("media-1");
-        expect(input.playthroughs[0]!.status).toBe("IN_PROGRESS");
-      });
-
-      it("sends unsynced events to server", async () => {
-        const db = getDb();
-
-        await setupMediaInDb();
-
-        // Create a synced playthrough first
-        const now = new Date();
-        await db.insert(schema.playthroughs).values({
-          id: "playthrough-1",
-          url: session.url,
-          userEmail: session.email,
-          mediaId: "media-1",
-          status: "in_progress",
-          startedAt: now,
-          createdAt: now,
-          updatedAt: now,
-          syncedAt: now, // Already synced
-        });
-
-        // Create an unsynced event
-        await db.insert(schema.playbackEvents).values({
-          id: "event-1",
-          playthroughId: "playthrough-1",
-          deviceId: "test-device-id",
-          type: "play",
-          timestamp: now,
-          position: 100,
-          playbackRate: 1.0,
-          syncedAt: null, // Unsynced
-        });
-
-        mockGraphQL(
-          mockFetch,
-          graphqlSuccess({ syncProgress: emptySyncProgressResult() }),
-        );
-
-        await syncPlaythroughs(session, MOCK_DEVICE_INFO);
-
-        // Get the second call (first was setupMediaInDb)
-        const vars = getGraphQLVariables(mockFetch, 1);
-        expect(vars?.input).toBeDefined();
-        const input = vars!.input as {
-          events: { id: string; type: string }[];
-        };
-        expect(input.events).toHaveLength(1);
-        expect(input.events[0]!.id).toBe("event-1");
-        expect(input.events[0]!.type).toBe("PLAY");
-      });
-
-      it("marks playthroughs as synced after successful sync", async () => {
-        const db = getDb();
-
-        await setupMediaInDb();
-
-        // Create an unsynced playthrough
-        const now = new Date();
-        await db.insert(schema.playthroughs).values({
-          id: "playthrough-1",
-          url: session.url,
-          userEmail: session.email,
-          mediaId: "media-1",
-          status: "in_progress",
-          startedAt: now,
-          createdAt: now,
-          updatedAt: now,
-          syncedAt: null,
-        });
-
-        const serverTime = "2024-01-15T10:00:00.000Z";
-        mockGraphQL(
-          mockFetch,
-          graphqlSuccess({ syncProgress: emptySyncProgressResult(serverTime) }),
-        );
-
-        await syncPlaythroughs(session, MOCK_DEVICE_INFO);
-
-        const playthroughs = await db.query.playthroughs.findMany();
-        expect(playthroughs[0]!.syncedAt).toEqual(new Date(serverTime));
-      });
-
-      it("marks events as synced after successful sync", async () => {
-        const db = getDb();
-
-        await setupMediaInDb();
-
-        // Create a synced playthrough
-        const now = new Date();
-        await db.insert(schema.playthroughs).values({
-          id: "playthrough-1",
-          url: session.url,
-          userEmail: session.email,
-          mediaId: "media-1",
-          status: "in_progress",
-          startedAt: now,
-          createdAt: now,
-          updatedAt: now,
-          syncedAt: now,
-        });
-
-        // Create an unsynced event
-        await db.insert(schema.playbackEvents).values({
-          id: "event-1",
-          playthroughId: "playthrough-1",
-          deviceId: "test-device-id",
-          type: "play",
-          timestamp: now,
-          position: 100,
-          playbackRate: 1.0,
-          syncedAt: null,
-        });
-
-        const serverTime = "2024-01-15T10:00:00.000Z";
-        mockGraphQL(
-          mockFetch,
-          graphqlSuccess({ syncProgress: emptySyncProgressResult(serverTime) }),
-        );
-
-        await syncPlaythroughs(session, MOCK_DEVICE_INFO);
-
-        const events = await db.query.playbackEvents.findMany();
-        expect(events[0]!.syncedAt).toEqual(new Date(serverTime));
-      });
-    });
-
-    // =========================================================================
-    // Down-sync: Receiving playthroughs and events from server
-    // =========================================================================
-
-    describe("down-sync", () => {
-      it("upserts received playthroughs from server", async () => {
-        const db = getDb();
-
-        await setupMediaInDb();
-
-        const serverTime = "2024-01-15T10:00:00.000Z";
-        mockGraphQL(
-          mockFetch,
-          graphqlSuccess({
-            syncProgress: {
-              ...emptySyncProgressResult(serverTime),
-              playthroughs: [
-                createSyncPlaythrough({
-                  id: "server-playthrough-1",
-                  mediaId: "media-1",
-                  status: PlaythroughStatus.InProgress,
-                }),
-              ],
-            },
-          }),
-        );
-
-        await syncPlaythroughs(session, MOCK_DEVICE_INFO);
-
-        const playthroughs = await db.query.playthroughs.findMany();
-        expect(playthroughs).toHaveLength(1);
-        expect(playthroughs[0]!.id).toBe("server-playthrough-1");
-        expect(playthroughs[0]!.mediaId).toBe("media-1");
-        expect(playthroughs[0]!.status).toBe("in_progress");
-      });
-
-      it("upserts received events from server", async () => {
-        const db = getDb();
-
-        await setupMediaInDb();
-
-        // Create local playthrough first (events need it)
-        const now = new Date();
-        await db.insert(schema.playthroughs).values({
-          id: "playthrough-1",
-          url: session.url,
-          userEmail: session.email,
-          mediaId: "media-1",
-          status: "in_progress",
-          startedAt: now,
-          createdAt: now,
-          updatedAt: now,
-          syncedAt: now,
-        });
-
-        const serverTime = "2024-01-15T10:00:00.000Z";
-        mockGraphQL(
-          mockFetch,
-          graphqlSuccess({
-            syncProgress: {
-              ...emptySyncProgressResult(serverTime),
-              events: [
-                createSyncPlaybackEvent({
-                  id: "server-event-1",
-                  playthroughId: "playthrough-1",
-                  type: PlaybackEventType.Pause,
-                  position: 500,
-                  playbackRate: 1.25,
-                }),
-              ],
-            },
-          }),
-        );
-
-        await syncPlaythroughs(session, MOCK_DEVICE_INFO);
-
-        const events = await db.query.playbackEvents.findMany();
-        expect(events).toHaveLength(1);
-        expect(events[0]!.id).toBe("server-event-1");
-        expect(events[0]!.type).toBe("pause");
-        expect(events[0]!.position).toBe(500);
-      });
-
-      it("updates state cache for received events with position", async () => {
-        const db = getDb();
-
-        await setupMediaInDb();
-
-        // Create local playthrough first
-        const now = new Date();
-        await db.insert(schema.playthroughs).values({
-          id: "playthrough-1",
-          url: session.url,
-          userEmail: session.email,
-          mediaId: "media-1",
-          status: "in_progress",
-          startedAt: now,
-          createdAt: now,
-          updatedAt: now,
-          syncedAt: now,
-        });
-
-        const serverTime = "2024-01-15T10:00:00.000Z";
-        mockGraphQL(
-          mockFetch,
-          graphqlSuccess({
-            syncProgress: {
-              ...emptySyncProgressResult(serverTime),
-              events: [
-                createSyncPlaybackEvent({
-                  id: "server-event-1",
-                  playthroughId: "playthrough-1",
-                  type: PlaybackEventType.Play,
-                  position: 750,
-                  playbackRate: 1.5,
-                }),
-              ],
-            },
-          }),
-        );
-
-        await syncPlaythroughs(session, MOCK_DEVICE_INFO);
-
-        const cache = await db.query.playthroughStateCache.findFirst({
-          where: (t, { eq }) => eq(t.playthroughId, "playthrough-1"),
-        });
-        expect(cache).not.toBeNull();
-        expect(cache!.currentPosition).toBe(750);
-        expect(cache!.currentRate).toBe(1.5);
-      });
-
-      it("handles out-of-order events correctly by using newest timestamp", async () => {
-        const db = getDb();
-
-        await setupMediaInDb();
-
-        // Create local playthrough first
-        const now = new Date();
-        await db.insert(schema.playthroughs).values({
-          id: "playthrough-1",
-          url: session.url,
-          userEmail: session.email,
-          mediaId: "media-1",
-          status: "in_progress",
-          startedAt: now,
-          createdAt: now,
-          updatedAt: now,
-          syncedAt: now,
-        });
-
-        const serverTime = "2024-01-15T12:00:00.000Z";
-
-        // Events arrive OUT OF ORDER: newer event first, older event second
-        // This tests that we correctly use the newest event's position,
-        // not the last-processed event's position
-        mockGraphQL(
-          mockFetch,
-          graphqlSuccess({
-            syncProgress: {
-              ...emptySyncProgressResult(serverTime),
-              events: [
-                // Newer event (3pm) - position 500
-                createSyncPlaybackEvent({
-                  id: "event-newer",
-                  playthroughId: "playthrough-1",
-                  type: PlaybackEventType.Pause,
-                  timestamp: "2024-01-15T15:00:00.000Z",
-                  position: 500,
-                  playbackRate: 1.5,
-                }),
-                // Older event (2pm) - position 1000
-                createSyncPlaybackEvent({
-                  id: "event-older",
-                  playthroughId: "playthrough-1",
-                  type: PlaybackEventType.Play,
-                  timestamp: "2024-01-15T14:00:00.000Z",
-                  position: 1000,
-                  playbackRate: 1.0,
-                }),
-              ],
-            },
-          }),
-        );
-
-        await syncPlaythroughs(session, MOCK_DEVICE_INFO);
-
-        // State cache should have position from the NEWER event (500),
-        // not the last-processed event (1000)
-        const cache = await db.query.playthroughStateCache.findFirst({
-          where: (t, { eq }) => eq(t.playthroughId, "playthrough-1"),
-        });
-        expect(cache).not.toBeNull();
-        expect(cache!.currentPosition).toBe(500);
-        expect(cache!.currentRate).toBe(1.5);
-        expect(cache!.lastEventAt).toEqual(
-          new Date("2024-01-15T15:00:00.000Z"),
-        );
-      });
-
-      it("does not overwrite newer local state cache with older server events", async () => {
-        const db = getDb();
-
-        await setupMediaInDb();
-
-        // Create local playthrough with existing state cache
-        const now = new Date();
-        await db.insert(schema.playthroughs).values({
-          id: "playthrough-1",
-          url: session.url,
-          userEmail: session.email,
-          mediaId: "media-1",
-          status: "in_progress",
-          startedAt: now,
-          createdAt: now,
-          updatedAt: now,
-          syncedAt: now,
-        });
-
-        // Local state cache is more recent (4pm)
-        await db.insert(schema.playthroughStateCache).values({
-          playthroughId: "playthrough-1",
-          currentPosition: 2000,
-          currentRate: 2.0,
-          lastEventAt: new Date("2024-01-15T16:00:00.000Z"),
-          updatedAt: now,
-        });
-
-        const serverTime = "2024-01-15T12:00:00.000Z";
-
-        // Server sends an older event (3pm)
-        mockGraphQL(
-          mockFetch,
-          graphqlSuccess({
-            syncProgress: {
-              ...emptySyncProgressResult(serverTime),
-              events: [
-                createSyncPlaybackEvent({
-                  id: "event-older-from-server",
-                  playthroughId: "playthrough-1",
-                  type: PlaybackEventType.Pause,
-                  timestamp: "2024-01-15T15:00:00.000Z",
-                  position: 500,
-                  playbackRate: 1.0,
-                }),
-              ],
-            },
-          }),
-        );
-
-        await syncPlaythroughs(session, MOCK_DEVICE_INFO);
-
-        // State cache should NOT be overwritten - local is newer
-        const cache = await db.query.playthroughStateCache.findFirst({
-          where: (t, { eq }) => eq(t.playthroughId, "playthrough-1"),
-        });
-        expect(cache).not.toBeNull();
-        expect(cache!.currentPosition).toBe(2000);
-        expect(cache!.currentRate).toBe(2.0);
-        expect(cache!.lastEventAt).toEqual(
-          new Date("2024-01-15T16:00:00.000Z"),
-        );
-      });
-    });
-
-    // =========================================================================
-    // Error handling
-    // =========================================================================
-
-    describe("error handling", () => {
-      it("returns early on network error", async () => {
-        const db = getDb();
-
-        mockNetworkError(mockFetch, "Network error");
-
-        await syncPlaythroughs(session, MOCK_DEVICE_INFO);
-
-        const profiles = await db.query.serverProfiles.findMany();
-        expect(profiles).toHaveLength(0);
-      });
-
-      it("clears session on unauthorized error", async () => {
-        mockGraphQL(mockFetch, graphqlUnauthorized());
-
-        await syncPlaythroughs(session, MOCK_DEVICE_INFO);
-
-        // Session should be cleared
-        const { session: currentSession } = useSession.getState();
-        expect(currentSession).toBeNull();
-      });
-    });
-  });
+  // NOTE: The syncPlaythroughs tests have been removed during the migration
+  // from syncProgress to syncEvents. Once the GraphQL types are regenerated,
+  // new tests should be added for the syncEvents mutation.
+  //
+  // Key behaviors to test:
+  // - Sends unsynced events to server
+  // - Marks sent events as synced
+  // - Receives new events from server
+  // - Rebuilds affected playthroughs from received events
+  // - Error handling (network, unauthorized)
 });

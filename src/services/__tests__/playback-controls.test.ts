@@ -98,7 +98,7 @@ async function createFullPlaythroughSetup(
     mediaId: media.id,
     status: options.status ?? "in_progress",
     position: options.position,
-    rate: options.rate,
+    playbackRate: options.rate,
   });
 
   // Create user settings for active playthrough storage

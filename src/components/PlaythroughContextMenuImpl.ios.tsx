@@ -5,7 +5,11 @@ import { frame } from "@expo/ui/swift-ui/modifiers";
 
 import { Colors } from "@/styles/colors";
 
-export type PlaythroughStatus = "in_progress" | "finished" | "abandoned";
+export type PlaythroughStatus =
+  | "in_progress"
+  | "finished"
+  | "abandoned"
+  | "deleted";
 
 export type PlaythroughContextMenuImplProps = {
   status: PlaythroughStatus;

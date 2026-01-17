@@ -166,8 +166,15 @@ function PlaythroughRow({
   mediaDuration,
 }: PlaythroughRowProps) {
   const debugModeEnabled = useDebug((state) => state.debugModeEnabled);
-  const position = playthrough.stateCache?.currentPosition ?? 0;
-  const rate = playthrough.stateCache?.currentRate ?? 1;
+  // Use cache position if newer than playthrough position, otherwise use playthrough position
+  const cachePosition =
+    playthrough.stateCache?.position ?? playthrough.position;
+  const cacheUpdatedAt = playthrough.stateCache?.updatedAt ?? new Date(0);
+  const position =
+    cacheUpdatedAt > playthrough.lastEventAt
+      ? cachePosition
+      : playthrough.position;
+  const rate = playthrough.playbackRate;
   const duration = mediaDuration ?? 0;
   const percentage = duration > 0 ? Math.round((position / duration) * 100) : 0;
   const remainingBookTime = duration - position;
@@ -176,10 +183,10 @@ function PlaythroughRow({
 
   const statusDate =
     playthrough.status === "finished"
-      ? (playthrough.finishedAt ?? playthrough.updatedAt)
+      ? (playthrough.finishedAt ?? playthrough.lastEventAt)
       : playthrough.status === "abandoned"
-        ? (playthrough.abandonedAt ?? playthrough.updatedAt)
-        : (playthrough.stateCache?.lastEventAt ?? playthrough.updatedAt);
+        ? (playthrough.abandonedAt ?? playthrough.lastEventAt)
+        : playthrough.lastEventAt;
 
   const statusIcon =
     playthrough.status === "in_progress"
