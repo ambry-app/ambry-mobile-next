@@ -425,7 +425,7 @@ export const playthroughs = sqliteTable(
     userEmail: text("user_email").notNull(),
     mediaId: text("media_id").notNull(),
     status: text("status", {
-      enum: ["in_progress", "finished", "abandoned"],
+      enum: ["in_progress", "finished", "abandoned", "deleted"],
     })
       .notNull()
       .default("in_progress"),
@@ -433,9 +433,10 @@ export const playthroughs = sqliteTable(
     finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
     abandonedAt: integer("abandoned_at", { mode: "timestamp_ms" }),
     deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
-    syncedAt: integer("synced_at", { mode: "timestamp_ms" }),
+    position: real("position").notNull(),
+    playbackRate: real("playback_rate").notNull(),
+    lastEventAt: integer("last_event_at", { mode: "timestamp_ms" }).notNull(),
+    refreshedAt: integer("refreshed_at", { mode: "timestamp_ms" }).notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.url, table.id] }),
@@ -448,7 +449,6 @@ export const playthroughs = sqliteTable(
       table.userEmail,
       table.mediaId,
     ),
-    index("playthroughs_synced_at_idx").on(table.syncedAt),
   ],
 );
 
@@ -515,13 +515,10 @@ export const playbackEventsRelations = relations(playbackEvents, ({ one }) => ({
   }),
 }));
 
-// Derived state cache for fast queries (computed from events)
+// Cache for the heartbeat service to store the current position for crash recovery.
 export const playthroughStateCache = sqliteTable("playthrough_state_cache", {
   playthroughId: text("playthrough_id").primaryKey(),
-  currentPosition: real("current_position").notNull(),
-  currentRate: real("current_rate").notNull(),
-  lastEventAt: integer("last_event_at", { mode: "timestamp_ms" }).notNull(),
-  totalListeningTime: real("total_listening_time"),
+  position: real("position").notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
