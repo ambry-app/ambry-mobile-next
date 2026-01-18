@@ -224,7 +224,6 @@ export async function migrateFromPlayerStateToPlaythrough(
       type: "pause",
       timestamp: pauseTs, // When user last played
       position: playerState.position,
-      playbackRate: playerState.playbackRate,
       syncedAt: null, // Mark for sync
     });
 
