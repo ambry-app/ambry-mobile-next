@@ -272,7 +272,7 @@ describe("migrateFromPlayerStateToPlaythrough", () => {
     expect(playthroughs).toHaveLength(1);
     expect(playthroughs[0]).toMatchObject({
       status: "finished",
-      finishedAt: new Date(updatedAt * 1000),
+      finishedAt: new Date(updatedAt * 1000 + 1), // Add 1ms
     });
 
     // Verify start, pause, and finish events
@@ -286,7 +286,7 @@ describe("migrateFromPlayerStateToPlaythrough", () => {
     expect(events[0]!.timestamp).toEqual(new Date(insertedAt * 1000));
     expect(events[1]!.type).toBe("pause");
     expect(events[2]!.type).toBe("finish");
-    expect(events[2]!.timestamp).toEqual(new Date(updatedAt * 1000));
+    expect(events[2]!.timestamp).toEqual(new Date(updatedAt * 1000 + 1)); // Add 1ms
   });
 
   it("skips not_started states (no playthrough created)", async () => {
@@ -323,6 +323,7 @@ describe("migrateFromPlayerStateToPlaythrough", () => {
       position: 100.0,
       playbackRate: 1.0,
       status: "in_progress",
+      insertedAt: 1699999000, // Explicit insertedAt
       updatedAt: 1700000000,
     });
 
@@ -334,6 +335,7 @@ describe("migrateFromPlayerStateToPlaythrough", () => {
       position: 200.0,
       playbackRate: 1.5,
       status: "in_progress",
+      insertedAt: 1700000000, // Explicit insertedAt
       updatedAt: 1700001000,
     });
 

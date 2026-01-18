@@ -182,9 +182,26 @@ export async function migrateFromPlayerStateToPlaythrough(
     );
 
     const playthroughId = randomUUID();
-    // SQLite timestamps are in seconds, convert to milliseconds for Date
-    const startedAt = new Date(playerState.insertedAt * 1000);
-    const updatedAt = new Date(playerState.updatedAt * 1000);
+
+    // Create ordered timestamps for synthetic events.
+    // Timestamps can be identical in source data, so we add 1ms offsets
+    // to ensure they are always in chronological order for sorting.
+    const startTs = new Date(playerState.insertedAt * 1000);
+    let pauseTs = new Date(playerState.updatedAt * 1000);
+
+    // Ensure pause is after start
+    if (pauseTs.getTime() <= startTs.getTime()) {
+      pauseTs = new Date(startTs.getTime() + 1);
+    }
+
+    let finishTs: Date | null = null;
+    if (playerState.status === "finished") {
+      // Ensure finish is after pause
+      finishTs = new Date(pauseTs.getTime() + 1);
+    }
+
+    // The last event timestamp will be used for the state cache
+    const lastEventTs = finishTs ?? pauseTs;
 
     // Create synthetic start event
     await db.insert(schema.playbackEvents).values({
@@ -193,7 +210,7 @@ export async function migrateFromPlayerStateToPlaythrough(
       deviceId,
       mediaId: playerState.mediaId, // Identifies the media being played
       type: "start",
-      timestamp: startedAt, // When user first started playing
+      timestamp: startTs, // When user first started playing
       position: 0, // Start events always begin at position 0
       playbackRate: playerState.playbackRate,
       syncedAt: null, // Mark for sync
@@ -205,7 +222,7 @@ export async function migrateFromPlayerStateToPlaythrough(
       playthroughId,
       deviceId,
       type: "pause",
-      timestamp: updatedAt, // When user last played
+      timestamp: pauseTs, // When user last played
       position: playerState.position,
       playbackRate: playerState.playbackRate,
       syncedAt: null, // Mark for sync
@@ -218,7 +235,7 @@ export async function migrateFromPlayerStateToPlaythrough(
         playthroughId,
         deviceId,
         type: "finish",
-        timestamp: updatedAt, // When user finished
+        timestamp: finishTs!, // When user finished
         syncedAt: null, // Mark for sync
       });
     }
@@ -235,7 +252,7 @@ export async function migrateFromPlayerStateToPlaythrough(
     await db.insert(schema.playthroughStateCache).values({
       playthroughId,
       position: playerState.position,
-      updatedAt, // Match playthrough's lastEventAt
+      updatedAt: lastEventTs, // Match playthrough's lastEventAt
     });
   }
 
