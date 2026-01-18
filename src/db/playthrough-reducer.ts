@@ -185,6 +185,7 @@ export async function rebuildPlaythrough(
   playthroughId: string,
   session: Session,
   db: Database = getDb(),
+  refreshedAt: Date,
 ): Promise<void> {
   log.debug(`Rebuilding playthrough ${playthroughId}`);
 
@@ -254,7 +255,7 @@ export async function rebuildPlaythrough(
         position: playthroughData.position,
         playbackRate: playthroughData.playbackRate,
         lastEventAt: playthroughData.lastEventAt,
-        refreshedAt: playthroughData.refreshedAt,
+        refreshedAt,
       },
     });
 
@@ -272,14 +273,14 @@ export async function rebuildPlaythrough(
 export async function rebuildPlaythroughs(
   playthroughIds: string[],
   session: Session,
+  tx: Database,
+  refreshedAt: Date,
 ): Promise<void> {
   if (playthroughIds.length === 0) return;
 
   log.info(`Rebuilding ${playthroughIds.length} playthroughs`);
 
-  await getDb().transaction(async (tx) => {
-    for (const playthroughId of playthroughIds) {
-      await rebuildPlaythrough(playthroughId, session, tx);
-    }
-  });
+  for (const playthroughId of playthroughIds) {
+    await rebuildPlaythrough(playthroughId, session, tx, refreshedAt);
+  }
 }

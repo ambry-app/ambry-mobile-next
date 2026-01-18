@@ -563,6 +563,10 @@ export const serverProfiles = sqliteTable(
     userEmail: text("user_email").notNull(),
     // timestamp of last playthrough sync (bidirectional - send unsynced + receive server updates)
     lastSyncTime: integer("last_sync_time", { mode: "timestamp_ms" }),
+    // timestamp of the last time a full sync was run for this profile.
+    lastFullPlaythroughSyncTime: integer("last_full_playthrough_sync_time", {
+      mode: "timestamp_ms",
+    }),
     // the playthrough that was last loaded into the player on this device
     activePlaythroughId: text("active_playthrough_id"),
   },

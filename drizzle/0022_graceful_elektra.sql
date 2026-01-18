@@ -1,0 +1,1 @@
+ALTER TABLE `server_profiles` ADD `last_full_playthrough_sync_time` integer;

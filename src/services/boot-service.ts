@@ -62,9 +62,14 @@ export function useAppBoot() {
       log.info("Starting boot sequence");
 
       await initializeDevice();
-      const { needsInitialSync } = await initializeDataVersion(session);
+      const { needsInitialSync, needsFullPlaythroughResync } =
+        await initializeDataVersion(session);
 
-      if (needsInitialSync) {
+      if (needsFullPlaythroughResync) {
+        log.info("Starting one-time full event resync");
+        await sync(session, { fullEventResync: true });
+        log.info("One-time full event resync complete");
+      } else if (needsInitialSync) {
         log.info("Starting initial sync");
         await sync(session);
         log.info("Initial sync complete");

@@ -23,6 +23,7 @@ import m0018 from "./0018_cultured_fantastic_four.sql";
 import m0019 from "./0019_dry_micromacro.sql";
 import m0020 from "./0020_smiling_betty_brant.sql";
 import m0021 from "./0021_violet_reavers.sql";
+import m0022 from "./0022_graceful_elektra.sql";
 
 export default {
   journal,
@@ -49,5 +50,6 @@ export default {
     m0019,
     m0020,
     m0021,
+    m0022,
   },
 };

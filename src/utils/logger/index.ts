@@ -65,6 +65,8 @@ const extensionColors: Record<string, Color> = {
   "playthrough-query": "#d55c65",
   "event-recording": "#ca4c55",
   "position-heartbeat": "#bf3c45",
+  "playthrough-reducer": "#e06c75",
+  playthroughs: "#d55c65",
 
   // ---------------------------------------------------------------------------
   // Sync/Data Family (Blue/Cyan) - API, sync, database operations

@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/db";
-import { rebuildPlaythrough } from "@/db/playthrough-reducer";
+import { rebuildPlaythroughs } from "@/db/playthrough-reducer";
 import {
   getAllUnsyncedEvents,
   markEventsSynced,
@@ -622,19 +622,12 @@ export async function applyEventSyncResult(
 
     // Rebuild affected playthroughs from their events
     // This ensures client and server have identical derived state
-    if (affectedPlaythroughIds.size > 0) {
-      log.debug(`Rebuilding ${affectedPlaythroughIds.size} playthroughs`);
-
-      for (const playthroughId of affectedPlaythroughIds) {
-        try {
-          await rebuildPlaythrough(playthroughId, session, tx);
-        } catch (error) {
-          // Log but don't fail sync - playthrough may be from another user
-          // or events may be incomplete
-          log.warn(`Failed to rebuild playthrough ${playthroughId}:`, error);
-        }
-      }
-    }
+    await rebuildPlaythroughs(
+      Array.from(affectedPlaythroughIds),
+      session,
+      tx,
+      serverTime,
+    );
 
     // Update server profile with new sync time
     await tx

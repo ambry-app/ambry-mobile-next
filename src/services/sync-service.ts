@@ -9,6 +9,7 @@ import {
   getLastLibrarySyncInfo,
   LibraryChangesInput,
 } from "@/db/sync";
+import { setLastFullPlaythroughSyncTime } from "@/db/sync-helpers";
 import {
   DeviceTypeInput,
   getLibraryChangesSince,
@@ -101,6 +102,11 @@ export async function syncLibrary(session: Session): Promise<void> {
 // Event Sync (V2 - events only, playthroughs derived)
 // =============================================================================
 
+interface SyncPlaybackEventsOptions {
+  fullResync?: boolean;
+  deviceInfoOverride?: DeviceInfo;
+}
+
 // Mapping from local types to GraphQL enums
 const deviceTypeMap: Record<string, DeviceTypeInput> = {
   ios: DeviceTypeInput.Ios,
@@ -121,9 +127,15 @@ const eventTypeMap: Record<string, PlaybackEventType> = {
 
 export async function syncPlaybackEvents(
   session: Session,
-  deviceInfoOverride?: DeviceInfo,
+  options: SyncPlaybackEventsOptions = {},
 ): Promise<void> {
-  log.debug("Syncing events (V2)");
+  const { fullResync = false, deviceInfoOverride } = options;
+
+  if (fullResync) {
+    log.info("Performing full event resync");
+  } else {
+    log.debug("Syncing events (V2)");
+  }
 
   // 1. Get unsynced events from DB
   const deviceInfo = deviceInfoOverride ?? (await getDeviceInfo());
@@ -131,7 +143,7 @@ export async function syncPlaybackEvents(
 
   // 2. Build GraphQL input (events only - no playthroughs)
   const input: SyncEventsInput = {
-    lastSyncTime: syncData.lastSyncTime,
+    lastSyncTime: fullResync ? null : syncData.lastSyncTime,
     device: {
       id: deviceInfo.id,
       type: deviceTypeMap[deviceInfo.type] ?? DeviceTypeInput.Android,
@@ -181,7 +193,12 @@ export async function syncPlaybackEvents(
     syncData.unsyncedEvents.map((e) => e.id),
   );
 
-  // 5. Notify UI that playthrough data changed
+  // 5. If this was a full resync, update the timestamp
+  if (fullResync) {
+    await setLastFullPlaythroughSyncTime(session, new Date());
+  }
+
+  // 6. Notify UI that playthrough data changed
   bumpPlaythroughDataVersion();
 
   log.debug("Event sync complete");
@@ -192,8 +209,16 @@ export async function syncPlaybackEvents(
 // Combined Sync
 // =============================================================================
 
-export async function sync(session: Session) {
-  return Promise.all([syncLibrary(session), syncPlaybackEvents(session)]);
+interface SyncOptions {
+  fullEventResync?: boolean;
+}
+
+export async function sync(session: Session, options: SyncOptions = {}) {
+  const { fullEventResync = false } = options;
+  return Promise.all([
+    syncLibrary(session),
+    syncPlaybackEvents(session, { fullResync: fullEventResync }),
+  ]);
 }
 
 // =============================================================================

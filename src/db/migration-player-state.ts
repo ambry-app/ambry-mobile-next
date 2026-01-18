@@ -242,11 +242,16 @@ export async function migrateFromPlayerStateToPlaythrough(
 
     // Rebuild playthrough from events using the shared reducer
     // This creates the playthrough record with correct derived state
-    await rebuildPlaythrough(playthroughId, {
-      url: playerState.url,
-      email: playerState.userEmail,
-      token: "", // Not used by rebuildPlaythrough
-    });
+    await rebuildPlaythrough(
+      playthroughId,
+      {
+        url: playerState.url,
+        email: playerState.userEmail,
+        token: "", // Not used by rebuildPlaythrough
+      },
+      db,
+      new Date(),
+    );
 
     // Create state cache for crash recovery
     await db.insert(schema.playthroughStateCache).values({

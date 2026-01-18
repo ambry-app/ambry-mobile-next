@@ -279,7 +279,7 @@ export async function recordStartEvent(
 
   await getDb().transaction(async (tx) => {
     await tx.insert(schema.playbackEvents).values(event);
-    await rebuildPlaythrough(playthroughId, session, tx);
+    await rebuildPlaythrough(playthroughId, session, tx, now);
   });
 
   log.info(`Recorded start event for new playthrough ${playthroughId}`);
@@ -312,7 +312,7 @@ export async function recordPlayPauseEvent(
   await getDb().transaction(async (tx) => {
     await tx.insert(schema.playbackEvents).values(event);
     await updateStateCache(playthroughId, eventInput.position, tx);
-    await rebuildPlaythrough(playthroughId, session, tx);
+    await rebuildPlaythrough(playthroughId, session, tx, new Date());
   });
 
   log.info(
@@ -347,7 +347,7 @@ export async function recordSeekEvent(
   await getDb().transaction(async (tx) => {
     await tx.insert(schema.playbackEvents).values(event);
     await updateStateCache(playthroughId, eventInput.position, tx);
-    await rebuildPlaythrough(playthroughId, session, tx);
+    await rebuildPlaythrough(playthroughId, session, tx, new Date());
   });
 
   log.info(`Recorded seek event for playthrough ${playthroughId}`);
@@ -380,7 +380,7 @@ export async function recordRateChangeEvent(
   await getDb().transaction(async (tx) => {
     await tx.insert(schema.playbackEvents).values(event);
     await updateStateCache(playthroughId, eventInput.position, tx);
-    await rebuildPlaythrough(playthroughId, session, tx);
+    await rebuildPlaythrough(playthroughId, session, tx, new Date());
   });
 
   log.info(`Recorded rate_change event for playthrough ${playthroughId}`);
@@ -412,7 +412,7 @@ export async function recordLifecycleEvent(
 
   await getDb().transaction(async (tx) => {
     await tx.insert(schema.playbackEvents).values(event);
-    await rebuildPlaythrough(playthroughId, session, tx);
+    await rebuildPlaythrough(playthroughId, session, tx, event.timestamp);
   });
 
   log.info(`Recorded ${type} event for playthrough ${playthroughId}`);
