@@ -221,6 +221,31 @@ export async function getAllPlaythroughsForMedia(
 // transaction, ensuring the playthrough state is always consistent with events.
 // =============================================================================
 
+export type PlayEventInput = {
+  type: "play";
+  timestamp: Date;
+  position: number;
+};
+
+export type PauseEventInput = {
+  type: "pause";
+  timestamp: Date;
+  position: number;
+};
+
+export type SeekEventInput = {
+  timestamp: Date;
+  position: number;
+  fromPosition: number;
+  toPosition: number;
+};
+
+export type RateChangeEventInput = {
+  timestamp: Date;
+  position: number;
+  playbackRate: number;
+};
+
 /**
  * Record a start event for a new playthrough.
  * Creates a new playthrough by inserting a start event and rebuilding.
@@ -262,53 +287,103 @@ export async function recordStartEvent(
 }
 
 /**
- * Record a playback event (play, pause, seek, rate_change).
+ * Record a play or a pause playback event.
  * Inserts the event, updates state cache, and rebuilds the playthrough atomically.
  *
  * @param session - Current session
  * @param playthroughId - The playthrough this event belongs to
  * @param deviceId - The device recording this event
- * @param type - Event type (play, pause, seek, rate_change)
- * @param timestamp - When the event occurred
- * @param position - Current playback position
- * @param playbackRate - Current playback rate
- * @param extras - Additional fields for seek/rate_change events
+ * @param eventInput - Event details
  */
-export async function recordPlaybackEvent(
+export async function recordPlayPauseEvent(
   session: Session,
   playthroughId: string,
   deviceId: string,
-  type: "play" | "pause" | "seek" | "rate_change",
-  timestamp: Date,
-  position: number,
-  playbackRate: number,
-  extras?: {
-    fromPosition?: number;
-    toPosition?: number;
-    previousRate?: number;
-  },
+  eventInput: PlayEventInput | PauseEventInput,
 ): Promise<void> {
   const event: PlaybackEventInsert = {
     id: randomUUID(),
     playthroughId,
     deviceId,
-    type,
-    timestamp,
-    position,
-    playbackRate,
-    fromPosition: extras?.fromPosition,
-    toPosition: extras?.toPosition,
-    previousRate: extras?.previousRate,
     syncedAt: null,
+    ...eventInput,
   };
 
   await getDb().transaction(async (tx) => {
     await tx.insert(schema.playbackEvents).values(event);
-    await updateStateCache(playthroughId, position, tx);
+    await updateStateCache(playthroughId, eventInput.position, tx);
     await rebuildPlaythrough(playthroughId, session, tx);
   });
 
-  log.info(`Recorded ${type} event for playthrough ${playthroughId}`);
+  log.info(
+    `Recorded ${eventInput.type} event for playthrough ${playthroughId}`,
+  );
+}
+
+/**
+ * Record a seek playback event.
+ * Inserts the event, updates state cache, and rebuilds the playthrough atomically.
+ *
+ * @param session - Current session
+ * @param playthroughId - The playthrough this event belongs to
+ * @param deviceId - The device recording this event
+ * @param eventInput - Event details
+ */
+export async function recordSeekEvent(
+  session: Session,
+  playthroughId: string,
+  deviceId: string,
+  eventInput: SeekEventInput,
+): Promise<void> {
+  const event: PlaybackEventInsert = {
+    id: randomUUID(),
+    playthroughId,
+    deviceId,
+    type: "seek",
+    syncedAt: null,
+    ...eventInput,
+  };
+
+  await getDb().transaction(async (tx) => {
+    await tx.insert(schema.playbackEvents).values(event);
+    await updateStateCache(playthroughId, eventInput.position, tx);
+    await rebuildPlaythrough(playthroughId, session, tx);
+  });
+
+  log.info(`Recorded seek event for playthrough ${playthroughId}`);
+}
+
+/**
+ * Record a rate change playback event.
+ * Inserts the event, updates state cache, and rebuilds the playthrough atomically.
+ *
+ * @param session - Current session
+ * @param playthroughId - The playthrough this event belongs to
+ * @param deviceId - The device recording this event
+ * @param eventInput - Event details
+ */
+export async function recordRateChangeEvent(
+  session: Session,
+  playthroughId: string,
+  deviceId: string,
+  eventInput: RateChangeEventInput,
+): Promise<void> {
+  const event: PlaybackEventInsert = {
+    id: randomUUID(),
+    playthroughId,
+    deviceId,
+    type: "rate_change",
+    syncedAt: null,
+    ...eventInput,
+  };
+
+  await getDb().transaction(async (tx) => {
+    await tx.insert(schema.playbackEvents).values(event);
+    await updateStateCache(playthroughId, eventInput.position, tx);
+    await rebuildPlaythrough(playthroughId, session, tx);
+  });
+
+  log.info(`Recorded rate_change event for playthrough ${playthroughId}`);
 }
 
 /**

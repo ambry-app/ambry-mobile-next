@@ -128,7 +128,6 @@ describe("event-recording", () => {
       const playEvents = events.filter((e) => e.type === "play");
       expect(playEvents).toHaveLength(1);
       expect(playEvents[0]!.position).toBe(50);
-      expect(playEvents[0]!.playbackRate).toBe(1.0);
     });
 
     it("records pause event after debounce window", async () => {
@@ -162,7 +161,6 @@ describe("event-recording", () => {
       const pauseEvents = events.filter((e) => e.type === "pause");
       expect(pauseEvents).toHaveLength(1);
       expect(pauseEvents[0]!.position).toBe(75);
-      expect(pauseEvents[0]!.playbackRate).toBe(1.5);
     });
 
     it("ignores INTERNAL source events", async () => {
@@ -272,7 +270,6 @@ describe("event-recording", () => {
       const rateChangeEvents = events.filter((e) => e.type === "rate_change");
       expect(rateChangeEvents).toHaveLength(1);
       expect(rateChangeEvents[0]!.type).toBe("rate_change");
-      expect(rateChangeEvents[0]!.previousRate).toBe(1.0);
       expect(rateChangeEvents[0]!.playbackRate).toBe(1.5);
       expect(rateChangeEvents[0]!.position).toBe(100);
     });
@@ -330,7 +327,6 @@ describe("event-recording", () => {
       const events = await getAllPlaybackEvents();
       const rateChangeEvents = events.filter((e) => e.type === "rate_change");
       expect(rateChangeEvents).toHaveLength(1);
-      expect(rateChangeEvents[0]!.previousRate).toBe(1.0);
       expect(rateChangeEvents[0]!.playbackRate).toBe(2.0);
     });
 

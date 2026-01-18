@@ -26,7 +26,11 @@ import {
   RATE_CHANGE_EVENT_ACCUMULATION_WINDOW,
   SEEK_EVENT_ACCUMULATION_WINDOW,
 } from "@/constants";
-import { recordPlaybackEvent } from "@/db/playthroughs";
+import {
+  recordPlayPauseEvent,
+  recordRateChangeEvent,
+  recordSeekEvent,
+} from "@/db/playthroughs";
 import { getDeviceInfo } from "@/stores/device";
 import { useSession } from "@/stores/session";
 import {
@@ -55,7 +59,6 @@ type PendingPlayPauseEvent = {
   timestamp: Date;
   playthroughId: string;
   position: number;
-  playbackRate: number;
 };
 
 type PendingRateChangeEvent = {
@@ -71,7 +74,6 @@ type PendingSeekEvent = {
   to: number;
   timestamp: Date;
   playthroughId: string;
-  playbackRate: number;
 };
 
 let playPauseEventTimer: NodeJS.Timeout | null = null;
@@ -174,7 +176,6 @@ function handlePlayPauseEvent(event: PlayPauseEvent) {
     pendingPlayPauseEvent.finalState = event.type;
     pendingPlayPauseEvent.timestamp = new Date(event.timestamp);
     pendingPlayPauseEvent.position = event.position;
-    pendingPlayPauseEvent.playbackRate = event.playbackRate;
   } else {
     const stateBefore =
       event.type === PlayPauseType.PLAY
@@ -186,7 +187,6 @@ function handlePlayPauseEvent(event: PlayPauseEvent) {
       timestamp: new Date(event.timestamp),
       playthroughId: event.playthroughId,
       position: event.position,
-      playbackRate: event.playbackRate,
     };
   }
 
@@ -211,14 +211,8 @@ async function flushPlayPauseEvent() {
     return;
   }
 
-  const {
-    stateBefore,
-    finalState,
-    timestamp,
-    playthroughId,
-    position,
-    playbackRate,
-  } = pendingPlayPauseEvent;
+  const { stateBefore, finalState, timestamp, playthroughId, position } =
+    pendingPlayPauseEvent;
   pendingPlayPauseEvent = null;
 
   if (stateBefore === finalState) {
@@ -229,18 +223,13 @@ async function flushPlayPauseEvent() {
   }
 
   const eventType = finalState === PlayPauseType.PLAY ? "play" : "pause";
-
   const device = await getDeviceInfo();
 
-  await recordPlaybackEvent(
-    session,
-    playthroughId,
-    device.id,
-    eventType,
+  await recordPlayPauseEvent(session, playthroughId, device.id, {
+    type: eventType,
     timestamp,
     position,
-    playbackRate,
-  );
+  });
 
   if (finalState === PlayPauseType.PAUSE) {
     syncPlaybackEvents(session);
@@ -310,16 +299,11 @@ async function flushRateChangeEvent() {
 
   const device = await getDeviceInfo();
 
-  await recordPlaybackEvent(
-    session,
-    playthroughId,
-    device.id,
-    "rate_change",
-    timestamp,
+  await recordRateChangeEvent(session, playthroughId, device.id, {
     position,
-    newRate,
-    { previousRate },
-  );
+    timestamp,
+    playbackRate: newRate,
+  });
 }
 
 /**
@@ -348,7 +332,6 @@ function handleSeekEvent(seek: Seek) {
       to: seek.to,
       timestamp: new Date(seek.timestamp),
       playthroughId: seek.playthroughId,
-      playbackRate: seek.playbackRate,
     };
   }
 
@@ -370,7 +353,7 @@ async function flushSeekEvent() {
     return;
   }
 
-  const { from, to, timestamp, playthroughId, playbackRate } = pendingSeekEvent;
+  const { from, to, timestamp, playthroughId } = pendingSeekEvent;
   pendingSeekEvent = null;
 
   const trivialSeek = Math.abs(to - from) < 2;
@@ -383,14 +366,10 @@ async function flushSeekEvent() {
 
   const device = await getDeviceInfo();
 
-  await recordPlaybackEvent(
-    session,
-    playthroughId,
-    device.id,
-    "seek",
+  await recordSeekEvent(session, playthroughId, device.id, {
     timestamp,
-    to,
-    playbackRate,
-    { fromPosition: from, toPosition: to },
-  );
+    position: to,
+    fromPosition: from,
+    toPosition: to,
+  });
 }

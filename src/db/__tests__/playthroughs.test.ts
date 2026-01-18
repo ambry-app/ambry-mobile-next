@@ -480,15 +480,11 @@ describe("playthroughs module", () => {
         const db = getDb();
         const pt = await createPlaythrough(db);
 
-        await playthroughs.recordPlaybackEvent(
-          session,
-          pt.id,
-          "test-device",
-          "play",
-          new Date(),
-          100,
-          1.0,
-        );
+        await playthroughs.recordPlayPauseEvent(session, pt.id, "test-device", {
+          type: "play",
+          timestamp: new Date(),
+          position: 100,
+        });
 
         // Verify event was created
         const events = await db.query.playbackEvents.findMany({
@@ -509,16 +505,12 @@ describe("playthroughs module", () => {
         const db = getDb();
         const pt = await createPlaythrough(db);
 
-        await playthroughs.recordPlaybackEvent(
-          session,
-          pt.id,
-          "test-device",
-          "seek",
-          new Date(),
-          600,
-          1.0,
-          { fromPosition: 100, toPosition: 600 },
-        );
+        await playthroughs.recordSeekEvent(session, pt.id, "test-device", {
+          timestamp: new Date(),
+          position: 600,
+          fromPosition: 100,
+          toPosition: 600,
+        });
 
         const events = await db.query.playbackEvents.findMany({
           where: (e, { eq }) => eq(e.playthroughId, pt.id),
@@ -533,15 +525,15 @@ describe("playthroughs module", () => {
         const db = getDb();
         const pt = await createPlaythrough(db);
 
-        await playthroughs.recordPlaybackEvent(
+        await playthroughs.recordRateChangeEvent(
           session,
           pt.id,
           "test-device",
-          "rate_change",
-          new Date(),
-          500,
-          2.0,
-          { previousRate: 1.0 },
+          {
+            timestamp: new Date(),
+            position: 500,
+            playbackRate: 2.0,
+          },
         );
 
         const events = await db.query.playbackEvents.findMany({
@@ -550,7 +542,6 @@ describe("playthroughs module", () => {
         const rateEvent = events.find((e) => e.type === "rate_change");
         expect(rateEvent).toBeDefined();
         expect(rateEvent?.playbackRate).toBe(2.0);
-        expect(rateEvent?.previousRate).toBe(1.0);
       });
     });
 
