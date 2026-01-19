@@ -2,10 +2,7 @@
  * Test fixtures for sync tests.
  * Factory functions to create GraphQL response data matching sync queries/mutations.
  */
-import type {
-  LibraryChangesSinceQuery,
-  SyncProgressMutation,
-} from "@/graphql/client/graphql";
+import type { LibraryChangesSinceQuery } from "@/graphql/client/graphql";
 import {
   DateFormat,
   DeletionType,
@@ -309,65 +306,19 @@ export function createLibraryDeletion(
 }
 
 // =============================================================================
-// Sync Progress (syncPlaythroughs)
+// V2 Event Sync Fixtures (syncEvents mutation)
 // =============================================================================
 
-type SyncProgressPayload = NonNullable<SyncProgressMutation["syncProgress"]>;
-type PlaythroughChange = SyncProgressPayload["playthroughs"][number];
-type PlaybackEventChange = SyncProgressPayload["events"][number];
-
-export function emptySyncProgressResult(
-  serverTime = new Date().toISOString(),
-): SyncProgressPayload {
+/**
+ * Create an empty sync events result for testing.
+ * This mimics the response from the syncEvents mutation when there are no events
+ * to return from the server.
+ */
+export function emptySyncEventsResult(serverTime = new Date().toISOString()) {
   return {
-    __typename: "SyncProgressPayload",
-    serverTime,
-    playthroughs: [],
-    events: [],
-  };
-}
-
-export function createSyncPlaythrough(
-  overrides: Partial<PlaythroughChange> & { mediaId?: string } = {},
-): PlaythroughChange {
-  const id = overrides.id ?? nextId("playthrough");
-  const mediaId = overrides.mediaId ?? nextId("media");
-  const now = new Date().toISOString();
-
-  return {
-    __typename: "Playthrough",
-    id,
-    media: { __typename: "Media", id: mediaId },
-    status: PlaythroughStatus.InProgress,
-    startedAt: now,
-    finishedAt: null,
-    abandonedAt: null,
-    deletedAt: null,
-    insertedAt: now,
-    updatedAt: now,
-    ...overrides,
-  };
-}
-
-export function createSyncPlaybackEvent(
-  overrides: Partial<PlaybackEventChange> & { playthroughId?: string } = {},
-): PlaybackEventChange {
-  const id = overrides.id ?? nextId("event");
-  const playthroughId = overrides.playthroughId ?? nextId("playthrough");
-  const now = new Date().toISOString();
-
-  return {
-    __typename: "PlaybackEvent",
-    id,
-    playthroughId,
-    deviceId: null,
-    type: PlaybackEventType.Play,
-    timestamp: now,
-    position: 0,
-    playbackRate: 1.0,
-    fromPosition: null,
-    toPosition: null,
-    previousRate: null,
-    ...overrides,
+    syncEvents: {
+      events: [],
+      serverTime,
+    },
   };
 }

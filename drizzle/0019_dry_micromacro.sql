@@ -1,0 +1,1 @@
+ALTER TABLE `playback_events` ADD `media_id` text;

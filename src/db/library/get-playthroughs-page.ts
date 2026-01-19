@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, lt, ne, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, ne } from "drizzle-orm";
 
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
@@ -54,7 +54,7 @@ async function getPlaythroughs(
   const getSortField = () => {
     switch (status) {
       case "in_progress":
-        return schema.playthroughStateCache.lastEventAt;
+        return schema.playthroughs.lastEventAt;
       case "finished":
         return schema.playthroughs.finishedAt;
       case "abandoned":
@@ -70,11 +70,11 @@ async function getPlaythroughs(
       status: schema.playthroughs.status,
       startedAt: schema.playthroughs.startedAt,
       finishedAt: schema.playthroughs.finishedAt,
-      updatedAt: schema.playthroughs.updatedAt,
-      // State from cache (position, rate, last event time)
-      position: sql<number>`COALESCE(${schema.playthroughStateCache.currentPosition}, 0)`,
-      playbackRate: sql<number>`COALESCE(${schema.playthroughStateCache.currentRate}, 1)`,
-      lastListenedAt: schema.playthroughStateCache.lastEventAt,
+      refreshedAt: schema.playthroughs.refreshedAt,
+      // State from playthrough (position, rate, last event time)
+      position: schema.playthroughs.position,
+      playbackRate: schema.playthroughs.playbackRate,
+      lastListenedAt: schema.playthroughs.lastEventAt,
       media: {
         id: schema.media.id,
         thumbnails: schema.media.thumbnails,
@@ -89,10 +89,6 @@ async function getPlaythroughs(
       },
     })
     .from(schema.playthroughs)
-    .leftJoin(
-      schema.playthroughStateCache,
-      eq(schema.playthroughStateCache.playthroughId, schema.playthroughs.id),
-    )
     .innerJoin(
       schema.media,
       and(

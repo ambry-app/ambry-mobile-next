@@ -41,7 +41,8 @@ describe("playthroughs module", () => {
         mediaId: media.id,
         status: "in_progress",
         position: 100,
-        rate: 1.5,
+        playbackRate: 1.5,
+        cachePosition: 100,
       });
 
       const result = await playthroughs.getInProgressPlaythroughWithMedia(
@@ -51,8 +52,9 @@ describe("playthroughs module", () => {
 
       expect(result).toBeDefined();
       expect(result?.id).toBe("pt-1");
-      expect(result?.stateCache?.currentPosition).toBe(100);
-      expect(result?.stateCache?.currentRate).toBe(1.5);
+      expect(result?.position).toBe(100);
+      expect(result?.playbackRate).toBe(1.5);
+      expect(result?.stateCache?.position).toBe(100);
       expect(result?.media.id).toBe(media.id);
     });
 
@@ -94,18 +96,19 @@ describe("playthroughs module", () => {
       const media = await createMedia(db);
 
       // Create two in-progress playthroughs (simulating migration edge case)
+      // Query orders by lastEventAt DESC, so newer lastEventAt wins
       const older = await createPlaythrough(db, {
         id: "pt-older",
         mediaId: media.id,
         status: "in_progress",
-        updatedAt: new Date("2024-01-01"),
+        lastEventAt: new Date("2024-01-01"),
       });
 
       const newer = await createPlaythrough(db, {
         id: "pt-newer",
         mediaId: media.id,
         status: "in_progress",
-        updatedAt: new Date("2024-01-02"),
+        lastEventAt: new Date("2024-01-02"),
       });
 
       const result = await playthroughs.getInProgressPlaythroughWithMedia(
@@ -113,7 +116,7 @@ describe("playthroughs module", () => {
         media.id,
       );
 
-      // Should return the most recently updated one
+      // Should return the one with most recent lastEventAt
       expect(result?.id).toBe(newer.id);
       expect(result?.id).not.toBe(older.id);
     });
@@ -179,7 +182,6 @@ describe("playthroughs module", () => {
       const db = getDb();
       const media = await createMedia(db);
       // Now orders by finishedAt (for finished) or abandonedAt (for abandoned)
-      // not by updatedAt
       await createPlaythrough(db, {
         id: "pt-old",
         mediaId: media.id,
@@ -202,190 +204,56 @@ describe("playthroughs module", () => {
     });
   });
 
-  describe("createPlaythrough", () => {
-    it("creates a new playthrough with correct values", async () => {
-      const db = getDb();
-      const media = await createMedia(db);
-
-      const id = await playthroughs.createPlaythrough(session, media.id);
-
-      // Should be a valid UUID
-      expect(id).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-      );
-
-      const created = await db.query.playthroughs.findFirst({
-        where: eq(schema.playthroughs.id, id),
-      });
-
-      expect(created).toBeDefined();
-      expect(created?.url).toBe(session.url);
-      expect(created?.userEmail).toBe(session.email);
-      expect(created?.mediaId).toBe(media.id);
-      expect(created?.status).toBe("in_progress");
-      expect(created?.syncedAt).toBeNull();
-    });
-  });
-
-  describe("updatePlaythroughStatus", () => {
-    it("updates status and marks for sync", async () => {
-      const db = getDb();
-      const pt = await createPlaythrough(db, {
-        status: "in_progress",
-        syncedAt: new Date(),
-      });
-
-      await playthroughs.updatePlaythroughStatus(session, pt.id, "finished", {
-        finishedAt: new Date("2024-01-01"),
-      });
-
-      const updated = await db.query.playthroughs.findFirst({
-        where: eq(schema.playthroughs.id, pt.id),
-      });
-
-      expect(updated?.status).toBe("finished");
-      expect(updated?.finishedAt?.getTime()).toBeCloseTo(
-        new Date("2024-01-01").getTime(),
-        -4,
-      );
-      expect(updated?.syncedAt).toBeNull();
-    });
-  });
-
-  describe("resumePlaythrough", () => {
-    it("sets status to in_progress and clears finish/abandon timestamps", async () => {
-      const db = getDb();
-      const pt = await createPlaythrough(db, {
-        status: "finished",
-        finishedAt: new Date(),
-        syncedAt: new Date(),
-      });
-
-      await playthroughs.resumePlaythrough(session, pt.id);
-
-      const updated = await db.query.playthroughs.findFirst({
-        where: eq(schema.playthroughs.id, pt.id),
-      });
-
-      expect(updated?.status).toBe("in_progress");
-      expect(updated?.finishedAt).toBeNull();
-      expect(updated?.abandonedAt).toBeNull();
-      expect(updated?.syncedAt).toBeNull();
-    });
-  });
-
-  describe("deletePlaythrough", () => {
-    it("soft deletes by setting deletedAt", async () => {
-      const db = getDb();
-      const pt = await createPlaythrough(db, { syncedAt: new Date() });
-
-      await playthroughs.deletePlaythrough(session, pt.id);
-
-      const updated = await db.query.playthroughs.findFirst({
-        where: eq(schema.playthroughs.id, pt.id),
-      });
-
-      expect(updated?.deletedAt).not.toBeNull();
-      expect(updated?.syncedAt).toBeNull();
-    });
-  });
-
-  describe("getDerivedState", () => {
-    it("returns cached state when available", async () => {
-      const db = getDb();
-      const pt = await createPlaythrough(db, {
+  describe("getEffectivePosition", () => {
+    it("returns playthrough position when no cache exists", () => {
+      const result = playthroughs.getEffectivePosition({
         position: 500,
-        rate: 1.25,
-        lastEventAt: new Date("2024-01-01"),
+        lastEventAt: new Date("2024-01-15"),
+        stateCache: null,
       });
 
-      const result = await playthroughs.getDerivedState(pt.id);
-
-      expect(result).toEqual({
-        currentPosition: 500,
-        currentRate: 1.25,
-        lastEventAt: expect.any(Date),
-      });
+      expect(result).toBe(500);
     });
 
-    it("computes state from events on cache miss", async () => {
-      const db = getDb();
-      const pt = await createPlaythrough(db);
-      await createPlaybackEvent(db, {
-        playthroughId: pt.id,
-        type: "pause",
-        position: 300,
-        playbackRate: 1.5,
-        timestamp: new Date("2024-01-02"),
+    it("returns playthrough position when playthrough is newer", () => {
+      const result = playthroughs.getEffectivePosition({
+        position: 500,
+        lastEventAt: new Date("2024-01-15T12:00:00Z"),
+        stateCache: {
+          position: 100,
+          updatedAt: new Date("2024-01-15T10:00:00Z"),
+        },
       });
 
-      const result = await playthroughs.getDerivedState(pt.id);
-
-      expect(result).toEqual({
-        currentPosition: 300,
-        currentRate: 1.5,
-        lastEventAt: expect.any(Date),
-      });
-
-      // Should have created cache entry
-      const cache = await db.query.playthroughStateCache.findFirst({
-        where: eq(schema.playthroughStateCache.playthroughId, pt.id),
-      });
-      expect(cache).toBeDefined();
-      expect(cache?.currentPosition).toBe(300);
+      expect(result).toBe(500);
     });
 
-    it("returns null when no cache and no events", async () => {
-      const db = getDb();
-      const pt = await createPlaythrough(db);
-
-      const result = await playthroughs.getDerivedState(pt.id);
-
-      expect(result).toBeNull();
-    });
-  });
-
-  describe("computeStateFromEvents", () => {
-    it("finds most recent playback event and updates cache", async () => {
-      const db = getDb();
-      const pt = await createPlaythrough(db);
-      await createPlaybackEvent(db, {
-        playthroughId: pt.id,
-        type: "play",
+    it("returns cache position when cache is newer", () => {
+      const result = playthroughs.getEffectivePosition({
         position: 100,
-        playbackRate: 1.0,
-        timestamp: new Date("2024-01-01"),
-      });
-      await createPlaybackEvent(db, {
-        playthroughId: pt.id,
-        type: "pause",
-        position: 250,
-        playbackRate: 2.0,
-        timestamp: new Date("2024-01-03"),
+        lastEventAt: new Date("2024-01-15T10:00:00Z"),
+        stateCache: {
+          position: 500,
+          updatedAt: new Date("2024-01-15T12:00:00Z"),
+        },
       });
 
-      const result = await playthroughs.computeStateFromEvents(pt.id);
-
-      expect(result).toEqual({
-        currentPosition: 250,
-        currentRate: 2.0,
-        lastEventAt: expect.any(Date),
-      });
+      expect(result).toBe(500);
     });
 
-    it("returns null when event has no position", async () => {
-      const db = getDb();
-      const pt = await createPlaythrough(db);
-      await createPlaybackEvent(db, {
-        playthroughId: pt.id,
-        type: "start",
-        position: null,
-        playbackRate: null,
+    it("prefers playthrough when timestamps are equal", () => {
+      const sameTime = new Date("2024-01-15T12:00:00Z");
+      const result = playthroughs.getEffectivePosition({
+        position: 100,
+        lastEventAt: sameTime,
+        stateCache: {
+          position: 500,
+          updatedAt: sameTime,
+        },
       });
 
-      const result = await playthroughs.computeStateFromEvents(pt.id);
-
-      expect(result).toBeNull();
+      // When equal, uses playthrough position (cache.updatedAt > lastEventAt is false)
+      expect(result).toBe(100);
     });
   });
 
@@ -394,69 +262,36 @@ describe("playthroughs module", () => {
       const db = getDb();
       const pt = await createPlaythrough(db);
 
-      await playthroughs.updateStateCache(pt.id, 100, 1.5);
+      await playthroughs.updateStateCache(pt.id, 100);
 
       const cache = await db.query.playthroughStateCache.findFirst({
         where: eq(schema.playthroughStateCache.playthroughId, pt.id),
       });
 
       expect(cache).toBeDefined();
-      expect(cache?.currentPosition).toBe(100);
-      expect(cache?.currentRate).toBe(1.5);
+      expect(cache?.position).toBe(100);
     });
 
     it("updates existing cache entry", async () => {
       const db = getDb();
-      // Set lastEventAt to the past so the update is not skipped
-      const pastTime = new Date(Date.now() - 1000);
       const pt = await createPlaythrough(db, {
-        position: 50,
-        rate: 1.0,
-        lastEventAt: pastTime,
+        cachePosition: 50,
+        cacheUpdatedAt: new Date(Date.now() - 1000),
       });
 
-      await playthroughs.updateStateCache(pt.id, 200, 2.0);
+      await playthroughs.updateStateCache(pt.id, 200);
 
       const cache = await db.query.playthroughStateCache.findFirst({
         where: eq(schema.playthroughStateCache.playthroughId, pt.id),
       });
 
-      expect(cache?.currentPosition).toBe(200);
-      expect(cache?.currentRate).toBe(2.0);
+      expect(cache?.position).toBe(200);
     });
   });
 
   describe("sync helpers", () => {
-    describe("getUnsyncedPlaythroughs", () => {
-      it("returns playthroughs with null syncedAt", async () => {
-        const db = getDb();
-        const media = await createMedia(db);
-        await createPlaythrough(db, {
-          id: "pt-synced",
-          mediaId: media.id,
-          syncedAt: new Date(),
-        });
-        await createPlaythrough(db, {
-          id: "pt-unsynced",
-          mediaId: media.id,
-          syncedAt: null,
-        });
-
-        const result = await playthroughs.getUnsyncedPlaythroughs(session);
-
-        expect(result).toHaveLength(1);
-        expect(result[0]?.id).toBe("pt-unsynced");
-      });
-    });
-
-    describe("getUnsyncedEvents", () => {
-      it("returns empty array for empty input", async () => {
-        const result = await playthroughs.getUnsyncedEvents([]);
-
-        expect(result).toEqual([]);
-      });
-
-      it("returns events with null syncedAt for given playthrough IDs", async () => {
+    describe("getAllUnsyncedEvents", () => {
+      it("returns events with null syncedAt", async () => {
         const db = getDb();
         const pt = await createPlaythrough(db, { id: "pt-1" });
         await createPlaybackEvent(db, {
@@ -470,42 +305,41 @@ describe("playthroughs module", () => {
           syncedAt: null,
         });
 
-        const result = await playthroughs.getUnsyncedEvents([pt.id]);
+        const result = await playthroughs.getAllUnsyncedEvents(session);
 
         expect(result).toHaveLength(1);
         expect(result[0]?.id).toBe("e-unsynced");
       });
-    });
 
-    describe("markPlaythroughsSynced", () => {
-      it("does nothing for empty array", async () => {
-        // Should not throw
-        await playthroughs.markPlaythroughsSynced([], new Date());
-      });
-
-      it("updates syncedAt for given IDs", async () => {
+      it("returns events for this session only", async () => {
         const db = getDb();
-        const pt1 = await createPlaythrough(db, {
-          id: "pt-1",
+        const pt = await createPlaythrough(db, { id: "pt-1" });
+        await createPlaybackEvent(db, {
+          id: "e-unsynced",
+          playthroughId: pt.id,
           syncedAt: null,
+        });
+
+        // Create another playthrough on different server
+        const media2 = await createMedia(db, {
+          url: "http://other-server.com",
         });
         const pt2 = await createPlaythrough(db, {
           id: "pt-2",
+          url: "http://other-server.com",
+          mediaId: media2.id,
+        });
+        await createPlaybackEvent(db, {
+          id: "e-other-server",
+          playthroughId: pt2.id,
           syncedAt: null,
         });
-        const syncedAt = new Date("2024-01-01");
 
-        await playthroughs.markPlaythroughsSynced([pt1.id, pt2.id], syncedAt);
+        const result = await playthroughs.getAllUnsyncedEvents(session);
 
-        const updated1 = await db.query.playthroughs.findFirst({
-          where: eq(schema.playthroughs.id, pt1.id),
-        });
-        const updated2 = await db.query.playthroughs.findFirst({
-          where: eq(schema.playthroughs.id, pt2.id),
-        });
-
-        expect(updated1?.syncedAt).not.toBeNull();
-        expect(updated2?.syncedAt).not.toBeNull();
+        // Should only return events for default session URL
+        expect(result).toHaveLength(1);
+        expect(result[0]?.id).toBe("e-unsynced");
       });
     });
 
@@ -546,71 +380,22 @@ describe("playthroughs module", () => {
   });
 
   describe("upsert functions", () => {
-    describe("upsertPlaythrough", () => {
-      it("inserts new playthrough", async () => {
-        const db = getDb();
-        const media = await createMedia(db);
-        const now = new Date();
-
-        await playthroughs.upsertPlaythrough({
-          id: "pt-new",
-          url: session.url,
-          userEmail: session.email,
-          mediaId: media.id,
-          status: "in_progress",
-          startedAt: now,
-          createdAt: now,
-          updatedAt: now,
-        });
-
-        const result = await db.query.playthroughs.findFirst({
-          where: eq(schema.playthroughs.id, "pt-new"),
-        });
-
-        expect(result).toBeDefined();
-        expect(result?.mediaId).toBe(media.id);
-      });
-
-      it("updates existing playthrough on conflict", async () => {
-        const db = getDb();
-        const pt = await createPlaythrough(db, {
-          id: "pt-1",
-          status: "in_progress",
-        });
-
-        await playthroughs.upsertPlaythrough({
-          id: pt.id,
-          url: session.url,
-          userEmail: session.email,
-          mediaId: pt.mediaId,
-          status: "finished",
-          finishedAt: new Date(),
-          startedAt: pt.startedAt,
-          createdAt: pt.createdAt,
-          updatedAt: new Date(),
-        });
-
-        const result = await db.query.playthroughs.findFirst({
-          where: eq(schema.playthroughs.id, pt.id),
-        });
-
-        expect(result?.status).toBe("finished");
-      });
-    });
-
     describe("upsertPlaybackEvent", () => {
-      it("inserts new event", async () => {
+      it("inserts new events", async () => {
         const db = getDb();
         const pt = await createPlaythrough(db);
+        const now = new Date();
 
-        await playthroughs.upsertPlaybackEvent({
-          id: "e-new",
-          playthroughId: pt.id,
-          type: "play",
-          timestamp: new Date(),
-          position: 100,
-          playbackRate: 1.0,
-        });
+        await playthroughs.upsertPlaybackEvents([
+          {
+            id: "e-new",
+            playthroughId: pt.id,
+            type: "play",
+            timestamp: now,
+            position: 100,
+            syncedAt: now,
+          },
+        ]);
 
         const result = await db.query.playbackEvents.findFirst({
           where: eq(schema.playbackEvents.id, "e-new"),
@@ -618,6 +403,7 @@ describe("playthroughs module", () => {
 
         expect(result).toBeDefined();
         expect(result?.position).toBe(100);
+        expect(result?.syncedAt).not.toBeNull();
       });
 
       it("updates syncedAt on conflict", async () => {
@@ -626,25 +412,218 @@ describe("playthroughs module", () => {
         const event = await createPlaybackEvent(db, {
           id: "e-1",
           playthroughId: pt.id,
+          type: "play",
+          timestamp: new Date(),
+          position: 200,
+          playbackRate: 1.0,
           syncedAt: null,
         });
         const syncedAt = new Date("2024-06-01");
 
-        await playthroughs.upsertPlaybackEvent({
-          id: event.id,
-          playthroughId: pt.id,
-          type: event.type,
-          timestamp: event.timestamp,
-          position: event.position,
-          playbackRate: event.playbackRate,
-          syncedAt,
-        });
+        await playthroughs.upsertPlaybackEvents([
+          {
+            id: event.id,
+            playthroughId: pt.id,
+            type: event.type,
+            timestamp: event.timestamp,
+            position: event.position,
+            playbackRate: event.playbackRate,
+            syncedAt,
+          },
+        ]);
 
         const result = await db.query.playbackEvents.findFirst({
           where: eq(schema.playbackEvents.id, event.id),
         });
 
         expect(result?.syncedAt).not.toBeNull();
+      });
+    });
+  });
+
+  describe("atomic event recording", () => {
+    describe("recordStartEvent", () => {
+      it("creates start event and playthrough in single transaction", async () => {
+        const db = getDb();
+        const media = await createMedia(db);
+
+        const playthroughId = await playthroughs.recordStartEvent(
+          session,
+          media.id,
+          "test-device",
+          1.5,
+        );
+
+        // Verify event was created
+        const event = await db.query.playbackEvents.findFirst({
+          where: (e, { eq }) => eq(e.playthroughId, playthroughId),
+        });
+        expect(event).toBeDefined();
+        expect(event?.type).toBe("start");
+        expect(event?.mediaId).toBe(media.id);
+        expect(event?.deviceId).toBe("test-device");
+        expect(event?.playbackRate).toBe(1.5);
+
+        // Verify playthrough was created via rebuild
+        const pt = await db.query.playthroughs.findFirst({
+          where: (p, { eq }) => eq(p.id, playthroughId),
+        });
+        expect(pt).toBeDefined();
+        expect(pt?.status).toBe("in_progress");
+        expect(pt?.mediaId).toBe(media.id);
+        expect(pt?.playbackRate).toBe(1.5);
+      });
+    });
+
+    describe("recordPlaybackEvent", () => {
+      it("creates play event and updates playthrough state", async () => {
+        const db = getDb();
+        const pt = await createPlaythrough(db);
+
+        await playthroughs.recordPlayPauseEvent(session, pt.id, "test-device", {
+          type: "play",
+          timestamp: new Date(),
+          position: 100,
+        });
+
+        // Verify event was created
+        const events = await db.query.playbackEvents.findMany({
+          where: (e, { eq }) => eq(e.playthroughId, pt.id),
+        });
+        const playEvent = events.find((e) => e.type === "play");
+        expect(playEvent).toBeDefined();
+        expect(playEvent?.position).toBe(100);
+
+        // Verify playthrough was updated via rebuild
+        const updatedPt = await db.query.playthroughs.findFirst({
+          where: (p, { eq }) => eq(p.id, pt.id),
+        });
+        expect(updatedPt?.position).toBe(100);
+      });
+
+      it("creates seek event with from/to positions", async () => {
+        const db = getDb();
+        const pt = await createPlaythrough(db);
+
+        await playthroughs.recordSeekEvent(session, pt.id, "test-device", {
+          timestamp: new Date(),
+          position: 600,
+          fromPosition: 100,
+          toPosition: 600,
+        });
+
+        const events = await db.query.playbackEvents.findMany({
+          where: (e, { eq }) => eq(e.playthroughId, pt.id),
+        });
+        const seekEvent = events.find((e) => e.type === "seek");
+        expect(seekEvent).toBeDefined();
+        expect(seekEvent?.fromPosition).toBe(100);
+        expect(seekEvent?.toPosition).toBe(600);
+      });
+
+      it("creates rate_change event with previous rate", async () => {
+        const db = getDb();
+        const pt = await createPlaythrough(db);
+
+        await playthroughs.recordRateChangeEvent(
+          session,
+          pt.id,
+          "test-device",
+          {
+            timestamp: new Date(),
+            position: 500,
+            playbackRate: 2.0,
+          },
+        );
+
+        const events = await db.query.playbackEvents.findMany({
+          where: (e, { eq }) => eq(e.playthroughId, pt.id),
+        });
+        const rateEvent = events.find((e) => e.type === "rate_change");
+        expect(rateEvent).toBeDefined();
+        expect(rateEvent?.playbackRate).toBe(2.0);
+      });
+    });
+
+    describe("recordLifecycleEvent", () => {
+      it("creates finish event and updates playthrough status", async () => {
+        const db = getDb();
+        const pt = await createPlaythrough(db);
+
+        await playthroughs.recordLifecycleEvent(
+          session,
+          pt.id,
+          "test-device",
+          "finish",
+        );
+
+        // Verify event was created
+        const events = await db.query.playbackEvents.findMany({
+          where: (e, { eq }) => eq(e.playthroughId, pt.id),
+        });
+        const finishEvent = events.find((e) => e.type === "finish");
+        expect(finishEvent).toBeDefined();
+
+        // Verify playthrough was updated via rebuild
+        const updatedPt = await db.query.playthroughs.findFirst({
+          where: (p, { eq }) => eq(p.id, pt.id),
+        });
+        expect(updatedPt?.status).toBe("finished");
+        expect(updatedPt?.finishedAt).toBeDefined();
+      });
+
+      it("creates abandon event and updates playthrough status", async () => {
+        const db = getDb();
+        const pt = await createPlaythrough(db);
+
+        await playthroughs.recordLifecycleEvent(
+          session,
+          pt.id,
+          "test-device",
+          "abandon",
+        );
+
+        const updatedPt = await db.query.playthroughs.findFirst({
+          where: (p, { eq }) => eq(p.id, pt.id),
+        });
+        expect(updatedPt?.status).toBe("abandoned");
+        expect(updatedPt?.abandonedAt).toBeDefined();
+      });
+
+      it("creates resume event and updates playthrough to in_progress", async () => {
+        const db = getDb();
+        // Create a finished playthrough to resume
+        const pt = await createPlaythrough(db, { status: "finished" });
+
+        await playthroughs.recordLifecycleEvent(
+          session,
+          pt.id,
+          "test-device",
+          "resume",
+        );
+
+        const updatedPt = await db.query.playthroughs.findFirst({
+          where: (p, { eq }) => eq(p.id, pt.id),
+        });
+        expect(updatedPt?.status).toBe("in_progress");
+      });
+
+      it("creates delete event and updates playthrough with deletedAt", async () => {
+        const db = getDb();
+        const pt = await createPlaythrough(db);
+
+        await playthroughs.recordLifecycleEvent(
+          session,
+          pt.id,
+          "test-device",
+          "delete",
+        );
+
+        const updatedPt = await db.query.playthroughs.findFirst({
+          where: (p, { eq }) => eq(p.id, pt.id),
+        });
+        expect(updatedPt?.status).toBe("deleted");
+        expect(updatedPt?.deletedAt).toBeDefined();
       });
     });
   });

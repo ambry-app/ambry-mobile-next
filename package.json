@@ -76,9 +76,11 @@
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
     "@sentry/react-native": "^7.4.0",
+    "activity-tracker": "file:./modules/activity-tracker",
     "core-js": "^3.43.0",
     "drizzle-orm": "^0.45.1",
     "expo": "~54.0.31",
+    "expo-application": "~7.0.8",
     "expo-background-task": "~1.0.10",
     "expo-blur": "~15.0.8",
     "expo-build-properties": "~1.0.10",
@@ -115,7 +117,6 @@
     "react-native-svg": "15.12.1",
     "react-native-track-player": "5.0.0-alpha0",
     "react-native-worklets": "0.5.1",
-    "activity-tracker": "file:./modules/activity-tracker",
     "zustand": "^5.0.5"
   },
   "devDependencies": {

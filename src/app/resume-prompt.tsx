@@ -23,7 +23,7 @@ export default function ResumePromptModal() {
     );
   }
 
-  const { media, status, finishedAt, abandonedAt, stateCache } = playthrough;
+  const { media, status, finishedAt, abandonedAt, position } = playthrough;
 
   const statusDate = status === "finished" ? finishedAt : abandonedAt;
 
@@ -41,7 +41,6 @@ export default function ResumePromptModal() {
   }
 
   if (status === "abandoned") {
-    const position = stateCache?.currentPosition ?? 0;
     const duration = parseFloat(media.duration || "0");
     if (position > 0 && duration > 0) {
       const percentage = Math.round((position / duration) * 100);

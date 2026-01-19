@@ -21,7 +21,7 @@ import {
 } from "@test/fetch-mock";
 import {
   emptyLibraryChanges,
-  emptySyncProgressResult,
+  emptySyncEventsResult,
 } from "@test/sync-fixtures";
 
 // Set up a fresh test DB for each test
@@ -43,6 +43,9 @@ describe("usePullToRefresh", () => {
         modelName: "TestModel",
         osName: "Android",
         osVersion: "14",
+        appId: "app.ambry.mobile.dev",
+        appVersion: "1.0.0",
+        appBuild: "1",
       },
     });
   });
@@ -88,7 +91,7 @@ describe("usePullToRefresh", () => {
     );
     const playthroughResponse = new Response(
       JSON.stringify({
-        data: { syncProgress: emptySyncProgressResult(serverTime) },
+        data: { syncEvents: emptySyncEventsResult(serverTime) },
       }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
@@ -111,7 +114,7 @@ describe("usePullToRefresh", () => {
     mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges(serverTime)));
     mockGraphQL(
       mockFetch,
-      graphqlSuccess({ syncProgress: emptySyncProgressResult(serverTime) }),
+      graphqlSuccess({ syncEvents: emptySyncEventsResult(serverTime) }),
     );
 
     const { result } = renderHook(() => usePullToRefresh(DEFAULT_TEST_SESSION));

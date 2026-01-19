@@ -3,19 +3,19 @@ import { AppStateStatus } from "react-native";
 
 import { FOREGROUND_SYNC_INTERVAL } from "@/constants";
 import {
+  applyEventSyncResult,
   applyLibraryChanges,
-  applyPlaythroughSyncResult,
+  getEventSyncData,
   getLastLibrarySyncInfo,
-  getPlaythroughSyncData,
   LibraryChangesInput,
 } from "@/db/sync";
+import { setLastFullPlaythroughSyncTime } from "@/db/sync-helpers";
 import {
   DeviceTypeInput,
   getLibraryChangesSince,
   PlaybackEventType,
-  PlaythroughStatus,
-  syncProgress,
-  SyncProgressInput,
+  syncEvents,
+  SyncEventsInput,
 } from "@/graphql/api";
 import {
   ExecuteAuthenticatedError,
@@ -99,19 +99,18 @@ export async function syncLibrary(session: Session): Promise<void> {
 }
 
 // =============================================================================
-// Playthrough Sync
+// Event Sync (V2 - events only, playthroughs derived)
 // =============================================================================
+
+interface SyncPlaybackEventsOptions {
+  fullResync?: boolean;
+  deviceInfoOverride?: DeviceInfo;
+}
 
 // Mapping from local types to GraphQL enums
 const deviceTypeMap: Record<string, DeviceTypeInput> = {
   ios: DeviceTypeInput.Ios,
   android: DeviceTypeInput.Android,
-};
-
-const playthroughStatusMap: Record<string, PlaythroughStatus> = {
-  in_progress: PlaythroughStatus.InProgress,
-  finished: PlaythroughStatus.Finished,
-  abandoned: PlaythroughStatus.Abandoned,
 };
 
 const eventTypeMap: Record<string, PlaybackEventType> = {
@@ -123,21 +122,28 @@ const eventTypeMap: Record<string, PlaybackEventType> = {
   finish: PlaybackEventType.Finish,
   abandon: PlaybackEventType.Abandon,
   resume: PlaybackEventType.Resume,
+  delete: PlaybackEventType.Delete,
 };
 
-export async function syncPlaythroughs(
+export async function syncPlaybackEvents(
   session: Session,
-  deviceInfoOverride?: DeviceInfo,
+  options: SyncPlaybackEventsOptions = {},
 ): Promise<void> {
-  log.debug("Syncing playthroughs");
+  const { fullResync = false, deviceInfoOverride } = options;
 
-  // 1. Get unsynced data from DB
+  if (fullResync) {
+    log.info("Performing full event resync");
+  } else {
+    log.debug("Syncing events (V2)");
+  }
+
+  // 1. Get unsynced events from DB
   const deviceInfo = deviceInfoOverride ?? (await getDeviceInfo());
-  const syncData = await getPlaythroughSyncData(session);
+  const syncData = await getEventSyncData(session);
 
-  // 2. Build GraphQL input
-  const input: SyncProgressInput = {
-    lastSyncTime: syncData.lastSyncTime,
+  // 2. Build GraphQL input (events only - no playthroughs)
+  const input: SyncEventsInput = {
+    lastSyncTime: fullResync ? null : syncData.lastSyncTime,
     device: {
       id: deviceInfo.id,
       type: deviceTypeMap[deviceInfo.type] ?? DeviceTypeInput.Android,
@@ -145,19 +151,14 @@ export async function syncPlaythroughs(
       modelName: deviceInfo.modelName,
       osName: deviceInfo.osName,
       osVersion: deviceInfo.osVersion,
+      appId: deviceInfo.appId,
+      appVersion: deviceInfo.appVersion,
+      appBuild: deviceInfo.appBuild,
     },
-    playthroughs: syncData.unsyncedPlaythroughs.map((p) => ({
-      id: p.id,
-      mediaId: p.mediaId,
-      status: playthroughStatusMap[p.status] ?? PlaythroughStatus.InProgress,
-      startedAt: p.startedAt,
-      finishedAt: p.finishedAt,
-      abandonedAt: p.abandonedAt,
-      deletedAt: p.deletedAt,
-    })),
     events: syncData.unsyncedEvents.map((e) => ({
       id: e.id,
       playthroughId: e.playthroughId,
+      mediaId: e.mediaId,
       type: eventTypeMap[e.type] ?? PlaybackEventType.Play,
       timestamp: e.timestamp,
       position: e.position,
@@ -169,7 +170,7 @@ export async function syncPlaythroughs(
   };
 
   // 3. Call GraphQL API
-  const result = await syncProgress(session, input);
+  const result = await syncEvents(session, input);
 
   if (!result.success) {
     logGQLError(result.error, "syncPlaythroughs:");
@@ -179,24 +180,28 @@ export async function syncPlaythroughs(
     return;
   }
 
-  const syncResult = result.result.syncProgress;
+  const syncResult = result.result.syncEvents;
   if (!syncResult) {
-    log.info("No playthrough sync result returned");
+    log.info("No event sync result returned");
     return;
   }
 
-  // 4. Apply result to DB
-  await applyPlaythroughSyncResult(
+  // 4. Apply result to DB (events only, rebuild affected playthroughs)
+  await applyEventSyncResult(
     session,
     syncResult,
-    syncData.unsyncedPlaythroughs.map((p) => p.id),
     syncData.unsyncedEvents.map((e) => e.id),
   );
 
-  // 5. Notify UI that playthrough data changed
+  // 5. If this was a full resync, update the timestamp
+  if (fullResync) {
+    await setLastFullPlaythroughSyncTime(session, new Date());
+  }
+
+  // 6. Notify UI that playthrough data changed
   bumpPlaythroughDataVersion();
 
-  log.debug("Playthroughs sync complete");
+  log.debug("Event sync complete");
   return;
 }
 
@@ -204,8 +209,16 @@ export async function syncPlaythroughs(
 // Combined Sync
 // =============================================================================
 
-export async function sync(session: Session) {
-  return Promise.all([syncLibrary(session), syncPlaythroughs(session)]);
+interface SyncOptions {
+  fullEventResync?: boolean;
+}
+
+export async function sync(session: Session, options: SyncOptions = {}) {
+  const { fullEventResync = false } = options;
+  return Promise.all([
+    syncLibrary(session),
+    syncPlaybackEvents(session, { fullResync: fullEventResync }),
+  ]);
 }
 
 // =============================================================================

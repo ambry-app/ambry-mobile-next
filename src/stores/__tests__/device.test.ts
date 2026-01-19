@@ -1,11 +1,6 @@
 import { Platform } from "react-native";
 
-import {
-  getDeviceIdSync,
-  initializeDevice,
-  resetForTesting,
-  useDevice,
-} from "@/stores/device";
+import { initializeDevice, resetForTesting, useDevice } from "@/stores/device";
 import { clearSecureStore, setSecureStoreItem } from "@test/jest-setup";
 
 // Mock react-native Platform
@@ -61,7 +56,7 @@ describe("device store", () => {
       expect(useDevice.getState().deviceInfo!.id).toBe(firstId);
     });
 
-    it("populates device info from expo-device", async () => {
+    it("populates device info from expo-device and expo-application", async () => {
       await initializeDevice();
 
       const state = useDevice.getState();
@@ -70,6 +65,9 @@ describe("device store", () => {
         modelName: "TestModel",
         osName: "TestOS",
         osVersion: "1.0.0",
+        appId: "app.ambry.mobile.test",
+        appVersion: "1.0.0",
+        appBuild: "1",
       });
     });
 
@@ -95,19 +93,6 @@ describe("device store", () => {
       await initializeDevice();
 
       expect(useDevice.getState().deviceInfo!.type).toBe("web");
-    });
-  });
-
-  describe("getDeviceIdSync", () => {
-    it("returns null when not initialized", () => {
-      expect(getDeviceIdSync()).toBeNull();
-    });
-
-    it("returns device ID when initialized", async () => {
-      setSecureStoreItem("Ambry_deviceId", "test-device-id");
-      await initializeDevice();
-
-      expect(getDeviceIdSync()).toBe("test-device-id");
     });
   });
 });

@@ -20,6 +20,10 @@ import m0015 from "./0015_absent_silverclaw.sql";
 import m0016 from "./0016_absent_mister_sinister.sql";
 import m0017 from "./0017_supreme_silk_fever.sql";
 import m0018 from "./0018_cultured_fantastic_four.sql";
+import m0019 from "./0019_dry_micromacro.sql";
+import m0020 from "./0020_smiling_betty_brant.sql";
+import m0021 from "./0021_violet_reavers.sql";
+import m0022 from "./0022_graceful_elektra.sql";
 
 export default {
   journal,
@@ -43,5 +47,9 @@ export default {
     m0016,
     m0017,
     m0018,
+    m0019,
+    m0020,
+    m0021,
+    m0022,
   },
 };

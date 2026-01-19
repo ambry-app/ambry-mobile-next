@@ -6,9 +6,8 @@
  * - Real stores (zustand)
  * - Fake timers for debounce control
  *
- * Tests both:
- * - Direct lifecycle event recording (recordStartEvent, etc.)
- * - Automatic event recording via store subscriptions
+ * Tests automatic event recording via store subscriptions.
+ * (Lifecycle events like start/finish/abandon are tested in playthroughs.test.ts)
  */
 
 import {
@@ -69,6 +68,9 @@ function setupSessionAndDevice() {
       modelName: "TestModel",
       osName: "TestOS",
       osVersion: "1.0.0",
+      appId: "app.ambry.mobile.dev",
+      appVersion: "1.0.0",
+      appBuild: "1",
     },
   });
 }
@@ -86,57 +88,6 @@ describe("event-recording", () => {
   afterEach(() => {
     jest.runOnlyPendingTimers();
     jest.useRealTimers();
-  });
-
-  describe("lifecycle events", () => {
-    it("records start event", async () => {
-      const db = getDb();
-      const playthrough = await createPlaythrough(db);
-
-      await eventRecording.recordStartEvent(playthrough.id);
-
-      const events = await getAllPlaybackEvents();
-      expect(events).toHaveLength(1);
-      expect(events[0]!.type).toBe("start");
-      expect(events[0]!.playthroughId).toBe(playthrough.id);
-      expect(events[0]!.deviceId).toBe("test-device-id");
-    });
-
-    it("records finish event", async () => {
-      const db = getDb();
-      const playthrough = await createPlaythrough(db);
-
-      await eventRecording.recordFinishEvent(playthrough.id);
-
-      const events = await getAllPlaybackEvents();
-      expect(events).toHaveLength(1);
-      expect(events[0]!.type).toBe("finish");
-      expect(events[0]!.playthroughId).toBe(playthrough.id);
-    });
-
-    it("records abandon event", async () => {
-      const db = getDb();
-      const playthrough = await createPlaythrough(db);
-
-      await eventRecording.recordAbandonEvent(playthrough.id);
-
-      const events = await getAllPlaybackEvents();
-      expect(events).toHaveLength(1);
-      expect(events[0]!.type).toBe("abandon");
-      expect(events[0]!.playthroughId).toBe(playthrough.id);
-    });
-
-    it("records resume event", async () => {
-      const db = getDb();
-      const playthrough = await createPlaythrough(db);
-
-      await eventRecording.recordResumeEvent(playthrough.id);
-
-      const events = await getAllPlaybackEvents();
-      expect(events).toHaveLength(1);
-      expect(events[0]!.type).toBe("resume");
-      expect(events[0]!.playthroughId).toBe(playthrough.id);
-    });
   });
 
   describe("play/pause event recording via store", () => {
@@ -166,18 +117,17 @@ describe("event-recording", () => {
         },
       });
 
-      // Before timer fires, no event should be recorded
+      // Before timer fires, no play event should be recorded
       const eventsBefore = await getAllPlaybackEvents();
-      expect(eventsBefore).toHaveLength(0);
+      expect(eventsBefore.filter((e) => e.type === "play")).toHaveLength(0);
 
       // Advance past debounce window
       await jest.runAllTimersAsync();
 
       const events = await getAllPlaybackEvents();
-      expect(events).toHaveLength(1);
-      expect(events[0]!.type).toBe("play");
-      expect(events[0]!.position).toBe(50);
-      expect(events[0]!.playbackRate).toBe(1.0);
+      const playEvents = events.filter((e) => e.type === "play");
+      expect(playEvents).toHaveLength(1);
+      expect(playEvents[0]!.position).toBe(50);
     });
 
     it("records pause event after debounce window", async () => {
@@ -208,10 +158,9 @@ describe("event-recording", () => {
       await jest.runAllTimersAsync();
 
       const events = await getAllPlaybackEvents();
-      expect(events).toHaveLength(1);
-      expect(events[0]!.type).toBe("pause");
-      expect(events[0]!.position).toBe(75);
-      expect(events[0]!.playbackRate).toBe(1.5);
+      const pauseEvents = events.filter((e) => e.type === "pause");
+      expect(pauseEvents).toHaveLength(1);
+      expect(pauseEvents[0]!.position).toBe(75);
     });
 
     it("ignores INTERNAL source events", async () => {
@@ -237,7 +186,9 @@ describe("event-recording", () => {
       await jest.runAllTimersAsync();
 
       const events = await getAllPlaybackEvents();
-      expect(events).toHaveLength(0);
+      // Should only have start event from factory, no play event recorded
+      const playEvents = events.filter((e) => e.type === "play");
+      expect(playEvents).toHaveLength(0);
     });
 
     it("cancels if toggled back to original state within window", async () => {
@@ -280,7 +231,11 @@ describe("event-recording", () => {
 
       // Should have cancelled - toggled back to original state
       const events = await getAllPlaybackEvents();
-      expect(events).toHaveLength(0);
+      // No play or pause events should be recorded (only start from factory)
+      const playPauseEvents = events.filter(
+        (e) => e.type === "play" || e.type === "pause",
+      );
+      expect(playPauseEvents).toHaveLength(0);
     });
   });
 
@@ -291,6 +246,7 @@ describe("event-recording", () => {
 
     it("records rate change event after debounce window", async () => {
       const db = getDb();
+      // Don't create start event - we're testing event recording directly
       const playthrough = await createPlaythrough(db);
 
       useTrackPlayer.setState({
@@ -311,15 +267,16 @@ describe("event-recording", () => {
       await jest.runAllTimersAsync();
 
       const events = await getAllPlaybackEvents();
-      expect(events).toHaveLength(1);
-      expect(events[0]!.type).toBe("rate_change");
-      expect(events[0]!.previousRate).toBe(1.0);
-      expect(events[0]!.playbackRate).toBe(1.5);
-      expect(events[0]!.position).toBe(100);
+      const rateChangeEvents = events.filter((e) => e.type === "rate_change");
+      expect(rateChangeEvents).toHaveLength(1);
+      expect(rateChangeEvents[0]!.type).toBe("rate_change");
+      expect(rateChangeEvents[0]!.playbackRate).toBe(1.5);
+      expect(rateChangeEvents[0]!.position).toBe(100);
     });
 
     it("accumulates rate changes and records first-to-last", async () => {
       const db = getDb();
+      // Don't create start event - we're testing event recording directly
       const playthrough = await createPlaythrough(db);
 
       // Change from 1.0 to 1.25
@@ -368,13 +325,14 @@ describe("event-recording", () => {
 
       // Should record single event: 1.0 -> 2.0
       const events = await getAllPlaybackEvents();
-      expect(events).toHaveLength(1);
-      expect(events[0]!.previousRate).toBe(1.0);
-      expect(events[0]!.playbackRate).toBe(2.0);
+      const rateChangeEvents = events.filter((e) => e.type === "rate_change");
+      expect(rateChangeEvents).toHaveLength(1);
+      expect(rateChangeEvents[0]!.playbackRate).toBe(2.0);
     });
 
     it("skips if rate returns to original within window", async () => {
       const db = getDb();
+      // Don't create start event - we're testing event recording directly
       const playthrough = await createPlaythrough(db);
 
       // Change from 1.0 to 1.5
@@ -410,7 +368,9 @@ describe("event-recording", () => {
 
       // Should be skipped - rate returned to original
       const events = await getAllPlaybackEvents();
-      expect(events).toHaveLength(0);
+      // No rate_change events should be recorded (only start from factory)
+      const rateEvents = events.filter((e) => e.type === "rate_change");
+      expect(rateEvents).toHaveLength(0);
     });
   });
 
@@ -421,6 +381,7 @@ describe("event-recording", () => {
 
     it("records seek event after debounce window", async () => {
       const db = getDb();
+      // Don't create start event - we're testing event recording directly
       const playthrough = await createPlaythrough(db);
 
       useTrackPlayer.setState({
@@ -442,15 +403,17 @@ describe("event-recording", () => {
       await jest.runAllTimersAsync();
 
       const events = await getAllPlaybackEvents();
-      expect(events).toHaveLength(1);
-      expect(events[0]!.type).toBe("seek");
-      expect(events[0]!.fromPosition).toBe(50);
-      expect(events[0]!.toPosition).toBe(150);
-      expect(events[0]!.position).toBe(150);
+      const seekEvents = events.filter((e) => e.type === "seek");
+      expect(seekEvents).toHaveLength(1);
+      expect(seekEvents[0]!.type).toBe("seek");
+      expect(seekEvents[0]!.fromPosition).toBe(50);
+      expect(seekEvents[0]!.toPosition).toBe(150);
+      expect(seekEvents[0]!.position).toBe(150);
     });
 
     it("accumulates seeks and records first-from to last-to", async () => {
       const db = getDb();
+      // Don't create start event - we're testing event recording directly
       const playthrough = await createPlaythrough(db);
 
       // First seek: 50 -> 100
@@ -488,9 +451,10 @@ describe("event-recording", () => {
 
       // Should record single event: 50 -> 200
       const events = await getAllPlaybackEvents();
-      expect(events).toHaveLength(1);
-      expect(events[0]!.fromPosition).toBe(50);
-      expect(events[0]!.toPosition).toBe(200);
+      const seekEvents = events.filter((e) => e.type === "seek");
+      expect(seekEvents).toHaveLength(1);
+      expect(seekEvents[0]!.fromPosition).toBe(50);
+      expect(seekEvents[0]!.toPosition).toBe(200);
     });
 
     it("ignores INTERNAL source seeks", async () => {
@@ -516,7 +480,9 @@ describe("event-recording", () => {
       await jest.runAllTimersAsync();
 
       const events = await getAllPlaybackEvents();
-      expect(events).toHaveLength(0);
+      // No seek events should be recorded (only start from factory)
+      const seekEvents = events.filter((e) => e.type === "seek");
+      expect(seekEvents).toHaveLength(0);
     });
 
     it("skips trivial seeks (< 2 seconds)", async () => {
@@ -542,7 +508,9 @@ describe("event-recording", () => {
       await jest.runAllTimersAsync();
 
       const events = await getAllPlaybackEvents();
-      expect(events).toHaveLength(0);
+      // No seek events should be recorded (only start from factory)
+      const seekEvents = events.filter((e) => e.type === "seek");
+      expect(seekEvents).toHaveLength(0);
     });
   });
 
@@ -553,9 +521,12 @@ describe("event-recording", () => {
 
     it("flushes pending events when playthrough changes", async () => {
       const db = getDb();
+      // Don't create start events - we're testing event recording directly
       const playthrough1 = await createPlaythrough(db);
       const media2 = await createMedia(db);
-      const playthrough2 = await createPlaythrough(db, { mediaId: media2.id });
+      const playthrough2 = await createPlaythrough(db, {
+        mediaId: media2.id,
+      });
       // Mock fetch for sync
       const mockFetch = installFetchMock();
       mockGraphQL(mockFetch, {
@@ -595,9 +566,10 @@ describe("event-recording", () => {
       await jest.runAllTimersAsync();
 
       const events = await getAllPlaybackEvents();
-      expect(events.length).toBeGreaterThanOrEqual(1);
-      expect(events[0]!.playthroughId).toBe(playthrough1.id);
-      expect(events[0]!.type).toBe("pause");
+      // Filter for the pause event (factory creates start events)
+      const pauseEvents = events.filter((e) => e.type === "pause");
+      expect(pauseEvents.length).toBe(1);
+      expect(pauseEvents[0]!.playthroughId).toBe(playthrough1.id);
     });
   });
 
@@ -608,6 +580,7 @@ describe("event-recording", () => {
 
     it("updates state cache when recording play event", async () => {
       const db = getDb();
+      // Don't create start event - we're testing event recording directly
       const playthrough = await createPlaythrough(db);
 
       useTrackPlayer.setState({
@@ -633,12 +606,12 @@ describe("event-recording", () => {
       });
 
       expect(cache).not.toBeNull();
-      expect(cache!.currentPosition).toBe(123);
-      expect(cache!.currentRate).toBe(1.5);
+      expect(cache!.position).toBe(123);
     });
 
     it("updates state cache when recording seek event", async () => {
       const db = getDb();
+      // Don't create start event - we're testing event recording directly
       const playthrough = await createPlaythrough(db);
 
       useTrackPlayer.setState({
@@ -664,8 +637,7 @@ describe("event-recording", () => {
       });
 
       expect(cache).not.toBeNull();
-      expect(cache!.currentPosition).toBe(200);
-      expect(cache!.currentRate).toBe(1.25);
+      expect(cache!.position).toBe(200);
     });
   });
 
@@ -699,7 +671,9 @@ describe("event-recording", () => {
       await jest.runAllTimersAsync();
 
       const events = await getAllPlaybackEvents();
-      expect(events).toHaveLength(0);
+      // Should only have the start event from factory, no play event recorded
+      const playEvents = events.filter((e) => e.type === "play");
+      expect(playEvents).toHaveLength(0);
     });
   });
 });

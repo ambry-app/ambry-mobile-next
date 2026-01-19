@@ -66,6 +66,9 @@ function setupSessionAndDevice() {
       modelName: "TestModel",
       osName: "TestOS",
       osVersion: "1.0.0",
+      appId: "app.ambry.mobile.dev",
+      appVersion: "1.0.0",
+      appBuild: "1",
     },
   });
 }
@@ -95,7 +98,7 @@ async function createFullPlaythroughSetup(
     mediaId: media.id,
     status: options.status ?? "in_progress",
     position: options.position,
-    rate: options.rate,
+    playbackRate: options.rate,
   });
 
   // Create user settings for active playthrough storage

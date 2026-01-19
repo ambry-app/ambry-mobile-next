@@ -413,7 +413,8 @@ export type PlaybackEventType =
   | "rate_change"
   | "finish"
   | "abandon"
-  | "resume";
+  | "resume"
+  | "delete";
 
 // Represents a user's journey through a book (from start to finish/abandon)
 export const playthroughs = sqliteTable(
@@ -424,7 +425,7 @@ export const playthroughs = sqliteTable(
     userEmail: text("user_email").notNull(),
     mediaId: text("media_id").notNull(),
     status: text("status", {
-      enum: ["in_progress", "finished", "abandoned"],
+      enum: ["in_progress", "finished", "abandoned", "deleted"],
     })
       .notNull()
       .default("in_progress"),
@@ -432,9 +433,10 @@ export const playthroughs = sqliteTable(
     finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
     abandonedAt: integer("abandoned_at", { mode: "timestamp_ms" }),
     deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
-    syncedAt: integer("synced_at", { mode: "timestamp_ms" }),
+    position: real("position").notNull(),
+    playbackRate: real("playback_rate").notNull(),
+    lastEventAt: integer("last_event_at", { mode: "timestamp_ms" }).notNull(),
+    refreshedAt: integer("refreshed_at", { mode: "timestamp_ms" }).notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.url, table.id] }),
@@ -447,7 +449,6 @@ export const playthroughs = sqliteTable(
       table.userEmail,
       table.mediaId,
     ),
-    index("playthroughs_synced_at_idx").on(table.syncedAt),
   ],
 );
 
@@ -473,6 +474,7 @@ export const playbackEvents = sqliteTable(
     id: text("id").primaryKey(),
     playthroughId: text("playthrough_id").notNull(),
     deviceId: text("device_id"),
+    mediaId: text("media_id"), // Only set on start events - identifies the media being played
     type: text("type", {
       enum: [
         "start",
@@ -483,6 +485,7 @@ export const playbackEvents = sqliteTable(
         "finish",
         "abandon",
         "resume",
+        "delete",
       ],
     }).notNull(),
     timestamp: integer("timestamp", { mode: "timestamp_ms" }).notNull(),
@@ -512,13 +515,10 @@ export const playbackEventsRelations = relations(playbackEvents, ({ one }) => ({
   }),
 }));
 
-// Derived state cache for fast queries (computed from events)
+// Cache for the heartbeat service to store the current position for crash recovery.
 export const playthroughStateCache = sqliteTable("playthrough_state_cache", {
   playthroughId: text("playthrough_id").primaryKey(),
-  currentPosition: real("current_position").notNull(),
-  currentRate: real("current_rate").notNull(),
-  lastEventAt: integer("last_event_at", { mode: "timestamp_ms" }).notNull(),
-  totalListeningTime: real("total_listening_time"),
+  position: real("position").notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
@@ -550,9 +550,9 @@ export type PlaythroughStateCacheSelect =
 export const syncedServers = sqliteTable("synced_servers", {
   url: text("url").notNull().primaryKey(),
   // timestamp of last sync check for library data (used for incremental sync)
-  lastSyncTime: integer("last_sync_time", { mode: "timestamp" }),
+  lastSyncTime: integer("last_sync_time", { mode: "timestamp_ms" }),
   // timestamp when library data actually changed locally (used for cache invalidation)
-  libraryDataVersion: integer("library_data_version", { mode: "timestamp" }),
+  libraryDataVersion: integer("library_data_version", { mode: "timestamp_ms" }),
 });
 
 // data related to user accounts on specific servers
@@ -562,7 +562,11 @@ export const serverProfiles = sqliteTable(
     url: text("url").notNull(),
     userEmail: text("user_email").notNull(),
     // timestamp of last playthrough sync (bidirectional - send unsynced + receive server updates)
-    lastSyncTime: integer("last_sync_time", { mode: "timestamp" }),
+    lastSyncTime: integer("last_sync_time", { mode: "timestamp_ms" }),
+    // timestamp of the last time a full sync was run for this profile.
+    lastFullPlaythroughSyncTime: integer("last_full_playthrough_sync_time", {
+      mode: "timestamp_ms",
+    }),
     // the playthrough that was last loaded into the player on this device
     activePlaythroughId: text("active_playthrough_id"),
   },

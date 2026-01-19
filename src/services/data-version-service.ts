@@ -1,7 +1,10 @@
 import { useEffect } from "react";
 import { AppStateStatus } from "react-native";
 
-import { getServerSyncTimestamps } from "@/db/sync-helpers";
+import {
+  getServerProfileSyncTimestamps,
+  getServerSyncTimestamps,
+} from "@/db/sync-helpers";
 import { setLibraryDataVersion, useDataVersion } from "@/stores/data-version";
 import { useSession } from "@/stores/session";
 import { Session } from "@/types/session";
@@ -27,23 +30,31 @@ export async function getLibraryDataVersion(
  */
 export async function initializeDataVersion(
   session: Session,
-): Promise<{ needsInitialSync: boolean }> {
+): Promise<{ needsInitialSync: boolean; needsFullPlaythroughResync: boolean }> {
   if (useDataVersion.getState().initialized) {
     log.debug("Already initialized, skipping");
-    return { needsInitialSync: false }; // Already synced if we're initialized
+    return { needsInitialSync: false, needsFullPlaythroughResync: false }; // Already synced if we're initialized
   }
 
   log.debug("Initializing");
 
-  const { lastSyncTime, libraryDataVersion } =
-    await getServerSyncTimestamps(session);
+  const [
+    { lastSyncTime: lastLibrarySyncTime, libraryDataVersion },
+    { lastFullPlaythroughSyncTime },
+  ] = await Promise.all([
+    getServerSyncTimestamps(session),
+    getServerProfileSyncTimestamps(session),
+  ]);
 
   useDataVersion.setState({
     initialized: true,
     libraryDataVersion: libraryDataVersion?.getTime() ?? null,
   });
 
-  return { needsInitialSync: lastSyncTime === null };
+  return {
+    needsInitialSync: lastLibrarySyncTime === null,
+    needsFullPlaythroughResync: lastFullPlaythroughSyncTime === null,
+  };
 }
 
 // =============================================================================

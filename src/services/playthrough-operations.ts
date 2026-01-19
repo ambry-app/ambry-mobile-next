@@ -1,13 +1,16 @@
 /**
  * Playthrough Operations Service
  *
- * Handles all playthrough state transitions:
+ * Handles all playthrough state transitions using event-first pattern:
  * - Starting: create new, continue existing, resume finished/abandoned
  * - Ending: finish, abandon, delete
  *
+ * V2 Architecture: All operations work by inserting events, then rebuilding
+ * playthrough state from those events. Playthroughs are NEVER directly mutated.
+ *
  * This is the single source of truth for:
- * - Recording lifecycle events (start, resume, finish, abandon)
- * - Creating/updating/deleting playthrough status in DB
+ * - Recording lifecycle events (start, resume, finish, abandon, delete)
+ * - Rebuilding playthrough state from events
  * - Loading playthroughs into TrackPlayer
  * - Managing active playthrough for device
  * - Bumping data version for UI refresh
@@ -16,21 +19,20 @@
 
 import {
   clearActivePlaythroughIdForDevice,
-  createPlaythrough,
-  deletePlaythrough as deletePlaythroughDb,
   getActivePlaythroughIdForDevice,
   getPlaythroughWithMedia,
-  resumePlaythrough as resumePlaythroughInDb,
+  recordLifecycleEvent,
+  recordStartEvent,
   setActivePlaythroughIdForDevice,
-  updatePlaythroughStatus,
 } from "@/db/playthroughs";
 import { bumpPlaythroughDataVersion } from "@/stores/data-version";
+import { getDeviceInfo } from "@/stores/device";
+import { usePreferredPlaybackRate } from "@/stores/preferred-playback-rate";
 import { useSession } from "@/stores/session";
 import { Session } from "@/types/session";
 import { logBase } from "@/utils/logger";
 
-import * as EventRecording from "./event-recording";
-import { syncPlaythroughs } from "./sync-service";
+import { syncPlaybackEvents } from "./sync-service";
 import * as Player from "./track-player-service";
 
 const log = logBase.extend("playthrough-ops");
@@ -42,8 +44,7 @@ const log = logBase.extend("playthrough-ops");
 /**
  * Start a brand new playthrough for media.
  *
- * Creates a new playthrough, records "start" event, loads into TrackPlayer,
- * and sets as active.
+ * V2: Creates a "start" event, rebuilds playthrough from event, loads into TrackPlayer.
  *
  * Use when: User taps play on media that has no existing playthrough,
  * or user chooses "Start Fresh" to create a new playthrough.
@@ -54,9 +55,18 @@ export async function startNewPlaythrough(
   session: Session,
   mediaId: string,
 ): Promise<void> {
-  // Create new playthrough and record start event
-  const playthroughId = await createPlaythrough(session, mediaId);
-  await EventRecording.recordStartEvent(playthroughId);
+  const device = await getDeviceInfo();
+
+  const playbackRate =
+    usePreferredPlaybackRate.getState().preferredPlaybackRate;
+
+  // Record start event (atomic: inserts event + rebuilds playthrough)
+  const playthroughId = await recordStartEvent(
+    session,
+    mediaId,
+    device.id,
+    playbackRate,
+  );
 
   // Get the new playthrough with full media info
   const playthrough = await getPlaythroughWithMedia(session, playthroughId);
@@ -64,6 +74,8 @@ export async function startNewPlaythrough(
 
   // Track this as the active playthrough for this device
   await setActivePlaythroughIdForDevice(session, playthroughId);
+
+  log.info(`Started new playthrough: ${playthroughId} for media: ${mediaId}`);
 }
 
 /**
@@ -86,12 +98,14 @@ export async function continuePlaythrough(
 
   // Track this as the active playthrough for this device
   await setActivePlaythroughIdForDevice(session, playthroughId);
+
+  log.info(`Continuing playthrough: ${playthroughId}`);
 }
 
 /**
  * Resume a finished or abandoned playthrough.
  *
- * Marks as in_progress, records "resume" event, and loads.
+ * V2: Creates a "resume" event, rebuilds playthrough from events, loads into player.
  *
  * Use when: User chooses to resume from ResumePlaythroughDialog.
  *
@@ -101,9 +115,10 @@ export async function resumePlaythrough(
   session: Session,
   playthroughId: string,
 ): Promise<void> {
-  // Mark as in_progress in database and record resume event
-  await resumePlaythroughInDb(session, playthroughId);
-  await EventRecording.recordResumeEvent(playthroughId);
+  const device = await getDeviceInfo();
+
+  // Record resume event (atomic: inserts event + rebuilds playthrough)
+  await recordLifecycleEvent(session, playthroughId, device.id, "resume");
 
   // Get the now-active playthrough with full media info
   const playthrough = await getPlaythroughWithMedia(session, playthroughId);
@@ -111,6 +126,8 @@ export async function resumePlaythrough(
 
   // Track this as the active playthrough for this device
   await setActivePlaythroughIdForDevice(session, playthroughId);
+
+  log.info(`Resumed playthrough: ${playthroughId}`);
 }
 
 // =============================================================================
@@ -120,9 +137,11 @@ export async function resumePlaythrough(
 /**
  * Finalize a playthrough as finished.
  *
+ * V2: Creates a "finish" event, rebuilds playthrough from events.
+ *
  * This handles all the bookkeeping for marking a playthrough complete:
- * 1. Records "finish" lifecycle event
- * 2. Updates playthrough status in database
+ * 1. Inserts "finish" lifecycle event
+ * 2. Rebuilds playthrough state from events
  * 3. Clears active playthrough for this device
  * 4. Bumps data version for UI refresh
  * 5. Triggers sync in background
@@ -140,15 +159,17 @@ export async function finishPlaythrough(
     return;
   }
 
+  const device = await getDeviceInfo();
+
   log.info("Finishing playthrough:", playthroughId);
 
-  // Record the finish lifecycle event
-  await EventRecording.recordFinishEvent(playthroughId);
-
-  // Update status in database
-  await updatePlaythroughStatus(resolvedSession, playthroughId, "finished", {
-    finishedAt: new Date(),
-  });
+  // Record finish event (atomic: inserts event + rebuilds playthrough)
+  await recordLifecycleEvent(
+    resolvedSession,
+    playthroughId,
+    device.id,
+    "finish",
+  );
 
   // Clear the active playthrough for this device since it's finished
   await clearActivePlaythroughIdForDevice(resolvedSession);
@@ -163,9 +184,11 @@ export async function finishPlaythrough(
 /**
  * Finalize a playthrough as abandoned.
  *
+ * V2: Creates an "abandon" event, rebuilds playthrough from events.
+ *
  * This handles all the bookkeeping for marking a playthrough abandoned:
- * 1. Records "abandon" lifecycle event
- * 2. Updates playthrough status in database
+ * 1. Inserts "abandon" lifecycle event
+ * 2. Rebuilds playthrough state from events
  * 3. Clears active playthrough for this device
  * 4. Bumps data version for UI refresh
  * 5. Triggers sync in background
@@ -183,15 +206,17 @@ export async function abandonPlaythrough(
     return;
   }
 
+  const device = await getDeviceInfo();
+
   log.info("Abandoning playthrough:", playthroughId);
 
-  // Record the abandon lifecycle event
-  await EventRecording.recordAbandonEvent(playthroughId);
-
-  // Update status in database
-  await updatePlaythroughStatus(resolvedSession, playthroughId, "abandoned", {
-    abandonedAt: new Date(),
-  });
+  // Record abandon event (atomic: inserts event + rebuilds playthrough)
+  await recordLifecycleEvent(
+    resolvedSession,
+    playthroughId,
+    device.id,
+    "abandon",
+  );
 
   // Clear the active playthrough for this device since it's abandoned
   await clearActivePlaythroughIdForDevice(resolvedSession);
@@ -206,10 +231,13 @@ export async function abandonPlaythrough(
 /**
  * Delete a playthrough.
  *
+ * V2: Creates a "delete" event, rebuilds playthrough from events.
+ *
  * This handles all the bookkeeping for deleting a playthrough:
- * 1. Deletes playthrough from database (soft delete with deletedAt)
- * 2. Bumps data version for UI refresh
- * 3. Triggers sync in background
+ * 1. Inserts "delete" lifecycle event
+ * 2. Rebuilds playthrough state from events (sets status=deleted, deletedAt)
+ * 3. Bumps data version for UI refresh
+ * 4. Triggers sync in background
  *
  * @param session - Current session
  * @param playthroughId - ID of the playthrough to delete
@@ -218,10 +246,12 @@ export async function deletePlaythrough(
   session: Session,
   playthroughId: string,
 ): Promise<void> {
+  const device = await getDeviceInfo();
+
   log.info("Deleting playthrough:", playthroughId);
 
-  // Delete from database
-  await deletePlaythroughDb(session, playthroughId);
+  // Record delete event (atomic: inserts event + rebuilds playthrough)
+  await recordLifecycleEvent(session, playthroughId, device.id, "delete");
 
   // Notify UI that playthrough data changed
   bumpPlaythroughDataVersion();
@@ -313,5 +343,5 @@ export async function clearActivePlaythrough(session: Session): Promise<void> {
 // =============================================================================
 
 function triggerBackgroundSync(session: Session) {
-  syncPlaythroughs(session);
+  syncPlaybackEvents(session);
 }

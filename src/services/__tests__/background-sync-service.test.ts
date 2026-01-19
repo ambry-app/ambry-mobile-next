@@ -12,16 +12,18 @@ import {
   registerBackgroundSyncTask,
   unregisterBackgroundSyncTask,
 } from "@/services/background-sync-service";
-import { useDevice } from "@/stores/device";
-import { useSession } from "@/stores/session";
+import { resetForTesting as resetDataVersionStore } from "@/stores/data-version";
+import {
+  resetForTesting as resetDeviceStore,
+  useDevice,
+} from "@/stores/device";
+import {
+  resetForTesting as resetSessionStore,
+  useSession,
+} from "@/stores/session";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { DEFAULT_TEST_SESSION } from "@test/factories";
-import {
-  graphqlSuccess,
-  installFetchMock,
-  mockGraphQL,
-  mockNetworkError,
-} from "@test/fetch-mock";
+import { installFetchMock, mockNetworkError } from "@test/fetch-mock";
 import {
   getDefinedTaskCallback,
   mockExpoDbExecSync,
@@ -31,7 +33,7 @@ import {
 } from "@test/jest-setup";
 import {
   emptyLibraryChanges,
-  emptySyncProgressResult,
+  emptySyncEventsResult,
 } from "@test/sync-fixtures";
 
 // Setup test database (needed for sync operations)
@@ -52,6 +54,10 @@ describe("background-sync-service", () => {
     mockUnregisterTaskAsync.mockReset();
     mockExpoDbExecSync.mockReset();
 
+    resetSessionStore();
+    resetDataVersionStore();
+    resetDeviceStore();
+
     // Set up device store (needed for syncPlaythroughs)
     useDevice.setState({
       initialized: true,
@@ -62,6 +68,9 @@ describe("background-sync-service", () => {
         modelName: "TestModel",
         osName: "Android",
         osVersion: "14",
+        appId: "app.ambry.mobile.dev",
+        appVersion: "1.0.0",
+        appBuild: "1",
       },
     });
   });
@@ -143,15 +152,43 @@ describe("background-sync-service", () => {
 
       const serverTime = new Date().toISOString();
 
-      // Mock libraryChangesSince response (first call)
-      mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges(serverTime)));
+      // Mock GraphQL responses for library changes and sync events. This is
+      // done this way because both syncs happen concurrently so we need to
+      // differentiate based on operation name.
+      mockFetch.mockImplementation(
+        async (input: RequestInfo | URL, init?: RequestInit) => {
+          const body = JSON.parse(init?.body as string);
 
-      // Mock syncProgress response (second call)
-      mockGraphQL(
-        mockFetch,
-        graphqlSuccess({
-          syncProgress: emptySyncProgressResult(serverTime),
-        }),
+          if (body.operationName === "LibraryChangesSince") {
+            return new Response(
+              JSON.stringify({ data: emptyLibraryChanges(serverTime) }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              },
+            );
+          }
+
+          if (body.operationName === "SyncEvents") {
+            return new Response(
+              JSON.stringify({
+                data: { syncEvents: emptySyncEventsResult(serverTime) },
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              },
+            );
+          }
+
+          return new Response(
+            JSON.stringify({ errors: [{ message: "Unknown operation" }] }),
+            {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        },
       );
 
       const taskCallback = getDefinedTaskCallback();

@@ -15,6 +15,7 @@ import { router } from "expo-router";
 import { signOut } from "@/services/auth-service";
 import { unloadPlayer } from "@/services/playback-controls";
 import { setSleepTimerMotionDetectionEnabled } from "@/services/sleep-timer-service";
+import { sync } from "@/services/sync-service";
 import { useDebug } from "@/stores/debug";
 import { usePreferredPlaybackRate } from "@/stores/preferred-playback-rate";
 import { useSession } from "@/stores/session";
@@ -94,6 +95,12 @@ export default function SettingsRoute() {
     [session],
   );
 
+  const handleForceFullSync = useCallback(async () => {
+    if (!session) return;
+    await sync(session, { fullEventResync: true });
+    Alert.alert("Sync Complete", "Full event sync has been completed.");
+  }, [session]);
+
   if (!session) return null;
 
   const sleepTimerDisplay = sleepTimerEnabled
@@ -137,6 +144,7 @@ export default function SettingsRoute() {
             onValueChange={setDebugModeEnabled}
             color={Colors.lime[500]}
           />
+          <Button onPress={handleForceFullSync}>Force Full Sync</Button>
         </Section>
       </List>
     </Host>

@@ -66,30 +66,28 @@ function PlaythroughHeader({ data }: { data: PlaythroughDebugData }) {
         value={formatDate(playthrough.abandonedAt)}
       />
       <DebugField label="deletedAt" value={formatDate(playthrough.deletedAt)} />
-      <DebugField label="createdAt" value={formatDate(playthrough.createdAt)} />
-      <DebugField label="updatedAt" value={formatDate(playthrough.updatedAt)} />
-      <DebugField label="syncedAt" value={formatDate(playthrough.syncedAt)} />
+      <DebugField label="position" value={playthrough.position.toFixed(2)} />
+      <DebugField
+        label="playbackRate"
+        value={playthrough.playbackRate.toFixed(2)}
+      />
+      <DebugField
+        label="lastEventAt"
+        value={formatDate(playthrough.lastEventAt)}
+      />
+      <DebugField
+        label="refreshedAt"
+        value={formatDate(playthrough.refreshedAt)}
+      />
 
       {playthrough.stateCache && (
         <>
           <Text style={[styles.sectionTitle, { marginTop: 16 }]}>
-            State Cache
+            State Cache (Crash Recovery)
           </Text>
           <DebugField
-            label="currentPosition"
-            value={playthrough.stateCache.currentPosition.toFixed(2)}
-          />
-          <DebugField
-            label="currentRate"
-            value={playthrough.stateCache.currentRate.toFixed(2)}
-          />
-          <DebugField
-            label="lastEventAt"
-            value={formatDate(playthrough.stateCache.lastEventAt)}
-          />
-          <DebugField
-            label="totalListeningTime"
-            value={playthrough.stateCache.totalListeningTime?.toFixed(2) ?? "-"}
+            label="position"
+            value={playthrough.stateCache.position.toFixed(2)}
           />
           <DebugField
             label="updatedAt"

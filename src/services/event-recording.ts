@@ -19,9 +19,6 @@
  *
  * When switching playthroughs, all pending events are flushed immediately to
  * ensure they're recorded for the correct playthrough before the switch.
- *
- * Lifecycle events (start, finish, abandon, resume) are still called explicitly
- * by the playthrough lifecycle service.
  */
 
 import {
@@ -29,10 +26,12 @@ import {
   RATE_CHANGE_EVENT_ACCUMULATION_WINDOW,
   SEEK_EVENT_ACCUMULATION_WINDOW,
 } from "@/constants";
-import { getDb } from "@/db/db";
-import { updateStateCache } from "@/db/playthroughs";
-import * as schema from "@/db/schema";
-import { getDeviceIdSync } from "@/stores/device";
+import {
+  recordPlayPauseEvent,
+  recordRateChangeEvent,
+  recordSeekEvent,
+} from "@/db/playthroughs";
+import { getDeviceInfo } from "@/stores/device";
 import { useSession } from "@/stores/session";
 import {
   PlayPauseEvent,
@@ -43,11 +42,10 @@ import {
   SeekSource,
   useTrackPlayer,
 } from "@/stores/track-player";
-import { randomUUID } from "@/utils/crypto";
 import { logBase } from "@/utils/logger";
 import { subscribeToChange } from "@/utils/subscribe";
 
-import { syncPlaythroughs } from "./sync-service";
+import { syncPlaybackEvents } from "./sync-service";
 
 const log = logBase.extend("event-recording");
 
@@ -61,7 +59,6 @@ type PendingPlayPauseEvent = {
   timestamp: Date;
   playthroughId: string;
   position: number;
-  playbackRate: number;
 };
 
 type PendingRateChangeEvent = {
@@ -77,7 +74,6 @@ type PendingSeekEvent = {
   to: number;
   timestamp: Date;
   playthroughId: string;
-  playbackRate: number;
 };
 
 let playPauseEventTimer: NodeJS.Timeout | null = null;
@@ -106,78 +102,6 @@ export async function initialize() {
   initialized = true;
 
   log.debug("Initialized");
-}
-
-// =============================================================================
-// Lifecycle Events (called explicitly by playthrough-lifecycle)
-// =============================================================================
-
-/**
- * Record a "start" lifecycle event when a new playthrough begins.
- */
-export async function recordStartEvent(playthroughId: string) {
-  const now = new Date();
-
-  await getDb().insert(schema.playbackEvents).values({
-    id: randomUUID(),
-    playthroughId,
-    deviceId: getDeviceIdSync(),
-    type: "start",
-    timestamp: now,
-  });
-
-  log.info("Recorded start event");
-}
-
-/**
- * Record a "finish" lifecycle event when a playthrough is completed.
- */
-export async function recordFinishEvent(playthroughId: string) {
-  const now = new Date();
-
-  await getDb().insert(schema.playbackEvents).values({
-    id: randomUUID(),
-    playthroughId,
-    deviceId: getDeviceIdSync(),
-    type: "finish",
-    timestamp: now,
-  });
-
-  log.info("Recorded finish event");
-}
-
-/**
- * Record an "abandon" lifecycle event when a user abandons a playthrough.
- */
-export async function recordAbandonEvent(playthroughId: string) {
-  const now = new Date();
-
-  await getDb().insert(schema.playbackEvents).values({
-    id: randomUUID(),
-    playthroughId,
-    deviceId: getDeviceIdSync(),
-    type: "abandon",
-    timestamp: now,
-  });
-
-  log.info("Recorded abandon event");
-}
-
-/**
- * Record a "resume" lifecycle event when a user resumes a finished/abandoned playthrough.
- */
-export async function recordResumeEvent(playthroughId: string) {
-  const now = new Date();
-
-  await getDb().insert(schema.playbackEvents).values({
-    id: randomUUID(),
-    playthroughId,
-    deviceId: getDeviceIdSync(),
-    type: "resume",
-    timestamp: now,
-  });
-
-  log.info("Recorded resume event");
 }
 
 // =============================================================================
@@ -252,7 +176,6 @@ function handlePlayPauseEvent(event: PlayPauseEvent) {
     pendingPlayPauseEvent.finalState = event.type;
     pendingPlayPauseEvent.timestamp = new Date(event.timestamp);
     pendingPlayPauseEvent.position = event.position;
-    pendingPlayPauseEvent.playbackRate = event.playbackRate;
   } else {
     const stateBefore =
       event.type === PlayPauseType.PLAY
@@ -264,7 +187,6 @@ function handlePlayPauseEvent(event: PlayPauseEvent) {
       timestamp: new Date(event.timestamp),
       playthroughId: event.playthroughId,
       position: event.position,
-      playbackRate: event.playbackRate,
     };
   }
 
@@ -289,14 +211,8 @@ async function flushPlayPauseEvent() {
     return;
   }
 
-  const {
-    stateBefore,
-    finalState,
-    timestamp,
-    playthroughId,
-    position,
-    playbackRate,
-  } = pendingPlayPauseEvent;
+  const { stateBefore, finalState, timestamp, playthroughId, position } =
+    pendingPlayPauseEvent;
   pendingPlayPauseEvent = null;
 
   if (stateBefore === finalState) {
@@ -307,31 +223,16 @@ async function flushPlayPauseEvent() {
   }
 
   const eventType = finalState === PlayPauseType.PLAY ? "play" : "pause";
+  const device = await getDeviceInfo();
 
-  await getDb().transaction(async (tx) => {
-    await tx.insert(schema.playbackEvents).values({
-      id: randomUUID(),
-      playthroughId,
-      deviceId: getDeviceIdSync(),
-      type: eventType,
-      timestamp,
-      position,
-      playbackRate,
-    });
-
-    await updateStateCache(
-      playthroughId,
-      position,
-      playbackRate,
-      timestamp,
-      tx,
-    );
+  await recordPlayPauseEvent(session, playthroughId, device.id, {
+    type: eventType,
+    timestamp,
+    position,
   });
 
-  log.info(`Recorded ${eventType} event at position ${position.toFixed(1)}`);
-
   if (finalState === PlayPauseType.PAUSE) {
-    syncPlaythroughs(session);
+    syncPlaybackEvents(session);
   }
 }
 
@@ -396,24 +297,13 @@ async function flushRateChangeEvent() {
     return;
   }
 
-  await getDb().transaction(async (tx) => {
-    await tx.insert(schema.playbackEvents).values({
-      id: randomUUID(),
-      playthroughId,
-      deviceId: getDeviceIdSync(),
-      type: "rate_change",
-      timestamp,
-      position,
-      playbackRate: newRate,
-      previousRate,
-    });
+  const device = await getDeviceInfo();
 
-    await updateStateCache(playthroughId, position, newRate, timestamp, tx);
+  await recordRateChangeEvent(session, playthroughId, device.id, {
+    position,
+    timestamp,
+    playbackRate: newRate,
   });
-
-  log.info(
-    `Recorded rate change from ${previousRate.toFixed(2)} to ${newRate.toFixed(2)}`,
-  );
 }
 
 /**
@@ -442,7 +332,6 @@ function handleSeekEvent(seek: Seek) {
       to: seek.to,
       timestamp: new Date(seek.timestamp),
       playthroughId: seek.playthroughId,
-      playbackRate: seek.playbackRate,
     };
   }
 
@@ -464,7 +353,7 @@ async function flushSeekEvent() {
     return;
   }
 
-  const { from, to, timestamp, playthroughId, playbackRate } = pendingSeekEvent;
+  const { from, to, timestamp, playthroughId } = pendingSeekEvent;
   pendingSeekEvent = null;
 
   const trivialSeek = Math.abs(to - from) < 2;
@@ -475,21 +364,12 @@ async function flushSeekEvent() {
     return;
   }
 
-  await getDb().transaction(async (tx) => {
-    await tx.insert(schema.playbackEvents).values({
-      id: randomUUID(),
-      playthroughId,
-      deviceId: getDeviceIdSync(),
-      type: "seek",
-      timestamp,
-      position: to,
-      playbackRate,
-      fromPosition: from,
-      toPosition: to,
-    });
+  const device = await getDeviceInfo();
 
-    await updateStateCache(playthroughId, to, playbackRate, timestamp, tx);
+  await recordSeekEvent(session, playthroughId, device.id, {
+    timestamp,
+    position: to,
+    fromPosition: from,
+    toPosition: to,
   });
-
-  log.info(`Recorded seek event from ${from.toFixed(1)} to ${to.toFixed(1)}`);
 }

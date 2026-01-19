@@ -112,15 +112,18 @@ function stop(): void {
 
 /**
  * Save the current playback position to the state cache.
+ *
+ * V2: Cache only stores position for crash recovery. Rate and other state
+ * live on the playthrough itself (derived from events).
  */
 async function save(): Promise<void> {
   const currentPlaythroughId = Player.getLoadedPlaythrough()?.id;
   if (!currentPlaythroughId) return;
 
-  const currentPlaybackRate = Player.getPlaybackRate();
   const { position } = Player.getProgress();
 
-  await updateStateCache(currentPlaythroughId, position, currentPlaybackRate);
+  // Only save position - rate lives on playthrough, not cache
+  await updateStateCache(currentPlaythroughId, position);
 
   log.info(`Saved position: ${position.toFixed(1)}`);
 }

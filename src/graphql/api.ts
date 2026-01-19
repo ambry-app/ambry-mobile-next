@@ -9,8 +9,7 @@ import {
 import {
   DeviceTypeInput,
   PlaybackEventType,
-  PlaythroughStatus,
-  type SyncProgressInput,
+  type SyncEventsInput,
 } from "@/graphql/client/graphql";
 import { Result } from "@/types/result";
 import { Session } from "@/types/session";
@@ -222,29 +221,17 @@ const deleteSessionMutation = graphql(`
 `);
 
 // =============================================================================
-// Playthrough Sync (new event-sourced model)
+// Playthrough Sync (V2 - events only)
 // =============================================================================
 
-const syncProgressMutation = graphql(`
-  mutation SyncProgress($input: SyncProgressInput!) {
-    syncProgress(input: $input) {
-      playthroughs {
-        id
-        status
-        startedAt
-        finishedAt
-        abandonedAt
-        deletedAt
-        insertedAt
-        updatedAt
-        media {
-          id
-        }
-      }
+const syncEventsMutation = graphql(`
+  mutation SyncEvents($input: SyncEventsInput!) {
+    syncEvents(input: $input) {
       events {
         id
         playthroughId
         deviceId
+        mediaId
         type
         timestamp
         position
@@ -258,19 +245,14 @@ const syncProgressMutation = graphql(`
   }
 `);
 
-// Re-export generated types for use in sync.ts
-export type { SyncProgressInput };
-export { DeviceTypeInput, PlaybackEventType, PlaythroughStatus };
+// Re-export generated types for use in sync-service.ts
+export type { SyncEventsInput };
+export { DeviceTypeInput, PlaybackEventType };
 
-export function syncProgress(session: Session, input: SyncProgressInput) {
-  return executeAuthenticated(
-    session.url,
-    session.token,
-    syncProgressMutation,
-    {
-      input,
-    },
-  );
+export function syncEvents(session: Session, input: SyncEventsInput) {
+  return executeAuthenticated(session.url, session.token, syncEventsMutation, {
+    input,
+  });
 }
 
 export async function deleteSession(

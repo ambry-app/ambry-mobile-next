@@ -121,7 +121,7 @@ describe("getPlaythroughsPage", () => {
       mediaId: media.id,
       status: "in_progress",
       position: 1234,
-      rate: 1.5,
+      playbackRate: 1.5,
       lastEventAt: new Date("2024-01-15T10:30:00Z"),
     });
 
@@ -151,7 +151,8 @@ describe("getPlaythroughsPage", () => {
 
     expect(result[0]?.position).toBe(0);
     expect(result[0]?.playbackRate).toBe(1);
-    expect(result[0]?.lastListenedAt).toBeNull();
+    // lastListenedAt now comes from playthroughs.lastEventAt which is always set
+    expect(result[0]?.lastListenedAt).not.toBeNull();
   });
 
   it("includes download thumbnails when media is downloaded", async () => {
@@ -193,7 +194,7 @@ describe("getPlaythroughsPage", () => {
       await createPlaythrough(db, {
         mediaId: media.id,
         status: "in_progress",
-        updatedAt: new Date(2024, 0, i + 1),
+        lastEventAt: new Date(2024, 0, i + 1),
       });
     }
 
