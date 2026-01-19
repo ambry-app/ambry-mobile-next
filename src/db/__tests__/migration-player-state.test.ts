@@ -232,7 +232,6 @@ describe("migrateFromPlayerStateToPlaythrough", () => {
       type: "pause",
       timestamp: new Date(updatedAt * 1000),
       position: 1234.5,
-      playbackRate: 1.25,
       syncedAt: null,
     });
 
@@ -353,7 +352,6 @@ describe("migrateFromPlayerStateToPlaythrough", () => {
     const pauseEvent = events.find((e) => e.type === "pause");
     expect(pauseEvent).toMatchObject({
       position: 200.0,
-      playbackRate: 1.5,
       timestamp: new Date(1700001000 * 1000),
     });
   });
