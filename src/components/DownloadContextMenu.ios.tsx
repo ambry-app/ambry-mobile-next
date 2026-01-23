@@ -1,7 +1,12 @@
 // iOS version - uses SwiftUI
 import { StyleSheet } from "react-native";
-import { Button, ContextMenu, Host } from "@expo/ui/swift-ui";
-import { frame } from "@expo/ui/swift-ui/modifiers";
+import { Button, Host, Menu } from "@expo/ui/swift-ui";
+import {
+  buttonStyle,
+  controlSize,
+  frame,
+  tint,
+} from "@expo/ui/swift-ui/modifiers";
 
 import { Colors } from "@/styles/colors";
 
@@ -18,28 +23,35 @@ export function DownloadContextMenu({
 }: DownloadContextMenuProps) {
   return (
     <Host style={styles.host}>
-      <ContextMenu activationMethod="singlePress">
-        <ContextMenu.Trigger>
+      <Menu
+        label={
           <Button
+            label=" "
             systemImage="ellipsis"
-            variant="borderless"
-            color={Colors.zinc[100]}
-            controlSize="large"
-            modifiers={[frame({ width: 44, height: 44 })]}
+            modifiers={[
+              buttonStyle("borderless"),
+              controlSize("large"),
+              tint(Colors.zinc[100]),
+            ]}
           />
-        </ContextMenu.Trigger>
-        <ContextMenu.Items>
-          {status === "ready" ? (
-            <Button systemImage="trash" role="destructive" onPress={onDelete}>
-              Delete downloaded files
-            </Button>
-          ) : (
-            <Button systemImage="xmark.circle" onPress={onCancel}>
-              Cancel download
-            </Button>
-          )}
-        </ContextMenu.Items>
-      </ContextMenu>
+        }
+        modifiers={[frame({ width: 44, height: 44 })]}
+      >
+        {status === "ready" ? (
+          <Button
+            label="Delete downloaded files"
+            systemImage="trash"
+            role="destructive"
+            onPress={onDelete}
+          />
+        ) : (
+          <Button
+            label="Cancel download"
+            systemImage="xmark.circle"
+            onPress={onCancel}
+          />
+        )}
+      </Menu>
     </Host>
   );
 }

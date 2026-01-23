@@ -1,7 +1,12 @@
 // iOS version - uses SwiftUI
 import { StyleSheet } from "react-native";
-import { Button, ContextMenu, Host } from "@expo/ui/swift-ui";
-import { frame } from "@expo/ui/swift-ui/modifiers";
+import { Button, Host, Menu } from "@expo/ui/swift-ui";
+import {
+  buttonStyle,
+  controlSize,
+  frame,
+  tint,
+} from "@expo/ui/swift-ui/modifiers";
 
 import { Colors } from "@/styles/colors";
 
@@ -30,50 +35,56 @@ export function PlaythroughContextMenuImpl({
 }: PlaythroughContextMenuImplProps) {
   return (
     <Host style={styles.host}>
-      <ContextMenu activationMethod="singlePress">
-        <ContextMenu.Trigger>
+      <Menu
+        label={
           <Button
+            label=" "
             systemImage="ellipsis"
-            variant="borderless"
-            color={Colors.zinc[500]}
-            controlSize="large"
-            modifiers={[frame({ width: 44, height: 44 })]}
+            modifiers={[
+              buttonStyle("borderless"),
+              controlSize("large"),
+              tint(Colors.zinc[500]),
+            ]}
           />
-        </ContextMenu.Trigger>
-        <ContextMenu.Items>
-          {status === "in_progress" && (
-            <Button systemImage="play.fill" onPress={onResume}>
-              Resume
-            </Button>
-          )}
+        }
+        modifiers={[frame({ width: 44, height: 44 })]}
+      >
+        {status === "in_progress" && (
+          <Button label="Resume" systemImage="play.fill" onPress={onResume} />
+        )}
 
-          {(status === "finished" || status === "abandoned") && (
-            <Button systemImage="play.fill" onPress={onResumeFromPrevious}>
-              Resume
-            </Button>
-          )}
+        {(status === "finished" || status === "abandoned") && (
+          <Button
+            label="Resume"
+            systemImage="play.fill"
+            onPress={onResumeFromPrevious}
+          />
+        )}
 
-          {status === "in_progress" && (
-            <>
-              <Button systemImage="flag.fill" onPress={onMarkAsFinished}>
-                Mark as finished
-              </Button>
-              <Button
-                systemImage="xmark.circle"
-                role="destructive"
-                onPress={onAbandon}
-              >
-                Abandon
-              </Button>
-            </>
-          )}
+        {status === "in_progress" && (
+          <>
+            <Button
+              label="Mark as finished"
+              systemImage="flag.fill"
+              onPress={onMarkAsFinished}
+            />
+            <Button
+              label="Abandon"
+              systemImage="xmark.circle"
+              role="destructive"
+              onPress={onAbandon}
+            />
+          </>
+        )}
 
-          {/* Delete is always available */}
-          <Button systemImage="trash" role="destructive" onPress={onDelete}>
-            Delete playthrough
-          </Button>
-        </ContextMenu.Items>
-      </ContextMenu>
+        {/* Delete is always available */}
+        <Button
+          label="Delete playthrough"
+          systemImage="trash"
+          role="destructive"
+          onPress={onDelete}
+        />
+      </Menu>
     </Host>
   );
 }

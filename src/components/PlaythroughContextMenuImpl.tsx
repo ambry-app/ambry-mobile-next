@@ -1,7 +1,13 @@
 // Android version (default) - uses Jetpack Compose
 import { ReactElement } from "react";
 import { StyleSheet, View } from "react-native";
-import { Button, ButtonProps, ContextMenu } from "@expo/ui/jetpack-compose";
+import {
+  Button,
+  ButtonProps,
+  ContextMenu,
+  fillMaxSize,
+  Host,
+} from "@expo/ui/jetpack-compose";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import { Colors } from "@/styles/colors";
@@ -51,7 +57,7 @@ export function PlaythroughContextMenuImpl({
     menuItems.push(
       <Button
         key="resume"
-        leadingIcon="filled.PlayArrow"
+        //leadingIcon="filled.PlayArrow"
         elementColors={menuColors}
         onPress={onResume}
       >
@@ -63,7 +69,7 @@ export function PlaythroughContextMenuImpl({
     menuItems.push(
       <Button
         key="resume"
-        leadingIcon="filled.PlayArrow"
+        //leadingIcon="filled.PlayArrow"
         elementColors={menuColors}
         onPress={onResumeFromPrevious}
       >
@@ -76,7 +82,7 @@ export function PlaythroughContextMenuImpl({
     menuItems.push(
       <Button
         key="finish"
-        leadingIcon="filled.CheckCircle"
+        //leadingIcon="filled.CheckCircle"
         elementColors={menuColors}
         onPress={onMarkAsFinished}
       >
@@ -84,7 +90,7 @@ export function PlaythroughContextMenuImpl({
       </Button>,
       <Button
         key="abandon"
-        leadingIcon="filled.Close"
+        //leadingIcon="filled.Close"
         elementColors={destructiveColors}
         onPress={onAbandon}
       >
@@ -97,7 +103,7 @@ export function PlaythroughContextMenuImpl({
   menuItems.push(
     <Button
       key="delete"
-      leadingIcon="filled.Delete"
+      //leadingIcon="filled.Delete"
       elementColors={destructiveColors}
       onPress={onDelete}
     >
@@ -116,14 +122,16 @@ export function PlaythroughContextMenuImpl({
         />
       </View>
       {/* Context menu with invisible trigger on top */}
-      <ContextMenu color={Colors.zinc[800]}>
-        <ContextMenu.Trigger>
-          <Button elementColors={triggerColors} style={styles.trigger}>
-            {" "}
-          </Button>
-        </ContextMenu.Trigger>
-        <ContextMenu.Items>{menuItems}</ContextMenu.Items>
-      </ContextMenu>
+      <Host style={styles.host}>
+        <ContextMenu color={Colors.zinc[800]}>
+          <ContextMenu.Trigger>
+            <Button elementColors={triggerColors} modifiers={[fillMaxSize()]}>
+              {" "}
+            </Button>
+          </ContextMenu.Trigger>
+          <ContextMenu.Items>{menuItems}</ContextMenu.Items>
+        </ContextMenu>
+      </Host>
     </View>
   );
 }
@@ -135,12 +143,12 @@ const styles = StyleSheet.create({
     height: 44,
   },
   iconLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "center",
     alignItems: "center",
   },
-  trigger: {
-    width: 44,
-    height: 44,
+  host: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "transparent",
   },
 });

@@ -1,6 +1,11 @@
 // Android version (default) - uses Jetpack Compose
 import { StyleSheet, View } from "react-native";
-import { Button, ContextMenu } from "@expo/ui/jetpack-compose";
+import {
+  Button,
+  ContextMenu,
+  fillMaxSize,
+  Host,
+} from "@expo/ui/jetpack-compose";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import { Colors } from "@/styles/colors";
@@ -42,30 +47,34 @@ export function DownloadContextMenu({
         />
       </View>
       {/* Context menu with invisible trigger on top */}
-      <ContextMenu color={Colors.zinc[800]}>
-        <ContextMenu.Trigger>
-          <Button elementColors={triggerColors}> </Button>
-        </ContextMenu.Trigger>
-        <ContextMenu.Items>
-          {status === "ready" ? (
-            <Button
-              leadingIcon="filled.Delete"
-              elementColors={destructiveColors}
-              onPress={onDelete}
-            >
-              Delete downloaded files
+      <Host style={styles.host}>
+        <ContextMenu color={Colors.zinc[800]}>
+          <ContextMenu.Trigger>
+            <Button elementColors={triggerColors} modifiers={[fillMaxSize()]}>
+              {" "}
             </Button>
-          ) : (
-            <Button
-              leadingIcon="filled.Close"
-              elementColors={menuColors}
-              onPress={onCancel}
-            >
-              Cancel download
-            </Button>
-          )}
-        </ContextMenu.Items>
-      </ContextMenu>
+          </ContextMenu.Trigger>
+          <ContextMenu.Items>
+            {status === "ready" ? (
+              <Button
+                //leadingIcon="filled.Delete"
+                elementColors={destructiveColors}
+                onPress={onDelete}
+              >
+                Delete downloaded files
+              </Button>
+            ) : (
+              <Button
+                //leadingIcon="filled.Close"
+                elementColors={menuColors}
+                onPress={onCancel}
+              >
+                Cancel download
+              </Button>
+            )}
+          </ContextMenu.Items>
+        </ContextMenu>
+      </Host>
     </View>
   );
 }
@@ -77,12 +86,12 @@ const styles = StyleSheet.create({
     height: 44,
   },
   iconLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "center",
     alignItems: "center",
   },
-  trigger: {
-    width: 44,
-    height: 44,
+  host: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "transparent",
   },
 });

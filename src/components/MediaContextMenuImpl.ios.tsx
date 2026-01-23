@@ -1,7 +1,12 @@
 // iOS version - uses SwiftUI
 import { StyleSheet } from "react-native";
-import { Button, ContextMenu, Host } from "@expo/ui/swift-ui";
-import { frame } from "@expo/ui/swift-ui/modifiers";
+import { Button, Host, Menu } from "@expo/ui/swift-ui";
+import {
+  buttonStyle,
+  frame,
+  labelStyle,
+  tint,
+} from "@expo/ui/swift-ui/modifiers";
 
 import { MediaPlaybackState } from "@/services/playthrough-query-service";
 import { DownloadStatus } from "@/stores/downloads";
@@ -40,106 +45,110 @@ export function MediaContextMenuImpl({
 }: MediaContextMenuImplProps) {
   return (
     <Host style={styles.host}>
-      <ContextMenu activationMethod="singlePress">
-        <ContextMenu.Trigger>
+      <Menu
+        label={
           <Button
+            label=" "
             systemImage="ellipsis"
-            variant="borderedProminent"
-            color={Colors.zinc[900]}
-            controlSize="regular"
-            modifiers={[frame({ width: 48, height: 48 })]}
+            modifiers={[
+              buttonStyle("plain"),
+              labelStyle("iconOnly"),
+              tint(Colors.zinc[100]),
+              frame({ width: 48, height: 48 }),
+            ]}
           />
-        </ContextMenu.Trigger>
-        <ContextMenu.Items>
-          {/* Play/Resume action */}
+        }
+      >
+        {/* Play/Resume action */}
 
-          {playbackState.type === "none" && (
-            <Button systemImage="play.fill" onPress={onPlay}>
-              Play
-            </Button>
-          )}
+        {playbackState.type === "none" && (
+          <Button label="Play" systemImage="play.fill" onPress={onPlay} />
+        )}
 
-          {playbackState.type === "in_progress" && (
-            <Button systemImage="play.fill" onPress={onResume}>
-              Resume
-            </Button>
-          )}
+        {playbackState.type === "in_progress" && (
+          <Button label="Resume" systemImage="play.fill" onPress={onResume} />
+        )}
 
-          {(playbackState.type === "finished" ||
-            playbackState.type === "abandoned") && (
-            <Button systemImage="play.fill" onPress={onResumeFromPrompt}>
-              Play
-            </Button>
-          )}
+        {(playbackState.type === "finished" ||
+          playbackState.type === "abandoned") && (
+          <Button
+            label="Play"
+            systemImage="play.fill"
+            onPress={onResumeFromPrompt}
+          />
+        )}
 
-          {/* Playthrough actions */}
+        {/* Playthrough actions */}
 
-          {(playbackState.type === "in_progress" ||
-            playbackState.type === "loaded") && (
-            <>
-              <Button systemImage="flag.fill" onPress={onMarkAsFinished}>
-                Mark as finished
-              </Button>
-              <Button
-                systemImage="xmark.circle"
-                role="destructive"
-                onPress={onAbandon}
-              >
-                Abandon
-              </Button>
-            </>
-          )}
-
-          {/* Download action*/}
-
-          {downloadStatus === undefined && (
-            <Button systemImage="arrow.down.circle" onPress={onDownload}>
-              Download
-            </Button>
-          )}
-
-          {downloadStatus === "pending" && (
+        {(playbackState.type === "in_progress" ||
+          playbackState.type === "loaded") && (
+          <>
             <Button
+              label="Mark as finished"
+              systemImage="flag.fill"
+              onPress={onMarkAsFinished}
+            />
+            <Button
+              label="Abandon"
               systemImage="xmark.circle"
               role="destructive"
-              onPress={onCancelDownload}
-            >
-              Cancel download
-            </Button>
-          )}
+              onPress={onAbandon}
+            />
+          </>
+        )}
 
-          {downloadStatus === "ready" && (
-            <Button
-              systemImage="trash"
-              role="destructive"
-              onPress={onRemoveDownload}
-            >
-              Delete downloaded files
-            </Button>
-          )}
+        {/* Download action*/}
 
-          {downloadStatus === "error" && (
-            <Button systemImage="arrow.down.circle" onPress={onDownload}>
-              Retry download
-            </Button>
-          )}
-
-          {/* Shelf action */}
-
+        {downloadStatus === undefined && (
           <Button
-            systemImage={isOnShelf ? "bookmark.slash" : "bookmark"}
-            onPress={onToggleShelf}
-          >
-            {isOnShelf ? "Remove from saved" : "Save for later"}
-          </Button>
+            label="Download"
+            systemImage="arrow.down.circle"
+            onPress={onDownload}
+          />
+        )}
 
-          {/* Share action */}
+        {downloadStatus === "pending" && (
+          <Button
+            label="Cancel download"
+            systemImage="xmark.circle"
+            role="destructive"
+            onPress={onCancelDownload}
+          />
+        )}
 
-          <Button systemImage="square.and.arrow.up" onPress={onShare}>
-            Share
-          </Button>
-        </ContextMenu.Items>
-      </ContextMenu>
+        {downloadStatus === "ready" && (
+          <Button
+            label="Delete downloaded files"
+            systemImage="trash"
+            role="destructive"
+            onPress={onRemoveDownload}
+          />
+        )}
+
+        {downloadStatus === "error" && (
+          <Button
+            label="Retry download"
+            systemImage="arrow.down.circle"
+            onPress={onDownload}
+          />
+        )}
+
+        {/* Shelf action */}
+
+        <Button
+          label={isOnShelf ? "Remove from saved" : "Save for later"}
+          systemImage={isOnShelf ? "bookmark.slash" : "bookmark"}
+          onPress={onToggleShelf}
+        />
+
+        {/* Share action */}
+
+        <Button
+          label="Share"
+          systemImage="square.and.arrow.up"
+          onPress={onShare}
+        />
+      </Menu>
     </Host>
   );
 }

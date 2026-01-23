@@ -23,7 +23,8 @@ export function LibraryScreen({ session }: LibraryScreenProps) {
           setSearch(event.nativeEvent.text);
         },
         placeholder: "Search Library",
-        hintTextColor: Colors.zinc["500"],
+        textColor: Colors.zinc["100"],
+        hintTextColor: Colors.zinc["600"],
         headerIconColor: Colors.white,
       },
     });

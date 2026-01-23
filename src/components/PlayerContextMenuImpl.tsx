@@ -5,6 +5,8 @@ import {
   Button,
   ButtonProps,
   ContextMenu,
+  fillMaxSize,
+  Host,
   Submenu,
 } from "@expo/ui/jetpack-compose";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
@@ -67,7 +69,7 @@ export function PlayerContextMenuImpl({
   menuItems.push(
     <Button
       key="go-to-book"
-      leadingIcon="filled.Info"
+      //leadingIcon="filled.Info"
       elementColors={menuColors}
       onPress={handleGoToBook}
     >
@@ -79,7 +81,7 @@ export function PlayerContextMenuImpl({
     <Submenu
       key="go-to-author-submenu"
       button={
-        <Button leadingIcon="filled.Person" elementColors={menuColors}>
+        <Button /*leadingIcon="filled.Person"*/ elementColors={menuColors}>
           {authors.length > 1 ? "Authors" : "Author"}
         </Button>
       }
@@ -87,6 +89,7 @@ export function PlayerContextMenuImpl({
       {authors.map((author) => (
         <Button
           key={author.id}
+          //leadingIcon="filled.Person"
           elementColors={menuColors}
           onPress={() => handleGoToPerson(author)}
         >
@@ -100,7 +103,7 @@ export function PlayerContextMenuImpl({
     <Submenu
       key="go-to-narrator-submenu"
       button={
-        <Button leadingIcon="filled.Person" elementColors={menuColors}>
+        <Button /*leadingIcon="filled.Person"*/ elementColors={menuColors}>
           {narrators.length > 1 ? "Narrators" : "Narrator"}
         </Button>
       }
@@ -108,6 +111,7 @@ export function PlayerContextMenuImpl({
       {narrators.slice(0, NARRATOR_THRESHOLD).map((narrator) => (
         <Button
           key={narrator.id}
+          //leadingIcon="filled.Person"
           elementColors={menuColors}
           onPress={() => handleGoToPerson(narrator)}
         >
@@ -123,7 +127,7 @@ export function PlayerContextMenuImpl({
     actionMenuItems.push(
       <Button
         key="download"
-        leadingIcon="filled.KeyboardArrowDown"
+        //leadingIcon="filled.KeyboardArrowDown"
         elementColors={menuColors}
         onPress={handleDownload}
       >
@@ -136,7 +140,7 @@ export function PlayerContextMenuImpl({
   actionMenuItems.push(
     <Button
       key="unload"
-      leadingIcon="filled.Close"
+      //leadingIcon="filled.Close"
       elementColors={menuColors}
       onPress={handleUnloadPlayer}
     >
@@ -148,7 +152,7 @@ export function PlayerContextMenuImpl({
   actionMenuItems.push(
     <Button
       key="mark-finished"
-      leadingIcon="filled.CheckCircle"
+      //leadingIcon="filled.CheckCircle"
       elementColors={menuColors}
       onPress={handleMarkFinished}
     >
@@ -160,7 +164,7 @@ export function PlayerContextMenuImpl({
   actionMenuItems.push(
     <Button
       key="abandon"
-      leadingIcon="filled.Close"
+      //leadingIcon="filled.Close"
       elementColors={destructiveColors}
       onPress={handleAbandon}
     >
@@ -172,7 +176,7 @@ export function PlayerContextMenuImpl({
     <Submenu
       key="actions-submenu"
       button={
-        <Button leadingIcon="filled.Done" elementColors={menuColors}>
+        <Button /*leadingIcon="filled.Done"*/ elementColors={menuColors}>
           Actions
         </Button>
       }
@@ -192,14 +196,16 @@ export function PlayerContextMenuImpl({
         />
       </View>
       {/* Context menu with invisible trigger on top */}
-      <ContextMenu color={Colors.zinc[800]}>
-        <ContextMenu.Trigger>
-          <Button elementColors={triggerColors} style={styles.trigger}>
-            {" "}
-          </Button>
-        </ContextMenu.Trigger>
-        <ContextMenu.Items>{menuItems}</ContextMenu.Items>
-      </ContextMenu>
+      <Host style={styles.host}>
+        <ContextMenu color={Colors.zinc[800]}>
+          <ContextMenu.Trigger>
+            <Button elementColors={triggerColors} modifiers={[fillMaxSize()]}>
+              {" "}
+            </Button>
+          </ContextMenu.Trigger>
+          <ContextMenu.Items>{menuItems}</ContextMenu.Items>
+        </ContextMenu>
+      </Host>
     </View>
   );
 }
@@ -207,16 +213,16 @@ export function PlayerContextMenuImpl({
 const styles = StyleSheet.create({
   container: {
     position: "relative",
-    width: 48,
-    height: 48,
+    height: "100%",
+    aspectRatio: 1,
   },
   iconLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "center",
     alignItems: "center",
   },
-  trigger: {
-    width: 48,
-    height: 48,
+  host: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "transparent",
   },
 });
