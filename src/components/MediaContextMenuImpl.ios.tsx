@@ -1,7 +1,12 @@
 // iOS version - uses SwiftUI
 import { StyleSheet } from "react-native";
-import { Button, ContextMenu, Host } from "@expo/ui/swift-ui";
-import { frame } from "@expo/ui/swift-ui/modifiers";
+import { Button, Host, Menu } from "@expo/ui/swift-ui";
+import {
+  buttonStyle,
+  frame,
+  labelStyle,
+  tint,
+} from "@expo/ui/swift-ui/modifiers";
 
 import { MediaPlaybackState } from "@/services/playthrough-query-service";
 import { DownloadStatus } from "@/stores/downloads";
@@ -40,105 +45,110 @@ export function MediaContextMenuImpl({
 }: MediaContextMenuImplProps) {
   return (
     <Host style={styles.host}>
-      <ContextMenu>
-        <ContextMenu.Trigger>
+      <Menu
+        label={
           <Button
+            label=" "
             systemImage="ellipsis"
-            modifiers={[frame({ width: 48, height: 48 })]}
+            modifiers={[
+              buttonStyle("plain"),
+              labelStyle("iconOnly"),
+              tint(Colors.zinc[100]),
+              frame({ width: 48, height: 48 }),
+            ]}
           />
-        </ContextMenu.Trigger>
-        <ContextMenu.Items>
-          {/* Play/Resume action */}
+        }
+      >
+        {/* Play/Resume action */}
 
-          {playbackState.type === "none" && (
-            <Button label="Play" systemImage="play.fill" onPress={onPlay} />
-          )}
+        {playbackState.type === "none" && (
+          <Button label="Play" systemImage="play.fill" onPress={onPlay} />
+        )}
 
-          {playbackState.type === "in_progress" && (
-            <Button label="Resume" systemImage="play.fill" onPress={onResume} />
-          )}
+        {playbackState.type === "in_progress" && (
+          <Button label="Resume" systemImage="play.fill" onPress={onResume} />
+        )}
 
-          {(playbackState.type === "finished" ||
-            playbackState.type === "abandoned") && (
+        {(playbackState.type === "finished" ||
+          playbackState.type === "abandoned") && (
+          <Button
+            label="Play"
+            systemImage="play.fill"
+            onPress={onResumeFromPrompt}
+          />
+        )}
+
+        {/* Playthrough actions */}
+
+        {(playbackState.type === "in_progress" ||
+          playbackState.type === "loaded") && (
+          <>
             <Button
-              label="Play"
-              systemImage="play.fill"
-              onPress={onResumeFromPrompt}
+              label="Mark as finished"
+              systemImage="flag.fill"
+              onPress={onMarkAsFinished}
             />
-          )}
-
-          {/* Playthrough actions */}
-
-          {(playbackState.type === "in_progress" ||
-            playbackState.type === "loaded") && (
-            <>
-              <Button
-                label="Mark as finished"
-                systemImage="flag.fill"
-                onPress={onMarkAsFinished}
-              />
-              <Button
-                label="Abandon"
-                systemImage="xmark.circle"
-                role="destructive"
-                onPress={onAbandon}
-              />
-            </>
-          )}
-
-          {/* Download action*/}
-
-          {downloadStatus === undefined && (
             <Button
-              label="Download"
-              systemImage="arrow.down.circle"
-              onPress={onDownload}
-            />
-          )}
-
-          {downloadStatus === "pending" && (
-            <Button
-              label="Cancel download"
+              label="Abandon"
               systemImage="xmark.circle"
               role="destructive"
-              onPress={onCancelDownload}
+              onPress={onAbandon}
             />
-          )}
+          </>
+        )}
 
-          {downloadStatus === "ready" && (
-            <Button
-              label="Delete downloaded files"
-              systemImage="trash"
-              role="destructive"
-              onPress={onRemoveDownload}
-            />
-          )}
+        {/* Download action*/}
 
-          {downloadStatus === "error" && (
-            <Button
-              label="Retry download"
-              systemImage="arrow.down.circle"
-              onPress={onDownload}
-            />
-          )}
-
-          {/* Shelf action */}
-
+        {downloadStatus === undefined && (
           <Button
-            label={isOnShelf ? "Remove from saved" : "Save for later"}
-            systemImage={isOnShelf ? "bookmark.slash" : "bookmark"}
-            onPress={onToggleShelf}
+            label="Download"
+            systemImage="arrow.down.circle"
+            onPress={onDownload}
           />
+        )}
 
-          {/* Share action */}
-
+        {downloadStatus === "pending" && (
           <Button
-            label="Share"
-            systemImage="square.and.arrow.up"
-            onPress={onShare}
+            label="Cancel download"
+            systemImage="xmark.circle"
+            role="destructive"
+            onPress={onCancelDownload}
           />
-        </ContextMenu.Items>
-      </ContextMenu>
+        )}
+
+        {downloadStatus === "ready" && (
+          <Button
+            label="Delete downloaded files"
+            systemImage="trash"
+            role="destructive"
+            onPress={onRemoveDownload}
+          />
+        )}
+
+        {downloadStatus === "error" && (
+          <Button
+            label="Retry download"
+            systemImage="arrow.down.circle"
+            onPress={onDownload}
+          />
+        )}
+
+        {/* Shelf action */}
+
+        <Button
+          label={isOnShelf ? "Remove from saved" : "Save for later"}
+          systemImage={isOnShelf ? "bookmark.slash" : "bookmark"}
+          onPress={onToggleShelf}
+        />
+
+        {/* Share action */}
+
+        <Button
+          label="Share"
+          systemImage="square.and.arrow.up"
+          onPress={onShare}
+        />
+      </Menu>
     </Host>
   );
 }

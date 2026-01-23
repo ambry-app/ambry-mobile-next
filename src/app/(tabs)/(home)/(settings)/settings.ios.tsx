@@ -7,10 +7,10 @@ import {
   LabeledContent,
   List,
   Section,
-  Switch,
   Text,
+  Toggle,
 } from "@expo/ui/swift-ui";
-import { foregroundStyle, listStyle } from "@expo/ui/swift-ui/modifiers";
+import { foregroundStyle, listStyle, tint } from "@expo/ui/swift-ui/modifiers";
 import { router } from "expo-router";
 
 import { signOut } from "@/services/auth-service";
@@ -134,20 +134,20 @@ export default function SettingsRoute() {
               onPress={openSleepTimerSettings}
             />
           </LabeledContent>
-          <Switch
+          <Toggle
             label="Motion Detection"
-            value={motionToggle}
-            onValueChange={handleMotionDetectionToggle}
-            color={Colors.lime[500]}
+            isOn={motionToggle}
+            onIsOnChange={handleMotionDetectionToggle}
+            modifiers={[tint(Colors.lime[500])]}
           />
         </Section>
 
         <Section title="DEBUG">
-          <Switch
+          <Toggle
             label="Debug Mode"
-            value={debugModeEnabled}
-            onValueChange={setDebugModeEnabled}
-            color={Colors.lime[500]}
+            isOn={debugModeEnabled}
+            onIsOnChange={setDebugModeEnabled}
+            modifiers={[tint(Colors.lime[500])]}
           />
           <Button label="Force Full Sync" onPress={handleForceFullSync} />
         </Section>

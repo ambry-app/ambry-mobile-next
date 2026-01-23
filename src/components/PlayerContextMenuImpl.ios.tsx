@@ -1,9 +1,15 @@
 // iOS version - uses SwiftUI
 import { StyleSheet } from "react-native";
-import { Button, ContextMenu, Host, Section } from "@expo/ui/swift-ui";
-import { frame } from "@expo/ui/swift-ui/modifiers";
+import { Button, Host, Menu, Section } from "@expo/ui/swift-ui";
+import {
+  buttonStyle,
+  controlSize,
+  frame,
+  tint,
+} from "@expo/ui/swift-ui/modifiers";
 
 import { DownloadStatus } from "@/stores/downloads";
+import { Colors } from "@/styles/colors";
 
 type AuthorOrNarrator = {
   id: string;
@@ -69,59 +75,64 @@ export function PlayerContextMenuImpl({
 
   return (
     <Host style={styles.host}>
-      <ContextMenu>
-        <ContextMenu.Trigger>
+      <Menu
+        label={
           <Button
+            label=" "
             systemImage="ellipsis"
-            modifiers={[frame({ width: 48, height: 48 })]}
+            modifiers={[
+              buttonStyle("borderless"),
+              controlSize("large"),
+              tint(Colors.zinc[100]),
+            ]}
           />
-        </ContextMenu.Trigger>
-        <ContextMenu.Items>
-          {/* Go to book */}
+        }
+        modifiers={[frame({ width: 48, height: 48 })]}
+      >
+        {/* Go to book */}
+        <Button
+          label="Go to book"
+          systemImage="info.circle"
+          onPress={handleGoToBook}
+        />
+
+        {/* Go to author(s) */}
+        {renderAuthorItems()}
+
+        {/* Go to narrator(s) */}
+        {renderNarratorItems()}
+
+        {/* Download (only if not already downloaded or downloading) */}
+        {!downloadStatus && (
           <Button
-            label="Go to book"
-            systemImage="info.circle"
-            onPress={handleGoToBook}
+            label="Download"
+            systemImage="arrow.down.circle"
+            onPress={handleDownload}
           />
+        )}
 
-          {/* Go to author(s) */}
-          {renderAuthorItems()}
+        {/* Unload player */}
+        <Button
+          label="Unload player"
+          systemImage="xmark"
+          onPress={handleUnloadPlayer}
+        />
 
-          {/* Go to narrator(s) */}
-          {renderNarratorItems()}
+        {/* Mark finished */}
+        <Button
+          label="Mark as finished"
+          systemImage="flag.fill"
+          onPress={handleMarkFinished}
+        />
 
-          {/* Download (only if not already downloaded or downloading) */}
-          {!downloadStatus && (
-            <Button
-              label="Download"
-              systemImage="arrow.down.circle"
-              onPress={handleDownload}
-            />
-          )}
-
-          {/* Unload player */}
-          <Button
-            label="Unload player"
-            systemImage="xmark"
-            onPress={handleUnloadPlayer}
-          />
-
-          {/* Mark finished */}
-          <Button
-            label="Mark as finished"
-            systemImage="flag.fill"
-            onPress={handleMarkFinished}
-          />
-
-          {/* Abandon */}
-          <Button
-            label="Abandon"
-            systemImage="xmark.circle"
-            role="destructive"
-            onPress={handleAbandon}
-          />
-        </ContextMenu.Items>
-      </ContextMenu>
+        {/* Abandon */}
+        <Button
+          label="Abandon"
+          systemImage="xmark.circle"
+          role="destructive"
+          onPress={handleAbandon}
+        />
+      </Menu>
     </Host>
   );
 }
