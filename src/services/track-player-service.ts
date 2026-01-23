@@ -332,6 +332,15 @@ export async function loadPlaythroughIntoPlayer(
   const trackAdd = buildAddTrack(session, playthrough);
 
   await TrackPlayer.reset();
+
+  // Reset store state immediately after reset, before loading new track. This
+  // syncs the store with TrackPlayer's None state. As we load the track,
+  // TrackPlayer will fire PlaybackState events that update the store via event
+  // listeners. We must NOT overwrite playbackState/playWhenReady/isPlaying at
+  // the end, or we'll create a race condition where the store ends up in None
+  // state even though TrackPlayer is Ready.
+  useTrackPlayer.setState(initialState);
+
   await TrackPlayer.add(trackAdd);
   await TrackPlayer.seekTo(position);
   await TrackPlayer.setRate(playbackRate);
@@ -340,8 +349,9 @@ export async function loadPlaythroughIntoPlayer(
   const progress = await waitForSeekToComplete(position);
   const actualPlaybackRate = await TrackPlayer.getRate();
 
+  // Only set fields we explicitly manage. playbackState, playWhenReady, and
+  // isPlaying are managed by event listeners and must not be overwritten here.
   useTrackPlayer.setState({
-    ...initialState,
     playbackRate: actualPlaybackRate,
     progress,
     streaming,
