@@ -148,6 +148,31 @@ describe("track-player-service", () => {
       expect(state.streaming).toBe(true);
     });
 
+    it("preserves playbackState from event listeners instead of resetting to None", async () => {
+      // This test verifies the fix for a race condition where loadPlaythroughIntoPlayer
+      // was overwriting playbackState to None at the end, even though TrackPlayer had
+      // already fired events setting it to Ready. This caused the play button to show
+      // a spinner on app boot.
+      //
+      // The fix: reset store state immediately after TrackPlayer.reset(), then let
+      // event listeners manage playbackState as the track loads. Don't overwrite it
+      // at the end.
+
+      // Initialize the service to set up event listeners
+      await trackPlayerService.initialize();
+
+      const playthrough = await createTestPlaythrough({ position: 0 });
+
+      // Load the playthrough - the fake emits a "ready" state event during add()
+      await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
+
+      const state = useTrackPlayer.getState();
+
+      // The key assertion: playbackState should be Ready (from event listener),
+      // NOT None (which would indicate the race condition bug)
+      expect(state.playbackState.state).toBe(State.Ready);
+    });
+
     it("sets streaming to false when media is downloaded", async () => {
       const playthrough = await createTestPlaythrough({
         downloaded: true,

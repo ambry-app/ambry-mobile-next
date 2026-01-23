@@ -178,6 +178,15 @@ export const mockTrackPlayerAdd = jest.fn(async (track: unknown) => {
   if (track && typeof track === "object" && "duration" in track) {
     trackPlayerState.duration = (track as { duration: number }).duration;
   }
+  // Simulate the real native module: adding a track causes playback state
+  // to transition through Loading -> Ready.
+  //
+  // We emit synchronously here (not via setImmediate) so that tests can catch
+  // race conditions where code after add() overwrites the state set by event
+  // listeners. In real native code, events fire during the await and are
+  // processed before subsequent synchronous code runs.
+  trackPlayerState.playbackState = "ready";
+  emitTrackPlayerEvent("playback-state", { state: "ready" });
 });
 export const mockTrackPlayerSetupPlayer = jest.fn();
 export const mockTrackPlayerUpdateOptions = jest.fn();
