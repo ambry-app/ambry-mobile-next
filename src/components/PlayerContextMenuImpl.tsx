@@ -5,6 +5,7 @@ import {
   Button,
   ButtonProps,
   ContextMenu,
+  fillMaxSize,
   Host,
   Submenu,
 } from "@expo/ui/jetpack-compose";
@@ -195,10 +196,12 @@ export function PlayerContextMenuImpl({
         />
       </View>
       {/* Context menu with invisible trigger on top */}
-      <Host matchContents style={styles.host}>
+      <Host style={styles.host}>
         <ContextMenu color={Colors.zinc[800]}>
           <ContextMenu.Trigger>
-            <Button elementColors={triggerColors}> </Button>
+            <Button elementColors={triggerColors} modifiers={[fillMaxSize()]}>
+              {" "}
+            </Button>
           </ContextMenu.Trigger>
           <ContextMenu.Items>{menuItems}</ContextMenu.Items>
         </ContextMenu>
@@ -210,15 +213,16 @@ export function PlayerContextMenuImpl({
 const styles = StyleSheet.create({
   container: {
     position: "relative",
-    width: 48,
-    height: 48,
+    height: "100%",
+    aspectRatio: 1,
   },
   iconLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "center",
     alignItems: "center",
   },
   host: {
+    ...StyleSheet.absoluteFill,
     backgroundColor: "transparent",
   },
 });

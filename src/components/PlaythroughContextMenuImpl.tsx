@@ -5,6 +5,7 @@ import {
   Button,
   ButtonProps,
   ContextMenu,
+  fillMaxSize,
   Host,
 } from "@expo/ui/jetpack-compose";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
@@ -121,10 +122,12 @@ export function PlaythroughContextMenuImpl({
         />
       </View>
       {/* Context menu with invisible trigger on top */}
-      <Host matchContents style={styles.host}>
+      <Host style={styles.host}>
         <ContextMenu color={Colors.zinc[800]}>
           <ContextMenu.Trigger>
-            <Button elementColors={triggerColors}> </Button>
+            <Button elementColors={triggerColors} modifiers={[fillMaxSize()]}>
+              {" "}
+            </Button>
           </ContextMenu.Trigger>
           <ContextMenu.Items>{menuItems}</ContextMenu.Items>
         </ContextMenu>
@@ -140,11 +143,12 @@ const styles = StyleSheet.create({
     height: 44,
   },
   iconLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "center",
     alignItems: "center",
   },
   host: {
+    ...StyleSheet.absoluteFill,
     backgroundColor: "transparent",
   },
 });
