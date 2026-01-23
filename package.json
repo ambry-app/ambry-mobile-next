@@ -153,5 +153,8 @@
   "trustedDependencies": [
     "@parcel/watcher",
     "@sentry/cli"
-  ]
+  ],
+  "overrides": {
+    "expo": "$expo"
+  }
 }
