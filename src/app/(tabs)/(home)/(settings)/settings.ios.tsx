@@ -10,6 +10,7 @@ import {
   Switch,
   Text,
 } from "@expo/ui/swift-ui";
+import { foregroundStyle, listStyle } from "@expo/ui/swift-ui/modifiers";
 import { router } from "expo-router";
 
 import { signOut } from "@/services/auth-service";
@@ -109,25 +110,29 @@ export default function SettingsRoute() {
 
   return (
     <Host style={{ flex: 1 }}>
-      <List listStyle="insetGrouped">
+      <List modifiers={[listStyle("insetGrouped")]}>
         <Section title="ACCOUNT">
-          <Text color={Colors.zinc[400]}>{session.email}</Text>
-          <Text color={Colors.zinc[500]}>{session.url}</Text>
-          <Button role="destructive" onPress={handleSignOut}>
-            Sign Out
-          </Button>
+          <Text modifiers={[foregroundStyle(Colors.zinc[400])]}>
+            {session.email}
+          </Text>
+          <Text modifiers={[foregroundStyle(Colors.zinc[500])]}>
+            {session.url}
+          </Text>
+          <Button label="Sign Out" role="destructive" onPress={handleSignOut} />
         </Section>
 
         <Section title="PLAYBACK">
           <LabeledContent label="Default Speed">
-            <Button onPress={openPlaybackRateSettings}>
-              {formatPlaybackRate(preferredPlaybackRate)}×
-            </Button>
+            <Button
+              label={`${formatPlaybackRate(preferredPlaybackRate)}×`}
+              onPress={openPlaybackRateSettings}
+            />
           </LabeledContent>
           <LabeledContent label="Sleep Timer">
-            <Button onPress={openSleepTimerSettings}>
-              {sleepTimerDisplay}
-            </Button>
+            <Button
+              label={sleepTimerDisplay}
+              onPress={openSleepTimerSettings}
+            />
           </LabeledContent>
           <Switch
             label="Motion Detection"
@@ -144,7 +149,7 @@ export default function SettingsRoute() {
             onValueChange={setDebugModeEnabled}
             color={Colors.lime[500]}
           />
-          <Button onPress={handleForceFullSync}>Force Full Sync</Button>
+          <Button label="Force Full Sync" onPress={handleForceFullSync} />
         </Section>
       </List>
     </Host>

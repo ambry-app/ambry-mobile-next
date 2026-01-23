@@ -4,7 +4,6 @@ import { Button, ContextMenu, Host, Section } from "@expo/ui/swift-ui";
 import { frame } from "@expo/ui/swift-ui/modifiers";
 
 import { DownloadStatus } from "@/stores/downloads";
-import { Colors } from "@/styles/colors";
 
 type AuthorOrNarrator = {
   id: string;
@@ -43,9 +42,11 @@ export function PlayerContextMenuImpl({
     return (
       <Section title={authors.length > 1 ? "Authors" : "Author"}>
         {authors.map((author) => (
-          <Button key={author.id} onPress={() => handleGoToPerson(author)}>
-            {author.name}
-          </Button>
+          <Button
+            key={author.id}
+            label={author.name}
+            onPress={() => handleGoToPerson(author)}
+          />
         ))}
       </Section>
     );
@@ -56,9 +57,11 @@ export function PlayerContextMenuImpl({
     return (
       <Section title={narrators.length > 1 ? "Narrators" : "Narrator"}>
         {narrators.slice(0, NARRATOR_THRESHOLD).map((narrator) => (
-          <Button key={narrator.id} onPress={() => handleGoToPerson(narrator)}>
-            {narrator.name}
-          </Button>
+          <Button
+            key={narrator.id}
+            label={narrator.name}
+            onPress={() => handleGoToPerson(narrator)}
+          />
         ))}
       </Section>
     );
@@ -66,21 +69,20 @@ export function PlayerContextMenuImpl({
 
   return (
     <Host style={styles.host}>
-      <ContextMenu activationMethod="singlePress">
+      <ContextMenu>
         <ContextMenu.Trigger>
           <Button
             systemImage="ellipsis"
-            variant="borderless"
-            color={Colors.zinc[100]}
-            controlSize="large"
             modifiers={[frame({ width: 48, height: 48 })]}
           />
         </ContextMenu.Trigger>
         <ContextMenu.Items>
           {/* Go to book */}
-          <Button systemImage="info.circle" onPress={handleGoToBook}>
-            Go to book
-          </Button>
+          <Button
+            label="Go to book"
+            systemImage="info.circle"
+            onPress={handleGoToBook}
+          />
 
           {/* Go to author(s) */}
           {renderAuthorItems()}
@@ -90,29 +92,34 @@ export function PlayerContextMenuImpl({
 
           {/* Download (only if not already downloaded or downloading) */}
           {!downloadStatus && (
-            <Button systemImage="arrow.down.circle" onPress={handleDownload}>
-              Download
-            </Button>
+            <Button
+              label="Download"
+              systemImage="arrow.down.circle"
+              onPress={handleDownload}
+            />
           )}
 
           {/* Unload player */}
-          <Button systemImage="xmark" onPress={handleUnloadPlayer}>
-            Unload player
-          </Button>
+          <Button
+            label="Unload player"
+            systemImage="xmark"
+            onPress={handleUnloadPlayer}
+          />
 
           {/* Mark finished */}
-          <Button systemImage="flag.fill" onPress={handleMarkFinished}>
-            Mark as finished
-          </Button>
+          <Button
+            label="Mark as finished"
+            systemImage="flag.fill"
+            onPress={handleMarkFinished}
+          />
 
           {/* Abandon */}
           <Button
+            label="Abandon"
             systemImage="xmark.circle"
             role="destructive"
             onPress={handleAbandon}
-          >
-            Abandon
-          </Button>
+          />
         </ContextMenu.Items>
       </ContextMenu>
     </Host>

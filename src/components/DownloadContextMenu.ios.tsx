@@ -3,8 +3,6 @@ import { StyleSheet } from "react-native";
 import { Button, ContextMenu, Host } from "@expo/ui/swift-ui";
 import { frame } from "@expo/ui/swift-ui/modifiers";
 
-import { Colors } from "@/styles/colors";
-
 export type DownloadContextMenuProps = {
   status: "pending" | "downloading" | "ready" | "error";
   onDelete: () => void;
@@ -18,25 +16,27 @@ export function DownloadContextMenu({
 }: DownloadContextMenuProps) {
   return (
     <Host style={styles.host}>
-      <ContextMenu activationMethod="singlePress">
+      <ContextMenu>
         <ContextMenu.Trigger>
           <Button
             systemImage="ellipsis"
-            variant="borderless"
-            color={Colors.zinc[100]}
-            controlSize="large"
             modifiers={[frame({ width: 44, height: 44 })]}
           />
         </ContextMenu.Trigger>
         <ContextMenu.Items>
           {status === "ready" ? (
-            <Button systemImage="trash" role="destructive" onPress={onDelete}>
-              Delete downloaded files
-            </Button>
+            <Button
+              label="Delete downloaded files"
+              systemImage="trash"
+              role="destructive"
+              onPress={onDelete}
+            />
           ) : (
-            <Button systemImage="xmark.circle" onPress={onCancel}>
-              Cancel download
-            </Button>
+            <Button
+              label="Cancel download"
+              systemImage="xmark.circle"
+              onPress={onCancel}
+            />
           )}
         </ContextMenu.Items>
       </ContextMenu>

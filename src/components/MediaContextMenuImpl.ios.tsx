@@ -40,13 +40,10 @@ export function MediaContextMenuImpl({
 }: MediaContextMenuImplProps) {
   return (
     <Host style={styles.host}>
-      <ContextMenu activationMethod="singlePress">
+      <ContextMenu>
         <ContextMenu.Trigger>
           <Button
             systemImage="ellipsis"
-            variant="borderedProminent"
-            color={Colors.zinc[900]}
-            controlSize="regular"
             modifiers={[frame({ width: 48, height: 48 })]}
           />
         </ContextMenu.Trigger>
@@ -54,22 +51,20 @@ export function MediaContextMenuImpl({
           {/* Play/Resume action */}
 
           {playbackState.type === "none" && (
-            <Button systemImage="play.fill" onPress={onPlay}>
-              Play
-            </Button>
+            <Button label="Play" systemImage="play.fill" onPress={onPlay} />
           )}
 
           {playbackState.type === "in_progress" && (
-            <Button systemImage="play.fill" onPress={onResume}>
-              Resume
-            </Button>
+            <Button label="Resume" systemImage="play.fill" onPress={onResume} />
           )}
 
           {(playbackState.type === "finished" ||
             playbackState.type === "abandoned") && (
-            <Button systemImage="play.fill" onPress={onResumeFromPrompt}>
-              Play
-            </Button>
+            <Button
+              label="Play"
+              systemImage="play.fill"
+              onPress={onResumeFromPrompt}
+            />
           )}
 
           {/* Playthrough actions */}
@@ -77,67 +72,71 @@ export function MediaContextMenuImpl({
           {(playbackState.type === "in_progress" ||
             playbackState.type === "loaded") && (
             <>
-              <Button systemImage="flag.fill" onPress={onMarkAsFinished}>
-                Mark as finished
-              </Button>
               <Button
+                label="Mark as finished"
+                systemImage="flag.fill"
+                onPress={onMarkAsFinished}
+              />
+              <Button
+                label="Abandon"
                 systemImage="xmark.circle"
                 role="destructive"
                 onPress={onAbandon}
-              >
-                Abandon
-              </Button>
+              />
             </>
           )}
 
           {/* Download action*/}
 
           {downloadStatus === undefined && (
-            <Button systemImage="arrow.down.circle" onPress={onDownload}>
-              Download
-            </Button>
+            <Button
+              label="Download"
+              systemImage="arrow.down.circle"
+              onPress={onDownload}
+            />
           )}
 
           {downloadStatus === "pending" && (
             <Button
+              label="Cancel download"
               systemImage="xmark.circle"
               role="destructive"
               onPress={onCancelDownload}
-            >
-              Cancel download
-            </Button>
+            />
           )}
 
           {downloadStatus === "ready" && (
             <Button
+              label="Delete downloaded files"
               systemImage="trash"
               role="destructive"
               onPress={onRemoveDownload}
-            >
-              Delete downloaded files
-            </Button>
+            />
           )}
 
           {downloadStatus === "error" && (
-            <Button systemImage="arrow.down.circle" onPress={onDownload}>
-              Retry download
-            </Button>
+            <Button
+              label="Retry download"
+              systemImage="arrow.down.circle"
+              onPress={onDownload}
+            />
           )}
 
           {/* Shelf action */}
 
           <Button
+            label={isOnShelf ? "Remove from saved" : "Save for later"}
             systemImage={isOnShelf ? "bookmark.slash" : "bookmark"}
             onPress={onToggleShelf}
-          >
-            {isOnShelf ? "Remove from saved" : "Save for later"}
-          </Button>
+          />
 
           {/* Share action */}
 
-          <Button systemImage="square.and.arrow.up" onPress={onShare}>
-            Share
-          </Button>
+          <Button
+            label="Share"
+            systemImage="square.and.arrow.up"
+            onPress={onShare}
+          />
         </ContextMenu.Items>
       </ContextMenu>
     </Host>

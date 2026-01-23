@@ -1,7 +1,7 @@
 // Android version (default) - uses Jetpack Compose Switch + React Native layout
 import { useCallback } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Switch } from "@expo/ui/jetpack-compose";
+import { Host, Switch } from "@expo/ui/jetpack-compose";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 
@@ -135,11 +135,14 @@ export default function SettingsRoute() {
                 Reset sleep timer when motion is detected
               </Text>
             </View>
-            <Switch
-              value={sleepTimerMotionDetectionEnabled}
-              onValueChange={handleMotionDetectionToggle}
-              color={Colors.lime[500]}
-            />
+            <Host matchContents>
+              <Switch
+                value={sleepTimerMotionDetectionEnabled}
+                onValueChange={handleMotionDetectionToggle}
+                color={Colors.lime[500]}
+                variant="switch"
+              />
+            </Host>
           </View>
         </View>
       </View>
@@ -155,11 +158,14 @@ export default function SettingsRoute() {
                 Show extra info for troubleshooting
               </Text>
             </View>
-            <Switch
-              value={debugModeEnabled}
-              onValueChange={setDebugModeEnabled}
-              color={Colors.lime[500]}
-            />
+            <Host matchContents>
+              <Switch
+                value={debugModeEnabled}
+                onValueChange={setDebugModeEnabled}
+                color={Colors.lime[500]}
+                variant="switch"
+              />
+            </Host>
           </View>
           <View style={styles.divider} />
           <Pressable style={styles.row} onPress={handleForceFullSync}>

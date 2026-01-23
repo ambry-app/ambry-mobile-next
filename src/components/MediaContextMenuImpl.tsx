@@ -1,7 +1,12 @@
 // Android version (default) - uses Jetpack Compose with overlay for custom trigger styling
 import { ReactElement } from "react";
 import { StyleSheet, View } from "react-native";
-import { Button, ButtonProps, ContextMenu } from "@expo/ui/jetpack-compose";
+import {
+  Button,
+  ButtonProps,
+  ContextMenu,
+  Host,
+} from "@expo/ui/jetpack-compose";
 
 import { MediaPlaybackState } from "@/services/playthrough-query-service";
 import { DownloadStatus } from "@/stores/downloads";
@@ -64,7 +69,7 @@ export function MediaContextMenuImpl({
     menuItems.push(
       <Button
         key="play"
-        leadingIcon="filled.PlayArrow"
+        //leadingIcon="filled.PlayArrow"
         elementColors={menuColors}
         onPress={onPlay}
       >
@@ -76,7 +81,7 @@ export function MediaContextMenuImpl({
     menuItems.push(
       <Button
         key="resume"
-        leadingIcon="filled.PlayArrow"
+        //leadingIcon="filled.PlayArrow"
         elementColors={menuColors}
         onPress={onResume}
       >
@@ -91,7 +96,7 @@ export function MediaContextMenuImpl({
     menuItems.push(
       <Button
         key="resume"
-        leadingIcon="filled.PlayArrow"
+        //leadingIcon="filled.PlayArrow"
         elementColors={menuColors}
         onPress={onResumeFromPrompt}
       >
@@ -106,7 +111,7 @@ export function MediaContextMenuImpl({
     menuItems.push(
       <Button
         key="finish"
-        leadingIcon="filled.CheckCircle"
+        //leadingIcon="filled.CheckCircle"
         elementColors={menuColors}
         onPress={onMarkAsFinished}
       >
@@ -114,7 +119,7 @@ export function MediaContextMenuImpl({
       </Button>,
       <Button
         key="abandon"
-        leadingIcon="filled.Close"
+        //leadingIcon="filled.Close"
         elementColors={destructiveColors}
         onPress={onAbandon}
       >
@@ -129,7 +134,7 @@ export function MediaContextMenuImpl({
       <Button
         key="download"
         elementColors={menuColors}
-        leadingIcon="filled.KeyboardArrowDown"
+        //leadingIcon="filled.KeyboardArrowDown"
         onPress={onDownload}
       >
         Download
@@ -139,7 +144,7 @@ export function MediaContextMenuImpl({
     menuItems.push(
       <Button
         key="cancel-download"
-        leadingIcon="filled.Close"
+        //leadingIcon="filled.Close"
         elementColors={destructiveColors}
         onPress={onCancelDownload}
       >
@@ -150,7 +155,7 @@ export function MediaContextMenuImpl({
     menuItems.push(
       <Button
         key="delete-download"
-        leadingIcon="filled.Delete"
+        //leadingIcon="filled.Delete"
         elementColors={destructiveColors}
         onPress={onRemoveDownload}
       >
@@ -173,7 +178,7 @@ export function MediaContextMenuImpl({
   menuItems.push(
     <Button
       key="shelf"
-      leadingIcon={isOnShelf ? "filled.Favorite" : "filled.FavoriteBorder"}
+      //leadingIcon={isOnShelf ? "filled.Favorite" : "filled.FavoriteBorder"}
       elementColors={menuColors}
       onPress={onToggleShelf}
     >
@@ -185,7 +190,7 @@ export function MediaContextMenuImpl({
   menuItems.push(
     <Button
       key="share"
-      leadingIcon="filled.Share"
+      //leadingIcon="filled.Share"
       elementColors={menuColors}
       onPress={onShare}
     >
@@ -205,14 +210,14 @@ export function MediaContextMenuImpl({
         />
       </View>
       {/* Context menu with invisible trigger on top */}
-      <ContextMenu color={Colors.zinc[800]}>
-        <ContextMenu.Trigger>
-          <Button elementColors={triggerColors} style={styles.trigger}>
-            {" "}
-          </Button>
-        </ContextMenu.Trigger>
-        <ContextMenu.Items>{menuItems}</ContextMenu.Items>
-      </ContextMenu>
+      <Host matchContents style={styles.host}>
+        <ContextMenu color={Colors.zinc[800]}>
+          <ContextMenu.Trigger>
+            <Button elementColors={triggerColors}> </Button>
+          </ContextMenu.Trigger>
+          <ContextMenu.Items>{menuItems}</ContextMenu.Items>
+        </ContextMenu>
+      </Host>
     </View>
   );
 }
@@ -233,8 +238,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.zinc[900],
     borderRadius: 999,
   },
-  trigger: {
-    width: 48,
-    height: 48,
+  host: {
+    backgroundColor: "transparent",
   },
 });
