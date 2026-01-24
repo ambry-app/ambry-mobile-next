@@ -1,6 +1,8 @@
-import { FlatList, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
+import Animated from "react-native-reanimated";
 
 import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { ScrollHandler } from "@/components/FadingHeader";
 import { Loading } from "@/components/Loading";
 import { SeriesBookTile } from "@/components/Tiles";
 import { PAGE_SIZE } from "@/constants";
@@ -18,9 +20,14 @@ import { Header } from "./series-screen/Header";
 type SeriesScreenProps = {
   seriesId: string;
   session: Session;
+  scrollHandler?: ScrollHandler;
 };
 
-export function SeriesScreen({ seriesId, session }: SeriesScreenProps) {
+export function SeriesScreen({
+  seriesId,
+  session,
+  scrollHandler,
+}: SeriesScreenProps) {
   const series = useLibraryData(() => getSeriesDetails(session, seriesId));
 
   const getPage = (pageSize: number, cursor: string | undefined) =>
@@ -33,9 +40,12 @@ export function SeriesScreen({ seriesId, session }: SeriesScreenProps) {
   if (!series) return null;
 
   return (
-    <FlatList
+    <Animated.FlatList
       contentInsetAdjustmentBehavior="automatic"
       style={styles.flatlist}
+      showsVerticalScrollIndicator={false}
+      onScroll={scrollHandler}
+      scrollEventThrottle={16}
       data={seriesBooks}
       keyExtractor={(item) => item.id}
       numColumns={2}

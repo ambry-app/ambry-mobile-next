@@ -22,7 +22,7 @@ import {
 import { useDebug } from "@/stores/debug";
 import { useSession } from "@/stores/session";
 import { useSleepTimer } from "@/stores/sleep-timer";
-import { Colors } from "@/styles/colors";
+import { Colors, decorative, interactive, surface } from "@/styles/colors";
 
 function formatSeconds(seconds: number) {
   return Math.round(seconds / 60);
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: Colors.zinc[500],
+    backgroundColor: decorative.handle,
     borderRadius: 999,
     marginHorizontal: "auto",
     marginTop: 8,
@@ -290,13 +290,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   sleepTimerButton: {
-    backgroundColor: Colors.zinc[800],
+    backgroundColor: interactive.fill,
     borderRadius: 999,
     paddingHorizontal: 16,
     flexGrow: 1,
   },
   sleepTimerButtonActive: {
-    backgroundColor: Colors.zinc[100],
+    backgroundColor: interactive.selected,
     color: Colors.black,
   },
   sleepTimerButtonActiveText: {
@@ -334,15 +334,15 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   plusMinusButton: {
-    backgroundColor: Colors.zinc[800],
+    backgroundColor: interactive.fill,
     borderRadius: 999,
   },
   debugContainer: {
-    backgroundColor: Colors.zinc[900],
+    backgroundColor: surface.elevated,
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: Colors.zinc[700],
+    borderColor: decorative.divider,
   },
   debugTitle: {
     color: Colors.zinc[400],

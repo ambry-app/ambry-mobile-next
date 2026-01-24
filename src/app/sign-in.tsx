@@ -11,7 +11,7 @@ import { ExecuteErrorCode } from "@/graphql/client/execute";
 import { signIn } from "@/services/auth-service";
 import { useScreen } from "@/stores/screen";
 import { useSession } from "@/stores/session";
-import { Colors } from "@/styles/colors";
+import { Colors, decorative, interactive } from "@/styles/colors";
 import Logo from "@assets/images/logo.svg";
 
 export default function SignInRoute() {
@@ -85,6 +85,7 @@ export default function SignInRoute() {
     <KeyboardAwareScrollView
       bottomOffset={96}
       contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
     >
       <View>
         <Logo width={logoWidth} height={logoHeight} />
@@ -192,12 +193,12 @@ const styles = StyleSheet.create({
   },
   input: {
     color: Colors.zinc[200],
-    backgroundColor: Colors.zinc[800],
+    backgroundColor: interactive.fill,
     borderRadius: 4,
     padding: 16,
     borderWidth: 2,
   },
   inputFocused: {
-    borderColor: Colors.zinc[700],
+    borderColor: decorative.divider,
   },
 });

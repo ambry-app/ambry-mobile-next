@@ -1,6 +1,8 @@
-import { FlatList, StyleSheet, Text } from "react-native";
+import { StyleSheet, Text } from "react-native";
+import Animated from "react-native-reanimated";
 
 import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { ScrollHandler } from "@/components/FadingHeader";
 import { Loading } from "@/components/Loading";
 import { MediaTile } from "@/components/Tiles";
 import { TimeAgo } from "@/components/TimeAgo";
@@ -14,9 +16,13 @@ import { Session } from "@/types/session";
 
 type SavedForLaterScreenProps = {
   session: Session;
+  scrollHandler?: ScrollHandler;
 };
 
-export function SavedForLaterScreen({ session }: SavedForLaterScreenProps) {
+export function SavedForLaterScreen({
+  session,
+  scrollHandler,
+}: SavedForLaterScreenProps) {
   const shelfDataVersion = useDataVersion((state) => state.shelfDataVersion);
   const getPage = (pageSize: number, cursor: Date | undefined) =>
     getSavedMediaPage(session, pageSize, cursor);
@@ -34,15 +40,18 @@ export function SavedForLaterScreen({ session }: SavedForLaterScreenProps) {
   }
 
   return (
-    <FlatList
+    <Animated.FlatList
       contentInsetAdjustmentBehavior="automatic"
       style={styles.flatlist}
+      showsVerticalScrollIndicator={false}
+      onScroll={scrollHandler}
+      scrollEventThrottle={16}
       data={savedMedia}
       keyExtractor={(item) => item.media.id}
       numColumns={2}
       renderItem={({ item }) => (
         <FadeInOnMount style={styles.tile}>
-          <TimeAgo date={item.addedAt} />
+          <TimeAgo date={item.addedAt} prefix="saved" />
           <MediaTile media={item.media} />
         </FadeInOnMount>
       )}

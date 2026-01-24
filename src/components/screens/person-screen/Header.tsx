@@ -1,8 +1,9 @@
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { Description } from "@/components/Description";
 import { ThumbnailImage } from "@/components/ThumbnailImage";
 import { PersonHeaderInfo } from "@/services/library-service";
+import { Colors } from "@/styles/colors";
 
 type HeaderProps = {
   person: PersonHeaderInfo;
@@ -16,6 +17,7 @@ export function Header({ person }: HeaderProps) {
         size="extraLarge"
         style={styles.thumbnail}
       />
+      <PersonName name={person.name} />
       <PersonDescription description={person.description} />
     </>
   );
@@ -37,6 +39,20 @@ function PersonDescription(props: PersonDescriptionProps) {
   );
 }
 
+type PersonNameProps = {
+  name: string;
+};
+
+function PersonName(props: PersonNameProps) {
+  const { name } = props;
+
+  return (
+    <Text style={styles.personName} numberOfLines={1}>
+      {name}
+    </Text>
+  );
+}
+
 const styles = StyleSheet.create({
   thumbnail: {
     aspectRatio: 1,
@@ -49,5 +65,12 @@ const styles = StyleSheet.create({
   spacingTop: {
     marginTop: 32,
     paddingHorizontal: 16,
+  },
+  personName: {
+    fontWeight: "bold",
+    fontSize: 24,
+    textAlign: "center",
+    color: Colors.zinc[100],
+    marginTop: 8,
   },
 });

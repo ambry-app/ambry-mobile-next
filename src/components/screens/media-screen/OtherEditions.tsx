@@ -1,7 +1,6 @@
 import { FlatList, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 
-import { FadeInOnMount } from "@/components/FadeInOnMount";
 import { HeaderButton } from "@/components/HeaderButton";
 import { SeeAllTile } from "@/components/SeeAllTile";
 import { MediaTile } from "@/components/Tiles";
@@ -76,9 +75,9 @@ export function OtherEditions(props: OtherEditionsProps) {
         }
         renderItem={({ item }) => {
           return (
-            <FadeInOnMount style={[styles.tile, { width: tileSize }]}>
+            <View style={[styles.tile, { width: tileSize }]}>
               <MediaTile media={{ ...item, book: book }} />
-            </FadeInOnMount>
+            </View>
           );
         }}
       />

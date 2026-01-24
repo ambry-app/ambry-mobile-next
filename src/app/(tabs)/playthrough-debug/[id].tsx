@@ -1,16 +1,28 @@
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Stack, useLocalSearchParams } from "expo-router";
 
+import {
+  SolidHeaderBackground,
+  useFadingHeader,
+} from "@/components/FadingHeader";
 import {
   getPlaythroughForDebug,
   PlaythroughDebugData,
 } from "@/db/playthroughs";
 import { PlaybackEventSelect } from "@/db/schema";
 import { useLibraryData } from "@/services/library-service";
-import { Colors } from "@/styles/colors";
+import { Colors, decorative, surface } from "@/styles/colors";
+
+const SCROLL_THRESHOLD = 10;
 
 export default function PlaythroughDebugRoute() {
   const { id: playthroughId } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
+  const { scrollHandler, headerOpacity } = useFadingHeader({
+    scrollThreshold: SCROLL_THRESHOLD,
+  });
 
   // This debug screen shows data at page load time.
   // Navigate away and back to see updates.
@@ -19,10 +31,23 @@ export default function PlaythroughDebugRoute() {
     [playthroughId],
   );
 
+  const headerOptions =
+    Platform.OS === "ios"
+      ? { title: "Debug: Playthrough" }
+      : {
+          title: "Debug: Playthrough",
+          headerBackground: () => (
+            <SolidHeaderBackground
+              borderOpacity={headerOpacity}
+              height={insets.top + 56}
+            />
+          ),
+        };
+
   if (!data) {
     return (
       <>
-        <Stack.Screen options={{ title: "Debug: Playthrough" }} />
+        <Stack.Screen options={headerOptions} />
         <View style={styles.container}>
           <Text style={styles.text}>Loading...</Text>
         </View>
@@ -32,9 +57,12 @@ export default function PlaythroughDebugRoute() {
 
   return (
     <>
-      <Stack.Screen options={{ title: "Debug: Playthrough" }} />
-      <FlatList
+      <Stack.Screen options={headerOptions} />
+      <Animated.FlatList
         style={styles.container}
+        showsVerticalScrollIndicator={false}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
         ListHeaderComponent={<PlaythroughHeader data={data} />}
         data={data.events}
         keyExtractor={(item) => item.id}
@@ -166,7 +194,7 @@ function formatDate(date: Date | null | undefined): string {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.black,
+    backgroundColor: surface.base,
   },
   text: {
     color: Colors.zinc[100],
@@ -199,7 +227,7 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 1,
-    backgroundColor: Colors.zinc[800],
+    backgroundColor: decorative.divider,
     marginHorizontal: 16,
   },
   eventRow: {

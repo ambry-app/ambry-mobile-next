@@ -7,7 +7,7 @@ import {
   startFreshPlaythrough,
 } from "@/services/playback-controls";
 import { usePlaythroughForPrompt } from "@/services/playthrough-query-service";
-import { Colors } from "@/styles/colors";
+import { Colors, interactive } from "@/styles/colors";
 import { timeAgo } from "@/utils/date";
 import { secondsDisplay } from "@/utils/time";
 
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
   },
   startFreshButton: {
     flex: 1,
-    backgroundColor: Colors.zinc[700],
+    backgroundColor: interactive.fillProminent,
     borderRadius: 8,
     paddingVertical: 12,
   },
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   cancelButton: {
-    backgroundColor: Colors.zinc[800],
+    backgroundColor: interactive.fill,
     borderRadius: 8,
     paddingVertical: 12,
     marginTop: 8,

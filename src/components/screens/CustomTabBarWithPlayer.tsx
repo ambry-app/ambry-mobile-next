@@ -39,7 +39,7 @@ import {
 import { useScreen } from "@/stores/screen";
 import { useSeekUIState } from "@/stores/seek-ui-state";
 import { LoadedPlaythrough, useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles/colors";
+import { Colors, decorative, surface } from "@/styles/colors";
 import { Session } from "@/types/session";
 import { useBackHandler } from "@/utils/hooks";
 
@@ -84,7 +84,7 @@ const MiniProgressBar = memo(function MiniProgressBar({
           left: 0,
           right: 0,
           height: MINI_PROGRESS_BAR_HEIGHT,
-          backgroundColor: Colors.zinc[700],
+          backgroundColor: decorative.track,
           zIndex: 10,
         },
         animatedStyle,
@@ -474,7 +474,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
         style={{
           display: "flex",
           justifyContent: "flex-end",
-          backgroundColor: Colors.zinc[900],
+          backgroundColor: surface.elevated,
           height: tabBarHeight + PLAYER_HEIGHT,
         }}
       >
@@ -485,7 +485,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                 display: "flex",
                 width: "100%",
                 position: "absolute",
-                backgroundColor: Colors.zinc[900],
+                backgroundColor: surface.elevated,
               },
               playerContainerStyle,
             ]}

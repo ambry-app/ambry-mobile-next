@@ -9,7 +9,7 @@ import { Button } from "@/components/Button";
 import * as schema from "@/db/schema";
 import { seekTo } from "@/services/seek-service";
 import { SeekSource, useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles/colors";
+import { Colors, surface } from "@/styles/colors";
 import { useBackHandler } from "@/utils/hooks";
 import { secondsDisplay } from "@/utils/time";
 
@@ -53,6 +53,7 @@ export default function ChapterSelectRoute() {
         ref={flatlistRef}
         onLayout={scrollToChapter}
         style={styles.chapterList}
+        showsVerticalScrollIndicator={false}
         data={chapters}
         keyExtractor={(item) => item.id}
         getItemLayout={(_, index) => ({
@@ -109,7 +110,7 @@ function Chapter({ chapter, currentChapterId }: ChapterProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Platform.OS === "android" ? Colors.zinc[950] : undefined,
+    backgroundColor: Platform.OS === "android" ? surface.overlay : undefined,
     height: "100%",
   },
   chapterList: {

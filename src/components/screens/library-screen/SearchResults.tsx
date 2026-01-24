@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { useKeyboardState } from "react-native-keyboard-controller";
 import Animated, {
   useAnimatedStyle,
@@ -9,6 +9,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
+import { ScrollHandler } from "@/components/FadingHeader";
 import { MediaTile } from "@/components/Tiles";
 import { PAGE_SIZE, PLAYER_HEIGHT, TAB_BAR_BASE_HEIGHT } from "@/constants";
 import { getSearchedMedia, useLibraryData } from "@/services/library-service";
@@ -28,12 +29,13 @@ const NUM_COLUMNS = 2;
 type SearchResultsProps = {
   session: Session;
   searchQuery: string;
+  scrollHandler?: ScrollHandler;
 };
 
 const MINI_PROGRESS_BAR_HEIGHT = 2;
 
 export function SearchResults(props: SearchResultsProps) {
-  const { session, searchQuery } = props;
+  const { session, searchQuery, scrollHandler } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
   const { bottom: safeAreaBottom } = useSafeAreaInsets();
   const playerLoaded = useTrackPlayer((state) => !!state.playthrough);
@@ -99,10 +101,13 @@ export function SearchResults(props: SearchResultsProps) {
   }
 
   return (
-    <FlatList
+    <Animated.FlatList
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ paddingBottom: keyboardHeight }}
       style={styles.flatlist}
+      showsVerticalScrollIndicator={false}
+      onScroll={scrollHandler}
+      scrollEventThrottle={16}
       data={media}
       keyExtractor={(item) => item.id}
       numColumns={NUM_COLUMNS}

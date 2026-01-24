@@ -11,7 +11,7 @@ import * as Player from "@/services/track-player-service";
 import { usePreferredPlaybackRate } from "@/stores/preferred-playback-rate";
 import { useSession } from "@/stores/session";
 import { useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles/colors";
+import { Colors, decorative, interactive } from "@/styles/colors";
 import { formatPlaybackRate } from "@/utils/rate";
 import { secondsDisplay } from "@/utils/time";
 
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: Colors.zinc[500],
+    backgroundColor: decorative.handle,
     borderRadius: 999,
     marginHorizontal: "auto",
     marginTop: 8,
@@ -201,13 +201,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   rateButton: {
-    backgroundColor: Colors.zinc[800],
+    backgroundColor: interactive.fill,
     borderRadius: 999,
     paddingHorizontal: 16,
     flexGrow: 1,
   },
   rateButtonActive: {
-    backgroundColor: Colors.zinc[100],
+    backgroundColor: interactive.selected,
   },
   rateButtonTextActive: {
     color: Colors.black,
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   plusMinusButton: {
-    backgroundColor: Colors.zinc[800],
+    backgroundColor: interactive.fill,
     borderRadius: 999,
   },
 });

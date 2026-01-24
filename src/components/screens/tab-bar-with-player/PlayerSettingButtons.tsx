@@ -13,7 +13,7 @@ import {
   useSleepTimer,
 } from "@/stores/sleep-timer";
 import { useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles/colors";
+import { Colors, interactive } from "@/styles/colors";
 import { formatPlaybackRate } from "@/utils/rate";
 import { secondsDisplayMinutesOnly } from "@/utils/time";
 
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   button: {
-    backgroundColor: Colors.zinc[800] + "80",
+    backgroundColor: interactive.fill + "80",
     borderRadius: 999,
     paddingHorizontal: 16,
     flexDirection: "row",

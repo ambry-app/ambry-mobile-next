@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 
-import { Colors } from "@/styles/colors";
+import { Colors, surface } from "@/styles/colors";
 
 import { TabConfig, TABS, useActiveTab } from "./useActiveTab";
 
@@ -47,7 +47,7 @@ export function TabBarTabs({
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    backgroundColor: Colors.zinc[900],
+    backgroundColor: surface.elevated,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   tab: {

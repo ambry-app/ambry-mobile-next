@@ -8,7 +8,7 @@ import {
 } from "@expo/ui/jetpack-compose";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
-import { Colors } from "@/styles/colors";
+import { Colors, interactive } from "@/styles/colors";
 
 export type DownloadContextMenuProps = {
   status: "pending" | "downloading" | "ready" | "error";
@@ -22,12 +22,12 @@ const triggerColors = {
 };
 
 const menuColors = {
-  containerColor: Colors.zinc[800],
+  containerColor: interactive.fill,
   contentColor: Colors.zinc[100],
 };
 
 const destructiveColors = {
-  containerColor: Colors.zinc[800],
+  containerColor: interactive.fill,
   contentColor: Colors.red[400],
 };
 

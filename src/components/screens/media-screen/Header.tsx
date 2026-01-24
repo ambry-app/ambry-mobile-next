@@ -23,9 +23,9 @@ export function Header({ media }: HeaderProps) {
         downloadedThumbnails={media.download?.thumbnails}
         size="extraLarge"
         style={{
-          width: shortScreen ? "60%" : "90%",
+          width: shortScreen ? "60%" : "80%",
           aspectRatio: 1,
-          borderRadius: 12,
+          borderRadius: 6,
         }}
       />
       <View>
@@ -54,6 +54,7 @@ export function Header({ media }: HeaderProps) {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
+    paddingTop: 16,
     alignItems: "center",
     gap: 8,
   },

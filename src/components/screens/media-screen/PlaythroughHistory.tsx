@@ -12,7 +12,7 @@ import {
 import { useDataVersion } from "@/stores/data-version";
 import { useDebug } from "@/stores/debug";
 import { useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles/colors";
+import { Colors, decorative, surface } from "@/styles/colors";
 import { Session } from "@/types/session";
 import { timeAgo } from "@/utils/date";
 import { secondsDisplay } from "@/utils/time";
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   card: {
-    backgroundColor: Colors.zinc[900],
+    backgroundColor: surface.card,
     borderRadius: 12,
     padding: 12,
   },
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: Colors.zinc[700],
+    backgroundColor: decorative.divider,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.zinc[700],
+    borderTopColor: decorative.divider,
   },
   moreText: {
     fontSize: 12,
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.zinc[700],
+    borderTopColor: decorative.divider,
   },
   debugRow: {
     borderWidth: 1,

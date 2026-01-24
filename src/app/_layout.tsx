@@ -19,7 +19,7 @@ import { useRefreshLibraryDataVersion } from "@/services/data-version-service";
 import { useForegroundSync } from "@/services/sync-service";
 import { useSession } from "@/stores/session";
 import { useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles/colors";
+import { Colors, surface } from "@/styles/colors";
 import { useAppState } from "@/utils/hooks";
 
 import "core-js/actual/object/group-by";
@@ -143,8 +143,8 @@ const Theme = {
   dark: true,
   colors: {
     primary: Colors.lime[400],
-    background: Colors.black,
-    card: Colors.zinc[900],
+    background: surface.base,
+    card: surface.card,
     text: Colors.zinc[100],
     border: Colors.zinc[600],
     notification: Colors.red[400],
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     paddingTop: 64,
   },
   modalContent: {
-    backgroundColor: Colors.zinc[900],
+    backgroundColor: surface.overlay,
   },
 });
 
