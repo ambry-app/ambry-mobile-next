@@ -311,13 +311,32 @@ const mockDownloadResumable = {
   cancelAsync: jest.fn(),
 };
 
-// Modern API - only Paths is used from here
+class MockFile {
+  uri: string;
+  exists: boolean = true;
+  size: number = 1024;
+
+  constructor(uri: string) {
+    this.uri = uri;
+  }
+
+  delete() {}
+
+  static async downloadFileAsync(url: string, path: any, _options?: any) {
+    return path;
+  }
+}
+
+// Modern API
 jest.mock("expo-file-system", () => ({
   Paths: {
     document: {
       uri: "file:///test-document-directory/",
     },
   },
+  downloadAsync: jest.fn(),
+  createDownloadResumable: jest.fn(() => mockDownloadResumable),
+  File: MockFile,
 }));
 
 // Legacy API - download functions with progress tracking

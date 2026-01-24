@@ -53,6 +53,7 @@ async function getDownloadedMediaByIds(session: Session, mediaIds: string[]) {
       },
       download: {
         thumbnails: schema.downloads.thumbnails,
+        filePath: schema.downloads.filePath,
       },
     })
     .from(schema.media)
