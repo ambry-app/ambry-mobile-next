@@ -9,6 +9,7 @@ import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 
 import { DownloadRow } from "./downloads-screen/DownloadRow";
+import { DownloadsHero } from "./downloads-screen/DownloadsHero";
 
 type DownloadsScreenProps = {
   session: Session;
@@ -68,6 +69,7 @@ export function DownloadsScreen({
       renderItem={({ item }) => <DownloadRow media={item} session={session} />}
       refreshing={refreshing}
       onRefresh={onRefresh}
+      ListHeaderComponent={<DownloadsHero media={media} />}
     />
   );
 }

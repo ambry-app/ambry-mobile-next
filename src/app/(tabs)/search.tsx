@@ -89,8 +89,8 @@ export default function SearchRoute() {
       </View>
 
       {/* Results */}
-      {searchQuery.length >= 3 ? (
-        <SearchResults session={session} searchQuery={searchQuery} />
+      {searchQuery.trim().length >= 3 ? (
+        <SearchResults session={session} searchQuery={searchQuery.trim()} />
       ) : (
         <Animated.View style={[styles.placeholderContainer, animatedStyle]}>
           <FontAwesome6
