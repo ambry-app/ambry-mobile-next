@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useKeyboardState } from "react-native-keyboard-controller";
 import Animated, {
@@ -9,7 +9,6 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
-import { ScrollHandler } from "@/components/FadingHeader";
 import { MediaTile } from "@/components/Tiles";
 import { PAGE_SIZE, PLAYER_HEIGHT, TAB_BAR_BASE_HEIGHT } from "@/constants";
 import { getSearchedMedia, useLibraryData } from "@/services/library-service";
@@ -29,13 +28,12 @@ const NUM_COLUMNS = 2;
 type SearchResultsProps = {
   session: Session;
   searchQuery: string;
-  scrollHandler?: ScrollHandler;
 };
 
 const MINI_PROGRESS_BAR_HEIGHT = 2;
 
 export function SearchResults(props: SearchResultsProps) {
-  const { session, searchQuery, scrollHandler } = props;
+  const { session, searchQuery } = props;
   const screenWidth = useScreen((state) => state.screenWidth);
   const { bottom: safeAreaBottom } = useSafeAreaInsets();
   const playerLoaded = useTrackPlayer((state) => !!state.playthrough);
@@ -51,7 +49,10 @@ export function SearchResults(props: SearchResultsProps) {
   const keyboardHeight = Math.max(0, rawKeyboardHeight - bottomBarHeight);
 
   const animatedHeight = useSharedValue(keyboardHeight);
-  animatedHeight.value = withTiming(keyboardHeight, { duration: 250 });
+
+  useEffect(() => {
+    animatedHeight.value = withTiming(keyboardHeight, { duration: 250 });
+  }, [keyboardHeight, animatedHeight]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     paddingBottom: animatedHeight.value,
@@ -103,10 +104,11 @@ export function SearchResults(props: SearchResultsProps) {
   return (
     <Animated.FlatList
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{ paddingBottom: keyboardHeight }}
+      contentContainerStyle={{
+        paddingBottom: keyboardHeight,
+      }}
       style={styles.flatlist}
       showsVerticalScrollIndicator={false}
-      onScroll={scrollHandler}
       scrollEventThrottle={16}
       data={media}
       keyExtractor={(item) => item.id}
@@ -120,6 +122,7 @@ export function SearchResults(props: SearchResultsProps) {
       removeClippedSubviews={Platform.OS === "android"}
       maxToRenderPerBatch={10}
       windowSize={5}
+      keyboardShouldPersistTaps="handled"
     />
   );
 }

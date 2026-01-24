@@ -209,6 +209,7 @@ export default function SettingsRoute() {
         borderOpacity={borderOpacity}
         contentOpacity={contentOpacity}
         statusBarHeight={insets.top}
+        onSearchPress={() => router.push("/search")}
       />
     </View>
   );
