@@ -102,22 +102,12 @@ export async function reloadCurrentPlaythroughIfMedia(
     return;
   }
 
-  const { playing } = Player.isPlaying();
-
   log.info(
-    `Reloading current playthrough for media: ${mediaId}, playthroughId: ${loadedPlaythrough.id}, wasPlaying: ${playing}`,
+    `Reloading current playthrough for media: ${mediaId}, playthroughId: ${loadedPlaythrough.id}`,
   );
-
-  if (playing) {
-    await Player.pause(PlayPauseSource.INTERNAL);
-  }
 
   await Heartbeat.saveNow();
   await Operations.reloadPlaythroughById(session, loadedPlaythrough.id);
-
-  if (playing) {
-    await Player.play(PlayPauseSource.INTERNAL);
-  }
 }
 
 /**
