@@ -1,6 +1,6 @@
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 
 import { Delay } from "@/components/Delay";
 import {
@@ -13,6 +13,7 @@ import { useSession } from "@/stores/session";
 
 export default function LibraryRoute() {
   const session = useSession((state) => state.session);
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const {
     scrollHandler,
@@ -45,6 +46,7 @@ export default function LibraryRoute() {
         borderOpacity={borderOpacity}
         contentOpacity={contentOpacity}
         statusBarHeight={insets.top}
+        onSearchPress={() => router.push("/search")}
       />
     </View>
   );
