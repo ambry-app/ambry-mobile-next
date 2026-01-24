@@ -366,6 +366,56 @@ export async function loadPlaythroughIntoPlayer(
 }
 
 /**
+ * Reload the current playthrough into TrackPlayer without resetting the UI state.
+ *
+ * This is used for seamless switching between streaming and downloaded content
+ * (or vice versa) when the underlying media source changes.
+ */
+export async function reloadCurrentPlaythrough(
+  session: Session,
+  playthrough: PlaythroughWithMedia,
+): Promise<void> {
+  const current = getLoadedPlaythrough();
+  if (!current || current.id !== playthrough.id) {
+    return;
+  }
+
+  log.info(`Reloading current playthrough ${playthrough.id}`);
+
+  // Capture current state
+  const { playing } = isPlaying();
+  const { position } = await getAccurateProgress();
+
+  // Reset native player only (clears queue/media)
+  await TrackPlayer.reset();
+
+  // Load new track configuration (switches URL between file/stream)
+  const trackAdd = buildAddTrack(session, playthrough);
+  await TrackPlayer.add(trackAdd);
+
+  // Restore state
+  await TrackPlayer.seekTo(position);
+  await TrackPlayer.setRate(playthrough.playbackRate);
+  await setPlayerOptions();
+
+  // Update store with new derivation (e.g. streaming status changed)
+  const streaming = playthrough.media.download?.status !== "ready";
+
+  useTrackPlayer.setState({
+    streaming,
+    playthrough: {
+      id: playthrough.id,
+      mediaId: playthrough.mediaId,
+      status: playthrough.status as "in_progress" | "finished" | "abandoned",
+    },
+  });
+
+  if (playing) {
+    await TrackPlayer.play();
+  }
+}
+
+/**
  * Unloads the current playthrough from TrackPlayer and resets state.
  */
 export async function unload() {

@@ -322,7 +322,7 @@ export async function reloadPlaythroughById(
 
   const playthrough = await getPlaythroughWithMedia(session, playthroughId);
 
-  await Player.loadPlaythroughIntoPlayer(session, playthrough);
+  await Player.reloadCurrentPlaythrough(session, playthrough);
 }
 
 /**
