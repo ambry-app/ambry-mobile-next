@@ -7,7 +7,7 @@ import {
   PlaythroughAction,
 } from "@/services/playback-controls";
 import { useSession } from "@/stores/session";
-import { Colors } from "@/styles/colors";
+import { Colors, interactive } from "@/styles/colors";
 import { Session } from "@/types/session";
 
 export default function MarkFinishedPromptModal() {
@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   },
   inProgressButton: {
     flex: 1,
-    backgroundColor: Colors.zinc[700],
+    backgroundColor: interactive.fillProminent,
     borderRadius: 8,
     paddingVertical: 12,
   },
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   cancelButton: {
-    backgroundColor: Colors.zinc[800],
+    backgroundColor: interactive.fill,
     borderRadius: 8,
     paddingVertical: 12,
     marginTop: 8,

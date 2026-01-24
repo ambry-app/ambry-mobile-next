@@ -1,6 +1,8 @@
-import { RefreshControl, ScrollView, StyleSheet, Text } from "react-native";
+import { RefreshControl, StyleSheet, Text } from "react-native";
+import Animated from "react-native-reanimated";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
+import { ScrollHandler } from "@/components/FadingHeader";
 import {
   getPlaythroughsPage,
   useLibraryData,
@@ -19,20 +21,32 @@ import { SavedForLater } from "./shelf-screen/SavedForLater";
 
 type ShelfScreenProps = {
   session: Session;
+  scrollHandler?: ScrollHandler;
+  topInset?: number;
 };
 
 export function ShelfScreen(props: ShelfScreenProps) {
-  const { session } = props;
+  const { session, scrollHandler, topInset = 0 } = props;
   const { refreshing, onRefresh } = usePullToRefresh(session);
   const isEmpty = useIsShelfEmpty(session);
 
   if (isEmpty) {
     return (
-      <ScrollView
+      <Animated.ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={styles.emptyContainer}
+        contentContainerStyle={[
+          styles.emptyContainer,
+          topInset > 0 && { paddingTop: topInset },
+        ]}
+        showsVerticalScrollIndicator={false}
+        onScroll={scrollHandler}
+        scrollEventThrottle={8}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            progressViewOffset={topInset}
+          />
         }
       >
         <FontAwesome6
@@ -50,23 +64,33 @@ export function ShelfScreen(props: ShelfScreenProps) {
           <FontAwesome6 name="play" size={14} color={Colors.zinc[400]} /> ) to
           start listening.
         </Text>
-      </ScrollView>
+      </Animated.ScrollView>
     );
   }
 
   return (
-    <ScrollView
+    <Animated.ScrollView
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={styles.container}
+      contentContainerStyle={[
+        styles.container,
+        topInset > 0 && { paddingTop: topInset },
+      ]}
+      showsVerticalScrollIndicator={false}
+      onScroll={scrollHandler}
+      scrollEventThrottle={8}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          progressViewOffset={topInset}
+        />
       }
     >
       <NowPlaying session={session} />
       <RecentInProgress session={session} />
       <RecentlyFinished session={session} />
       <SavedForLater session={session} />
-    </ScrollView>
+    </Animated.ScrollView>
   );
 }
 

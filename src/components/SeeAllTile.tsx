@@ -1,6 +1,6 @@
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
 
-import { Colors } from "@/styles/colors";
+import { Colors, surface } from "@/styles/colors";
 
 import { IconButton } from "./IconButton";
 
@@ -34,7 +34,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   button: {
-    backgroundColor: Colors.zinc[900],
+    backgroundColor: surface.card,
     borderRadius: 999,
     paddingHorizontal: 16,
     flexDirection: "row-reverse",

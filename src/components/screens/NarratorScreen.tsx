@@ -1,22 +1,14 @@
-import {
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { router } from "expo-router";
+import { StyleSheet, Text } from "react-native";
+import Animated from "react-native-reanimated";
 
 import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { ScrollHandler } from "@/components/FadingHeader";
 import { Loading } from "@/components/Loading";
-import { ThumbnailImage } from "@/components/ThumbnailImage";
 import { MediaTile } from "@/components/Tiles";
 import { PAGE_SIZE } from "@/constants";
 import {
   getMediaByNarratorPage,
-  getNarratorHeaderInfo,
   NarratorHeaderInfo,
-  useLibraryData,
   usePaginatedLibraryData,
 } from "@/services/library-service";
 import { usePullToRefresh } from "@/services/sync-service";
@@ -26,12 +18,16 @@ import { Session } from "@/types/session";
 type NarratorScreenProps = {
   narratorId: string;
   session: Session;
+  narrator: NarratorHeaderInfo | null;
+  scrollHandler: ScrollHandler;
 };
 
-export function NarratorScreen({ session, narratorId }: NarratorScreenProps) {
-  const narrator = useLibraryData(() =>
-    getNarratorHeaderInfo(session, narratorId),
-  );
+export function NarratorScreen({
+  session,
+  narratorId,
+  narrator,
+  scrollHandler,
+}: NarratorScreenProps) {
   const getPage = (pageSize: number, cursor: Date | undefined) =>
     getMediaByNarratorPage(session, narratorId, pageSize, cursor);
   const getCursor = (item: { published: Date }) => item.published;
@@ -52,9 +48,12 @@ export function NarratorScreen({ session, narratorId }: NarratorScreenProps) {
   }
 
   return (
-    <FlatList
+    <Animated.FlatList
       contentInsetAdjustmentBehavior="automatic"
       style={styles.flatlist}
+      showsVerticalScrollIndicator={false}
+      onScroll={scrollHandler}
+      scrollEventThrottle={16}
       data={media}
       keyExtractor={(item) => item.id}
       numColumns={2}
@@ -67,11 +66,6 @@ export function NarratorScreen({ session, narratorId }: NarratorScreenProps) {
       onEndReachedThreshold={0.5}
       refreshing={refreshing}
       onRefresh={onRefresh}
-      ListHeaderComponent={
-        <FadeInOnMount>
-          <NarratorHeader narrator={narrator} />
-        </FadeInOnMount>
-      }
       ListFooterComponent={
         hasMore ? (
           <Loading style={{ paddingBottom: 128, paddingTop: 96 }} />
@@ -81,60 +75,7 @@ export function NarratorScreen({ session, narratorId }: NarratorScreenProps) {
   );
 }
 
-type NarratorHeaderProps = {
-  narrator: NarratorHeaderInfo;
-};
-
-function NarratorHeader({ narrator }: NarratorHeaderProps) {
-  const navigateToPerson = () => {
-    router.navigate({
-      pathname: "/person/[id]",
-      params: { id: narrator.person.id, title: narrator.person.name },
-    });
-  };
-
-  return (
-    <TouchableOpacity style={styles.headerContainer} onPress={navigateToPerson}>
-      <ThumbnailImage
-        thumbnails={narrator.person.thumbnails}
-        size="medium"
-        style={styles.thumbnail}
-      />
-      {narrator.name !== narrator.person.name ? (
-        <View>
-          <Text style={styles.headerText}>Read by {narrator.person.name}</Text>
-          <Text style={styles.headerSubText}>Narrating as {narrator.name}</Text>
-        </View>
-      ) : (
-        <Text style={styles.headerText}>Read by {narrator.name}</Text>
-      )}
-    </TouchableOpacity>
-  );
-}
-
 const styles = StyleSheet.create({
-  headerContainer: {
-    padding: 8,
-    marginBottom: 16,
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  headerText: {
-    fontSize: 22,
-    fontWeight: "500",
-    color: Colors.zinc[100],
-  },
-  headerSubText: {
-    fontSize: 20,
-    color: Colors.zinc[200],
-  },
-  thumbnail: {
-    aspectRatio: 1,
-    borderRadius: 9999,
-    width: 64,
-  },
   text: {
     color: Colors.zinc[100],
     paddingHorizontal: 32,

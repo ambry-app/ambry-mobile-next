@@ -19,7 +19,7 @@ import {
 } from "@/services/playthrough-query-service";
 import { useShelvedMedia } from "@/services/shelf-service";
 import { useDownloads } from "@/stores/downloads";
-import { Colors } from "@/styles/colors";
+import { Colors, interactive } from "@/styles/colors";
 import { Session } from "@/types/session";
 
 type ActionBarProps = {
@@ -262,11 +262,11 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   playButton: {
-    backgroundColor: Colors.zinc[100],
+    backgroundColor: interactive.selected,
     borderRadius: 999,
   },
   button: {
-    backgroundColor: Colors.zinc[900],
+    backgroundColor: interactive.fillSubtle,
     borderRadius: 999,
   },
   playButtonIcon: {

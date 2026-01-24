@@ -12,7 +12,7 @@ import {
 import { fillMaxSize } from "@expo/ui/jetpack-compose/modifiers";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
-import { Colors } from "@/styles/colors";
+import { Colors, interactive } from "@/styles/colors";
 import { useMenuState } from "@/utils/hooks";
 
 export type PlaythroughStatus =
@@ -132,7 +132,7 @@ export function PlaythroughContextMenuImpl({
       {/* Context menu with invisible trigger on top */}
       <Host style={styles.host}>
         <DropdownMenu
-          color={Colors.zinc[800]}
+          color={interactive.fill}
           expanded={expanded}
           onDismissRequest={close}
         >

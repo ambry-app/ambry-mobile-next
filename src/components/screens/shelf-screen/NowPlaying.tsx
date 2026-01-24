@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 import { PlayerProgressBar } from "@/components/PlayerProgressBar";
 import { TileImage, TileText } from "@/components/Tiles";
@@ -34,9 +34,9 @@ function NowPlayingDetails({ session, mediaId }: NowPlayingDetailsProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label} numberOfLines={1}>
+      {/* <Text style={styles.label} numberOfLines={1}>
         Now Playing
-      </Text>
+      </Text> */}
       <Pressable onPress={expandPlayer}>
         <View style={styles.rowContainer}>
           <View style={styles.leftContainer}>

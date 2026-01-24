@@ -67,7 +67,7 @@ export function timeAgo(date: Date): string {
   if (weeks === 1) {
     return "last week";
   }
-  if (weeks < 4) {
+  if (days < 30) {
     return `${weeks} weeks ago`;
   }
 

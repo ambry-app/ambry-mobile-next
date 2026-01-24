@@ -52,3 +52,50 @@ export const Colors = {
   lime,
   red,
 };
+
+/**
+ * Surface color hierarchy for layered UI elements.
+ * Lighter colors = more elevated (closer to user).
+ *
+ * Change these values to experiment with different color schemes.
+ * All surface usages throughout the app reference these tokens.
+ */
+export const surface = {
+  /** Page backgrounds, ScrollViews - the lowest layer */
+  base: black,
+  /** Cards, list items, grouped content sitting on the base */
+  card: zinc[950],
+  /** Fixed floating UI: tab bar, mini-player */
+  elevated: zinc[900],
+  /** Modals, sheets, context menus - same as elevated, differentiated by context */
+  overlay: zinc[900],
+};
+
+/**
+ * Interactive element colors (buttons, inputs).
+ * These work across all surface levels.
+ */
+export const interactive = {
+  /** A more subtle button/input background */
+  fillSubtle: zinc[900],
+  /** Default button/input background (tertiary actions, cancel buttons) */
+  fill: zinc[800],
+  /** More prominent button background (secondary actions) */
+  fillProminent: zinc[700],
+  /** Selected/active state (e.g., active playback rate) */
+  selected: zinc[100],
+};
+
+/**
+ * Decorative element colors.
+ */
+export const decorative = {
+  /** Dividers, separators between content */
+  divider: zinc[700],
+  /** Progress bar tracks, slider backgrounds */
+  track: zinc[700],
+  /** Drag handles, modal grab indicators */
+  handle: zinc[500],
+  /** Image placeholders while loading */
+  placeholder: zinc[800],
+};

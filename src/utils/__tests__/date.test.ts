@@ -54,9 +54,11 @@ describe("timeAgo", () => {
       expect(timeAgo(daysAgo(7))).toBe("last week");
     });
 
-    it("returns 'X weeks ago' for 2-3 weeks", () => {
+    it("returns 'X weeks ago' for 2-4 weeks", () => {
       expect(timeAgo(daysAgo(14))).toBe("2 weeks ago");
       expect(timeAgo(daysAgo(21))).toBe("3 weeks ago");
+      expect(timeAgo(daysAgo(28))).toBe("4 weeks ago");
+      expect(timeAgo(daysAgo(29))).toBe("4 weeks ago");
     });
   });
 

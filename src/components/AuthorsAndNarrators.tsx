@@ -9,7 +9,6 @@ import { useScreen } from "@/stores/screen";
 import { Colors } from "@/styles/colors";
 import { requireValue } from "@/utils/require-value";
 
-import { FadeInOnMount } from "./FadeInOnMount";
 import { PersonTile } from "./Tiles";
 
 type AuthorsAndNarratorsProps = {
@@ -38,7 +37,7 @@ export function AuthorsAndNarrators({
           const name = requireValue(item.names[0], "Name is required");
 
           return (
-            <FadeInOnMount style={[styles.tile, { width: tileSize }]}>
+            <View style={[styles.tile, { width: tileSize }]}>
               <PersonTile
                 label={label}
                 personId={item.id}
@@ -46,7 +45,7 @@ export function AuthorsAndNarrators({
                 realName={item.realName}
                 thumbnails={item.thumbnails}
               />
-            </FadeInOnMount>
+            </View>
           );
         }}
       />
