@@ -240,6 +240,8 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: interactive.fillSubtle,
     borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.zinc[800],
   },
   host: {
     ...StyleSheet.absoluteFill,
