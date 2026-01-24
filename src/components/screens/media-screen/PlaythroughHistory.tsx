@@ -111,7 +111,7 @@ function NowPlayingRow({ playthroughId }: { playthroughId: string }) {
   const rowContent = (
     <>
       <View style={styles.iconContainer}>
-        <FontAwesome6 name="book-open" size={16} color={Colors.zinc[100]} />
+        <FontAwesome6 name="book-open" size={18} color={Colors.zinc[100]} />
       </View>
       <View style={styles.content}>
         <View style={styles.statusRow}>
@@ -232,7 +232,7 @@ function PlaythroughRow({
       <View style={styles.iconContainer}>
         <FontAwesome6
           name={statusIcon}
-          size={16}
+          size={18}
           color={statusColor}
           solid={playthrough.status === "finished"}
         />
@@ -268,21 +268,23 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: surface.card,
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 16,
+    padding: 16,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 16,
   },
   iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: decorative.divider,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: surface.base,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    borderWidth: 1,
+    borderColor: Colors.zinc[800],
   },
   content: {
     flex: 1,
@@ -293,11 +295,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statusLabel: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
   },
   timeInfo: {
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.zinc[400],
   },
   dateLabel: {
@@ -310,8 +312,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: 16,
+    paddingTop: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: decorative.divider,
   },
@@ -320,8 +322,8 @@ const styles = StyleSheet.create({
     color: Colors.zinc[500],
   },
   expandedRow: {
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: 16,
+    paddingTop: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: decorative.divider,
   },
