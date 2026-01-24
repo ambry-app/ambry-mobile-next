@@ -268,6 +268,8 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: interactive.fillSubtle,
     borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.zinc[800],
   },
   playButtonIcon: {
     // play button looks off center, so we need to adjust it a bit
