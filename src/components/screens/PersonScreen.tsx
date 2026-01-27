@@ -1,4 +1,10 @@
-import { RefreshControl, StyleSheet, View } from "react-native";
+import {
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -18,7 +24,7 @@ import { Session } from "@/types/session";
 type PersonScreenProps = {
   session: Session;
   personId: string;
-  scrollHandler: ScrollHandler;
+  scrollHandler?: ScrollHandler;
 };
 
 export function PersonScreen(props: PersonScreenProps) {
@@ -29,12 +35,48 @@ export function PersonScreen(props: PersonScreenProps) {
 
   if (!person) return null;
 
+  // Shared content rendered in both iOS and Android layouts
+  const content = (
+    <>
+      <FadeInOnMount>
+        <Header person={person} />
+      </FadeInOnMount>
+      <Delay delay={100}>
+        {person.authors.length > 0 && (
+          <BooksByAuthors person={person} session={session} />
+        )}
+        {person.narrators.length > 0 && (
+          <MediaByNarrators person={person} session={session} />
+        )}
+      </Delay>
+    </>
+  );
+
+  // iOS: Simple layout with native header inset handling
+  if (Platform.OS === "ios") {
+    return (
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.simpleContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {content}
+      </ScrollView>
+    );
+  }
+
+  // Android: Animated scroll view with fading header
   return (
     <View style={styles.screenContainer}>
       <Animated.ScrollView
         contentContainerStyle={[
           styles.container,
-          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 },
+          {
+            paddingTop: insets.top + 16,
+            paddingBottom: insets.bottom + 16,
+          },
         ]}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
@@ -43,20 +85,8 @@ export function PersonScreen(props: PersonScreenProps) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        <FadeInOnMount>
-          <Header person={person} />
-        </FadeInOnMount>
-        <Delay delay={100}>
-          {person.authors.length > 0 && (
-            <BooksByAuthors person={person} session={session} />
-          )}
-          {person.narrators.length > 0 && (
-            <MediaByNarrators person={person} session={session} />
-          )}
-        </Delay>
+        {content}
       </Animated.ScrollView>
-
-      {/* <StatusBarOverlay height={insets.top} /> */}
     </View>
   );
 }
@@ -65,6 +95,9 @@ const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
     backgroundColor: "black",
+  },
+  simpleContainer: {
+    paddingVertical: 16,
   },
   container: {
     paddingBottom: 16,

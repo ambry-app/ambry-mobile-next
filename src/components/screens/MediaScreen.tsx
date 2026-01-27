@@ -1,4 +1,10 @@
-import { RefreshControl, StyleSheet, View } from "react-native";
+import {
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -22,7 +28,7 @@ import { Session } from "@/types/session";
 type MediaScreenProps = {
   session: Session;
   mediaId: string;
-  scrollHandler: ScrollHandler;
+  scrollHandler?: ScrollHandler;
 };
 
 export function MediaScreen(props: MediaScreenProps) {
@@ -32,14 +38,55 @@ export function MediaScreen(props: MediaScreenProps) {
   const insets = useSafeAreaInsets();
   const { screenWidth, shortScreen } = useScreen();
 
+  if (!media) return null;
+
+  // Shared content rendered in both iOS and Android layouts
+  const content = (
+    <>
+      <Header media={media} />
+      <ActionBar media={media} session={session} />
+      <PlaythroughHistory
+        session={session}
+        mediaId={media.id}
+        mediaDuration={media.duration ? parseFloat(media.duration) : null}
+      />
+      <MediaDescription media={media} />
+      <MediaAuthorsAndNarrators media={media} session={session} />
+      <OtherEditions media={media} session={session} />
+      {media.book.series.length > 0 && (
+        <BooksInSeries media={media} session={session} />
+      )}
+      {media.book.authors.length > 0 && (
+        <OtherBooksByAuthors media={media} session={session} />
+      )}
+      {media.narrators.length > 0 && (
+        <OtherMediaByNarrators media={media} session={session} />
+      )}
+    </>
+  );
+
+  // iOS: Simple layout with native header inset handling
+  if (Platform.OS === "ios") {
+    return (
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.simpleContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {content}
+      </ScrollView>
+    );
+  }
+
+  // Android: Animated scroll view with fading header and blurred thumbnail background
   // Calculate blur height to reach to the bottom of the thumbnail
   // Thumbnail starts at insets.top + 8 (header paddingTop)
   // Thumbnail width is 60%/80% of screen width, and it's square
   const thumbnailWidth = screenWidth * (shortScreen ? 0.6 : 0.8);
   const thumbnailTop = insets.top + 8;
   const blurHeight = thumbnailTop + thumbnailWidth;
-
-  if (!media) return null;
 
   return (
     <View style={styles.screenContainer}>
@@ -71,30 +118,8 @@ export function MediaScreen(props: MediaScreenProps) {
         </View>
 
         {/* Content overlaps the blur with negative margin */}
-        <View style={{ marginTop: -blurHeight + insets.top }}>
-          <Header media={media} />
-          <ActionBar media={media} session={session} />
-          <PlaythroughHistory
-            session={session}
-            mediaId={media.id}
-            mediaDuration={media.duration ? parseFloat(media.duration) : null}
-          />
-          <MediaDescription media={media} />
-          <MediaAuthorsAndNarrators media={media} session={session} />
-          <OtherEditions media={media} session={session} />
-          {media.book.series.length > 0 && (
-            <BooksInSeries media={media} session={session} />
-          )}
-          {media.book.authors.length > 0 && (
-            <OtherBooksByAuthors media={media} session={session} />
-          )}
-          {media.narrators.length > 0 && (
-            <OtherMediaByNarrators media={media} session={session} />
-          )}
-        </View>
+        <View style={{ marginTop: -blurHeight + insets.top }}>{content}</View>
       </Animated.ScrollView>
-
-      {/* <StatusBarOverlay height={insets.top} /> */}
     </View>
   );
 }
@@ -103,6 +128,9 @@ const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
     backgroundColor: "black",
+  },
+  simpleContainer: {
+    paddingVertical: 16,
   },
   container: {},
   blurContainer: {

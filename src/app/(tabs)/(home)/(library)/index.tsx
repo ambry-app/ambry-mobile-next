@@ -25,7 +25,7 @@ export default function LibraryRoute() {
 
   if (!session) return null;
 
-  // iOS keeps existing header behavior for now
+  // iOS uses native header with built-in search bar
   if (Platform.OS === "ios") {
     return <LibraryScreen session={session} />;
   }

@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Stack, useLocalSearchParams } from "expo-router";
 
@@ -17,6 +18,16 @@ export default function PersonRoute() {
   const { scrollHandler, headerOpacity } = useFadingHeader();
 
   if (!session) return null;
+
+  // iOS uses native header with title always visible
+  if (Platform.OS === "ios") {
+    return (
+      <>
+        <Stack.Screen options={{ title: title || "" }} />
+        <PersonScreen session={session} personId={personId} />
+      </>
+    );
+  }
 
   return (
     <>

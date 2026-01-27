@@ -25,7 +25,7 @@ export default function ShelfRoute() {
 
   if (!session) return null;
 
-  // iOS keeps existing header behavior for now
+  // iOS uses native header
   if (Platform.OS === "ios") {
     return (
       <Delay delay={10}>
