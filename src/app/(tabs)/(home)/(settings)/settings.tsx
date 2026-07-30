@@ -24,7 +24,6 @@ import { useSleepTimer } from "@/stores/sleep-timer";
 import { Colors, decorative, surface } from "@/styles/colors";
 import { formatPlaybackRate } from "@/utils/rate";
 
-
 const switchColors = {
   checkedTrackColor: Colors.lime[500],
 };
