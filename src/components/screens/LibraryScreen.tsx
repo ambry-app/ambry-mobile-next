@@ -4,7 +4,7 @@ import { useNavigation } from "expo-router";
 
 import { ScrollHandler } from "@/components/FadingHeader";
 import { FullLibrary } from "@/components/screens/library-screen/FullLibrary";
-import { SearchResults } from "@/components/screens/library-screen/SearchResults";
+import { SearchResults } from "@/components/screens/search-screen/SearchResults";
 import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 import { useDebounce } from "@/utils/hooks";
