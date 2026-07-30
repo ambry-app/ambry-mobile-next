@@ -78,6 +78,7 @@ export default {
       "expo-sqlite",
       "expo-background-task",
       "expo-font",
+      "expo-image",
     ],
     experiments: {
       typedRoutes: true,

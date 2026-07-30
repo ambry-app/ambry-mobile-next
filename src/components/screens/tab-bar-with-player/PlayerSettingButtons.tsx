@@ -72,15 +72,23 @@ function SleepTimerLabel() {
     );
   const [countdown, setCountdown] = useState<number | null>(null);
 
+  // Clear a countdown left over from a previous timer during render rather than
+  // synchronously inside the effect, so a stale value is never displayed.
+  const activeTriggerTime = sleepTimerEnabled ? sleepTimerTriggerTime : null;
+  const [previousTriggerTime, setPreviousTriggerTime] =
+    useState(activeTriggerTime);
+
+  if (activeTriggerTime !== previousTriggerTime) {
+    setPreviousTriggerTime(activeTriggerTime);
+    setCountdown(null);
+  }
+
   useEffect(() => {
-    if (!sleepTimerEnabled || sleepTimerTriggerTime === null) {
-      setCountdown(null);
-      return;
-    }
+    if (activeTriggerTime === null) return;
 
     // Update countdown immediately
     const updateCountdown = () => {
-      const newCountdown = (sleepTimerTriggerTime - Date.now()) / 1000;
+      const newCountdown = (activeTriggerTime - Date.now()) / 1000;
       setCountdown(Math.ceil(Math.max(0, newCountdown)));
     };
 
@@ -90,7 +98,7 @@ function SleepTimerLabel() {
     const interval = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(interval);
-  }, [sleepTimerEnabled, sleepTimerTriggerTime]);
+  }, [activeTriggerTime]);
 
   if (!sleepTimerEnabled) return null;
 

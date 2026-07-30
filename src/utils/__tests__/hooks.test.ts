@@ -18,6 +18,13 @@ jest.mock("expo-router", () => ({
 const listeners: ((state: AppStateStatus) => void)[] = [];
 
 jest.mock("react-native", () => ({
+  // `Platform` is read by expo-modules-core the first time anything touches the
+  // `fetch` global, so this replacement mock has to provide it.
+  Platform: {
+    OS: "ios",
+    select: (specifics: Record<string, unknown>) =>
+      specifics.ios ?? specifics.native ?? specifics.default,
+  },
   AppState: {
     currentState: "active",
     addEventListener: (_event: string, cb: (state: AppStateStatus) => void) => {

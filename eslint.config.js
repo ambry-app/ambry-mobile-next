@@ -150,5 +150,20 @@ module.exports = defineConfig([
       ],
     },
   },
+  // Reanimated shared values are mutable by design (`sharedValue.value = x`),
+  // which the React Compiler rules read as mutating a captured value. They
+  // can't model worklets, so the checks are turned off for the files that
+  // drive gestures and animations directly.
+  {
+    files: [
+      "src/components/Scrubber.tsx",
+      "src/components/screens/CustomTabBarWithPlayer.tsx",
+      "src/components/screens/tab-bar-with-player/SeekIndicator.tsx",
+    ],
+    rules: {
+      "react-hooks/immutability": "off",
+      "react-hooks/refs": "off",
+    },
+  },
   globalIgnores(["**/expo-env.d.ts", "src/graphql/client/*"]),
 ]);

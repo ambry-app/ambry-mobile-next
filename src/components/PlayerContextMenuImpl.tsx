@@ -3,16 +3,19 @@ import { ReactElement } from "react";
 import { StyleSheet, View } from "react-native";
 import {
   Button,
-  ButtonProps,
-  ContextMenu,
-  fillMaxSize,
+  DropdownMenu,
+  DropdownMenuItem,
+  HorizontalDivider,
   Host,
-  Submenu,
+  Spacer,
+  Text,
 } from "@expo/ui/jetpack-compose";
+import { fillMaxSize } from "@expo/ui/jetpack-compose/modifiers";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import { DownloadStatus } from "@/stores/downloads";
 import { Colors } from "@/styles/colors";
+import { useMenuState } from "@/utils/hooks";
 
 type AuthorOrNarrator = {
   id: string;
@@ -41,13 +44,15 @@ const triggerColors = {
 };
 
 const menuColors = {
-  containerColor: Colors.zinc[800],
-  contentColor: Colors.zinc[100],
+  textColor: Colors.zinc[100],
 };
 
 const destructiveColors = {
-  containerColor: Colors.zinc[800],
-  contentColor: Colors.red[400],
+  textColor: Colors.red[400],
+};
+
+const headerColors = {
+  disabledTextColor: Colors.zinc[400],
 };
 
 export function PlayerContextMenuImpl({
@@ -61,128 +66,120 @@ export function PlayerContextMenuImpl({
   handleAbandon,
   handleDownload,
 }: PlayerContextMenuImplProps) {
-  // Build menu items array
-  const menuItems: ReactElement<ButtonProps>[] = [];
-  const actionMenuItems: ReactElement<ButtonProps>[] = [];
+  const { expanded, open, close, selecting } = useMenuState();
+
+  // Jetpack Compose has no nested-submenu primitive, so people are grouped into
+  // labelled sections the same way the iOS implementation uses <Section>.
+  const menuItems: ReactElement[] = [];
+
+  const pushSection = (
+    key: string,
+    title: string,
+    people: AuthorOrNarrator[],
+  ) => {
+    if (people.length === 0) return;
+
+    menuItems.push(<HorizontalDivider key={`${key}-divider`} />);
+    menuItems.push(
+      <DropdownMenuItem
+        key={`${key}-header`}
+        enabled={false}
+        elementColors={headerColors}
+      >
+        <DropdownMenuItem.Text>
+          <Text>{title}</Text>
+        </DropdownMenuItem.Text>
+      </DropdownMenuItem>,
+    );
+    people.forEach((person) => {
+      menuItems.push(
+        <DropdownMenuItem
+          key={person.id}
+          elementColors={menuColors}
+          onClick={selecting(() => handleGoToPerson(person))}
+        >
+          <DropdownMenuItem.Text>
+            <Text>{person.name}</Text>
+          </DropdownMenuItem.Text>
+        </DropdownMenuItem>,
+      );
+    });
+  };
 
   // Go to book
   menuItems.push(
-    <Button
+    <DropdownMenuItem
       key="go-to-book"
-      //leadingIcon="filled.Info"
       elementColors={menuColors}
-      onPress={handleGoToBook}
+      onClick={selecting(handleGoToBook)}
     >
-      Go to book
-    </Button>,
+      <DropdownMenuItem.Text>
+        <Text>Go to book</Text>
+      </DropdownMenuItem.Text>
+    </DropdownMenuItem>,
   );
 
-  menuItems.push(
-    <Submenu
-      key="go-to-author-submenu"
-      button={
-        <Button /*leadingIcon="filled.Person"*/ elementColors={menuColors}>
-          {authors.length > 1 ? "Authors" : "Author"}
-        </Button>
-      }
-    >
-      {authors.map((author) => (
-        <Button
-          key={author.id}
-          //leadingIcon="filled.Person"
-          elementColors={menuColors}
-          onPress={() => handleGoToPerson(author)}
-        >
-          {author.name}
-        </Button>
-      ))}
-    </Submenu>,
+  pushSection("authors", authors.length > 1 ? "Authors" : "Author", authors);
+  pushSection(
+    "narrators",
+    narrators.length > 1 ? "Narrators" : "Narrator",
+    narrators.slice(0, NARRATOR_THRESHOLD),
   );
 
-  menuItems.push(
-    <Submenu
-      key="go-to-narrator-submenu"
-      button={
-        <Button /*leadingIcon="filled.Person"*/ elementColors={menuColors}>
-          {narrators.length > 1 ? "Narrators" : "Narrator"}
-        </Button>
-      }
-    >
-      {narrators.slice(0, NARRATOR_THRESHOLD).map((narrator) => (
-        <Button
-          key={narrator.id}
-          //leadingIcon="filled.Person"
-          elementColors={menuColors}
-          onPress={() => handleGoToPerson(narrator)}
-        >
-          {narrator.name}
-        </Button>
-      ))}
-    </Submenu>,
-  );
-  // }
+  menuItems.push(<HorizontalDivider key="actions-divider" />);
 
   // Download (only if not already downloaded or downloading)
   if (!downloadStatus) {
-    actionMenuItems.push(
-      <Button
+    menuItems.push(
+      <DropdownMenuItem
         key="download"
-        //leadingIcon="filled.KeyboardArrowDown"
         elementColors={menuColors}
-        onPress={handleDownload}
+        onClick={selecting(handleDownload)}
       >
-        Download
-      </Button>,
+        <DropdownMenuItem.Text>
+          <Text>Download</Text>
+        </DropdownMenuItem.Text>
+      </DropdownMenuItem>,
     );
   }
 
   // Unload player
-  actionMenuItems.push(
-    <Button
+  menuItems.push(
+    <DropdownMenuItem
       key="unload"
-      //leadingIcon="filled.Close"
       elementColors={menuColors}
-      onPress={handleUnloadPlayer}
+      onClick={selecting(handleUnloadPlayer)}
     >
-      Unload player
-    </Button>,
+      <DropdownMenuItem.Text>
+        <Text>Unload player</Text>
+      </DropdownMenuItem.Text>
+    </DropdownMenuItem>,
   );
 
   // Mark finished
-  actionMenuItems.push(
-    <Button
+  menuItems.push(
+    <DropdownMenuItem
       key="mark-finished"
-      //leadingIcon="filled.CheckCircle"
       elementColors={menuColors}
-      onPress={handleMarkFinished}
+      onClick={selecting(handleMarkFinished)}
     >
-      Mark as finished
-    </Button>,
+      <DropdownMenuItem.Text>
+        <Text>Mark as finished</Text>
+      </DropdownMenuItem.Text>
+    </DropdownMenuItem>,
   );
 
   // Abandon
-  actionMenuItems.push(
-    <Button
-      key="abandon"
-      //leadingIcon="filled.Close"
-      elementColors={destructiveColors}
-      onPress={handleAbandon}
-    >
-      Abandon
-    </Button>,
-  );
-
   menuItems.push(
-    <Submenu
-      key="actions-submenu"
-      button={
-        <Button /*leadingIcon="filled.Done"*/ elementColors={menuColors}>
-          Actions
-        </Button>
-      }
+    <DropdownMenuItem
+      key="abandon"
+      elementColors={destructiveColors}
+      onClick={selecting(handleAbandon)}
     >
-      {actionMenuItems}
-    </Submenu>,
+      <DropdownMenuItem.Text>
+        <Text>Abandon</Text>
+      </DropdownMenuItem.Text>
+    </DropdownMenuItem>,
   );
 
   return (
@@ -197,14 +194,22 @@ export function PlayerContextMenuImpl({
       </View>
       {/* Context menu with invisible trigger on top */}
       <Host style={styles.host}>
-        <ContextMenu color={Colors.zinc[800]}>
-          <ContextMenu.Trigger>
-            <Button elementColors={triggerColors} modifiers={[fillMaxSize()]}>
-              {" "}
+        <DropdownMenu
+          color={Colors.zinc[800]}
+          expanded={expanded}
+          onDismissRequest={close}
+        >
+          <DropdownMenu.Trigger>
+            <Button
+              colors={triggerColors}
+              modifiers={[fillMaxSize()]}
+              onClick={open}
+            >
+              <Spacer />
             </Button>
-          </ContextMenu.Trigger>
-          <ContextMenu.Items>{menuItems}</ContextMenu.Items>
-        </ContextMenu>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Items>{menuItems}</DropdownMenu.Items>
+        </DropdownMenu>
       </Host>
     </View>
   );

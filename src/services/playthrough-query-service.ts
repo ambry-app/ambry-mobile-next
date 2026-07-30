@@ -103,16 +103,34 @@ export function useMediaPlaybackState(
     type: "loading",
   });
 
+  // Reset to loading during render whenever the query inputs change, so stale
+  // results are never shown while a new query is in flight (and so the state
+  // isn't set synchronously inside the effect below).
+  const [previousInputs, setPreviousInputs] = useState({
+    session,
+    mediaId,
+    playthroughVersion,
+    isCurrentlyLoaded,
+  });
+
+  if (
+    previousInputs.session !== session ||
+    previousInputs.mediaId !== mediaId ||
+    previousInputs.playthroughVersion !== playthroughVersion ||
+    previousInputs.isCurrentlyLoaded !== isCurrentlyLoaded
+  ) {
+    setPreviousInputs({
+      session,
+      mediaId,
+      playthroughVersion,
+      isCurrentlyLoaded,
+    });
+    setDbState({ type: "loading" });
+  }
+
   useEffect(() => {
     // If loaded in player, we don't need to query DB
-    if (isCurrentlyLoaded) {
-      // Reset to loading so we don't show stale data if media gets unloaded
-      setDbState({ type: "loading" });
-      return;
-    }
-
-    // Start loading
-    setDbState({ type: "loading" });
+    if (isCurrentlyLoaded) return;
 
     async function fetchPlaythroughState() {
       // Check for in-progress playthrough first

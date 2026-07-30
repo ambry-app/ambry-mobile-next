@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Slider from "@react-native-community/slider";
@@ -12,6 +12,7 @@ import { usePreferredPlaybackRate } from "@/stores/preferred-playback-rate";
 import { useSession } from "@/stores/session";
 import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles/colors";
+import { useSyncedState } from "@/utils/hooks";
 import { formatPlaybackRate } from "@/utils/rate";
 import { secondsDisplay } from "@/utils/time";
 
@@ -33,11 +34,8 @@ export default function PlaybackRateRoute() {
 
   const progress = useTrackPlayer((state) => state.progress);
 
-  const [displayPlaybackRate, setDisplayPlaybackRate] = useState(currentRate);
-
-  useEffect(() => {
-    setDisplayPlaybackRate(currentRate);
-  }, [currentRate]);
+  const [displayPlaybackRate, setDisplayPlaybackRate] =
+    useSyncedState(currentRate);
 
   useEffect(() => {
     if (!isSettingsMode && !playerLoaded) {
@@ -54,7 +52,7 @@ export default function PlaybackRateRoute() {
         Player.setPlaybackRate(value);
       }
     },
-    [isSettingsMode, session],
+    [isSettingsMode, session, setDisplayPlaybackRate],
   );
 
   if (!session) return null;

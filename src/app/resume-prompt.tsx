@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
@@ -14,6 +15,9 @@ import { secondsDisplay } from "@/utils/time";
 export default function ResumePromptModal() {
   const { playthroughId } = useLocalSearchParams<{ playthroughId: string }>();
   const { playthrough, session } = usePlaythroughForPrompt(playthroughId);
+  // Read the clock once when the modal opens rather than on every render, so
+  // the rendered message stays stable while it is on screen.
+  const [now] = useState(() => Date.now());
 
   if (!playthrough || !session) {
     return (
@@ -31,7 +35,7 @@ export default function ResumePromptModal() {
   if (statusDate) {
     const relativeTime = timeAgo(statusDate);
     const daysSince = Math.floor(
-      (Date.now() - statusDate.getTime()) / (1000 * 60 * 60 * 24),
+      (now - statusDate.getTime()) / (1000 * 60 * 60 * 24),
     );
     const absoluteDate = statusDate.toLocaleDateString("en-US");
     const dateText = daysSince >= 7 ? ` (${absoluteDate})` : "";

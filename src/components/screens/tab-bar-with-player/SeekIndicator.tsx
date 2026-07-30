@@ -17,10 +17,19 @@ export function SeekIndicator() {
   const seekLastDirection = useSeekUIState((state) => state.seekLastDirection);
 
   const [displayValue, setDisplayValue] = useState<string | null>(null);
+  const [displayedDiff, setDisplayedDiff] = useState<number | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const wasVisibleRef = useRef(false);
   const lastDirectionRef = useRef<"left" | "right">("right");
   const prevDiffRef = useRef<number | null>(null);
+
+  // Derive the label during render rather than in the effect below. The previous
+  // value is deliberately retained while `seekEffectiveDiff` is null so the text
+  // stays on screen through the exit animation.
+  if (seekEffectiveDiff !== null && seekEffectiveDiff !== displayedDiff) {
+    setDisplayedDiff(seekEffectiveDiff);
+    setDisplayValue(secondsDisplayMinutesOnly(seekEffectiveDiff, true));
+  }
 
   // Track the last known direction (preserve it during exit animation)
   if (seekLastDirection !== null) {
@@ -44,9 +53,6 @@ export function SeekIndicator() {
     const prevDiff = prevDiffRef.current;
 
     if (seekEffectiveDiff !== null) {
-      // Update display value
-      setDisplayValue(secondsDisplayMinutesOnly(seekEffectiveDiff, true));
-
       if (!wasVisible) {
         // Entering: fade in and rise up
         setIsVisible(true);

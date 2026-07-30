@@ -53,12 +53,14 @@ npm run build:ios:preview      # Build iOS preview locally with EAS
 
 ### Technology Stack
 
-- **React Native 0.81.5** with **Expo ~54.0.31**
-- **React 19.1.0**
-- **Expo Router ~6.0.21**: File-based routing
+- **React Native 0.86.2** with **Expo ~57.0.9**
+- **React 19.2.3**
+- **TypeScript ~6.0.3**
+- **Expo Router ~57.0.9**: File-based routing
+- **@expo/ui ~57.0.8**: Native SwiftUI / Jetpack Compose components
 - **Zustand 5.0.5**: Global state management
 - **Drizzle ORM ^0.45.1** with **Expo SQLite**: Local database
-- **react-native-track-player 5.0.0-alpha0**: Background audio playback
+- **react-native-track-player 5.0.0-alpha0**: Background audio playback (see note below)
 - **GraphQL**: Custom client with code generation for type safety
 - **react-native-logs**: Structured logging with color-coded extensions
 
@@ -164,12 +166,30 @@ Services contain business logic and are decoupled via store subscriptions (using
 
 **Background Audio Service**:
 
-- Uses `react-native-track-player` (alpha version)
+- Uses `react-native-track-player` (pinned to `5.0.0-alpha0`, see below)
 - Service registered in `entry.js` before app renders
 - Runs as Android foreground service with persistent notification
 - Service code: `src/services/playback-service.ts`
 - Handles TrackPlayer events and delegates to appropriate services
 - Remote control events (lock screen, headphones) handled via TrackPlayer events
+
+**Why the track player version is pinned:**
+
+`react-native-track-player` is deliberately held at `5.0.0-alpha0` and listed in
+`expo.install.exclude` so `expo install --fix` cannot move it. That release
+(August 2025) is the last one published under Apache-2.0.
+
+Upstream has since relicensed: v5 shipped in May 2026 as a **renamed, proprietary
+package**, `@rntp/player`, which is free only for strictly personal or academic
+use and otherwise requires a paid licence (see rntp.dev/pricing). The old
+`react-native-track-player` name is frozen at `4.1.2`.
+
+So the pin is a licensing decision, not an oversight. It does mean the player
+receives no upstream fixes — it still compiles against React Native 0.86, but any
+future incompatibility has to be patched locally, or resolved by taking a
+`@rntp/player` licence or migrating to `expo-audio`. Because all TrackPlayer
+access already funnels through `src/services/track-player-wrapper.ts`, swapping
+the implementation is a contained change.
 
 **JS Context Architecture** (tested and confirmed):
 
@@ -791,6 +811,44 @@ describe("track-player-service", () => {
   });
 });
 ```
+
+## Toolchain Notes
+
+A few non-obvious workarounds exist because of how Expo SDK 57 lays out
+`node_modules`. Expo nests `expo-modules-core` and `@expo/config-plugins` under
+`node_modules/expo/` instead of hoisting them, which breaks packages that
+`require` them by bare name.
+
+- **`patches/@sentry+react-native+*.patch`** — one line. Sentry's Expo config
+  plugin still does `require("@expo/config-plugins")` in
+  `withSentryAndroidGradlePlugin.js`; the patch points it at
+  `expo/config-plugins`. Without it, every command that reads the app config
+  (including `expo-doctor` and `prebuild`) fails outright. Applied automatically
+  by the `postinstall` script.
+- **`jest.moduleDirectories`** includes `node_modules/expo/node_modules` so
+  `jest-expo`'s preset can resolve `expo-modules-core`. Upstream acknowledges
+  this in their own source with a `TODO: This is an invalid dependency chain`.
+- **`expo-modules-core` and `@expo/config-plugins` must not be added as direct
+  dependencies** — `expo-doctor` fails the project for both. Import the module
+  APIs from `expo` itself (as `modules/activity-tracker` does).
+- **Web is not a supported target.** `expo export --platform all` fails on the
+  missing `react-native-web`; bundle with
+  `--platform ios --platform android` instead.
+- **Jetpack Compose components render native views, so they never accept bare
+  string children.** Text must be wrapped in `<Text>` from
+  `@expo/ui/jetpack-compose` — including inside slots like
+  `<DropdownMenuItem.Text>` — otherwise React Native throws "Text strings must
+  be rendered within a `<Text>` component" the moment that subtree mounts.
+- **`DropdownMenu` is fully JS-controlled.** Unlike the SDK 55 `ContextMenu`, it
+  does not open itself when its trigger is pressed: the native side just reads
+  `expanded`. Use `useMenuState()` from `@/utils/hooks` — it supplies `open` for
+  the trigger, `close` for `onDismissRequest`, and `selecting()` to wrap item
+  handlers so choosing an item also closes the menu.
+- **`react-hooks/immutability` and `react-hooks/refs` are disabled** for
+  `Scrubber.tsx`, `CustomTabBarWithPlayer.tsx`, and `SeekIndicator.tsx` in
+  `eslint.config.js`. The React Compiler rules cannot model Reanimated worklets
+  and flag `sharedValue.value = x`, which is the intended API. The rules stay on
+  everywhere else.
 
 ## Debugging
 
