@@ -24,8 +24,10 @@ export type ScrollHandler = (
   event: NativeSyntheticEvent<NativeScrollEvent>,
 ) => void;
 
-// Default scroll threshold where header fades in/out
-const DEFAULT_SCROLL_THRESHOLD = 300;
+// Default scroll threshold where header fades in/out. Most screens want the
+// border to appear as soon as content moves at all; screens with a large hero
+// image pass a bigger value so the header waits until the hero scrolls past.
+const DEFAULT_SCROLL_THRESHOLD = 10;
 // Default duration of the fade animation in ms
 const DEFAULT_FADE_DURATION = 200;
 

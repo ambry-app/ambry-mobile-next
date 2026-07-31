@@ -10,14 +10,10 @@ import {
 import { SavedForLaterScreen } from "@/components/screens/SavedForLaterScreen";
 import { useSession } from "@/stores/session";
 
-const SCROLL_THRESHOLD = 10;
-
 export default function SavedRoute() {
   const session = useSession((state) => state.session);
   const insets = useSafeAreaInsets();
-  const { scrollHandler, headerOpacity } = useFadingHeader({
-    scrollThreshold: SCROLL_THRESHOLD,
-  });
+  const { scrollHandler, headerOpacity } = useFadingHeader();
 
   if (!session) return null;
 

@@ -11,15 +11,11 @@ import { BookScreen } from "@/components/screens/BookScreen";
 import { useSession } from "@/stores/session";
 import { RouterParams } from "@/types/router";
 
-const SCROLL_THRESHOLD = 10;
-
 export default function BookRoute() {
   const session = useSession((state) => state.session);
   const { id: bookId, title } = useLocalSearchParams<RouterParams>();
   const insets = useSafeAreaInsets();
-  const { scrollHandler, headerOpacity } = useFadingHeader({
-    scrollThreshold: SCROLL_THRESHOLD,
-  });
+  const { scrollHandler, headerOpacity } = useFadingHeader();
 
   if (!session) return null;
 

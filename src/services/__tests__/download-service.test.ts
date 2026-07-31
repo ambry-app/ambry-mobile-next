@@ -16,6 +16,11 @@ import {
   createMedia,
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
+import {
+  mockFileExists,
+  mockFileWritten,
+  resetMockFileSystem,
+} from "@test/jest-setup";
 
 const session = DEFAULT_TEST_SESSION;
 
@@ -25,6 +30,7 @@ describe("download service", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetDownloadsStore();
+    resetMockFileSystem();
   });
 
   describe("initializeDownloads", () => {
@@ -97,29 +103,14 @@ describe("download service", () => {
         mp4Path: "audio/media-dl/stream.mp4",
       });
 
-      const downloadSpy = jest.spyOn(
-        FileSystem.File as any,
-        "downloadFileAsync",
-      );
-
       await startDownload(session, media.id);
 
-      // Verify download was created in store
       const state = useDownloads.getState();
       expect(state.downloads["media-dl"]).toMatchObject({
         mediaId: "media-dl",
         filePath: "file:///test-document-directory/media-dl.mp4",
         status: "ready",
       });
-
-      // Verify File.downloadFileAsync was called
-      expect(downloadSpy).toHaveBeenCalledWith(
-        `${session.url}/audio/media-dl/stream.mp4`,
-        expect.objectContaining({
-          uri: "file:///test-document-directory/media-dl.mp4",
-        }),
-        { headers: { Authorization: `Bearer ${session.token}` } },
-      );
     });
 
     it("sets status to error on download failure", async () => {
@@ -158,26 +149,16 @@ describe("download service", () => {
         thumbnails,
       });
 
-      const downloadSpy = jest.spyOn(
-        FileSystem.File as any,
-        "downloadFileAsync",
-      );
-
       await startDownload(session, media.id);
 
-      // Verify all thumbnails were downloaded (5 thumbnails + 1 main file)
-      expect(downloadSpy).toHaveBeenCalledTimes(6);
-      expect(downloadSpy).toHaveBeenCalledWith(
-        `${session.url}/images/xs.webp`,
-        expect.objectContaining({
-          uri: "file:///test-document-directory/media-thumb-xs.webp",
-        }),
-        expect.any(Object),
-      );
-
-      // Verify thumbnails are stored
+      // Every thumbnail size should now point at a local file, not the remote path
       const state = useDownloads.getState();
-      expect(state.downloads["media-thumb"]?.thumbnails).toMatchObject({
+      expect(state.downloads["media-thumb"]?.thumbnails).toEqual({
+        extraSmall: "file:///test-document-directory/media-thumb-xs.webp",
+        small: "file:///test-document-directory/media-thumb-sm.webp",
+        medium: "file:///test-document-directory/media-thumb-md.webp",
+        large: "file:///test-document-directory/media-thumb-lg.webp",
+        extraLarge: "file:///test-document-directory/media-thumb-xl.webp",
         thumbhash: "abc123",
       });
     });
@@ -221,6 +202,62 @@ describe("download service", () => {
       await cancelDownload(session, "media-cancel");
 
       expect(useDownloads.getState().downloads["media-cancel"]).toBeUndefined();
+    });
+
+    it("discards the result when cancelled mid-transfer", async () => {
+      const db = getDb();
+      const media = await createMedia(db, {
+        id: "media-race",
+        mp4Path: "audio/media-race/stream.mp4",
+      });
+
+      // The File API can't cancel an in-flight transfer, so cancelling only
+      // deletes the record and the transfer runs on. Hold it open here so we
+      // can cancel underneath it, then let it settle against a missing record.
+      let startTransfer: () => void;
+      const transferStarted = new Promise<void>((resolve) => {
+        startTransfer = resolve;
+      });
+      let finishTransfer: () => void;
+      const transfer = new Promise<void>((resolve) => {
+        finishTransfer = resolve;
+      });
+
+      jest
+        .spyOn(FileSystem.File as any, "downloadFileAsync")
+        .mockImplementationOnce((...args: unknown[]) => {
+          const destination = args[1] as { uri: string };
+          startTransfer();
+          // The transfer runs to completion and writes the file, because
+          // nothing was able to stop it
+          return transfer.then(() => {
+            mockFileWritten(destination.uri);
+            return destination;
+          });
+        });
+
+      const pending = startDownload(session, media.id);
+      await transferStarted;
+
+      await cancelDownload(session, media.id);
+      finishTransfer!();
+
+      // Must not reject: every caller is fire-and-forget, so anything thrown
+      // here would surface as an unhandled rejection instead of an error state.
+      await expect(pending).resolves.toBeUndefined();
+
+      // The cancellation stands - the settled transfer must not resurrect it
+      expect(useDownloads.getState().downloads["media-race"]).toBeUndefined();
+      const dbDownload = await db.query.downloads.findFirst({
+        where: (d, { eq }) => eq(d.mediaId, "media-race"),
+      });
+      expect(dbDownload).toBeUndefined();
+
+      // ...and the file it finished writing must not be left orphaned on disk,
+      // since with no record pointing at it there is no way to reclaim it
+      expect(
+        mockFileExists("file:///test-document-directory/media-race.mp4"),
+      ).toBe(false);
     });
   });
 

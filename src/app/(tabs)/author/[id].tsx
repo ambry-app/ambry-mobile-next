@@ -17,16 +17,11 @@ import { useSession } from "@/stores/session";
 import { Colors } from "@/styles/colors";
 import { RouterParams } from "@/types/router";
 
-// Show border after minimal scroll
-const SCROLL_THRESHOLD = 10;
-
 export default function AuthorRoute() {
   const session = useSession((state) => state.session);
   const { id: authorId } = useLocalSearchParams<RouterParams>();
   const insets = useSafeAreaInsets();
-  const { scrollHandler, headerOpacity } = useFadingHeader({
-    scrollThreshold: SCROLL_THRESHOLD,
-  });
+  const { scrollHandler, headerOpacity } = useFadingHeader();
 
   // Fetch author data for the header - session is checked after hooks
   const author = useLibraryData(

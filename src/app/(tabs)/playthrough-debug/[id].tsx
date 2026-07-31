@@ -15,14 +15,10 @@ import { PlaybackEventSelect } from "@/db/schema";
 import { useLibraryData } from "@/services/library-service";
 import { Colors, decorative, surface } from "@/styles/colors";
 
-const SCROLL_THRESHOLD = 10;
-
 export default function PlaythroughDebugRoute() {
   const { id: playthroughId } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
-  const { scrollHandler, headerOpacity } = useFadingHeader({
-    scrollThreshold: SCROLL_THRESHOLD,
-  });
+  const { scrollHandler, headerOpacity } = useFadingHeader();
 
   // This debug screen shows data at page load time.
   // Navigate away and back to see updates.

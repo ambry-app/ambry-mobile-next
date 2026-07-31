@@ -13,7 +13,10 @@ import { BlurredImage } from "@/components/BlurredImage";
 import { ScrollHandler } from "@/components/FadingHeader";
 import { ActionBar } from "@/components/screens/media-screen/ActionBar";
 import { BooksInSeries } from "@/components/screens/media-screen/BooksInSeries";
-import { Header } from "@/components/screens/media-screen/Header";
+import {
+  Header,
+  HEADER_PADDING_TOP,
+} from "@/components/screens/media-screen/Header";
 import { MediaAuthorsAndNarrators } from "@/components/screens/media-screen/MediaAuthorsAndNarrators";
 import { MediaDescription } from "@/components/screens/media-screen/MediaDescription";
 import { OtherBooksByAuthors } from "@/components/screens/media-screen/OtherBooksByAuthors";
@@ -82,10 +85,10 @@ export function MediaScreen(props: MediaScreenProps) {
 
   // Android: Animated scroll view with fading header and blurred thumbnail background
   // Calculate blur height to reach to the bottom of the thumbnail
-  // Thumbnail starts at insets.top + 8 (header paddingTop)
+  // Thumbnail starts at insets.top + HEADER_PADDING_TOP (media-screen/Header)
   // Thumbnail width is 60%/80% of screen width, and it's square
   const thumbnailWidth = screenWidth * (shortScreen ? 0.6 : 0.8);
-  const thumbnailTop = insets.top + 8;
+  const thumbnailTop = insets.top + HEADER_PADDING_TOP;
   const blurHeight = thumbnailTop + thumbnailWidth;
 
   return (

@@ -11,11 +11,16 @@ import { PersonScreen } from "@/components/screens/PersonScreen";
 import { useSession } from "@/stores/session";
 import { RouterParams } from "@/types/router";
 
+// Wait for the hero image to scroll past before showing the border
+const HERO_SCROLL_THRESHOLD = 300;
+
 export default function PersonRoute() {
   const session = useSession((state) => state.session);
   const { id: personId, title } = useLocalSearchParams<RouterParams>();
   const insets = useSafeAreaInsets();
-  const { scrollHandler, headerOpacity } = useFadingHeader();
+  const { scrollHandler, headerOpacity } = useFadingHeader({
+    scrollThreshold: HERO_SCROLL_THRESHOLD,
+  });
 
   if (!session) return null;
 

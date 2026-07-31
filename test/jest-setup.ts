@@ -306,48 +306,64 @@ jest.mock("react-native-track-player", () => {
 // Expo FileSystem Mock
 // =============================================================================
 
-const mockDownloadResumable = {
-  downloadAsync: jest.fn(),
-  cancelAsync: jest.fn(),
-};
+/**
+ * Files the code under test has deleted. Tracked so that `exists` reflects
+ * reality, which lets tests assert on filesystem outcomes (e.g. that a
+ * cancelled download's leftover file was cleaned up) rather than on whether
+ * `delete()` happened to be called.
+ */
+const deletedFiles = new Set<string>();
 
 class MockFile {
   uri: string;
-  exists: boolean = true;
   size: number = 1024;
 
   constructor(uri: string) {
     this.uri = uri;
   }
 
-  delete() {}
+  get exists() {
+    return !deletedFiles.has(this.uri);
+  }
 
-  static async downloadFileAsync(url: string, path: any, _options?: any) {
+  delete() {
+    deletedFiles.add(this.uri);
+  }
+
+  static async downloadFileAsync(_url: string, path: any, _options?: any) {
+    // Writing a file brings it back into existence
+    deletedFiles.delete(path.uri);
     return path;
   }
 }
 
-// Modern API
 jest.mock("expo-file-system", () => ({
   Paths: {
     document: {
       uri: "file:///test-document-directory/",
     },
   },
-  downloadAsync: jest.fn(),
-  createDownloadResumable: jest.fn(() => mockDownloadResumable),
   File: MockFile,
 }));
 
-// Legacy API - download functions with progress tracking
-jest.mock("expo-file-system/legacy", () => ({
-  downloadAsync: jest.fn(),
-  deleteAsync: jest.fn(),
-  createDownloadResumable: jest.fn(() => mockDownloadResumable),
-}));
+/** True if the file at `uri` has not been deleted by the code under test. */
+export function mockFileExists(uri: string): boolean {
+  return !deletedFiles.has(uri);
+}
 
-// Export for test access
-export { mockDownloadResumable };
+/**
+ * Simulate a file appearing on disk. Needed when a test replaces
+ * `File.downloadFileAsync` with its own mock, since that bypasses the default
+ * implementation which would otherwise record the write.
+ */
+export function mockFileWritten(uri: string): void {
+  deletedFiles.delete(uri);
+}
+
+/** Forget all recorded deletions. Call between tests. */
+export function resetMockFileSystem(): void {
+  deletedFiles.clear();
+}
 
 // =============================================================================
 // Expo Background Task / Task Manager Mocks

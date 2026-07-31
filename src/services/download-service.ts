@@ -86,6 +86,8 @@ export async function startDownload(session: Session, mediaId: string) {
       headers: { Authorization: `Bearer ${session.token}` },
     });
 
+    if (await discardIfCancelled(session, mediaId, destinationFilePath)) return;
+
     log.info("Download succeeded for media:", mediaId);
     download = await updateDownload(session, mediaId, {
       status: "ready",
@@ -95,17 +97,62 @@ export async function startDownload(session: Session, mediaId: string) {
     await reloadCurrentPlaythroughIfMedia(session, mediaId);
   } catch (error) {
     log.warn("Download failed:", error);
-    download = await updateDownload(session, mediaId, { status: "error" });
-    addOrUpdateDownload(download);
+
+    // Nothing in here may throw: every caller of startDownload is
+    // fire-and-forget, so an error escaping this handler becomes an unhandled
+    // rejection rather than surfacing anywhere useful.
+    try {
+      if (await discardIfCancelled(session, mediaId, destinationFilePath)) {
+        return;
+      }
+
+      download = await updateDownload(session, mediaId, { status: "error" });
+      addOrUpdateDownload(download);
+    } catch (cleanupError) {
+      log.warn("Failed to record download failure:", cleanupError);
+    }
   }
 }
 
+/**
+ * Detect a download that was cancelled while its transfer was still in flight.
+ *
+ * `cancelDownload` cannot stop the transfer — the File API has no cancellation —
+ * so it deletes the record and lets the transfer run to completion. We only find
+ * out here, once it settles.
+ *
+ * Writing a status at that point would throw, because `updateDownload` requires
+ * the row to still exist. Instead, bail out and delete the file the transfer
+ * left behind, which would otherwise sit on disk with no record pointing at it
+ * and no way to reclaim it through the UI.
+ *
+ * Returns true when the download was cancelled and the caller should stop.
+ */
+async function discardIfCancelled(
+  session: Session,
+  mediaId: string,
+  destinationFilePath: string,
+): Promise<boolean> {
+  if (await getDownload(session, mediaId)) return false;
+
+  log.info("Download was cancelled while in flight, discarding:", mediaId);
+  await tryDelete(destinationFilePath);
+  return true;
+}
+
+/**
+ * Cancel a download.
+ *
+ * The File API has no cancellation, so this cannot stop a transfer that is
+ * already running — it removes the record and the partial file, and the
+ * transfer runs to completion in the background. `startDownload` notices the
+ * missing record when it settles and discards the result (see
+ * `discardIfCancelled`).
+ *
+ * This is the tradeoff for using the new API without resumable/progress
+ * complexity: cancelling frees the record immediately but not the bandwidth.
+ */
 export async function cancelDownload(session: Session, mediaId: string) {
-  // New File API doesn't support cancellation yet easily without AbortController integration which might not be ready.
-  // For now, we just remove the download record and delete the file.
-  // The background download might continue but result will be discarded or fail on write?
-  // Actually, without a way to cancel, it will run to completion.
-  // This is a tradeoff for using the new API without progress/resumable complexity.
   log.info("Canceling (removing) download:", mediaId);
   await removeDownload(session, mediaId);
 }

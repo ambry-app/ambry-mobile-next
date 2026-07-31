@@ -17,16 +17,11 @@ import { useSession } from "@/stores/session";
 import { Colors } from "@/styles/colors";
 import { RouterParams } from "@/types/router";
 
-// Show border after minimal scroll
-const SCROLL_THRESHOLD = 10;
-
 export default function NarratorRoute() {
   const session = useSession((state) => state.session);
   const { id: narratorId } = useLocalSearchParams<RouterParams>();
   const insets = useSafeAreaInsets();
-  const { scrollHandler, headerOpacity } = useFadingHeader({
-    scrollThreshold: SCROLL_THRESHOLD,
-  });
+  const { scrollHandler, headerOpacity } = useFadingHeader();
 
   // Fetch narrator data for the header - session is checked after hooks
   const narrator = useLibraryData(
