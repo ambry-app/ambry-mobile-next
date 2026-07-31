@@ -1,8 +1,7 @@
-import { memo, useCallback, useEffect } from "react";
+import { memo, useCallback, useEffect, useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
-  Easing,
   Extrapolation,
   interpolate,
   SharedValue,
@@ -49,6 +48,30 @@ import { PlaybackControls } from "./tab-bar-with-player/PlaybackControls";
 import { PlayerSettingButtons } from "./tab-bar-with-player/PlayerSettingButtons";
 
 const MINI_PROGRESS_BAR_HEIGHT = 2;
+
+/**
+ * `Easing.out(Easing.exp)`, but safe when evaluated outside `[0, 1]`.
+ *
+ * When one of these animations is started from a gesture callback, Reanimated
+ * can evaluate its first frame with a timestamp *earlier* than the animation's
+ * recorded start time, giving a progress of roughly -0.04 to -0.07 (one to two
+ * frames). The stock easing is `1 - 2^(-10t)`, which is unbounded below zero:
+ * at t = -0.06 it returns -0.53 rather than ~0. That flips the sign of the
+ * interpolation, so a collapse briefly overshoots *past* fully expanded before
+ * settling - visible as a one or two frame flash of the expanded player at the
+ * moment you lift your finger.
+ *
+ * Clamping the input makes negative progress a no-op (the value simply stays
+ * where it started) and keeps the curve otherwise identical. Landing exactly on
+ * 1 at t = 1 is a small bonus: the stock easing tops out at 0.99902, so
+ * animations never quite reached their target.
+ */
+function easeOutExp(t: number) {
+  "worklet";
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  return 1 - Math.pow(2, -10 * t);
+}
 
 // Memoized mini progress bar - subscribes to position/duration/seekPosition
 const MiniProgressBar = memo(function MiniProgressBar({
@@ -137,7 +160,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
     if (expanded) {
       expansion.value = withTiming(1.0, {
         duration: PLAYER_EXPAND_ANIMATION_DURATION,
-        easing: Easing.out(Easing.exp),
+        easing: easeOutExp,
       });
       return;
     }
@@ -150,7 +173,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
         1.0,
         {
           duration: PLAYER_EXPAND_ANIMATION_DURATION,
-          easing: Easing.out(Easing.exp),
+          easing: easeOutExp,
         },
         (finished) => {
           if (finished) {
@@ -167,7 +190,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
     if (!expanded) {
       expansion.value = withTiming(0.0, {
         duration: PLAYER_EXPAND_ANIMATION_DURATION,
-        easing: Easing.out(Easing.exp),
+        easing: easeOutExp,
       });
       return;
     }
@@ -180,7 +203,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
         0.0,
         {
           duration: PLAYER_EXPAND_ANIMATION_DURATION,
-          easing: Easing.out(Easing.exp),
+          easing: easeOutExp,
         },
         (finished) => {
           if (finished) {
@@ -198,7 +221,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
       1.0,
       {
         duration: PLAYER_EXPAND_ANIMATION_DURATION,
-        easing: Easing.out(Easing.exp),
+        easing: easeOutExp,
       },
       (finished) => {
         if (finished) {
@@ -213,7 +236,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
       0.0,
       {
         duration: PLAYER_EXPAND_ANIMATION_DURATION,
-        easing: Easing.out(Easing.exp),
+        easing: easeOutExp,
       },
       (finished) => {
         if (finished) {
@@ -241,36 +264,64 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
     return debugBackgrounds ? background : undefined;
   };
 
-  const panGesture = Gesture.Pan()
-    .onStart(() => {
-      whereItWas.value = expansion.value;
-    })
-    .onUpdate((e) => {
-      expansion.value = Math.min(
-        1.0,
-        Math.max(
-          0.0,
-          whereItWas.value +
-            e.translationY / -(screenHeight - tabBarHeight - PLAYER_HEIGHT),
-        ),
-      );
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .onStart(() => {
+          whereItWas.value = expansion.value;
+          // Must be cleared: this shared value outlives the gesture, so without
+          // a reset a swipe that never crosses a threshold would settle using
+          // the *previous* gesture's decision.
+          onPanEndAction.value = "none";
+        })
+        .onUpdate((e) => {
+          expansion.value = Math.min(
+            1.0,
+            Math.max(
+              0.0,
+              whereItWas.value +
+                e.translationY / -(screenHeight - tabBarHeight - PLAYER_HEIGHT),
+            ),
+          );
 
-      if (expansion.value > 0.85) onPanEndAction.value = "expand";
-      if (expansion.value <= 0.15) onPanEndAction.value = "collapse";
-      if (e.velocityY < -300) onPanEndAction.value = "expand";
-      if (e.velocityY > 300) onPanEndAction.value = "collapse";
-    })
-    .onEnd(() => {
-      // Use worklet versions since we're already in 'both' state
-      if (onPanEndAction.value === "expand") {
-        expandWorklet();
-      } else if (onPanEndAction.value === "collapse") {
-        collapseWorklet();
-      }
-    });
+          // Velocity is checked after position so that a deliberate flick
+          // overrides where the finger happens to have stopped
+          if (expansion.value > 0.85) onPanEndAction.value = "expand";
+          if (expansion.value <= 0.15) onPanEndAction.value = "collapse";
+          if (e.velocityY < -300) onPanEndAction.value = "expand";
+          if (e.velocityY > 300) onPanEndAction.value = "collapse";
+        })
+        .onEnd(() => {
+          // A slow drag that stayed between the thresholds leaves no decision,
+          // so settle to whichever end is nearer rather than stopping midway
+          const action =
+            onPanEndAction.value === "none"
+              ? expansion.value > 0.5
+                ? "expand"
+                : "collapse"
+              : onPanEndAction.value;
+
+          // Use worklet versions since we're already in 'both' state
+          if (action === "expand") {
+            expandWorklet();
+          } else {
+            collapseWorklet();
+          }
+        }),
+    [
+      expansion,
+      whereItWas,
+      onPanEndAction,
+      screenHeight,
+      tabBarHeight,
+      expandWorklet,
+      collapseWorklet,
+    ],
+  );
 
   const isScrubberAnimationSuspended = useDerivedValue(
     () => expansion.value < 0.9,
+    [expansion],
   );
 
   // Use expanded to determine if player can be collapsed
@@ -298,7 +349,10 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
 
   // Pre-compute all animated values in a single derived value to reduce worklet overhead
   const animatedValues = useDerivedValue(() => {
-    const e = expansion.value;
+    // Clamped because every interpolate() below extrapolates by default, so an
+    // out-of-range expansion would render *past* the expanded layout rather
+    // than simply pinning to it
+    const e = Math.min(1, Math.max(0, expansion.value));
     const po = playerOpacity.value;
 
     return {
@@ -377,80 +431,128 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
       infoPaddingTop: interpolate(e, [0.75, 1], [64, 8]),
       infoOpacity: interpolate(e, [0.75, 1], [0, 1], Extrapolation.CLAMP),
     };
-  });
+  }, [
+    expansion,
+    playerOpacity,
+    tabBarHeight,
+    screenHeight,
+    insets.top,
+    imageGutterWidth,
+    largeImageSize,
+    miniControlsWidth,
+  ]);
 
   // Individual animated styles that read from the consolidated values
-  const tabBarStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: animatedValues.value.tabBarTranslateY }],
-  }));
+  const tabBarStyle = useAnimatedStyle(
+    () => ({
+      transform: [{ translateY: animatedValues.value.tabBarTranslateY }],
+    }),
+    [animatedValues],
+  );
 
-  const playerContainerStyle = useAnimatedStyle(() => ({
-    height: animatedValues.value.playerHeight,
-    bottom: animatedValues.value.playerBottom,
-    paddingTop: animatedValues.value.playerPaddingTop,
-  }));
+  const playerContainerStyle = useAnimatedStyle(
+    () => ({
+      height: animatedValues.value.playerHeight,
+      bottom: animatedValues.value.playerBottom,
+      paddingTop: animatedValues.value.playerPaddingTop,
+    }),
+    [animatedValues],
+  );
 
-  const playerStyle = useAnimatedStyle(() => ({
-    opacity: animatedValues.value.playerOpacity,
-  }));
+  const playerStyle = useAnimatedStyle(
+    () => ({
+      opacity: animatedValues.value.playerOpacity,
+    }),
+    [animatedValues],
+  );
 
-  const playerLoadingStyle = useAnimatedStyle(() => ({
-    opacity: animatedValues.value.playerLoadingOpacity,
-  }));
+  const playerLoadingStyle = useAnimatedStyle(
+    () => ({
+      opacity: animatedValues.value.playerLoadingOpacity,
+    }),
+    [animatedValues],
+  );
 
-  const playerBackgroundStyle = useAnimatedStyle(() => ({
-    opacity: animatedValues.value.playerBackgroundOpacity,
-  }));
+  const playerBackgroundStyle = useAnimatedStyle(
+    () => ({
+      opacity: animatedValues.value.playerBackgroundOpacity,
+    }),
+    [animatedValues],
+  );
 
-  const backgroundStyle = useAnimatedStyle(() => ({
-    opacity: animatedValues.value.backgroundOpacity,
-  }));
+  const backgroundStyle = useAnimatedStyle(
+    () => ({
+      opacity: animatedValues.value.backgroundOpacity,
+    }),
+    [animatedValues],
+  );
 
-  const leftGutterStyle = useAnimatedStyle(() => ({
-    width: animatedValues.value.leftGutterWidth,
-  }));
+  const leftGutterStyle = useAnimatedStyle(
+    () => ({
+      width: animatedValues.value.leftGutterWidth,
+    }),
+    [animatedValues],
+  );
 
   // Outer container for layout purposes
-  const imageLayoutStyle = useAnimatedStyle(() => ({
-    height: animatedValues.value.imageLayoutSize,
-    width: animatedValues.value.imageLayoutSize,
-    padding: animatedValues.value.imagePadding,
-  }));
+  const imageLayoutStyle = useAnimatedStyle(
+    () => ({
+      height: animatedValues.value.imageLayoutSize,
+      width: animatedValues.value.imageLayoutSize,
+      padding: animatedValues.value.imagePadding,
+    }),
+    [animatedValues],
+  );
 
   // Inner image wrapper with scale transform - always renders at full size
   // Translate first to offset the scaling origin, then scale
-  const imageScaleStyle = useAnimatedStyle(() => ({
-    width: largeImageSize,
-    height: largeImageSize,
-    borderRadius: animatedValues.value.imageBorderRadius,
-    overflow: "hidden",
-    transform: [
-      { translateX: animatedValues.value.imageTranslate },
-      { translateY: animatedValues.value.imageTranslate },
-      { scale: animatedValues.value.imageScale },
-    ],
-  }));
+  const imageScaleStyle = useAnimatedStyle(
+    () => ({
+      width: largeImageSize,
+      height: largeImageSize,
+      borderRadius: animatedValues.value.imageBorderRadius,
+      overflow: "hidden",
+      transform: [
+        { translateX: animatedValues.value.imageTranslate },
+        { translateY: animatedValues.value.imageTranslate },
+        { scale: animatedValues.value.imageScale },
+      ],
+    }),
+    [animatedValues, largeImageSize],
+  );
 
-  const miniControlsStyle = useAnimatedStyle(() => ({
-    width: animatedValues.value.miniControlsWidth,
-    opacity: animatedValues.value.miniControlsOpacity,
-  }));
+  const miniControlsStyle = useAnimatedStyle(
+    () => ({
+      width: animatedValues.value.miniControlsWidth,
+      opacity: animatedValues.value.miniControlsOpacity,
+    }),
+    [animatedValues],
+  );
 
-  const controlsStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: animatedValues.value.controlsTranslateY }],
-    marginBottom: animatedValues.value.controlsMarginBottom,
-    opacity: animatedValues.value.controlsOpacity,
-  }));
+  const controlsStyle = useAnimatedStyle(
+    () => ({
+      transform: [{ translateY: animatedValues.value.controlsTranslateY }],
+      marginBottom: animatedValues.value.controlsMarginBottom,
+      opacity: animatedValues.value.controlsOpacity,
+    }),
+    [animatedValues],
+  );
 
-  const topActionBarStyle = useAnimatedStyle(() => ({
-    height: animatedValues.value.topActionBarHeight,
-    opacity: animatedValues.value.topActionBarOpacity,
-  }));
+  const topActionBarStyle = useAnimatedStyle(
+    () => ({
+      height: animatedValues.value.topActionBarHeight,
+      opacity: animatedValues.value.topActionBarOpacity,
+    }),
+    [animatedValues],
+  );
 
-  const infoStyle = useAnimatedStyle(() => ({
-    paddingTop: animatedValues.value.infoPaddingTop,
-    opacity: animatedValues.value.infoOpacity,
-  }));
+  const infoStyle = useAnimatedStyle(
+    () => ({
+      paddingTop: animatedValues.value.infoPaddingTop,
+      opacity: animatedValues.value.infoOpacity,
+    }),
+    [animatedValues],
+  );
 
   if (!media) {
     return <TabBarTabs height={tabBarHeight} paddingBottom={insets.bottom} />;
