@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Extrapolation,
@@ -397,6 +397,20 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
           0,
         ],
       ),
+      // Only the top (small) layer fades; the large one sits underneath at full
+      // opacity. Fading both would let the background through: stacked layers
+      // composite as (1 - top)(1 - bottom), so complementary opacities leave a
+      // gap peaking at 25% when they cross.
+      // Handed over early: the 256px source is good to roughly 85pt on a 3x
+      // screen, which the artwork passes at about e = 0.12. Fading it out later
+      // means blending a softened copy over the sharp one, which visibly dulls
+      // high-contrast detail such as white lettering.
+      artworkSmallOpacity: interpolate(
+        e,
+        [0.05, 0.15],
+        [1, 0],
+        Extrapolation.CLAMP,
+      ),
       // Border radius needs to be larger at full size so it looks correct when scaled
       imageBorderRadius: interpolate(
         e,
@@ -519,6 +533,11 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
       ],
     }),
     [animatedValues, largeImageSize],
+  );
+
+  const artworkSmallStyle = useAnimatedStyle(
+    () => ({ opacity: animatedValues.value.artworkSmallOpacity }),
+    [animatedValues],
   );
 
   const miniControlsStyle = useAnimatedStyle(
@@ -728,18 +747,46 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                       }
                     }}
                   >
-                    {/* Inner wrapper always at full size with scale transform
-                        This ensures expo-image renders at full resolution */}
+                    {/* Inner wrapper always at full size with scale transform.
+                        Keeping the *layout* size fixed is what makes expo-image
+                        decode at full resolution: it decodes to the view size,
+                        so animating that size would bake in whichever
+                        resolution the player happened to mount at.
+
+                        Two sources are stacked rather than one being scaled
+                        across the whole range. Showing the 1024px source at the
+                        collapsed ~54pt means minifying it ~0.16x, which aliases
+                        badly (visible as shimmer); the 256px source is close to
+                        the collapsed size on a 3x screen. Stacking also avoids
+                        swapping `source` on a mounted image, which would
+                        re-decode and could reintroduce the wrong-resolution
+                        caching this layout exists to avoid.
+
+                        The large layer stays fully opaque and only the small
+                        one on top fades. Fading both would let the placeholder
+                        background through the middle of the transition: stacked
+                        layers composite as (1 - top)(1 - bottom), so
+                        complementary opacities leave a gap that peaks at 25%
+                        where they cross. */}
                     <Animated.View style={imageScaleStyle}>
-                      <ThumbnailImage
-                        downloadedThumbnails={media.download?.thumbnails}
-                        thumbnails={media.thumbnails}
-                        size="extraLarge"
-                        style={{
-                          width: "100%",
-                          aspectRatio: 1,
-                        }}
-                      />
+                      <View style={StyleSheet.absoluteFill}>
+                        <ThumbnailImage
+                          downloadedThumbnails={media.download?.thumbnails}
+                          thumbnails={media.thumbnails}
+                          size="extraLarge"
+                          style={{ width: "100%", height: "100%" }}
+                        />
+                      </View>
+                      <Animated.View
+                        style={[StyleSheet.absoluteFill, artworkSmallStyle]}
+                      >
+                        <ThumbnailImage
+                          downloadedThumbnails={media.download?.thumbnails}
+                          thumbnails={media.thumbnails}
+                          size="medium"
+                          style={{ width: "100%", height: "100%" }}
+                        />
+                      </Animated.View>
                     </Animated.View>
                   </Pressable>
                 </Animated.View>
