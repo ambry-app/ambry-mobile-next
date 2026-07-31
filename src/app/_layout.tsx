@@ -3,11 +3,10 @@ import { StyleSheet, Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
-import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import * as Sentry from "@sentry/react-native";
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import { Stack, useNavigationContainerRef } from "expo-router";
+import { DefaultTheme, ThemeProvider } from "expo-router/react-navigation";
 import * as SplashScreen from "expo-splash-screen";
 
 import { Loading } from "@/components/Loading";
@@ -20,6 +19,7 @@ import { useForegroundSync } from "@/services/sync-service";
 import { useSession } from "@/stores/session";
 import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles/colors";
+import { StackScreenOptionsProp } from "@/types/router";
 import { useAppState } from "@/utils/hooks";
 
 import "core-js/actual/object/group-by";
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   },
 });
 
-const modalOptions: NativeStackNavigationOptions = {
+const modalOptions: StackScreenOptionsProp = {
   headerShown: false,
   presentation: "formSheet",
   sheetAllowedDetents: "fitToContents",
@@ -171,7 +171,7 @@ const modalOptions: NativeStackNavigationOptions = {
   contentStyle: styles.modalContent,
 };
 
-const chapterSelectOptions: NativeStackNavigationOptions = {
+const chapterSelectOptions: StackScreenOptionsProp = {
   presentation: "modal",
   headerTitle: "Select Chapter",
   contentStyle: styles.modalContent,

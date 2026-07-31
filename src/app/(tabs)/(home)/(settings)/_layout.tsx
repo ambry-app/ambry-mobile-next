@@ -1,8 +1,9 @@
 import { Platform } from "react-native";
-import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { Stack } from "expo-router";
 
-const screenOptions: NativeStackNavigationOptions =
+import { StackScreenOptions } from "@/types/router";
+
+const screenOptions: StackScreenOptions =
   Platform.OS === "ios"
     ? {
         headerTransparent: true,

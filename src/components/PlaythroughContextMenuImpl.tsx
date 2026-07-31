@@ -3,14 +3,17 @@ import { ReactElement } from "react";
 import { StyleSheet, View } from "react-native";
 import {
   Button,
-  ButtonProps,
-  ContextMenu,
-  fillMaxSize,
+  DropdownMenu,
+  DropdownMenuItem,
   Host,
+  Spacer,
+  Text,
 } from "@expo/ui/jetpack-compose";
+import { fillMaxSize } from "@expo/ui/jetpack-compose/modifiers";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import { Colors } from "@/styles/colors";
+import { useMenuState } from "@/utils/hooks";
 
 export type PlaythroughStatus =
   | "in_progress"
@@ -33,13 +36,11 @@ const triggerColors = {
 };
 
 const menuColors = {
-  containerColor: Colors.zinc[800],
-  contentColor: Colors.zinc[100],
+  textColor: Colors.zinc[100],
 };
 
 const destructiveColors = {
-  containerColor: Colors.zinc[800],
-  contentColor: Colors.red[400],
+  textColor: Colors.red[400],
 };
 
 export function PlaythroughContextMenuImpl({
@@ -50,65 +51,72 @@ export function PlaythroughContextMenuImpl({
   onAbandon,
   onDelete,
 }: PlaythroughContextMenuImplProps) {
-  const menuItems: ReactElement<ButtonProps>[] = [];
+  const { expanded, open, close, selecting } = useMenuState();
+
+  const menuItems: ReactElement[] = [];
 
   if (status === "in_progress") {
     // Continue playthrough
     menuItems.push(
-      <Button
+      <DropdownMenuItem
         key="resume"
-        //leadingIcon="filled.PlayArrow"
         elementColors={menuColors}
-        onPress={onResume}
+        onClick={selecting(onResume)}
       >
-        Resume
-      </Button>,
+        <DropdownMenuItem.Text>
+          <Text>Resume</Text>
+        </DropdownMenuItem.Text>
+      </DropdownMenuItem>,
     );
   } else if (status === "finished" || status === "abandoned") {
     // Open resume prompt
     menuItems.push(
-      <Button
+      <DropdownMenuItem
         key="resume"
-        //leadingIcon="filled.PlayArrow"
         elementColors={menuColors}
-        onPress={onResumeFromPrevious}
+        onClick={selecting(onResumeFromPrevious)}
       >
-        Resume
-      </Button>,
+        <DropdownMenuItem.Text>
+          <Text>Resume</Text>
+        </DropdownMenuItem.Text>
+      </DropdownMenuItem>,
     );
   }
 
   if (status === "in_progress") {
     menuItems.push(
-      <Button
+      <DropdownMenuItem
         key="finish"
-        //leadingIcon="filled.CheckCircle"
         elementColors={menuColors}
-        onPress={onMarkAsFinished}
+        onClick={selecting(onMarkAsFinished)}
       >
-        Mark as finished
-      </Button>,
-      <Button
+        <DropdownMenuItem.Text>
+          <Text>Mark as finished</Text>
+        </DropdownMenuItem.Text>
+      </DropdownMenuItem>,
+      <DropdownMenuItem
         key="abandon"
-        //leadingIcon="filled.Close"
         elementColors={destructiveColors}
-        onPress={onAbandon}
+        onClick={selecting(onAbandon)}
       >
-        Abandon
-      </Button>,
+        <DropdownMenuItem.Text>
+          <Text>Abandon</Text>
+        </DropdownMenuItem.Text>
+      </DropdownMenuItem>,
     );
   }
 
   // Delete is always available
   menuItems.push(
-    <Button
+    <DropdownMenuItem
       key="delete"
-      //leadingIcon="filled.Delete"
       elementColors={destructiveColors}
-      onPress={onDelete}
+      onClick={selecting(onDelete)}
     >
-      Delete playthrough
-    </Button>,
+      <DropdownMenuItem.Text>
+        <Text>Delete playthrough</Text>
+      </DropdownMenuItem.Text>
+    </DropdownMenuItem>,
   );
 
   return (
@@ -123,14 +131,22 @@ export function PlaythroughContextMenuImpl({
       </View>
       {/* Context menu with invisible trigger on top */}
       <Host style={styles.host}>
-        <ContextMenu color={Colors.zinc[800]}>
-          <ContextMenu.Trigger>
-            <Button elementColors={triggerColors} modifiers={[fillMaxSize()]}>
-              {" "}
+        <DropdownMenu
+          color={Colors.zinc[800]}
+          expanded={expanded}
+          onDismissRequest={close}
+        >
+          <DropdownMenu.Trigger>
+            <Button
+              colors={triggerColors}
+              modifiers={[fillMaxSize()]}
+              onClick={open}
+            >
+              <Spacer />
             </Button>
-          </ContextMenu.Trigger>
-          <ContextMenu.Items>{menuItems}</ContextMenu.Items>
-        </ContextMenu>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Items>{menuItems}</DropdownMenu.Items>
+        </DropdownMenu>
       </Host>
     </View>
   );

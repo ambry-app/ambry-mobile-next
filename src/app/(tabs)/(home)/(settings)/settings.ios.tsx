@@ -1,5 +1,5 @@
 // iOS version - uses SwiftUI
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { Alert, Linking } from "react-native";
 import {
   Button,
@@ -22,6 +22,7 @@ import { usePreferredPlaybackRate } from "@/stores/preferred-playback-rate";
 import { useSession } from "@/stores/session";
 import { useSleepTimer } from "@/stores/sleep-timer";
 import { Colors } from "@/styles/colors";
+import { useSyncedState } from "@/utils/hooks";
 import { formatPlaybackRate } from "@/utils/rate";
 
 export default function SettingsRoute() {
@@ -39,14 +40,9 @@ export default function SettingsRoute() {
   // Local state for the toggle to handle async permission flow
   // This ensures the toggle updates correctly even when the Switch component
   // doesn't properly sync with value prop changes during async operations
-  const [motionToggle, setMotionToggle] = useState(
+  const [motionToggle, setMotionToggle] = useSyncedState(
     sleepTimerMotionDetectionEnabled,
   );
-
-  // Sync local state with store when store changes (e.g., on initial load)
-  useEffect(() => {
-    setMotionToggle(sleepTimerMotionDetectionEnabled);
-  }, [sleepTimerMotionDetectionEnabled]);
 
   const handleSignOut = useCallback(async () => {
     await unloadPlayer();
@@ -93,7 +89,7 @@ export default function SettingsRoute() {
         }
       }
     },
-    [session],
+    [session, setMotionToggle],
   );
 
   const handleForceFullSync = useCallback(async () => {

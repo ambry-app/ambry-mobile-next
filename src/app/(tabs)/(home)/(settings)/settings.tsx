@@ -16,6 +16,10 @@ import { useSleepTimer } from "@/stores/sleep-timer";
 import { Colors } from "@/styles/colors";
 import { formatPlaybackRate } from "@/utils/rate";
 
+const switchColors = {
+  checkedTrackColor: Colors.lime[500],
+};
+
 export default function SettingsRoute() {
   const session = useSession((state) => state.session);
   const { debugModeEnabled, setDebugModeEnabled } = useDebug();
@@ -138,9 +142,8 @@ export default function SettingsRoute() {
             <Host matchContents>
               <Switch
                 value={sleepTimerMotionDetectionEnabled}
-                onValueChange={handleMotionDetectionToggle}
-                color={Colors.lime[500]}
-                variant="switch"
+                onCheckedChange={handleMotionDetectionToggle}
+                colors={switchColors}
               />
             </Host>
           </View>
@@ -161,9 +164,8 @@ export default function SettingsRoute() {
             <Host matchContents>
               <Switch
                 value={debugModeEnabled}
-                onValueChange={setDebugModeEnabled}
-                color={Colors.lime[500]}
-                variant="switch"
+                onCheckedChange={setDebugModeEnabled}
+                colors={switchColors}
               />
             </Host>
           </View>

@@ -13,6 +13,62 @@ import { logBase } from "@/utils/logger";
 const log = logBase.extend("app-state");
 
 // =============================================================================
+// useMenuState
+// =============================================================================
+
+/**
+ * Open/closed state for a Jetpack Compose `DropdownMenu`.
+ *
+ * As of SDK 57 the native menu no longer opens itself when its trigger is
+ * pressed — `expanded` is driven entirely from JS. Every menu therefore has to
+ * open on trigger press, close on dismiss, and close itself when an item is
+ * chosen; wrap item handlers in `selecting()` to get the last part.
+ */
+export function useMenuState() {
+  const [expanded, setExpanded] = useState(false);
+
+  const open = useCallback(() => setExpanded(true), []);
+  const close = useCallback(() => setExpanded(false), []);
+  const selecting = useCallback(
+    (action: () => void) => () => {
+      setExpanded(false);
+      action();
+    },
+    [],
+  );
+
+  return { expanded, open, close, selecting };
+}
+
+// =============================================================================
+// useSyncedState
+// =============================================================================
+
+/**
+ * Local, editable state that follows an external value, resetting whenever that
+ * value changes.
+ *
+ * Use this instead of `useState` + `useEffect(() => setLocal(source), [source])`.
+ * The effect version renders once with the stale value and then again with the
+ * new one; adjusting during render (React's documented pattern for "resetting
+ * state when a prop changes") re-renders before anything is painted, and keeps
+ * the React Compiler's `set-state-in-effect` rule satisfied.
+ */
+export function useSyncedState<T>(
+  source: T,
+): [T, React.Dispatch<React.SetStateAction<T>>] {
+  const [value, setValue] = useState(source);
+  const [previousSource, setPreviousSource] = useState(source);
+
+  if (source !== previousSource) {
+    setPreviousSource(source);
+    setValue(source);
+  }
+
+  return [value, setValue];
+}
+
+// =============================================================================
 // useDebounce
 // =============================================================================
 
@@ -34,10 +90,14 @@ export function useDebounce<T>(value: T, delay: number): T {
 
 export function useThrottle<T>(value: T, delay: number): T {
   const [throttledValue, setThrottledValue] = useState(value);
-  const lastExecuted = useRef(Date.now());
+  // Seeded on the first effect run rather than during render, which keeps the
+  // original behaviour (mount counts as the last execution) without reading the
+  // clock while rendering.
+  const lastExecuted = useRef<number | null>(null);
 
   useEffect(() => {
     const now = Date.now();
+    lastExecuted.current ??= now;
     const timeSinceLast = now - lastExecuted.current;
 
     if (timeSinceLast >= delay) {

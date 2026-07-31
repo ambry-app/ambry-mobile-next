@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import {
   Alert,
   Linking,
@@ -23,6 +23,7 @@ import { useDebug } from "@/stores/debug";
 import { useSession } from "@/stores/session";
 import { useSleepTimer } from "@/stores/sleep-timer";
 import { Colors } from "@/styles/colors";
+import { useSyncedState } from "@/utils/hooks";
 
 function formatSeconds(seconds: number) {
   return Math.round(seconds / 60);
@@ -49,24 +50,16 @@ export default function SleepTimerRoute() {
     );
 
   const [displaySleepTimerSeconds, setDisplaySleepTimerSeconds] =
-    useState(sleepTimer);
+    useSyncedState(sleepTimer);
   const [displayMotionDetectionEnabled, setDisplayMotionDetectionEnabled] =
-    useState(sleepTimerMotionDetectionEnabled);
-
-  useEffect(() => {
-    setDisplaySleepTimerSeconds(sleepTimer);
-  }, [sleepTimer]);
-
-  useEffect(() => {
-    setDisplayMotionDetectionEnabled(sleepTimerMotionDetectionEnabled);
-  }, [sleepTimerMotionDetectionEnabled]);
+    useSyncedState(sleepTimerMotionDetectionEnabled);
 
   const setSleepTimerSecondsAndDisplay = useCallback(
     (value: number) => {
       setDisplaySleepTimerSeconds(value);
       if (session) setSleepTimerTime(session, value);
     },
-    [session],
+    [session, setDisplaySleepTimerSeconds],
   );
 
   const handleMotionDetectionToggle = useCallback(
@@ -94,7 +87,7 @@ export default function SleepTimerRoute() {
         }
       }
     },
-    [session],
+    [session, setDisplayMotionDetectionEnabled],
   );
 
   if (!session) return null;

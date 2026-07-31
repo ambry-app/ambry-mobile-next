@@ -81,9 +81,16 @@ export function useShelvedMedia(
   }, [session, mediaId, shelfName, load]);
 
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    let cancelled = false;
+
+    isMediaOnShelf(session, mediaId, shelfName).then((onShelf) => {
+      if (!cancelled) setIsOnShelf(onShelf);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session, mediaId, shelfName]);
 
   return { isOnShelf, toggleOnShelf };
 }

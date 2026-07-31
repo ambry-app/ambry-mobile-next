@@ -3,15 +3,18 @@ import { ReactElement } from "react";
 import { StyleSheet, View } from "react-native";
 import {
   Button,
-  ButtonProps,
-  ContextMenu,
-  fillMaxSize,
+  DropdownMenu,
+  DropdownMenuItem,
   Host,
+  Spacer,
+  Text,
 } from "@expo/ui/jetpack-compose";
+import { fillMaxSize } from "@expo/ui/jetpack-compose/modifiers";
 
 import { MediaPlaybackState } from "@/services/playthrough-query-service";
 import { DownloadStatus } from "@/stores/downloads";
 import { Colors } from "@/styles/colors";
+import { useMenuState } from "@/utils/hooks";
 
 import { IconButton } from "./IconButton";
 
@@ -37,13 +40,11 @@ const triggerColors = {
 };
 
 const menuColors = {
-  containerColor: Colors.zinc[800],
-  contentColor: Colors.zinc[100],
+  textColor: Colors.zinc[100],
 };
 
 const destructiveColors = {
-  containerColor: Colors.zinc[800],
-  contentColor: Colors.red[400],
+  textColor: Colors.red[400],
 };
 
 export function MediaContextMenuImpl({
@@ -61,33 +62,37 @@ export function MediaContextMenuImpl({
   onToggleShelf,
   onShare,
 }: MediaContextMenuImplProps) {
-  // Build menu items array - Android ContextMenu doesn't support fragments or null children
-  const menuItems: ReactElement<ButtonProps>[] = [];
+  const { expanded, open, close, selecting } = useMenuState();
+
+  // Build menu items array - Android DropdownMenu doesn't support fragments or null children
+  const menuItems: ReactElement[] = [];
 
   // Play/Resume action
   if (playbackState.type === "none") {
     // Start a new playthrough
     menuItems.push(
-      <Button
+      <DropdownMenuItem
         key="play"
-        //leadingIcon="filled.PlayArrow"
         elementColors={menuColors}
-        onPress={onPlay}
+        onClick={selecting(onPlay)}
       >
-        Play
-      </Button>,
+        <DropdownMenuItem.Text>
+          <Text>Play</Text>
+        </DropdownMenuItem.Text>
+      </DropdownMenuItem>,
     );
   } else if (playbackState.type === "in_progress") {
     // Resume
     menuItems.push(
-      <Button
+      <DropdownMenuItem
         key="resume"
-        //leadingIcon="filled.PlayArrow"
         elementColors={menuColors}
-        onPress={onResume}
+        onClick={selecting(onResume)}
       >
-        Resume
-      </Button>,
+        <DropdownMenuItem.Text>
+          <Text>Resume</Text>
+        </DropdownMenuItem.Text>
+      </DropdownMenuItem>,
     );
   } else if (
     playbackState.type === "finished" ||
@@ -95,14 +100,15 @@ export function MediaContextMenuImpl({
   ) {
     // Open resume prompt
     menuItems.push(
-      <Button
+      <DropdownMenuItem
         key="resume"
-        //leadingIcon="filled.PlayArrow"
         elementColors={menuColors}
-        onPress={onResumeFromPrompt}
+        onClick={selecting(onResumeFromPrompt)}
       >
-        Play
-      </Button>,
+        <DropdownMenuItem.Text>
+          <Text>Play</Text>
+        </DropdownMenuItem.Text>
+      </DropdownMenuItem>,
     );
   }
 
@@ -110,93 +116,102 @@ export function MediaContextMenuImpl({
   if (playbackState.type === "in_progress" || playbackState.type === "loaded") {
     // Mark as finished or abandon
     menuItems.push(
-      <Button
+      <DropdownMenuItem
         key="finish"
-        //leadingIcon="filled.CheckCircle"
         elementColors={menuColors}
-        onPress={onMarkAsFinished}
+        onClick={selecting(onMarkAsFinished)}
       >
-        Mark as finished
-      </Button>,
-      <Button
+        <DropdownMenuItem.Text>
+          <Text>Mark as finished</Text>
+        </DropdownMenuItem.Text>
+      </DropdownMenuItem>,
+      <DropdownMenuItem
         key="abandon"
-        //leadingIcon="filled.Close"
         elementColors={destructiveColors}
-        onPress={onAbandon}
+        onClick={selecting(onAbandon)}
       >
-        Abandon
-      </Button>,
+        <DropdownMenuItem.Text>
+          <Text>Abandon</Text>
+        </DropdownMenuItem.Text>
+      </DropdownMenuItem>,
     );
   }
 
   // Download actions
   if (!downloadStatus) {
     menuItems.push(
-      <Button
+      <DropdownMenuItem
         key="download"
         elementColors={menuColors}
-        //leadingIcon="filled.KeyboardArrowDown"
-        onPress={onDownload}
+        onClick={selecting(onDownload)}
       >
-        Download
-      </Button>,
+        <DropdownMenuItem.Text>
+          <Text>Download</Text>
+        </DropdownMenuItem.Text>
+      </DropdownMenuItem>,
     );
   } else if (downloadStatus === "pending") {
     menuItems.push(
-      <Button
+      <DropdownMenuItem
         key="cancel-download"
-        //leadingIcon="filled.Close"
         elementColors={destructiveColors}
-        onPress={onCancelDownload}
+        onClick={selecting(onCancelDownload)}
       >
-        Cancel download
-      </Button>,
+        <DropdownMenuItem.Text>
+          <Text>Cancel download</Text>
+        </DropdownMenuItem.Text>
+      </DropdownMenuItem>,
     );
   } else if (downloadStatus === "ready") {
     menuItems.push(
-      <Button
+      <DropdownMenuItem
         key="delete-download"
-        //leadingIcon="filled.Delete"
         elementColors={destructiveColors}
-        onPress={onRemoveDownload}
+        onClick={selecting(onRemoveDownload)}
       >
-        Delete downloaded files
-      </Button>,
+        <DropdownMenuItem.Text>
+          <Text>Delete downloaded files</Text>
+        </DropdownMenuItem.Text>
+      </DropdownMenuItem>,
     );
   } else if (downloadStatus === "error") {
     menuItems.push(
-      <Button
+      <DropdownMenuItem
         key="retry-download"
         elementColors={menuColors}
-        onPress={onDownload}
+        onClick={selecting(onDownload)}
       >
-        Retry download
-      </Button>,
+        <DropdownMenuItem.Text>
+          <Text>Retry download</Text>
+        </DropdownMenuItem.Text>
+      </DropdownMenuItem>,
     );
   }
 
   // Shelf action
   menuItems.push(
-    <Button
+    <DropdownMenuItem
       key="shelf"
-      //leadingIcon={isOnShelf ? "filled.Favorite" : "filled.FavoriteBorder"}
       elementColors={menuColors}
-      onPress={onToggleShelf}
+      onClick={selecting(onToggleShelf)}
     >
-      {isOnShelf ? "Remove from saved" : "Save for later"}
-    </Button>,
+      <DropdownMenuItem.Text>
+        <Text>{isOnShelf ? "Remove from saved" : "Save for later"}</Text>
+      </DropdownMenuItem.Text>
+    </DropdownMenuItem>,
   );
 
   // Share action
   menuItems.push(
-    <Button
+    <DropdownMenuItem
       key="share"
-      //leadingIcon="filled.Share"
       elementColors={menuColors}
-      onPress={onShare}
+      onClick={selecting(onShare)}
     >
-      Share
-    </Button>,
+      <DropdownMenuItem.Text>
+        <Text>Share</Text>
+      </DropdownMenuItem.Text>
+    </DropdownMenuItem>,
   );
 
   return (
@@ -212,14 +227,22 @@ export function MediaContextMenuImpl({
       </View>
       {/* Context menu with invisible trigger on top */}
       <Host style={styles.host}>
-        <ContextMenu color={Colors.zinc[800]}>
-          <ContextMenu.Trigger>
-            <Button elementColors={triggerColors} modifiers={[fillMaxSize()]}>
-              {" "}
+        <DropdownMenu
+          color={Colors.zinc[800]}
+          expanded={expanded}
+          onDismissRequest={close}
+        >
+          <DropdownMenu.Trigger>
+            <Button
+              colors={triggerColors}
+              modifiers={[fillMaxSize()]}
+              onClick={open}
+            >
+              <Spacer />
             </Button>
-          </ContextMenu.Trigger>
-          <ContextMenu.Items>{menuItems}</ContextMenu.Items>
-        </ContextMenu>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Items>{menuItems}</DropdownMenu.Items>
+        </DropdownMenu>
       </Host>
     </View>
   );

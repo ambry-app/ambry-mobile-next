@@ -2,13 +2,17 @@
 import { StyleSheet, View } from "react-native";
 import {
   Button,
-  ContextMenu,
-  fillMaxSize,
+  DropdownMenu,
+  DropdownMenuItem,
   Host,
+  Spacer,
+  Text,
 } from "@expo/ui/jetpack-compose";
+import { fillMaxSize } from "@expo/ui/jetpack-compose/modifiers";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import { Colors } from "@/styles/colors";
+import { useMenuState } from "@/utils/hooks";
 
 export type DownloadContextMenuProps = {
   status: "pending" | "downloading" | "ready" | "error";
@@ -22,13 +26,11 @@ const triggerColors = {
 };
 
 const menuColors = {
-  containerColor: Colors.zinc[800],
-  contentColor: Colors.zinc[100],
+  textColor: Colors.zinc[100],
 };
 
 const destructiveColors = {
-  containerColor: Colors.zinc[800],
-  contentColor: Colors.red[400],
+  textColor: Colors.red[400],
 };
 
 export function DownloadContextMenu({
@@ -36,6 +38,8 @@ export function DownloadContextMenu({
   onDelete,
   onCancel,
 }: DownloadContextMenuProps) {
+  const { expanded, open, close, selecting } = useMenuState();
+
   return (
     <View style={styles.container}>
       {/* Icon layer - visible but doesn't receive touches */}
@@ -48,32 +52,42 @@ export function DownloadContextMenu({
       </View>
       {/* Context menu with invisible trigger on top */}
       <Host style={styles.host}>
-        <ContextMenu color={Colors.zinc[800]}>
-          <ContextMenu.Trigger>
-            <Button elementColors={triggerColors} modifiers={[fillMaxSize()]}>
-              {" "}
+        <DropdownMenu
+          color={Colors.zinc[800]}
+          expanded={expanded}
+          onDismissRequest={close}
+        >
+          <DropdownMenu.Trigger>
+            <Button
+              colors={triggerColors}
+              modifiers={[fillMaxSize()]}
+              onClick={open}
+            >
+              <Spacer />
             </Button>
-          </ContextMenu.Trigger>
-          <ContextMenu.Items>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Items>
             {status === "ready" ? (
-              <Button
-                //leadingIcon="filled.Delete"
+              <DropdownMenuItem
                 elementColors={destructiveColors}
-                onPress={onDelete}
+                onClick={selecting(onDelete)}
               >
-                Delete downloaded files
-              </Button>
+                <DropdownMenuItem.Text>
+                  <Text>Delete downloaded files</Text>
+                </DropdownMenuItem.Text>
+              </DropdownMenuItem>
             ) : (
-              <Button
-                //leadingIcon="filled.Close"
+              <DropdownMenuItem
                 elementColors={menuColors}
-                onPress={onCancel}
+                onClick={selecting(onCancel)}
               >
-                Cancel download
-              </Button>
+                <DropdownMenuItem.Text>
+                  <Text>Cancel download</Text>
+                </DropdownMenuItem.Text>
+              </DropdownMenuItem>
             )}
-          </ContextMenu.Items>
-        </ContextMenu>
+          </DropdownMenu.Items>
+        </DropdownMenu>
       </Host>
     </View>
   );
