@@ -13,7 +13,7 @@ import { fillMaxSize } from "@expo/ui/jetpack-compose/modifiers";
 
 import { MediaPlaybackState } from "@/services/playthrough-query-service";
 import { DownloadStatus } from "@/stores/downloads";
-import { Colors } from "@/styles/colors";
+import { Colors, interactive } from "@/styles/colors";
 import { useMenuState } from "@/utils/hooks";
 
 import { IconButton } from "./IconButton";
@@ -228,7 +228,7 @@ export function MediaContextMenuImpl({
       {/* Context menu with invisible trigger on top */}
       <Host style={styles.host}>
         <DropdownMenu
-          color={Colors.zinc[800]}
+          color={interactive.fill}
           expanded={expanded}
           onDismissRequest={close}
         >
@@ -261,8 +261,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   button: {
-    backgroundColor: Colors.zinc[900],
+    backgroundColor: interactive.fillSubtle,
     borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.zinc[800],
   },
   host: {
     ...StyleSheet.absoluteFill,

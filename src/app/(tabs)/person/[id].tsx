@@ -1,22 +1,64 @@
+import { Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Stack, useLocalSearchParams } from "expo-router";
 
-import { Delay } from "@/components/Delay";
+import {
+  FadingHeaderBackground,
+  FadingHeaderTitle,
+  useFadingHeader,
+} from "@/components/FadingHeader";
 import { PersonScreen } from "@/components/screens/PersonScreen";
 import { useSession } from "@/stores/session";
 import { RouterParams } from "@/types/router";
 
+// Wait for the hero image to scroll past before showing the border
+const HERO_SCROLL_THRESHOLD = 300;
+
 export default function PersonRoute() {
   const session = useSession((state) => state.session);
   const { id: personId, title } = useLocalSearchParams<RouterParams>();
+  const insets = useSafeAreaInsets();
+  const { scrollHandler, headerOpacity } = useFadingHeader({
+    scrollThreshold: HERO_SCROLL_THRESHOLD,
+  });
 
   if (!session) return null;
 
+  // iOS uses native header with title always visible
+  if (Platform.OS === "ios") {
+    return (
+      <>
+        <Stack.Screen options={{ title: title || "" }} />
+        <PersonScreen session={session} personId={personId} />
+      </>
+    );
+  }
+
   return (
     <>
-      <Stack.Screen options={{ title }} />
-      <Delay delay={10}>
-        <PersonScreen session={session} personId={personId} />
-      </Delay>
+      <Stack.Screen
+        options={{
+          title: "",
+          headerTransparent: true,
+          headerBackground: () => (
+            <FadingHeaderBackground
+              headerOpacity={headerOpacity}
+              height={insets.top + 56}
+            />
+          ),
+          headerTitle: () => (
+            <FadingHeaderTitle
+              headerOpacity={headerOpacity}
+              title={title || ""}
+            />
+          ),
+        }}
+      />
+      <PersonScreen
+        session={session}
+        personId={personId}
+        scrollHandler={scrollHandler}
+      />
     </>
   );
 }

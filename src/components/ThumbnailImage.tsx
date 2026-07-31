@@ -3,7 +3,7 @@ import { Image, ImageStyle } from "expo-image";
 
 import { DownloadedThumbnails, Thumbnails } from "@/services/library-service";
 import { useSession } from "@/stores/session";
-import { Colors } from "@/styles/colors";
+import { decorative } from "@/styles/colors";
 import { documentDirectoryFilePath } from "@/utils/paths";
 
 type ThumbnailImageProps = {
@@ -59,7 +59,7 @@ export function ThumbnailImage(props: ThumbnailImageProps) {
 const styles = StyleSheet.create({
   container: {
     overflow: "hidden",
-    backgroundColor: Colors.zinc[800],
+    backgroundColor: decorative.placeholder,
   },
   image: {
     width: "100%",

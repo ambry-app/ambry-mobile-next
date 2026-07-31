@@ -1,7 +1,4 @@
-import { Paths } from "expo-file-system";
-// Legacy imports required for download functionality with progress tracking
-// (the new API doesn't support progress callbacks yet)
-import * as LegacyFileSystem from "expo-file-system/legacy";
+import { File, Paths } from "expo-file-system";
 
 import {
   createDownload,
@@ -15,8 +12,6 @@ import { DownloadedThumbnails, Thumbnails } from "@/db/schema";
 import {
   addOrUpdateDownload,
   removeDownloadFromStore,
-  setDownloadProgress,
-  setDownloadResumable,
   useDownloads,
 } from "@/stores/downloads";
 import { Session } from "@/types/session";
@@ -68,7 +63,6 @@ export async function startDownload(session: Session, mediaId: string) {
   // FIXME: stored file paths should be relative, not absolute
   let download = await createDownload(session, mediaId, destinationFilePath);
   addOrUpdateDownload(download);
-  setDownloadProgress(mediaId, 0);
 
   if (thumbnails) {
     const downloadedThumbnails = await downloadThumbnails(
@@ -82,58 +76,84 @@ export async function startDownload(session: Session, mediaId: string) {
     addOrUpdateDownload(download);
   }
 
-  const progressCallback = (
-    downloadProgress: LegacyFileSystem.DownloadProgressData,
-  ) => {
-    const progress =
-      downloadProgress.totalBytesWritten /
-      downloadProgress.totalBytesExpectedToWrite;
-    setDownloadProgress(mediaId, progress);
-  };
-
-  const downloadResumable = LegacyFileSystem.createDownloadResumable(
-    `${session.url}/${mp4Path}`,
-    destinationFilePath,
-    { headers: { Authorization: `Bearer ${session.token}` } },
-    progressCallback,
-  );
-
-  setDownloadResumable(mediaId, downloadResumable);
-
   try {
-    const result = await downloadResumable.downloadAsync();
-
-    if (result) {
-      log.info("Download succeeded for media:", mediaId);
-      download = await updateDownload(session, mediaId, {
-        status: "ready",
-      });
-      addOrUpdateDownload(download);
-      // reload player if the download is for the currently loaded media
-      await reloadCurrentPlaythroughIfMedia(session, mediaId);
-    } else {
-      log.debug("Download was canceled");
+    const file = new File(destinationFilePath);
+    if (file.exists) {
+      file.delete();
     }
+
+    await File.downloadFileAsync(`${session.url}/${mp4Path}`, file, {
+      headers: { Authorization: `Bearer ${session.token}` },
+    });
+
+    if (await discardIfCancelled(session, mediaId, destinationFilePath)) return;
+
+    log.info("Download succeeded for media:", mediaId);
+    download = await updateDownload(session, mediaId, {
+      status: "ready",
+    });
+    addOrUpdateDownload(download);
+    // reload player if the download is for the currently loaded media
+    await reloadCurrentPlaythroughIfMedia(session, mediaId);
   } catch (error) {
     log.warn("Download failed:", error);
-    download = await updateDownload(session, mediaId, { status: "error" });
-    addOrUpdateDownload(download);
-  } finally {
-    setDownloadResumable(mediaId, undefined);
-    setDownloadProgress(mediaId, undefined);
+
+    // Nothing in here may throw: every caller of startDownload is
+    // fire-and-forget, so an error escaping this handler becomes an unhandled
+    // rejection rather than surfacing anywhere useful.
+    try {
+      if (await discardIfCancelled(session, mediaId, destinationFilePath)) {
+        return;
+      }
+
+      download = await updateDownload(session, mediaId, { status: "error" });
+      addOrUpdateDownload(download);
+    } catch (cleanupError) {
+      log.warn("Failed to record download failure:", cleanupError);
+    }
   }
 }
 
-export async function cancelDownload(session: Session, mediaId: string) {
-  const download = useDownloads.getState().downloads[mediaId];
+/**
+ * Detect a download that was cancelled while its transfer was still in flight.
+ *
+ * `cancelDownload` cannot stop the transfer — the File API has no cancellation —
+ * so it deletes the record and lets the transfer run to completion. We only find
+ * out here, once it settles.
+ *
+ * Writing a status at that point would throw, because `updateDownload` requires
+ * the row to still exist. Instead, bail out and delete the file the transfer
+ * left behind, which would otherwise sit on disk with no record pointing at it
+ * and no way to reclaim it through the UI.
+ *
+ * Returns true when the download was cancelled and the caller should stop.
+ */
+async function discardIfCancelled(
+  session: Session,
+  mediaId: string,
+  destinationFilePath: string,
+): Promise<boolean> {
+  if (await getDownload(session, mediaId)) return false;
 
-  if (download?.resumable) {
-    try {
-      await download.resumable.cancelAsync();
-    } catch (e) {
-      log.warn("Error canceling download resumable:", e);
-    }
-  }
+  log.info("Download was cancelled while in flight, discarding:", mediaId);
+  await tryDelete(destinationFilePath);
+  return true;
+}
+
+/**
+ * Cancel a download.
+ *
+ * The File API has no cancellation, so this cannot stop a transfer that is
+ * already running — it removes the record and the partial file, and the
+ * transfer runs to completion in the background. `startDownload` notices the
+ * missing record when it settles and discards the result (see
+ * `discardIfCancelled`).
+ *
+ * This is the tradeoff for using the new API without resumable/progress
+ * complexity: cancelling frees the record immediately but not the bandwidth.
+ */
+export async function cancelDownload(session: Session, mediaId: string) {
+  log.info("Canceling (removing) download:", mediaId);
   await removeDownload(session, mediaId);
 }
 
@@ -181,29 +201,29 @@ async function downloadThumbnails(
   log.debug("Downloading thumbnails:", downloadedThumbnails);
 
   await Promise.all([
-    LegacyFileSystem.downloadAsync(
+    File.downloadFileAsync(
       `${session.url}/${thumbnails.extraSmall}`,
-      downloadedThumbnails.extraSmall,
+      new File(downloadedThumbnails.extraSmall),
       options,
     ),
-    LegacyFileSystem.downloadAsync(
+    File.downloadFileAsync(
       `${session.url}/${thumbnails.small}`,
-      downloadedThumbnails.small,
+      new File(downloadedThumbnails.small),
       options,
     ),
-    LegacyFileSystem.downloadAsync(
+    File.downloadFileAsync(
       `${session.url}/${thumbnails.medium}`,
-      downloadedThumbnails.medium,
+      new File(downloadedThumbnails.medium),
       options,
     ),
-    LegacyFileSystem.downloadAsync(
+    File.downloadFileAsync(
       `${session.url}/${thumbnails.large}`,
-      downloadedThumbnails.large,
+      new File(downloadedThumbnails.large),
       options,
     ),
-    LegacyFileSystem.downloadAsync(
+    File.downloadFileAsync(
       `${session.url}/${thumbnails.extraLarge}`,
-      downloadedThumbnails.extraLarge,
+      new File(downloadedThumbnails.extraLarge),
       options,
     ),
   ]);
@@ -215,7 +235,10 @@ async function downloadThumbnails(
 
 async function tryDelete(path: string): Promise<void> {
   try {
-    await LegacyFileSystem.deleteAsync(path);
+    const file = new File(path);
+    if (file.exists) {
+      file.delete();
+    }
   } catch (e) {
     log.warn("Failed to delete file:", e);
   }

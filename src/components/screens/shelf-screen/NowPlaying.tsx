@@ -1,11 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 import { PlayerProgressBar } from "@/components/PlayerProgressBar";
 import { TileImage, TileText } from "@/components/Tiles";
 import { getMedia, useLibraryData } from "@/services/library-service";
 import { expandPlayer } from "@/services/playback-controls";
 import { useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 
 type NowPlayingProps = {
@@ -34,9 +33,6 @@ function NowPlayingDetails({ session, mediaId }: NowPlayingDetailsProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label} numberOfLines={1}>
-        Now Playing
-      </Text>
       <Pressable onPress={expandPlayer}>
         <View style={styles.rowContainer}>
           <View style={styles.leftContainer}>
@@ -65,11 +61,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 16,
     alignItems: "center",
-  },
-  label: {
-    fontSize: 22,
-    fontWeight: "500",
-    color: Colors.zinc[100],
   },
   leftContainer: {
     flex: 0.75,

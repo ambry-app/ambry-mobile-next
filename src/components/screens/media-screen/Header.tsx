@@ -7,6 +7,12 @@ import { useScreen } from "@/stores/screen";
 import { Colors } from "@/styles/colors";
 import { durationDisplay } from "@/utils/time";
 
+/**
+ * Top padding above the thumbnail. Exported because MediaScreen needs it to
+ * work out where the thumbnail ends when sizing the blurred backdrop.
+ */
+export const HEADER_PADDING_TOP = 16;
+
 type HeaderProps = {
   media: MediaHeaderInfo;
 };
@@ -23,9 +29,9 @@ export function Header({ media }: HeaderProps) {
         downloadedThumbnails={media.download?.thumbnails}
         size="extraLarge"
         style={{
-          width: shortScreen ? "60%" : "90%",
+          width: shortScreen ? "60%" : "80%",
           aspectRatio: 1,
-          borderRadius: 12,
+          borderRadius: 6,
         }}
       />
       <View>
@@ -54,6 +60,7 @@ export function Header({ media }: HeaderProps) {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
+    paddingTop: HEADER_PADDING_TOP,
     alignItems: "center",
     gap: 8,
   },

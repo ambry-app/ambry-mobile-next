@@ -1,5 +1,7 @@
-import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 
+import { ScrollHandler } from "@/components/FadingHeader";
 import { Loading } from "@/components/Loading";
 import { PlaythroughTile } from "@/components/Tiles";
 import { TimeAgo } from "@/components/TimeAgo";
@@ -15,9 +17,13 @@ import { Session } from "@/types/session";
 
 type InProgressScreenProps = {
   session: Session;
+  scrollHandler?: ScrollHandler;
 };
 
-export function InProgressScreen({ session }: InProgressScreenProps) {
+export function InProgressScreen({
+  session,
+  scrollHandler,
+}: InProgressScreenProps) {
   const loadedPlaythroughId = useTrackPlayer((state) => state.playthrough?.id);
   const getPage = (pageSize: number, cursor: Date | undefined) =>
     getPlaythroughsPage(
@@ -43,15 +49,20 @@ export function InProgressScreen({ session }: InProgressScreenProps) {
   }
 
   return (
-    <FlatList
+    <Animated.FlatList
       contentInsetAdjustmentBehavior="automatic"
       style={styles.flatlist}
+      showsVerticalScrollIndicator={false}
+      onScroll={scrollHandler}
+      scrollEventThrottle={16}
       data={playthroughs}
       keyExtractor={(item) => item.id}
       numColumns={2}
       renderItem={({ item }) => (
         <View style={styles.tile}>
-          {item.lastListenedAt && <TimeAgo date={item.lastListenedAt} />}
+          {item.lastListenedAt && (
+            <TimeAgo date={item.lastListenedAt} prefix="last listened" />
+          )}
           <PlaythroughTile playthrough={item} />
         </View>
       )}

@@ -2,7 +2,7 @@ import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { ImageStyle } from "expo-image";
 
 import { DownloadedThumbnails, Thumbnails } from "@/services/library-service";
-import { Colors } from "@/styles/colors";
+import { Colors, decorative } from "@/styles/colors";
 
 import { ThumbnailImage } from "./ThumbnailImage";
 
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   },
   container: {
     overflow: "hidden",
-    backgroundColor: Colors.zinc[800],
+    backgroundColor: decorative.placeholder,
   },
   multiContainer: {
     position: "relative",

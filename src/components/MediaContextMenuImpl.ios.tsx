@@ -10,7 +10,7 @@ import {
 
 import { MediaPlaybackState } from "@/services/playthrough-query-service";
 import { DownloadStatus } from "@/stores/downloads";
-import { Colors } from "@/styles/colors";
+import { Colors, interactive } from "@/styles/colors";
 
 export type MediaContextMenuImplProps = {
   playbackState: MediaPlaybackState;
@@ -157,7 +157,9 @@ const styles = StyleSheet.create({
   host: {
     width: 48,
     height: 48,
-    backgroundColor: Colors.zinc[900],
+    backgroundColor: interactive.fillSubtle,
     borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.zinc[800],
   },
 });

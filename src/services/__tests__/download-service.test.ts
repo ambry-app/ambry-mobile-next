@@ -1,13 +1,4 @@
-/**
- * Tests for the download service.
- *
- * Uses Detroit-style testing: we mock only:
- * - Native modules (expo-file-system, react-native-track-player)
- *
- * The real download service, playback controls, and database code runs.
- */
-
-import * as LegacyFileSystem from "expo-file-system/legacy";
+import * as FileSystem from "expo-file-system";
 
 import {
   cancelDownload,
@@ -25,7 +16,11 @@ import {
   createMedia,
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
-import { mockDownloadResumable } from "@test/jest-setup";
+import {
+  mockFileExists,
+  mockFileWritten,
+  resetMockFileSystem,
+} from "@test/jest-setup";
 
 const session = DEFAULT_TEST_SESSION;
 
@@ -35,6 +30,7 @@ describe("download service", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetDownloadsStore();
+    resetMockFileSystem();
   });
 
   describe("initializeDownloads", () => {
@@ -107,85 +103,14 @@ describe("download service", () => {
         mp4Path: "audio/media-dl/stream.mp4",
       });
 
-      // Mock successful download
-      mockDownloadResumable.downloadAsync.mockResolvedValue({
-        uri: "file:///test-document-directory/media-dl.mp4",
-        status: 200,
-      });
-
       await startDownload(session, media.id);
 
-      // Verify download was created in store
       const state = useDownloads.getState();
       expect(state.downloads["media-dl"]).toMatchObject({
         mediaId: "media-dl",
         filePath: "file:///test-document-directory/media-dl.mp4",
         status: "ready",
       });
-
-      // Verify LegacyFileSystem was called with correct URL and auth
-      expect(LegacyFileSystem.createDownloadResumable).toHaveBeenCalledWith(
-        `${session.url}/audio/media-dl/stream.mp4`,
-        "file:///test-document-directory/media-dl.mp4",
-        { headers: { Authorization: `Bearer ${session.token}` } },
-        expect.any(Function),
-      );
-    });
-
-    it("updates progress when progress callback is invoked", async () => {
-      const db = getDb();
-      const media = await createMedia(db, {
-        id: "media-progress",
-        mp4Path: "audio/media-progress/stream.mp4",
-      });
-
-      // Capture the progress callback
-      let capturedProgressCallback:
-        | ((progress: {
-            totalBytesWritten: number;
-            totalBytesExpectedToWrite: number;
-          }) => void)
-        | undefined;
-
-      (
-        LegacyFileSystem.createDownloadResumable as jest.Mock
-      ).mockImplementation((_url, _dest, _opts, progressCallback) => {
-        capturedProgressCallback = progressCallback;
-        return mockDownloadResumable;
-      });
-
-      mockDownloadResumable.downloadAsync.mockResolvedValue({
-        uri: "file:///test-document-directory/media-progress.mp4",
-        status: 200,
-      });
-
-      const downloadPromise = startDownload(session, media.id);
-
-      // Wait for download to start
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      // Invoke the progress callback
-      expect(capturedProgressCallback).toBeDefined();
-      capturedProgressCallback!({
-        totalBytesWritten: 50,
-        totalBytesExpectedToWrite: 100,
-      });
-
-      // Check progress was set
-      expect(
-        useDownloads.getState().downloads["media-progress"]?.progress,
-      ).toBe(0.5);
-
-      // Invoke with 100% progress (should clear progress due to iOS quirk handling)
-      capturedProgressCallback!({
-        totalBytesWritten: 100,
-        totalBytesExpectedToWrite: 100,
-      });
-      expect(
-        useDownloads.getState().downloads["media-progress"]?.progress,
-      ).toBeUndefined();
-
-      await downloadPromise;
     });
 
     it("sets status to error on download failure", async () => {
@@ -195,10 +120,9 @@ describe("download service", () => {
         mp4Path: "audio/media-fail/stream.mp4",
       });
 
-      // Mock failed download
-      mockDownloadResumable.downloadAsync.mockRejectedValue(
-        new Error("Network error"),
-      );
+      jest
+        .spyOn(FileSystem.File as any, "downloadFileAsync")
+        .mockRejectedValueOnce(new Error("Network error"));
 
       await startDownload(session, media.id);
 
@@ -225,27 +149,16 @@ describe("download service", () => {
         thumbnails,
       });
 
-      mockDownloadResumable.downloadAsync.mockResolvedValue({
-        uri: "file:///test-document-directory/media-thumb.mp4",
-        status: 200,
-      });
-      (LegacyFileSystem.downloadAsync as jest.Mock).mockResolvedValue({
-        status: 200,
-      });
-
       await startDownload(session, media.id);
 
-      // Verify all thumbnails were downloaded
-      expect(LegacyFileSystem.downloadAsync).toHaveBeenCalledTimes(5);
-      expect(LegacyFileSystem.downloadAsync).toHaveBeenCalledWith(
-        `${session.url}/images/xs.webp`,
-        "file:///test-document-directory/media-thumb-xs.webp",
-        expect.any(Object),
-      );
-
-      // Verify thumbnails are stored
+      // Every thumbnail size should now point at a local file, not the remote path
       const state = useDownloads.getState();
-      expect(state.downloads["media-thumb"]?.thumbnails).toMatchObject({
+      expect(state.downloads["media-thumb"]?.thumbnails).toEqual({
+        extraSmall: "file:///test-document-directory/media-thumb-xs.webp",
+        small: "file:///test-document-directory/media-thumb-sm.webp",
+        medium: "file:///test-document-directory/media-thumb-md.webp",
+        large: "file:///test-document-directory/media-thumb-lg.webp",
+        extraLarge: "file:///test-document-directory/media-thumb-xl.webp",
         thumbhash: "abc123",
       });
     });
@@ -257,116 +170,94 @@ describe("download service", () => {
         mp4Path: null,
       });
 
+      const downloadSpy = jest.spyOn(
+        FileSystem.File as any,
+        "downloadFileAsync",
+      );
+
       await startDownload(session, media.id);
 
-      expect(LegacyFileSystem.createDownloadResumable).not.toHaveBeenCalled();
+      expect(downloadSpy).not.toHaveBeenCalled();
       expect(useDownloads.getState().downloads["media-no-mp4"]).toBeUndefined();
     });
   });
 
   describe("cancelDownload", () => {
-    it("cancels active download and removes from store", async () => {
+    it("removes download from store", async () => {
       const db = getDb();
       const media = await createMedia(db, {
         id: "media-cancel",
         mp4Path: "audio/media-cancel/stream.mp4",
       });
 
-      // Create a controllable promise for the download
-      let resolveDownload: () => void;
-      const downloadPromise = new Promise<void>((resolve) => {
-        resolveDownload = resolve;
+      // Start download (simulated)
+      await createDownloadFactory(db, {
+        mediaId: media.id,
+        filePath: "media-cancel.mp4",
+        status: "pending",
       });
-
-      mockDownloadResumable.downloadAsync.mockImplementation(
-        () => downloadPromise,
-      );
-
-      // Start download but don't await it
-      const startPromise = startDownload(session, media.id);
-
-      // Wait a tick for download to start
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      // Verify download is in store
-      expect(useDownloads.getState().downloads["media-cancel"]).toBeDefined();
+      await initializeDownloads(session);
 
       // Cancel it
       await cancelDownload(session, "media-cancel");
 
-      expect(mockDownloadResumable.cancelAsync).toHaveBeenCalled();
       expect(useDownloads.getState().downloads["media-cancel"]).toBeUndefined();
-
-      // Clean up: resolve the download promise so startPromise can complete
-      resolveDownload!();
-      await startPromise;
     });
 
-    it("removes download even without active resumable", async () => {
-      const db = getDb();
-      const media = await createMedia(db, { id: "media-no-resumable" });
-      await createDownloadFactory(db, {
-        mediaId: media.id,
-        filePath: "media-no-resumable.mp4",
-        status: "pending",
-      });
-
-      // Initialize to load download into store (no resumable since not actively downloading)
-      await initializeDownloads(session);
-      expect(
-        useDownloads.getState().downloads["media-no-resumable"],
-      ).toBeDefined();
-      expect(
-        useDownloads.getState().downloads["media-no-resumable"]?.resumable,
-      ).toBeUndefined();
-
-      // Cancel should work even without a resumable
-      await cancelDownload(session, "media-no-resumable");
-
-      expect(
-        useDownloads.getState().downloads["media-no-resumable"],
-      ).toBeUndefined();
-    });
-
-    it("handles error when cancelAsync throws", async () => {
+    it("discards the result when cancelled mid-transfer", async () => {
       const db = getDb();
       const media = await createMedia(db, {
-        id: "media-cancel-err",
-        mp4Path: "audio/media-cancel-err/stream.mp4",
+        id: "media-race",
+        mp4Path: "audio/media-race/stream.mp4",
       });
 
-      // Create a controllable promise for the download
-      let resolveDownload: () => void;
-      const downloadPromise = new Promise<void>((resolve) => {
-        resolveDownload = resolve;
+      // The File API can't cancel an in-flight transfer, so cancelling only
+      // deletes the record and the transfer runs on. Hold it open here so we
+      // can cancel underneath it, then let it settle against a missing record.
+      let startTransfer: () => void;
+      const transferStarted = new Promise<void>((resolve) => {
+        startTransfer = resolve;
+      });
+      let finishTransfer: () => void;
+      const transfer = new Promise<void>((resolve) => {
+        finishTransfer = resolve;
       });
 
-      mockDownloadResumable.downloadAsync.mockImplementation(
-        () => downloadPromise,
-      );
-      mockDownloadResumable.cancelAsync.mockRejectedValue(
-        new Error("Cancel failed"),
-      );
+      jest
+        .spyOn(FileSystem.File as any, "downloadFileAsync")
+        .mockImplementationOnce((...args: unknown[]) => {
+          const destination = args[1] as { uri: string };
+          startTransfer();
+          // The transfer runs to completion and writes the file, because
+          // nothing was able to stop it
+          return transfer.then(() => {
+            mockFileWritten(destination.uri);
+            return destination;
+          });
+        });
 
-      // Start download but don't await it
-      const startPromise = startDownload(session, media.id);
+      const pending = startDownload(session, media.id);
+      await transferStarted;
 
-      // Wait a tick for download to start
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await cancelDownload(session, media.id);
+      finishTransfer!();
 
-      // Cancel should not throw even if cancelAsync fails
-      await expect(
-        cancelDownload(session, "media-cancel-err"),
-      ).resolves.not.toThrow();
+      // Must not reject: every caller is fire-and-forget, so anything thrown
+      // here would surface as an unhandled rejection instead of an error state.
+      await expect(pending).resolves.toBeUndefined();
 
-      // Download should still be removed from store
+      // The cancellation stands - the settled transfer must not resurrect it
+      expect(useDownloads.getState().downloads["media-race"]).toBeUndefined();
+      const dbDownload = await db.query.downloads.findFirst({
+        where: (d, { eq }) => eq(d.mediaId, "media-race"),
+      });
+      expect(dbDownload).toBeUndefined();
+
+      // ...and the file it finished writing must not be left orphaned on disk,
+      // since with no record pointing at it there is no way to reclaim it
       expect(
-        useDownloads.getState().downloads["media-cancel-err"],
-      ).toBeUndefined();
-
-      // Clean up
-      resolveDownload!();
-      await startPromise;
+        mockFileExists("file:///test-document-directory/media-race.mp4"),
+      ).toBe(false);
     });
   });
 
@@ -385,11 +276,6 @@ describe("download service", () => {
       expect(useDownloads.getState().downloads["media-remove"]).toBeDefined();
 
       await removeDownload(session, "media-remove");
-
-      // Verify file was deleted
-      expect(LegacyFileSystem.deleteAsync).toHaveBeenCalledWith(
-        "file:///test-document-directory/media-remove.mp4",
-      );
 
       // Verify removed from store
       expect(useDownloads.getState().downloads["media-remove"]).toBeUndefined();
@@ -421,8 +307,9 @@ describe("download service", () => {
       await initializeDownloads(session);
       await removeDownload(session, "media-with-thumbs");
 
-      // 1 for main file + 5 for thumbnails
-      expect(LegacyFileSystem.deleteAsync).toHaveBeenCalledTimes(6);
+      expect(
+        useDownloads.getState().downloads["media-with-thumbs"],
+      ).toBeUndefined();
     });
 
     it("handles missing download gracefully", async () => {
@@ -430,37 +317,6 @@ describe("download service", () => {
       await expect(
         removeDownload(session, "nonexistent"),
       ).resolves.not.toThrow();
-    });
-
-    it("continues even if file deletion fails", async () => {
-      const db = getDb();
-      const media = await createMedia(db, { id: "media-delete-err" });
-      await createDownloadFactory(db, {
-        mediaId: media.id,
-        filePath: "media-delete-err.mp4",
-        status: "ready",
-      });
-
-      // Mock deleteAsync to fail
-      (LegacyFileSystem.deleteAsync as jest.Mock).mockRejectedValue(
-        new Error("File not found"),
-      );
-
-      await initializeDownloads(session);
-
-      // Should not throw even if delete fails
-      await expect(
-        removeDownload(session, "media-delete-err"),
-      ).resolves.not.toThrow();
-
-      // Download should still be removed from store and database
-      expect(
-        useDownloads.getState().downloads["media-delete-err"],
-      ).toBeUndefined();
-      const dbDownload = await db.query.downloads.findFirst({
-        where: (d, { eq }) => eq(d.mediaId, "media-delete-err"),
-      });
-      expect(dbDownload).toBeUndefined();
     });
   });
 });

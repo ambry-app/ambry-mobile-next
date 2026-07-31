@@ -1,14 +1,27 @@
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
+import { ScrollHandler } from "@/components/FadingHeader";
 import { useDownloadedMedia } from "@/services/library-service";
 import { usePullToRefresh } from "@/services/sync-service";
 import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 
 import { DownloadRow } from "./downloads-screen/DownloadRow";
+import { DownloadsHero } from "./downloads-screen/DownloadsHero";
 
-export function DownloadsScreen({ session }: { session: Session }) {
+type DownloadsScreenProps = {
+  session: Session;
+  scrollHandler?: ScrollHandler;
+  topInset?: number;
+};
+
+export function DownloadsScreen({
+  session,
+  scrollHandler,
+  topInset = 0,
+}: DownloadsScreenProps) {
   const media = useDownloadedMedia(session);
   const { refreshing, onRefresh } = usePullToRefresh(session);
 
@@ -16,7 +29,12 @@ export function DownloadsScreen({ session }: { session: Session }) {
 
   if (media.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
+      <View
+        style={[
+          styles.emptyContainer,
+          topInset > 0 && { paddingTop: topInset },
+        ]}
+      >
         <FontAwesome6
           name="download"
           size={64}
@@ -37,13 +55,21 @@ export function DownloadsScreen({ session }: { session: Session }) {
   }
 
   return (
-    <FlatList
+    <Animated.FlatList
       contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={
+        topInset > 0 ? { paddingTop: topInset } : undefined
+      }
+      progressViewOffset={topInset}
+      showsVerticalScrollIndicator={false}
+      onScroll={scrollHandler}
+      scrollEventThrottle={16}
       data={media}
       keyExtractor={(media) => media.id}
       renderItem={({ item }) => <DownloadRow media={item} session={session} />}
       refreshing={refreshing}
       onRefresh={onRefresh}
+      ListHeaderComponent={<DownloadsHero media={media} />}
     />
   );
 }

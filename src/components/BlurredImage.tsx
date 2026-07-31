@@ -5,17 +5,22 @@ import { DownloadedThumbnails, Thumbnails } from "@/services/library-service";
 import { useSession } from "@/stores/session";
 import { documentDirectoryFilePath } from "@/utils/paths";
 
-const blurRadius = 1;
-
 type BlurredImageProps = {
   downloadedThumbnails?: DownloadedThumbnails | null;
   thumbnails?: Thumbnails | null;
   size: "extraSmall" | "small" | "medium" | "large" | "extraLarge";
   style?: StyleProp<ImageStyle>;
+  blurRadius?: number;
 };
 
 export function BlurredImage(props: BlurredImageProps) {
-  const { downloadedThumbnails, thumbnails, size, style } = props;
+  const {
+    downloadedThumbnails,
+    thumbnails,
+    size,
+    style,
+    blurRadius = 1,
+  } = props;
   const session = useSession((state) => state.session);
 
   if (session && downloadedThumbnails) {

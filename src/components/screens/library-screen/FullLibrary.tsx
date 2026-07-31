@@ -1,9 +1,11 @@
 import { useMemo } from "react";
-import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { useKeyboardState } from "react-native-keyboard-controller";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
+import { ScrollHandler } from "@/components/FadingHeader";
 import { Loading } from "@/components/Loading";
 import { MediaTile } from "@/components/Tiles";
 import { PAGE_SIZE, PLAYER_HEIGHT, TAB_BAR_BASE_HEIGHT } from "@/constants";
@@ -27,11 +29,17 @@ const NUM_COLUMNS = 2;
 
 type FullLibraryProps = {
   session: Session;
+  scrollHandler?: ScrollHandler;
+  topInset?: number;
 };
 
 const MINI_PROGRESS_BAR_HEIGHT = 2;
 
-export function FullLibrary({ session }: FullLibraryProps) {
+export function FullLibrary({
+  session,
+  scrollHandler,
+  topInset = 0,
+}: FullLibraryProps) {
   const screenWidth = useScreen((state) => state.screenWidth);
   const { bottom: safeAreaBottom } = useSafeAreaInsets();
   const playerLoaded = useTrackPlayer((state) => !!state.playthrough);
@@ -80,7 +88,12 @@ export function FullLibrary({ session }: FullLibraryProps) {
 
   if (media.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
+      <View
+        style={[
+          styles.emptyContainer,
+          topInset > 0 && { paddingTop: topInset },
+        ]}
+      >
         <FontAwesome6
           name="book-open"
           size={64}
@@ -97,10 +110,17 @@ export function FullLibrary({ session }: FullLibraryProps) {
   }
 
   return (
-    <FlatList
+    <Animated.FlatList
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{ paddingBottom: keyboardHeight }}
+      contentContainerStyle={{
+        paddingBottom: keyboardHeight,
+        paddingTop: topInset > 0 ? topInset : undefined,
+      }}
+      progressViewOffset={topInset}
       style={styles.flatlist}
+      showsVerticalScrollIndicator={false}
+      onScroll={scrollHandler}
+      scrollEventThrottle={16}
       data={media}
       keyExtractor={(item) => item.id}
       numColumns={NUM_COLUMNS}

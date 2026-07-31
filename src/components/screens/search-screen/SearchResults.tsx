@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo } from "react";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { useKeyboardState } from "react-native-keyboard-controller";
 import Animated, {
   useAnimatedStyle,
@@ -49,7 +49,10 @@ export function SearchResults(props: SearchResultsProps) {
   const keyboardHeight = Math.max(0, rawKeyboardHeight - bottomBarHeight);
 
   const animatedHeight = useSharedValue(keyboardHeight);
-  animatedHeight.value = withTiming(keyboardHeight, { duration: 250 });
+
+  useEffect(() => {
+    animatedHeight.value = withTiming(keyboardHeight, { duration: 250 });
+  }, [keyboardHeight, animatedHeight]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     paddingBottom: animatedHeight.value,
@@ -99,10 +102,14 @@ export function SearchResults(props: SearchResultsProps) {
   }
 
   return (
-    <FlatList
+    <Animated.FlatList
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{ paddingBottom: keyboardHeight }}
+      contentContainerStyle={{
+        paddingBottom: keyboardHeight,
+      }}
       style={styles.flatlist}
+      showsVerticalScrollIndicator={false}
+      scrollEventThrottle={16}
       data={media}
       keyExtractor={(item) => item.id}
       numColumns={NUM_COLUMNS}
@@ -115,6 +122,7 @@ export function SearchResults(props: SearchResultsProps) {
       removeClippedSubviews={Platform.OS === "android"}
       maxToRenderPerBatch={10}
       windowSize={5}
+      keyboardShouldPersistTaps="handled"
     />
   );
 }

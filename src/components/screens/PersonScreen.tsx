@@ -1,7 +1,16 @@
-import { RefreshControl, ScrollView, StyleSheet } from "react-native";
+import {
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
+import Animated from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Delay } from "@/components/Delay";
 import { FadeInOnMount } from "@/components/FadeInOnMount";
+import { ScrollHandler } from "@/components/FadingHeader";
 import { BooksByAuthors } from "@/components/screens/person-screen/BooksByAuthors";
 import { Header } from "@/components/screens/person-screen/Header";
 import { MediaByNarrators } from "@/components/screens/person-screen/MediaByNarrators";
@@ -15,23 +24,20 @@ import { Session } from "@/types/session";
 type PersonScreenProps = {
   session: Session;
   personId: string;
+  scrollHandler?: ScrollHandler;
 };
 
 export function PersonScreen(props: PersonScreenProps) {
-  const { session, personId } = props;
+  const { session, personId, scrollHandler } = props;
   const { refreshing, onRefresh } = usePullToRefresh(session);
   const person = useLibraryData(() => getPersonHeaderInfo(session, personId));
+  const insets = useSafeAreaInsets();
 
   if (!person) return null;
 
-  return (
-    <ScrollView
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
+  // Shared content rendered in both iOS and Android layouts
+  const content = (
+    <>
       <FadeInOnMount>
         <Header person={person} />
       </FadeInOnMount>
@@ -43,12 +49,57 @@ export function PersonScreen(props: PersonScreenProps) {
           <MediaByNarrators person={person} session={session} />
         )}
       </Delay>
-    </ScrollView>
+    </>
+  );
+
+  // iOS: Simple layout with native header inset handling
+  if (Platform.OS === "ios") {
+    return (
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.simpleContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {content}
+      </ScrollView>
+    );
+  }
+
+  // Android: Animated scroll view with fading header
+  return (
+    <View style={styles.screenContainer}>
+      <Animated.ScrollView
+        contentContainerStyle={[
+          styles.container,
+          {
+            paddingTop: insets.top + 16,
+            paddingBottom: insets.bottom + 16,
+          },
+        ]}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {content}
+      </Animated.ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screenContainer: {
+    flex: 1,
+    backgroundColor: "black",
+  },
+  simpleContainer: {
     paddingVertical: 16,
+  },
+  container: {
+    paddingBottom: 16,
   },
 });

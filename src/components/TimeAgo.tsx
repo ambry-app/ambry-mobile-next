@@ -6,6 +6,7 @@ import { timeAgo } from "@/utils/date";
 
 type TimeAgoProps = {
   date: Date;
+  prefix?: string;
   style?: StyleProp<TextStyle>;
 };
 
@@ -32,7 +33,7 @@ function getRefreshInterval(date: Date): number | null {
   return null;
 }
 
-export function TimeAgo({ date, style }: TimeAgoProps) {
+export function TimeAgo({ date, prefix, style }: TimeAgoProps) {
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -55,9 +56,11 @@ export function TimeAgo({ date, style }: TimeAgoProps) {
     };
   }, [date]);
 
+  const text = prefix ? `${prefix} ${timeAgo(date)}` : timeAgo(date);
+
   return (
     <Text style={[styles.text, style]} numberOfLines={1}>
-      {timeAgo(date)}
+      {text}
     </Text>
   );
 }

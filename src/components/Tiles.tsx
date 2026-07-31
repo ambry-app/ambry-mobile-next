@@ -16,7 +16,7 @@ import {
   PlaythroughWithMedia,
   Thumbnails,
 } from "@/services/library-service";
-import { Colors } from "@/styles/colors";
+import { Colors, interactive, surface } from "@/styles/colors";
 import { useNavigateToBookCallback } from "@/utils/hooks";
 
 import { BookDetailsText } from "./BookDetailsText";
@@ -407,9 +407,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: Colors.zinc[800],
+    backgroundColor: interactive.fill,
     borderWidth: 0.5,
-    borderColor: Colors.zinc[900],
+    borderColor: surface.elevated,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -421,9 +421,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: Colors.zinc[800],
+    backgroundColor: interactive.fill,
     borderWidth: 0.5,
-    borderColor: Colors.zinc[900],
+    borderColor: surface.elevated,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
