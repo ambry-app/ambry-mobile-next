@@ -5,7 +5,6 @@ import { TileImage, TileText } from "@/components/Tiles";
 import { getMedia, useLibraryData } from "@/services/library-service";
 import { expandPlayer } from "@/services/playback-controls";
 import { useTrackPlayer } from "@/stores/track-player";
-import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 
 type NowPlayingProps = {
