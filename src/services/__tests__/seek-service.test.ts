@@ -318,4 +318,34 @@ describe("seek-service", () => {
       expect(lastSeek?.source).toBe(SeekSource.REMOTE);
     });
   });
+
+  describe("seeking while the player has lost its track (streaming stall)", () => {
+    // Regression test for the "seek to 0" progress-loss bug: a streaming
+    // player that errors out after a network failure reports zeroed progress.
+    // A relative seek must base itself on the last-known position, not the
+    // dead player's zeros - previously a jump-back during a stall computed
+    // 0 - 10 and recorded a destructive seek to 0.
+    it("bases a relative seek on the last-known position, not the player's zeros", async () => {
+      await setupLoadedPlaythrough({ position: 150 });
+
+      // The player drops its track and starts reporting zeros
+      trackPlayerFake.setState({ position: 0, duration: 0 });
+
+      const seekPromise = seekService.seekRelative(-10, SeekSource.BUTTON);
+      await jest.advanceTimersByTimeAsync(60_000);
+      await seekPromise;
+
+      const { lastSeek, progress } = useTrackPlayer.getState();
+
+      // The seek lands 10 seconds back from where the user actually was
+      expect(lastSeek?.from).toBe(150);
+      expect(lastSeek?.to).toBe(140);
+
+      // The player was told to seek to 140, not 0
+      expect(trackPlayerFake.getState().position).toBe(140);
+
+      // Store progress still reflects the last-known real position
+      expect(progress.position).toBe(150);
+    });
+  });
 });

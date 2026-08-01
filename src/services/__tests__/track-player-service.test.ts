@@ -339,6 +339,56 @@ describe("track-player-service", () => {
     });
   });
 
+  describe("when the player loses its track (streaming failure)", () => {
+    // A streaming player that errors out or drops its item after a network
+    // failure reports zeroed progress. These tests simulate that by zeroing
+    // the fake's position and duration after a successful load.
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it("getAccurateProgress falls back to the last-known progress", async () => {
+      const playthrough = await createTestPlaythrough({ position: 150 });
+      await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
+
+      // The player loses its track and starts reporting zeros
+      trackPlayerFake.setState({ position: 0, duration: 0 });
+
+      jest.useFakeTimers();
+      const progressPromise = trackPlayerService.getAccurateProgress();
+      await jest.advanceTimersByTimeAsync(10_000);
+      const progress = await progressPromise;
+
+      expect(progress.position).toBe(150);
+      expect(progress.duration).toBe(300);
+    });
+
+    it("seekTo records the requested position and preserves store progress", async () => {
+      const playthrough = await createTestPlaythrough({ position: 150 });
+      await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
+
+      // The player loses its track and starts reporting zeros
+      trackPlayerFake.setState({ position: 0, duration: 0 });
+
+      jest.useFakeTimers();
+      const seekPromise = trackPlayerService.seekTo(140, SeekSource.BUTTON);
+      await jest.advanceTimersByTimeAsync(60_000);
+      await seekPromise;
+
+      const { lastSeek, progress } = useTrackPlayer.getState();
+
+      // The event records the seek the user asked for, not player-reported
+      // garbage - previously this recorded a destructive "seek to 0"
+      expect(lastSeek?.from).toBe(150);
+      expect(lastSeek?.to).toBe(140);
+
+      // The store's progress is not poisoned by the dead player's zeros
+      expect(progress.position).toBe(150);
+      expect(progress.duration).toBe(300);
+    });
+  });
+
   describe("setPlaybackRate", () => {
     it("updates rate and emits lastRateChange", async () => {
       const playthrough = await createTestPlaythrough({ position: 50 });
