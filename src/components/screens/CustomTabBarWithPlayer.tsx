@@ -48,6 +48,10 @@ import { PlaybackControls } from "./tab-bar-with-player/PlaybackControls";
 import { PlayerSettingButtons } from "./tab-bar-with-player/PlayerSettingButtons";
 
 const MINI_PROGRESS_BAR_HEIGHT = 2;
+const TOP_ACTION_BAR_HEIGHT = 36;
+// Visual size of the artwork when collapsed, inset within PLAYER_HEIGHT
+const COLLAPSED_ARTWORK_INSET = 8;
+const COLLAPSED_ARTWORK_SIZE = PLAYER_HEIGHT - COLLAPSED_ARTWORK_INSET * 2;
 
 /**
  * `Easing.out(Easing.exp)`, but safe when evaluated outside `[0, 1]`.
@@ -66,6 +70,11 @@ const MINI_PROGRESS_BAR_HEIGHT = 2;
  * 1 at t = 1 is a small bonus: the stock easing tops out at 0.99902, so
  * animations never quite reached their target.
  */
+function clamp01(value: number) {
+  "worklet";
+  return value < 0 ? 0 : value > 1 ? 1 : value;
+}
+
 function easeOutExp(t: number) {
   "worklet";
   if (t <= 0) return 0;
@@ -76,8 +85,10 @@ function easeOutExp(t: number) {
 // Memoized mini progress bar - subscribes to position/duration/seekPosition
 const MiniProgressBar = memo(function MiniProgressBar({
   expansion,
+  bottom,
 }: {
   expansion: SharedValue<number>;
+  bottom: number;
 }) {
   const seekPosition = useSeekUIState((state) => state.seekPosition);
   const progress = useTrackPlayer((state) => state.progress);
@@ -103,7 +114,7 @@ const MiniProgressBar = memo(function MiniProgressBar({
       style={[
         {
           position: "absolute",
-          bottom: 0,
+          bottom,
           left: 0,
           right: 0,
           height: MINI_PROGRESS_BAR_HEIGHT,
@@ -257,13 +268,6 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
   const largeImageSize = shortScreen ? screenWidth * 0.6 : screenWidth * 0.8;
   const imageGutterWidth = (screenWidth - largeImageSize) / 2;
 
-  const miniControlsWidth = screenWidth - PLAYER_HEIGHT;
-
-  const debugBackgrounds = false;
-  const debugBackground = (background: any) => {
-    return debugBackgrounds ? background : undefined;
-  };
-
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
@@ -347,231 +351,167 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
     }
   }, [loadingNewMedia, playerOpacity]);
 
-  // Pre-compute all animated values in a single derived value to reduce worklet overhead
-  const animatedValues = useDerivedValue(() => {
-    // Clamped because every interpolate() below extrapolates by default, so an
-    // out-of-range expansion would render *past* the expanded layout rather
-    // than simply pinning to it
-    const e = Math.min(1, Math.max(0, expansion.value));
-    const po = playerOpacity.value;
+  // Geometry. The player no longer animates any layout: the collapsed strip and
+  // the expanded screen are each laid out statically and cross-faded, and the
+  // cover art is a single element that moves between them with transforms.
+  const collapsedStripHeight = PLAYER_HEIGHT + MINI_PROGRESS_BAR_HEIGHT;
+  const collapsedScale = COLLAPSED_ARTWORK_SIZE / largeImageSize;
 
+  // Where the artwork sits in each state, in container coordinates. The
+  // container spans the whole screen, anchored to its bottom.
+  const artworkExpandedTop = insets.top + TOP_ACTION_BAR_HEIGHT;
+  const artworkExpandedLeft = imageGutterWidth;
+  const artworkCollapsedTop =
+    screenHeight -
+    tabBarHeight -
+    collapsedStripHeight +
+    COLLAPSED_ARTWORK_INSET;
+  const artworkCollapsedLeft = COLLAPSED_ARTWORK_INSET;
+
+  // The elevated surface is a childless view spanning the container, squashed
+  // down to the collapsed strip with scaleY. Scaling happens about the centre,
+  // so translateY puts the squashed band back at the strip's position.
+  const surfaceCollapsedScaleY = collapsedStripHeight / screenHeight;
+  const surfaceCollapsedTranslateY =
+    screenHeight / 2 - tabBarHeight - collapsedStripHeight / 2;
+
+  // The clamp matters: every interpolate() extrapolates by default, so an
+  // out-of-range value would render *past* the expanded layout rather than
+  // pinning to it. It has to stay inline - `expansion.value` must appear
+  // directly in each worklet, since useAnimatedStyle decides what to subscribe
+  // to by scanning its own closure. Hiding the read behind a helper leaves the
+  // style subscribed to nothing, so it only updates on re-render.
+
+  const tabBarStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateY: interpolate(
+          clamp01(expansion.value),
+          [0, 1],
+          [0, tabBarHeight],
+        ),
+      },
+    ],
+  }));
+
+  const surfaceStyle = useAnimatedStyle(() => {
+    const e = clamp01(expansion.value);
     return {
-      // Tab bar
-      tabBarTranslateY: interpolate(e, [0, 1], [0, tabBarHeight]),
-      // Player container
-      playerHeight: interpolate(
-        e,
-        [0, 1],
-        [PLAYER_HEIGHT + MINI_PROGRESS_BAR_HEIGHT, screenHeight],
-      ),
-      playerBottom: interpolate(e, [0, 1], [tabBarHeight, 0]),
-      playerPaddingTop: interpolate(e, [0, 1], [0, insets.top]),
-      // Opacities
-      playerOpacity: po,
-      playerLoadingOpacity: interpolate(po, [0, 1], [1, 0]),
-      playerBackgroundOpacity: e * po,
-      backgroundOpacity: e,
-      // Image area
-      leftGutterWidth: interpolate(
-        e,
-        [0, 0.75],
-        [0, imageGutterWidth],
-        Extrapolation.CLAMP,
-      ),
-      imageLayoutSize: interpolate(e, [0, 1], [PLAYER_HEIGHT, largeImageSize]),
-      // Padding inside the image container when collapsed
-      imagePadding: interpolate(e, [0, 1], [8, 0]),
-      // Scale transform for image - account for padding when collapsed
-      // Visual size when collapsed: PLAYER_HEIGHT - 16 (8px padding on each side)
-      imageScale: interpolate(
-        e,
-        [0, 1],
-        [(PLAYER_HEIGHT - 16) / largeImageSize, 1],
-      ),
-      // Translate to keep top-left aligned when scaling from center
-      imageTranslate: interpolate(
-        e,
-        [0, 1],
-        [
-          (-largeImageSize * (1 - (PLAYER_HEIGHT - 16) / largeImageSize)) / 2,
-          0,
-        ],
-      ),
-      // Only the top (small) layer fades; the large one sits underneath at full
-      // opacity. Fading both would let the background through: stacked layers
-      // composite as (1 - top)(1 - bottom), so complementary opacities leave a
-      // gap peaking at 25% when they cross.
-      // Handed over early: the 256px source is good to roughly 85pt on a 3x
-      // screen, which the artwork passes at about e = 0.12. Fading it out later
-      // means blending a softened copy over the sharp one, which visibly dulls
-      // high-contrast detail such as white lettering.
-      artworkSmallOpacity: interpolate(
-        e,
-        [0.05, 0.15],
-        [1, 0],
-        Extrapolation.CLAMP,
-      ),
-      // Border radius needs to be larger at full size so it looks correct when scaled
-      imageBorderRadius: interpolate(
-        e,
-        [0, 1],
-        [(6 * largeImageSize) / (PLAYER_HEIGHT - 16), 6],
-      ),
-      // Mini controls (fade out early)
-      miniControlsWidth: interpolate(
-        e,
-        [0, 1],
-        [miniControlsWidth, imageGutterWidth],
-      ),
-      miniControlsOpacity: interpolate(
-        e,
-        [0, 0.25],
-        [1, 0],
-        Extrapolation.CLAMP,
-      ),
-      // Expanded controls (fade in late)
-      controlsTranslateY: interpolate(e, [0, 1], [256, 0]),
-      controlsMarginBottom: interpolate(e, [0, 1], [-512, 0]),
-      controlsOpacity: interpolate(e, [0.75, 1], [0, 1], Extrapolation.CLAMP),
-      // Top action bar
-      topActionBarHeight: interpolate(e, [0, 0.75], [0, 36]),
-      topActionBarOpacity: interpolate(
-        e,
-        [0.75, 1],
-        [0, 1],
-        Extrapolation.CLAMP,
-      ),
-      // Info section
-      infoPaddingTop: interpolate(e, [0.75, 1], [64, 8]),
-      infoOpacity: interpolate(e, [0.75, 1], [0, 1], Extrapolation.CLAMP),
-    };
-  }, [
-    expansion,
-    playerOpacity,
-    tabBarHeight,
-    screenHeight,
-    insets.top,
-    imageGutterWidth,
-    largeImageSize,
-    miniControlsWidth,
-  ]);
-
-  // Individual animated styles that read from the consolidated values
-  const tabBarStyle = useAnimatedStyle(
-    () => ({
-      transform: [{ translateY: animatedValues.value.tabBarTranslateY }],
-    }),
-    [animatedValues],
-  );
-
-  const playerContainerStyle = useAnimatedStyle(
-    () => ({
-      height: animatedValues.value.playerHeight,
-      bottom: animatedValues.value.playerBottom,
-      paddingTop: animatedValues.value.playerPaddingTop,
-    }),
-    [animatedValues],
-  );
-
-  const playerStyle = useAnimatedStyle(
-    () => ({
-      opacity: animatedValues.value.playerOpacity,
-    }),
-    [animatedValues],
-  );
-
-  const playerLoadingStyle = useAnimatedStyle(
-    () => ({
-      opacity: animatedValues.value.playerLoadingOpacity,
-    }),
-    [animatedValues],
-  );
-
-  const playerBackgroundStyle = useAnimatedStyle(
-    () => ({
-      opacity: animatedValues.value.playerBackgroundOpacity,
-    }),
-    [animatedValues],
-  );
-
-  const backgroundStyle = useAnimatedStyle(
-    () => ({
-      opacity: animatedValues.value.backgroundOpacity,
-    }),
-    [animatedValues],
-  );
-
-  const leftGutterStyle = useAnimatedStyle(
-    () => ({
-      width: animatedValues.value.leftGutterWidth,
-    }),
-    [animatedValues],
-  );
-
-  // Outer container for layout purposes
-  const imageLayoutStyle = useAnimatedStyle(
-    () => ({
-      height: animatedValues.value.imageLayoutSize,
-      width: animatedValues.value.imageLayoutSize,
-      padding: animatedValues.value.imagePadding,
-    }),
-    [animatedValues],
-  );
-
-  // Inner image wrapper with scale transform - always renders at full size
-  // Translate first to offset the scaling origin, then scale
-  const imageScaleStyle = useAnimatedStyle(
-    () => ({
-      width: largeImageSize,
-      height: largeImageSize,
-      borderRadius: animatedValues.value.imageBorderRadius,
-      overflow: "hidden",
       transform: [
-        { translateX: animatedValues.value.imageTranslate },
-        { translateY: animatedValues.value.imageTranslate },
-        { scale: animatedValues.value.imageScale },
+        {
+          translateY: interpolate(e, [0, 1], [surfaceCollapsedTranslateY, 0]),
+        },
+        { scaleY: interpolate(e, [0, 1], [surfaceCollapsedScaleY, 1]) },
       ],
-    }),
-    [animatedValues, largeImageSize],
-  );
+    };
+  });
 
-  const artworkSmallStyle = useAnimatedStyle(
-    () => ({ opacity: animatedValues.value.artworkSmallOpacity }),
-    [animatedValues],
-  );
+  const playerStyle = useAnimatedStyle(() => ({
+    opacity: playerOpacity.value,
+  }));
 
-  const miniControlsStyle = useAnimatedStyle(
-    () => ({
-      width: animatedValues.value.miniControlsWidth,
-      opacity: animatedValues.value.miniControlsOpacity,
-    }),
-    [animatedValues],
-  );
+  const playerLoadingStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(playerOpacity.value, [0, 1], [1, 0]),
+  }));
 
-  const controlsStyle = useAnimatedStyle(
-    () => ({
-      transform: [{ translateY: animatedValues.value.controlsTranslateY }],
-      marginBottom: animatedValues.value.controlsMarginBottom,
-      opacity: animatedValues.value.controlsOpacity,
-    }),
-    [animatedValues],
-  );
+  const playerBackgroundStyle = useAnimatedStyle(() => ({
+    opacity: clamp01(expansion.value) * playerOpacity.value,
+  }));
 
-  const topActionBarStyle = useAnimatedStyle(
-    () => ({
-      height: animatedValues.value.topActionBarHeight,
-      opacity: animatedValues.value.topActionBarOpacity,
-    }),
-    [animatedValues],
-  );
+  const backgroundStyle = useAnimatedStyle(() => ({
+    opacity: clamp01(expansion.value),
+  }));
 
-  const infoStyle = useAnimatedStyle(
-    () => ({
-      paddingTop: animatedValues.value.infoPaddingTop,
-      opacity: animatedValues.value.infoOpacity,
-    }),
-    [animatedValues],
-  );
+  // The two trees deliberately overlap. With the layout no longer morphing,
+  // non-overlapping fades leave a stretch in the middle where neither tree is
+  // visible and the player looks empty.
+  const miniTreeStyle = useAnimatedStyle(() => {
+    const e = clamp01(expansion.value);
+    return {
+      opacity: interpolate(e, [0, 0.5], [1, 0], Extrapolation.CLAMP),
+      transform: [{ translateY: interpolate(e, [0, 1], [0, PLAYER_HEIGHT]) }],
+    };
+  });
+
+  // Translated by exactly the artwork's travel, so the spacer the tree reserves
+  // for the cover stays in register with the real cover throughout - the title
+  // and controls keep sitting the right distance below it. Moving with a
+  // transform costs nothing; it was animating *layout* that was expensive.
+  const expandedTreeStyle = useAnimatedStyle(() => {
+    const e = clamp01(expansion.value);
+    return {
+      opacity: interpolate(e, [0.25, 0.75], [0, 1], Extrapolation.CLAMP),
+      transform: [
+        {
+          translateY: interpolate(
+            e,
+            [0, 1],
+            [artworkCollapsedTop - artworkExpandedTop, 0],
+          ),
+        },
+      ],
+    };
+  });
+
+  // Artwork position. The outer view only translates; scaling lives on the
+  // inner view so the two transforms cannot interfere with each other.
+  const artworkPositionStyle = useAnimatedStyle(() => {
+    const e = clamp01(expansion.value);
+    return {
+      transform: [
+        {
+          translateX: interpolate(
+            e,
+            [0, 1],
+            [artworkCollapsedLeft - artworkExpandedLeft, 0],
+          ),
+        },
+        {
+          translateY: interpolate(
+            e,
+            [0, 1],
+            [artworkCollapsedTop - artworkExpandedTop, 0],
+          ),
+        },
+      ],
+    };
+  });
+
+  // Inner image wrapper always laid out at full size, scaled with a transform.
+  // Keeping the *layout* size fixed is what makes expo-image decode at full
+  // resolution: it decodes to the view size, so animating that size would bake
+  // in whichever resolution the player happened to mount at. The paired
+  // translate shifts the scale origin to the top-left corner.
+  const imageScaleStyle = useAnimatedStyle(() => {
+    const e = clamp01(expansion.value);
+    const translate = interpolate(
+      e,
+      [0, 1],
+      [(-largeImageSize * (1 - collapsedScale)) / 2, 0],
+    );
+    return {
+      // Larger at full size so it looks correct once scaled down
+      borderRadius: interpolate(e, [0, 1], [6 / collapsedScale, 6]),
+      transform: [
+        { translateX: translate },
+        { translateY: translate },
+        { scale: interpolate(e, [0, 1], [collapsedScale, 1]) },
+      ],
+    };
+  });
+
+  const artworkSmallStyle = useAnimatedStyle(() => ({
+    // Handed over early: the 256px source is good to roughly 85pt on a 3x
+    // screen, which the artwork passes at about e = 0.12. Fading it out later
+    // means blending a softened copy over the sharp one, which visibly dulls
+    // high-contrast detail such as white lettering.
+    opacity: interpolate(
+      clamp01(expansion.value),
+      [0.05, 0.15],
+      [1, 0],
+      Extrapolation.CLAMP,
+    ),
+  }));
 
   if (!media) {
     return <TabBarTabs height={tabBarHeight} paddingBottom={insets.bottom} />;
@@ -599,22 +539,44 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
           height: tabBarHeight + PLAYER_HEIGHT,
         }}
       >
+        {/* Container spans the screen and never changes size. box-none so the
+            collapsed player does not swallow touches meant for the screen
+            behind it - only the surface and the interactive leaves take them. */}
+        {/* The detector wraps the container so it is an *ancestor* of the whole
+            player. RNGH then sees touches landing on the inner pressables too
+            and can compete with them - pan wins on movement, tap on tap. As a
+            sibling underneath, it would only get whatever fell through the
+            gaps between them. */}
         <GestureDetector gesture={panGesture}>
           <Animated.View
-            style={[
-              {
-                display: "flex",
-                width: "100%",
-                position: "absolute",
-                backgroundColor: surface.elevated,
-              },
-              playerContainerStyle,
-            ]}
+            pointerEvents="box-none"
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: screenHeight,
+            }}
           >
-            <MiniProgressBar expansion={expansion} />
-
-            {/* Blurred background - always render for smooth animation */}
+            {/* Elevated surface. Childless, so squashing it with scaleY is free. */}
             <Animated.View
+              pointerEvents="none"
+              style={[
+                {
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: screenHeight,
+                  backgroundColor: surface.elevated,
+                },
+                surfaceStyle,
+              ]}
+            />
+
+            {/* Blurred backdrop - always mounted for a smooth fade */}
+            <Animated.View
+              pointerEvents="none"
               style={[
                 {
                   position: "absolute",
@@ -630,19 +592,15 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
               ]}
             >
               <BlurredImage
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  opacity: 0.125,
-                }}
+                style={{ width: "100%", height: "100%", opacity: 0.125 }}
                 thumbnails={media.thumbnails}
                 downloadedThumbnails={media.download?.thumbnails}
                 size="extraSmall"
               />
             </Animated.View>
 
-            {/* Loading spinner - always render */}
             <Animated.View
+              pointerEvents="none"
               style={[
                 {
                   position: "absolute",
@@ -660,184 +618,83 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
             </Animated.View>
 
             <Animated.View
-              style={[{ display: "flex", height: "100%" }, playerStyle]}
+              pointerEvents="box-none"
+              style={[StyleSheet.absoluteFill, playerStyle]}
             >
+              {/* Expanded tree - statically laid out for the expanded state */}
               <Animated.View
+                pointerEvents={expanded ? "box-none" : "none"}
                 style={[
                   {
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    paddingTop: insets.top,
+                  },
+                  expandedTreeStyle,
+                ]}
+              >
+                <View
+                  style={{
+                    height: TOP_ACTION_BAR_HEIGHT,
                     display: "flex",
                     flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "space-between",
                     overflow: "hidden",
                     paddingHorizontal: 16,
-                    backgroundColor: debugBackground("teal"),
-                  },
-                  topActionBarStyle,
-                ]}
-              >
-                <IconButton
-                  size={24}
-                  icon="chevron-down"
-                  color={Colors.zinc[100]}
-                  onPress={() => collapse()}
-                />
-
-                {streaming !== undefined && (
-                  <View
-                    style={{
-                      alignSelf: "flex-end",
-                      paddingBottom: 4,
-                      display: "flex",
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 4,
-                    }}
-                  >
-                    <FontAwesome6
-                      size={12}
-                      name={streaming ? "cloud-arrow-down" : "download"}
-                      color={Colors.zinc[700]}
-                    />
-                    <Text style={{ color: Colors.zinc[700] }}>
-                      {streaming ? "streaming" : "downloaded"}
-                    </Text>
-                  </View>
-                )}
-
-                <PlayerContextMenu
-                  session={session}
-                  playthrough={playthrough}
-                  bookTitle={media.book.title}
-                  authors={media.book.authors}
-                  narrators={media.narrators}
-                  onCollapse={collapse}
-                />
-              </Animated.View>
-
-              {/* Image row with mini controls */}
-              <View
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                }}
-              >
-                <Animated.View
-                  style={[
-                    {
-                      backgroundColor: debugBackground("cyan"),
-                    },
-                    leftGutterStyle,
-                  ]}
-                />
-                <Animated.View
-                  style={[
-                    {
-                      alignSelf: "center",
-                      overflow: "hidden",
-                      backgroundColor: debugBackground("green"),
-                    },
-                    imageLayoutStyle,
-                  ]}
+                  }}
                 >
-                  <Pressable
-                    onPress={() => {
-                      if (!expanded) {
-                        expand();
-                      }
-                    }}
-                  >
-                    {/* Inner wrapper always at full size with scale transform.
-                        Keeping the *layout* size fixed is what makes expo-image
-                        decode at full resolution: it decodes to the view size,
-                        so animating that size would bake in whichever
-                        resolution the player happened to mount at.
+                  <IconButton
+                    size={24}
+                    icon="chevron-down"
+                    color={Colors.zinc[100]}
+                    onPress={() => collapse()}
+                  />
 
-                        Two sources are stacked rather than one being scaled
-                        across the whole range. Showing the 1024px source at the
-                        collapsed ~54pt means minifying it ~0.16x, which aliases
-                        badly (visible as shimmer); the 256px source is close to
-                        the collapsed size on a 3x screen. Stacking also avoids
-                        swapping `source` on a mounted image, which would
-                        re-decode and could reintroduce the wrong-resolution
-                        caching this layout exists to avoid.
-
-                        The large layer stays fully opaque and only the small
-                        one on top fades. Fading both would let the placeholder
-                        background through the middle of the transition: stacked
-                        layers composite as (1 - top)(1 - bottom), so
-                        complementary opacities leave a gap that peaks at 25%
-                        where they cross. */}
-                    <Animated.View style={imageScaleStyle}>
-                      <View style={StyleSheet.absoluteFill}>
-                        <ThumbnailImage
-                          downloadedThumbnails={media.download?.thumbnails}
-                          thumbnails={media.thumbnails}
-                          size="extraLarge"
-                          style={{ width: "100%", height: "100%" }}
-                        />
-                      </View>
-                      <Animated.View
-                        style={[StyleSheet.absoluteFill, artworkSmallStyle]}
-                      >
-                        <ThumbnailImage
-                          downloadedThumbnails={media.download?.thumbnails}
-                          thumbnails={media.thumbnails}
-                          size="medium"
-                          style={{ width: "100%", height: "100%" }}
-                        />
-                      </Animated.View>
-                    </Animated.View>
-                  </Pressable>
-                </Animated.View>
-
-                {/* Mini controls - only when not fully expanded */}
-                <Animated.View
-                  style={[
-                    {
-                      height: PLAYER_HEIGHT,
-                      display: "flex",
-                      flexDirection: "row",
-                      alignItems: "center",
-                      paddingLeft: 8,
-                      backgroundColor: debugBackground(Colors.red[900]),
-                    },
-                    miniControlsStyle,
-                  ]}
-                >
-                  <View
-                    style={{
-                      flexGrow: 1,
-                      flexShrink: 1,
-                      flexBasis: 0,
-                    }}
-                  >
-                    <Pressable onPress={() => expand()}>
-                      <BookDetailsText
-                        baseFontSize={14}
-                        title={media.book.title}
-                        authors={media.book.authors.map((a) => a.name)}
-                        narrators={media.narrators.map((n) => n.name)}
+                  {streaming !== undefined && (
+                    <View
+                      style={{
+                        alignSelf: "flex-end",
+                        paddingBottom: 4,
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <FontAwesome6
+                        size={12}
+                        name={streaming ? "cloud-arrow-down" : "download"}
+                        color={Colors.zinc[700]}
                       />
-                    </Pressable>
-                  </View>
-                  <PlayButton size={32} color={Colors.zinc[100]} />
-                </Animated.View>
-              </View>
+                      <Text style={{ color: Colors.zinc[700] }}>
+                        {streaming ? "streaming" : "downloaded"}
+                      </Text>
+                    </View>
+                  )}
 
-              {/* Expanded content - only when not fully collapsed */}
-              <>
-                {/* Info section with centered book details */}
-                <Animated.View
-                  style={[
-                    {
-                      display: "flex",
-                      flexDirection: "row",
-                      backgroundColor: debugBackground("indigo"),
-                      paddingTop: 8,
-                    },
-                    infoStyle,
-                  ]}
+                  <PlayerContextMenu
+                    session={session}
+                    playthrough={playthrough}
+                    bookTitle={media.book.title}
+                    authors={media.book.authors}
+                    narrators={media.narrators}
+                    onCollapse={collapse}
+                  />
+                </View>
+
+                {/* Reserves the space the shared artwork occupies */}
+                <View style={{ height: largeImageSize }} />
+
+                <View
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    paddingTop: 8,
+                  }}
                 >
                   <View style={{ width: "10%" }} />
                   <View style={{ width: "80%" }}>
@@ -851,20 +708,15 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                     />
                   </View>
                   <View style={{ width: "10%" }} />
-                </Animated.View>
+                </View>
 
-                {/* Controls section */}
-                <Animated.View
-                  style={[
-                    {
-                      display: "flex",
-                      flexGrow: 1,
-                      justifyContent: "space-between",
-                      paddingBottom: insets.bottom,
-                      backgroundColor: debugBackground("blue"),
-                    },
-                    controlsStyle,
-                  ]}
+                <View
+                  style={{
+                    display: "flex",
+                    flexGrow: 1,
+                    justifyContent: "space-between",
+                    paddingBottom: insets.bottom,
+                  }}
                 >
                   <View
                     style={{
@@ -888,11 +740,111 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                     playerPanGesture={panGesture}
                     animationSuspended={isScrubberAnimationSuspended}
                   />
-                </Animated.View>
-              </>
+                </View>
+              </Animated.View>
+
+              {/* Collapsed tree - statically laid out for the mini player. Left
+                padding clears the shared artwork, which overlays this row. */}
+              <Animated.View
+                pointerEvents={expanded ? "none" : "box-none"}
+                style={[
+                  {
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    bottom: tabBarHeight + MINI_PROGRESS_BAR_HEIGHT,
+                    height: PLAYER_HEIGHT,
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingLeft: PLAYER_HEIGHT,
+                  },
+                  miniTreeStyle,
+                ]}
+              >
+                <View style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0 }}>
+                  <Pressable onPress={() => expand()}>
+                    <BookDetailsText
+                      baseFontSize={14}
+                      title={media.book.title}
+                      authors={media.book.authors.map((a) => a.name)}
+                      narrators={media.narrators.map((n) => n.name)}
+                    />
+                  </Pressable>
+                </View>
+                <PlayButton size={32} color={Colors.zinc[100]} />
+              </Animated.View>
+
+              <MiniProgressBar expansion={expansion} bottom={tabBarHeight} />
+
+              {/* Shared artwork: the one element that morphs between states */}
+              <Animated.View
+                pointerEvents="box-none"
+                style={[
+                  {
+                    position: "absolute",
+                    top: artworkExpandedTop,
+                    left: artworkExpandedLeft,
+                    width: largeImageSize,
+                    height: largeImageSize,
+                  },
+                  artworkPositionStyle,
+                ]}
+              >
+                <Pressable
+                  onPress={() => {
+                    if (!expanded) expand();
+                  }}
+                >
+                  {/* Two sources are stacked rather than one being scaled across
+                    the whole range. Showing the 1024px source at the collapsed
+                    ~54pt means minifying it ~0.16x, which aliases badly
+                    (visible as shimmer); the 256px source is close to the
+                    collapsed size on a 3x screen. Stacking also avoids swapping
+                    `source` on a mounted image, which would re-decode and could
+                    reintroduce the wrong-resolution caching this layout exists
+                    to avoid.
+
+                    The large layer stays fully opaque and only the small one on
+                    top fades. Fading both would let the placeholder background
+                    through the middle of the transition: stacked layers
+                    composite as (1 - top)(1 - bottom), so complementary
+                    opacities leave a gap that peaks at 25% where they cross. */}
+                  <Animated.View
+                    style={[
+                      {
+                        width: largeImageSize,
+                        height: largeImageSize,
+                        overflow: "hidden",
+                      },
+                      imageScaleStyle,
+                    ]}
+                  >
+                    <View style={StyleSheet.absoluteFill}>
+                      <ThumbnailImage
+                        downloadedThumbnails={media.download?.thumbnails}
+                        thumbnails={media.thumbnails}
+                        size="extraLarge"
+                        style={{ width: "100%", height: "100%" }}
+                      />
+                    </View>
+                    <Animated.View
+                      style={[StyleSheet.absoluteFill, artworkSmallStyle]}
+                    >
+                      <ThumbnailImage
+                        downloadedThumbnails={media.download?.thumbnails}
+                        thumbnails={media.thumbnails}
+                        size="medium"
+                        style={{ width: "100%", height: "100%" }}
+                      />
+                    </Animated.View>
+                  </Animated.View>
+                </Pressable>
+              </Animated.View>
             </Animated.View>
           </Animated.View>
         </GestureDetector>
+
         <Animated.View style={[{ height: tabBarHeight }, tabBarStyle]}>
           <TabBarTabs
             height={tabBarHeight}
