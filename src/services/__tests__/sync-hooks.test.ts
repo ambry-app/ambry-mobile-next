@@ -8,10 +8,18 @@
  * The real sync service and hooks run.
  */
 
-import { act, renderHook } from "@testing-library/react-native";
+import { act, renderHook, waitFor } from "@testing-library/react-native";
 
-import { usePullToRefresh } from "@/services/sync-service";
+import { useForegroundSync, usePullToRefresh } from "@/services/sync-service";
+import {
+  resetForTesting as resetDataVersionStore,
+  useDataVersion,
+} from "@/stores/data-version";
 import { useDevice } from "@/stores/device";
+import {
+  resetForTesting as resetSessionStore,
+  useSession,
+} from "@/stores/session";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { DEFAULT_TEST_SESSION } from "@test/factories";
 import {
@@ -125,5 +133,63 @@ describe("usePullToRefresh", () => {
 
     // Should be false after successful sync
     expect(result.current.refreshing).toBe(false);
+  });
+});
+
+describe("useForegroundSync", () => {
+  let mockFetch: ReturnType<typeof installFetchMock>;
+
+  beforeEach(() => {
+    mockFetch = installFetchMock();
+    resetSessionStore();
+    resetDataVersionStore();
+
+    useSession.setState({ session: DEFAULT_TEST_SESSION });
+    useDevice.setState({
+      initialized: true,
+      deviceInfo: {
+        id: "test-device-id",
+        type: "android",
+        brand: "TestBrand",
+        modelName: "TestModel",
+        osName: "Android",
+        osVersion: "14",
+        appId: "app.ambry.mobile.dev",
+        appVersion: "1.0.0",
+        appBuild: "1",
+      },
+    });
+  });
+
+  afterEach(() => {
+    resetSessionStore();
+    resetDataVersionStore();
+  });
+
+  it("syncs immediately when the app is active", async () => {
+    const serverTime = "2024-01-15T10:00:00.000Z";
+
+    mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges(serverTime)));
+    mockGraphQL(mockFetch, graphqlSuccess(emptySyncEventsResult(serverTime)));
+
+    const { unmount } = renderHook(() => useForegroundSync("active"));
+
+    // The sync runs right away, not only after the 15-minute interval
+    await waitFor(() => {
+      expect(useDataVersion.getState().libraryDataVersion).toBe(
+        new Date(serverTime).getTime(),
+      );
+    });
+
+    unmount();
+  });
+
+  it("does not sync while the app is in the background", async () => {
+    const { unmount } = renderHook(() => useForegroundSync("background"));
+
+    await act(async () => {});
+
+    expect(mockFetch).not.toHaveBeenCalled();
+    unmount();
   });
 });

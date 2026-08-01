@@ -94,8 +94,11 @@ export default function SettingsRoute() {
 
   const handleForceFullSync = useCallback(async () => {
     if (!session) return;
-    await sync(session, { fullEventResync: true });
-    Alert.alert("Sync Complete", "Full event sync has been completed.");
+    await sync(session, { fullEventResync: true, fullLibraryResync: true });
+    Alert.alert(
+      "Sync Complete",
+      "The library and all playback events have been re-synced.",
+    );
   }, [session]);
 
   if (!session) return null;

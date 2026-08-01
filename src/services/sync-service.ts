@@ -58,11 +58,28 @@ function logGQLError(error: ExecuteAuthenticatedError, context: string) {
 // Library Sync
 // =============================================================================
 
-export async function syncLibrary(session: Session): Promise<void> {
-  log.debug("Syncing library");
+interface SyncLibraryOptions {
+  fullResync?: boolean;
+}
 
-  // 1. Get last sync info from DB
-  const syncInfo = await getLastLibrarySyncInfo(session);
+export async function syncLibrary(
+  session: Session,
+  options: SyncLibraryOptions = {},
+): Promise<void> {
+  const { fullResync = false } = options;
+
+  if (fullResync) {
+    log.info("Performing full library resync");
+  } else {
+    log.debug("Syncing library");
+  }
+
+  // 1. Get last sync info from DB; a full resync discards the stored cursor
+  // so the server sends the entire library again
+  const storedSyncInfo = await getLastLibrarySyncInfo(session);
+  const syncInfo = fullResync
+    ? { ...storedSyncInfo, lastSyncTime: null }
+    : storedSyncInfo;
 
   // 2. Call GraphQL API to get changes
   const result = await getLibraryChangesSince(session, syncInfo.lastSyncTime);
@@ -211,12 +228,13 @@ export async function syncPlaybackEvents(
 
 interface SyncOptions {
   fullEventResync?: boolean;
+  fullLibraryResync?: boolean;
 }
 
 export async function sync(session: Session, options: SyncOptions = {}) {
-  const { fullEventResync = false } = options;
+  const { fullEventResync = false, fullLibraryResync = false } = options;
   return Promise.all([
-    syncLibrary(session),
+    syncLibrary(session, { fullResync: fullLibraryResync }),
     syncPlaybackEvents(session, { fullResync: fullEventResync }),
   ]);
 }
@@ -226,7 +244,8 @@ export async function sync(session: Session, options: SyncOptions = {}) {
 // =============================================================================
 
 /**
- * Periodic sync every 15 minutes while the app is in the foreground.
+ * Syncs immediately whenever the app becomes active, then every 15 minutes
+ * while it stays in the foreground.
  */
 export function useForegroundSync(appState: AppStateStatus) {
   const session = useSession((state) => state.session);
@@ -253,7 +272,8 @@ export function useForegroundSync(appState: AppStateStatus) {
     };
 
     if (session && appState === "active") {
-      log.debug("ForegroundSync: starting periodic sync");
+      log.debug("ForegroundSync: syncing now and starting periodic sync");
+      performSync();
       intervalId = setInterval(performSync, FOREGROUND_SYNC_INTERVAL);
     }
 

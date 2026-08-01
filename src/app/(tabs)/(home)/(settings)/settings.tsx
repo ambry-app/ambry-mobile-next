@@ -1,6 +1,13 @@
 // Android version (default) - uses Jetpack Compose Switch + React Native layout
-import { useCallback } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  ToastAndroid,
+  View,
+} from "react-native";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Host, Switch } from "@expo/ui/jetpack-compose";
@@ -26,6 +33,10 @@ import { formatPlaybackRate } from "@/utils/rate";
 
 const switchColors = {
   checkedTrackColor: Colors.lime[500],
+};
+
+const rowRipple = {
+  color: Colors.zinc[700],
 };
 
 export default function SettingsRoute() {
@@ -70,10 +81,20 @@ export default function SettingsRoute() {
     [session],
   );
 
+  const [syncing, setSyncing] = useState(false);
+
   const handleForceFullSync = useCallback(async () => {
-    if (!session) return;
-    await sync(session, { fullEventResync: true });
-  }, [session]);
+    if (!session || syncing) return;
+    setSyncing(true);
+    try {
+      await sync(session, { fullEventResync: true, fullLibraryResync: true });
+      ToastAndroid.show("Sync complete", ToastAndroid.SHORT);
+    } catch {
+      ToastAndroid.show("Sync failed", ToastAndroid.SHORT);
+    } finally {
+      setSyncing(false);
+    }
+  }, [session, syncing]);
 
   if (!session) return null;
 
@@ -111,7 +132,11 @@ export default function SettingsRoute() {
                 </Text>
               </View>
               <View style={styles.divider} />
-              <Pressable style={styles.row} onPress={handleSignOut}>
+              <Pressable
+                style={styles.row}
+                android_ripple={rowRipple}
+                onPress={handleSignOut}
+              >
                 <Text style={styles.destructiveText}>Sign Out</Text>
               </Pressable>
             </View>
@@ -121,7 +146,11 @@ export default function SettingsRoute() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Playback</Text>
             <View style={styles.card}>
-              <Pressable style={styles.row} onPress={openPlaybackRateSettings}>
+              <Pressable
+                style={styles.row}
+                android_ripple={rowRipple}
+                onPress={openPlaybackRateSettings}
+              >
                 <View style={styles.rowLabelContainer}>
                   <Text style={styles.rowLabel}>Default Speed</Text>
                   <Text style={styles.rowDescription}>
@@ -140,7 +169,11 @@ export default function SettingsRoute() {
                 </View>
               </Pressable>
               <View style={styles.divider} />
-              <Pressable style={styles.row} onPress={openSleepTimerSettings}>
+              <Pressable
+                style={styles.row}
+                android_ripple={rowRipple}
+                onPress={openSleepTimerSettings}
+              >
                 <View style={styles.rowLabelContainer}>
                   <Text style={styles.rowLabel}>Sleep Timer</Text>
                   <Text style={styles.rowDescription}>
@@ -195,8 +228,18 @@ export default function SettingsRoute() {
                 </Host>
               </View>
               <View style={styles.divider} />
-              <Pressable style={styles.row} onPress={handleForceFullSync}>
-                <Text style={styles.rowLabel}>Force Full Sync</Text>
+              <Pressable
+                style={styles.row}
+                android_ripple={rowRipple}
+                onPress={handleForceFullSync}
+                disabled={syncing}
+              >
+                <Text style={styles.rowLabel}>
+                  {syncing ? "Syncing…" : "Force Full Sync"}
+                </Text>
+                {syncing && (
+                  <ActivityIndicator size="small" color={Colors.zinc[400]} />
+                )}
               </Pressable>
             </View>
           </View>

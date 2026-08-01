@@ -10,6 +10,8 @@ import {
   CreateSessionError,
   deleteSession,
 } from "@/graphql/api";
+import { reset as resetDataVersion } from "@/stores/data-version";
+import { reset as resetDownloads } from "@/stores/downloads";
 import { useSession } from "@/stores/session";
 import { Result } from "@/types/result";
 
@@ -47,5 +49,11 @@ export async function signOut() {
   if (session) {
     await deleteSession(session.url, session.token);
     useSession.setState({ session: null });
+
+    // The JS context can outlive a sign-out (the player's foreground service
+    // keeps it alive), so session-scoped stores must not stay initialized —
+    // otherwise the next sign-in skips re-initialization and the initial sync.
+    resetDataVersion();
+    resetDownloads();
   }
 }
