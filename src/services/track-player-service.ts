@@ -200,7 +200,11 @@ export async function seekTo(position: number, source: SeekSourceType) {
       playthroughId: playthrough.id,
       playbackRate,
       from: beforeProgress.position,
-      to: progress.position,
+      // Record the position we asked for, not what the player reports. A
+      // stalled or errored streaming player can report a bogus position (0)
+      // after a seek; recording that would rewrite history with a jump the
+      // user never made.
+      to: position,
     },
     ...buildNewProgress(progress),
   });
@@ -656,6 +660,13 @@ async function getProgressWithPercent(): Promise<ProgressWithPercent> {
 
 /**
  * Get progress, waiting up to timeoutMs for a valid duration (> 0).
+ *
+ * If the player never reports a valid duration, it has lost its track — e.g.
+ * it errored out or dropped its item after a streaming network failure — and
+ * everything it reports is zeros. In that case fall back to the store's
+ * last-known progress instead of trusting the player: treating those zeros as
+ * truth is how a bad patch of connectivity used to turn into a recorded "seek
+ * to 0" that destroyed the listening position.
  */
 async function getProgressWaitForDuration(timeoutMs: number = 2000) {
   const startTime = Date.now();
@@ -672,12 +683,13 @@ async function getProgressWaitForDuration(timeoutMs: number = 2000) {
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
 
-  // Timeout reached without getting a valid duration
+  // Timeout reached without getting a valid duration: the player's progress
+  // is not trustworthy, so report the last-known progress instead.
+  const lastKnown = useTrackPlayer.getState().progress;
   log.warn(
-    "getProgressWaitForDuration: Timeout reached while waiting for valid duration",
+    `getProgressWaitForDuration: no valid duration from player, falling back to last-known progress (${lastKnown.position.toFixed(1)})`,
   );
-  const progress = await TrackPlayer.getProgress();
-  return progress;
+  return lastKnown;
 }
 
 /**

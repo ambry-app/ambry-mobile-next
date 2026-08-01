@@ -115,8 +115,14 @@ async function applyAccumulatedSeek(source: SeekSourceType) {
   isApplying = true;
   seekTimer = null;
 
+  // A player that lost its track can leave a zeroed duration behind; clamping
+  // against it would turn every seek into a seek to 0. Skip the upper clamp in
+  // that case — the player clamps out-of-range seeks itself.
   const { duration } = Player.getProgress();
-  const positionToApply = Math.max(0, Math.min(targetPosition, duration));
+  const positionToApply =
+    duration > 0
+      ? Math.max(0, Math.min(targetPosition, duration))
+      : Math.max(0, targetPosition);
 
   log.debug(`Applying seek to ${positionToApply.toFixed(1)}`);
 

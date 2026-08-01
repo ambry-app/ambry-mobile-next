@@ -120,7 +120,15 @@ async function save(): Promise<void> {
   const currentPlaythroughId = Player.getLoadedPlaythrough()?.id;
   if (!currentPlaythroughId) return;
 
-  const { position } = Player.getProgress();
+  const { position, duration } = Player.getProgress();
+
+  // A zeroed duration means progress came from a player that lost its track
+  // (or one that hasn't loaded yet). Never overwrite a good cached position
+  // with that.
+  if (duration <= 0) {
+    log.warn("Skipping position save - progress is invalid (duration is 0)");
+    return;
+  }
 
   // Only save position - rate lives on playthrough, not cache
   await updateStateCache(currentPlaythroughId, position);
