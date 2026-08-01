@@ -7,7 +7,6 @@ import { useShallow } from "zustand/shallow";
 
 import { IconButton } from "@/components/IconButton";
 import { setSleepTimerEnabled } from "@/services/sleep-timer-service";
-import { useSession } from "@/stores/session";
 import {
   selectIsMotionPausingTimer,
   useSleepTimer,
@@ -27,7 +26,6 @@ export function PlayerSettingButtons() {
 }
 
 function SleepTimerButton() {
-  const session = useSession((state) => state.session);
   const sleepTimerEnabled = useSleepTimer((state) => state.sleepTimerEnabled);
   const isMotionPausingTimer = useSleepTimer(selectIsMotionPausingTimer);
 
@@ -42,7 +40,7 @@ function SleepTimerButton() {
           router.navigate("/sleep-timer");
         }}
         onLongPress={() => {
-          if (session) setSleepTimerEnabled(session, !sleepTimerEnabled);
+          setSleepTimerEnabled(!sleepTimerEnabled);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }}
       >

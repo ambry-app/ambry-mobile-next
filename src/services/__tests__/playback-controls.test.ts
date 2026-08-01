@@ -39,7 +39,7 @@ import {
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createBook,
-  createLocalUserSettings,
+  createLocalSettings,
   createMedia,
   createPlaythrough,
   DEFAULT_TEST_SESSION,
@@ -101,8 +101,8 @@ async function createFullPlaythroughSetup(
     playbackRate: options.rate,
   });
 
-  // Create user settings for active playthrough storage
-  await createLocalUserSettings(db);
+  // Create local settings for active playthrough storage
+  await createLocalSettings(db);
 
   return { book, media, playthrough };
 }

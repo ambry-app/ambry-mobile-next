@@ -72,14 +72,10 @@ export default function SettingsRoute() {
     router.push("/sleep-timer");
   }, []);
 
-  const handleMotionDetectionToggle = useCallback(
-    async (enabled: boolean) => {
-      if (!session) return;
-      // On Android, this always succeeds (accelerometer doesn't need permission)
-      await setSleepTimerMotionDetectionEnabled(session, enabled);
-    },
-    [session],
-  );
+  const handleMotionDetectionToggle = useCallback(async (enabled: boolean) => {
+    // On Android, this always succeeds (accelerometer doesn't need permission)
+    await setSleepTimerMotionDetectionEnabled(enabled);
+  }, []);
 
   const [syncing, setSyncing] = useState(false);
 

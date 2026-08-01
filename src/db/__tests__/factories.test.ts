@@ -4,7 +4,7 @@ import {
   createBook,
   createBookAuthor,
   createDownload,
-  createLocalUserSettings,
+  createLocalSettings,
   createMedia,
   createMediaNarrator,
   createNarrator,
@@ -262,18 +262,18 @@ describe("test factories", () => {
     });
   });
 
-  describe("user settings", () => {
-    it("creates local user settings with defaults", async () => {
+  describe("local settings", () => {
+    it("creates local settings with defaults", async () => {
       const db = getDb();
-      const settings = await createLocalUserSettings(db);
+      const settings = await createLocalSettings(db);
 
-      expect(settings.userEmail).toBe(DEFAULT_TEST_SESSION.email);
+      expect(settings.id).toBe("local");
       expect(settings.preferredPlaybackRate).toBe(1);
     });
 
-    it("creates local user settings with overrides", async () => {
+    it("creates local settings with overrides", async () => {
       const db = getDb();
-      const settings = await createLocalUserSettings(db, {
+      const settings = await createLocalSettings(db, {
         preferredPlaybackRate: 1.5,
         sleepTimerEnabled: true,
       });

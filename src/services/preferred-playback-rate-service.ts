@@ -13,7 +13,6 @@ import {
   resetForTesting as resetPreferredPlaybackRateStore,
   usePreferredPlaybackRate,
 } from "@/stores/preferred-playback-rate";
-import { Session } from "@/types/session";
 import { logBase } from "@/utils/logger";
 
 const log = logBase.extend("preferred-rate");
@@ -23,16 +22,16 @@ const log = logBase.extend("preferred-rate");
 // =============================================================================
 
 /**
- * Initialize the preferred playback rate store. Loads user preference from DB
- * if not already initialized.
+ * Initialize the preferred playback rate store. Loads the device-level
+ * preference from DB if not already initialized.
  */
-export async function initialize(session: Session) {
+export async function initialize() {
   if (isInitialized()) {
     log.debug("Already initialized, skipping");
     return;
   }
 
-  const rate = await getPreferredPlaybackRate(session.email);
+  const rate = await getPreferredPlaybackRate();
   usePreferredPlaybackRate.setState({
     initialized: true,
     preferredPlaybackRate: rate,
@@ -44,11 +43,11 @@ export async function initialize(session: Session) {
 /**
  * Sets the preferred playback rate and persists it to the database.
  */
-export async function setPreferredPlaybackRate(session: Session, rate: number) {
+export async function setPreferredPlaybackRate(rate: number) {
   log.info(`Setting preferred playback rate to ${rate}`);
 
   usePreferredPlaybackRate.setState({ preferredPlaybackRate: rate });
-  await setPreferredPlaybackRateDb(session.email, rate);
+  await setPreferredPlaybackRateDb(rate);
 }
 
 // =============================================================================

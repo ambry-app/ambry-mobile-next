@@ -610,10 +610,11 @@ export const downloadsRelations = relations(downloads, ({ one }) => ({
   }),
 }));
 
-// Local settings are associated to a user. If you log into a different account,
-// you will have different local settings.
-export const localUserSettings = sqliteTable("local_user_settings", {
-  userEmail: text("user_email").notNull().primaryKey(),
+// Local settings belong to this device, not to any account or server. Whoever
+// holds the phone keeps their playback and sleep timer preferences no matter
+// which server or email they sign in with. The table holds a single row.
+export const localSettings = sqliteTable("local_settings", {
+  id: text("id").notNull().primaryKey().default("local"),
   preferredPlaybackRate: real("preferred_playback_rate").notNull().default(1),
   sleepTimer: integer("sleep_timer")
     .notNull()
@@ -627,7 +628,6 @@ export const localUserSettings = sqliteTable("local_user_settings", {
   )
     .notNull()
     .default(DEFAULT_SLEEP_TIMER_MOTION_DETECTION_ENABLED),
-  sleepTimerTriggerTime: integer("sleep_timer_trigger_time"),
 });
 
 export const shelvedMedia = sqliteTable(

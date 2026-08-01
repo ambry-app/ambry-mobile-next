@@ -64,10 +64,7 @@ export default function SettingsRoute() {
       // Optimistically update local state
       setMotionToggle(enabled);
 
-      const result = await setSleepTimerMotionDetectionEnabled(
-        session,
-        enabled,
-      );
+      const result = await setSleepTimerMotionDetectionEnabled(enabled);
 
       // If failed, reset local state
       if (!result.success) {

@@ -40,7 +40,6 @@ import {
   SeekSource,
   useTrackPlayer,
 } from "@/stores/track-player";
-import { Session } from "@/types/session";
 import { logBase } from "@/utils/logger";
 import { subscribeToChange } from "@/utils/subscribe";
 
@@ -78,15 +77,15 @@ function isActivityTrackingActive(): boolean {
 // =============================================================================
 
 /**
- * Initialize the sleep timer service. Loads user preferences from DB.
+ * Initialize the sleep timer service. Loads device-level preferences from DB.
  */
-export async function initialize(session: Session) {
+export async function initialize() {
   if (useSleepTimer.getState().initialized) {
     log.debug("Already initialized, skipping");
     return;
   }
 
-  const settings = await getSleepTimerSettings(session.email);
+  const settings = await getSleepTimerSettings();
   useSleepTimer.setState({
     initialized: true,
     sleepTimer: settings.sleepTimer,
@@ -101,18 +100,18 @@ export async function initialize(session: Session) {
 /**
  * Sets the enabled state for the sleep timer and persists it to the database.
  */
-export async function setSleepTimerEnabled(session: Session, enabled: boolean) {
+export async function setSleepTimerEnabled(enabled: boolean) {
   log.debug(`Setting enabled to ${enabled}`);
   useSleepTimer.setState({ sleepTimerEnabled: enabled });
   await updateTimerState();
-  await setSleepTimerEnabledDb(session.email, enabled);
+  await setSleepTimerEnabledDb(enabled);
 }
 
 /**
  * Sets the duration for the sleep timer and persists it to the database.
  * Resets the trigger time if the timer is currently active.
  */
-export async function setSleepTimerTime(session: Session, seconds: number) {
+export async function setSleepTimerTime(seconds: number) {
   log.debug(`Setting time to ${seconds} seconds`);
 
   const { sleepTimerTriggerTime, sleepTimer: prevSleepTimer } =
@@ -125,7 +124,7 @@ export async function setSleepTimerTime(session: Session, seconds: number) {
     await resetTriggerTime();
   }
 
-  await setSleepTimerTimeDb(session.email, seconds);
+  await setSleepTimerTimeDb(seconds);
 }
 
 /**
@@ -144,7 +143,6 @@ export type MotionDetectionResult = {
  * denies permission, the setting will not be enabled.
  */
 export async function setSleepTimerMotionDetectionEnabled(
-  session: Session,
   enabled: boolean,
 ): Promise<MotionDetectionResult> {
   log.debug(`Setting motion detection to ${enabled}`);
@@ -166,7 +164,7 @@ export async function setSleepTimerMotionDetectionEnabled(
 
   useSleepTimer.setState({ sleepTimerMotionDetectionEnabled: enabled });
   await updateTimerState();
-  await setSleepTimerMotionDetectionEnabledDb(session.email, enabled);
+  await setSleepTimerMotionDetectionEnabledDb(enabled);
   return { success: true };
 }
 

@@ -719,24 +719,19 @@ export async function createServerProfile(
 // User Settings
 // =============================================================================
 
-type LocalUserSettingsOverrides = Partial<
-  typeof schema.localUserSettings.$inferInsert
->;
+type LocalSettingsOverrides = Partial<typeof schema.localSettings.$inferInsert>;
 
-export async function createLocalUserSettings(
+export async function createLocalSettings(
   db: TestDatabase,
-  overrides: LocalUserSettingsOverrides = {},
-): Promise<typeof schema.localUserSettings.$inferSelect> {
-  const settings: typeof schema.localUserSettings.$inferInsert = {
-    userEmail: DEFAULT_TEST_SESSION.email,
+  overrides: LocalSettingsOverrides = {},
+): Promise<typeof schema.localSettings.$inferSelect> {
+  const settings: typeof schema.localSettings.$inferInsert = {
     ...overrides,
   };
 
-  await db.insert(schema.localUserSettings).values(settings);
+  await db.insert(schema.localSettings).values(settings);
 
-  const result = await db.query.localUserSettings.findFirst({
-    where: (s, { eq }) => eq(s.userEmail, settings.userEmail),
-  });
+  const result = await db.query.localSettings.findFirst();
 
   return result!;
 }
