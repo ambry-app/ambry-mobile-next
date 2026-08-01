@@ -353,6 +353,7 @@ export async function applyLibraryChanges(
         .onConflictDoUpdate({
           target: [schema.authors.url, schema.authors.id],
           set: {
+            personId: sql`excluded.person_id`,
             name: sql`excluded.name`,
             updatedAt: sql`excluded.updated_at`,
           },
@@ -368,6 +369,7 @@ export async function applyLibraryChanges(
         .onConflictDoUpdate({
           target: [schema.narrators.url, schema.narrators.id],
           set: {
+            personId: sql`excluded.person_id`,
             name: sql`excluded.name`,
             updatedAt: sql`excluded.updated_at`,
           },
@@ -400,6 +402,8 @@ export async function applyLibraryChanges(
         .onConflictDoUpdate({
           target: [schema.bookAuthors.url, schema.bookAuthors.id],
           set: {
+            bookId: sql`excluded.book_id`,
+            authorId: sql`excluded.author_id`,
             updatedAt: sql`excluded.updated_at`,
           },
         });
@@ -429,6 +433,8 @@ export async function applyLibraryChanges(
         .onConflictDoUpdate({
           target: [schema.seriesBooks.url, schema.seriesBooks.id],
           set: {
+            bookId: sql`excluded.book_id`,
+            seriesId: sql`excluded.series_id`,
             bookNumber: sql`excluded.book_number`,
             updatedAt: sql`excluded.updated_at`,
           },
@@ -474,6 +480,8 @@ export async function applyLibraryChanges(
         .onConflictDoUpdate({
           target: [schema.mediaNarrators.url, schema.mediaNarrators.id],
           set: {
+            mediaId: sql`excluded.media_id`,
+            narratorId: sql`excluded.narrator_id`,
             updatedAt: sql`excluded.updated_at`,
           },
         });
