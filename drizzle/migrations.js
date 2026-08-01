@@ -1,55 +1,58 @@
 // This file is required for Expo/React Native SQLite migrations - https://orm.drizzle.team/quick-sqlite/expo
 
-import journal from "./meta/_journal.json";
-import m0000 from "./0000_secret_tomorrow_man.sql";
-import m0001 from "./0001_loud_madame_web.sql";
-import m0002 from "./0002_productive_newton_destine.sql";
-import m0003 from "./0003_overjoyed_typhoid_mary.sql";
-import m0004 from "./0004_tricky_leo.sql";
-import m0005 from "./0005_green_moondragon.sql";
-import m0006 from "./0006_aromatic_eternals.sql";
-import m0007 from "./0007_numerous_wong.sql";
-import m0008 from "./0008_hard_raider.sql";
-import m0009 from "./0009_aberrant_sprite.sql";
-import m0010 from "./0010_spotty_black_bird.sql";
-import m0011 from "./0011_stiff_james_howlett.sql";
-import m0012 from "./0012_complex_bulldozer.sql";
-import m0013 from "./0013_big_kronos.sql";
-import m0014 from "./0014_overrated_carmella_unuscione.sql";
-import m0015 from "./0015_absent_silverclaw.sql";
-import m0016 from "./0016_absent_mister_sinister.sql";
-import m0017 from "./0017_supreme_silk_fever.sql";
-import m0018 from "./0018_cultured_fantastic_four.sql";
-import m0019 from "./0019_dry_micromacro.sql";
-import m0020 from "./0020_smiling_betty_brant.sql";
-import m0021 from "./0021_violet_reavers.sql";
-import m0022 from "./0022_graceful_elektra.sql";
+import journal from './meta/_journal.json';
+import m0000 from './0000_secret_tomorrow_man.sql';
+import m0001 from './0001_loud_madame_web.sql';
+import m0002 from './0002_productive_newton_destine.sql';
+import m0003 from './0003_overjoyed_typhoid_mary.sql';
+import m0004 from './0004_tricky_leo.sql';
+import m0005 from './0005_green_moondragon.sql';
+import m0006 from './0006_aromatic_eternals.sql';
+import m0007 from './0007_numerous_wong.sql';
+import m0008 from './0008_hard_raider.sql';
+import m0009 from './0009_aberrant_sprite.sql';
+import m0010 from './0010_spotty_black_bird.sql';
+import m0011 from './0011_stiff_james_howlett.sql';
+import m0012 from './0012_complex_bulldozer.sql';
+import m0013 from './0013_big_kronos.sql';
+import m0014 from './0014_overrated_carmella_unuscione.sql';
+import m0015 from './0015_absent_silverclaw.sql';
+import m0016 from './0016_absent_mister_sinister.sql';
+import m0017 from './0017_supreme_silk_fever.sql';
+import m0018 from './0018_cultured_fantastic_four.sql';
+import m0019 from './0019_dry_micromacro.sql';
+import m0020 from './0020_smiling_betty_brant.sql';
+import m0021 from './0021_violet_reavers.sql';
+import m0022 from './0022_graceful_elektra.sql';
+import m0023 from './0023_amused_rhino.sql';
 
-export default {
-  journal,
-  migrations: {
-    m0000,
-    m0001,
-    m0002,
-    m0003,
-    m0004,
-    m0005,
-    m0006,
-    m0007,
-    m0008,
-    m0009,
-    m0010,
-    m0011,
-    m0012,
-    m0013,
-    m0014,
-    m0015,
-    m0016,
-    m0017,
-    m0018,
-    m0019,
-    m0020,
-    m0021,
-    m0022,
-  },
-};
+  export default {
+    journal,
+    migrations: {
+      m0000,
+m0001,
+m0002,
+m0003,
+m0004,
+m0005,
+m0006,
+m0007,
+m0008,
+m0009,
+m0010,
+m0011,
+m0012,
+m0013,
+m0014,
+m0015,
+m0016,
+m0017,
+m0018,
+m0019,
+m0020,
+m0021,
+m0022,
+m0023
+    }
+  }
+  

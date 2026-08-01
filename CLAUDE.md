@@ -228,7 +228,7 @@ State is split across three stores by responsibility:
 - **Library tables**: `people`, `authors`, `narrators`, `books`, `media`, `series` (synced from server)
 - **Playback progress**: `playthroughs` (listening sessions), `playbackEvents` (event-sourced history)
 - **Downloads**: `downloads` (local file paths, resumable state)
-- **User data**: `localUserSettings`, `shelvedMedia`
+- **User data**: `localSettings` (device-scoped playback/sleep-timer preferences, single row), `shelvedMedia`
 - **Sync metadata**: `syncedServers`, `serverProfiles` (timestamps for incremental sync)
 
 **Event-Sourced Playback Progress**:

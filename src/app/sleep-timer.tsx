@@ -57,19 +57,17 @@ export default function SleepTimerRoute() {
   const setSleepTimerSecondsAndDisplay = useCallback(
     (value: number) => {
       setDisplaySleepTimerSeconds(value);
-      if (session) setSleepTimerTime(session, value);
+      setSleepTimerTime(value);
     },
-    [session, setDisplaySleepTimerSeconds],
+    [setDisplaySleepTimerSeconds],
   );
 
   const handleMotionDetectionToggle = useCallback(
     async (value: boolean) => {
-      if (!session) return;
-
       // Optimistic update
       setDisplayMotionDetectionEnabled(value);
 
-      const result = await setSleepTimerMotionDetectionEnabled(session, value);
+      const result = await setSleepTimerMotionDetectionEnabled(value);
 
       if (!result.success) {
         // Revert optimistic update
@@ -87,7 +85,7 @@ export default function SleepTimerRoute() {
         }
       }
     },
-    [session, setDisplayMotionDetectionEnabled],
+    [setDisplayMotionDetectionEnabled],
   );
 
   if (!session) return null;
@@ -174,7 +172,7 @@ export default function SleepTimerRoute() {
             thumbColor={Colors.zinc[100]}
             value={sleepTimerEnabled}
             onValueChange={(value) => {
-              setSleepTimerEnabled(session, value);
+              setSleepTimerEnabled(value);
             }}
           />
         </View>

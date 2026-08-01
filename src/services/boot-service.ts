@@ -79,8 +79,8 @@ export function useAppBoot() {
       await initializeDownloads(session);
       await initializeTrackPlayer();
       await initializePlayer(session);
-      await initializeSleepTimer(session);
-      await initializePreferredPlaybackRate(session);
+      await initializeSleepTimer();
+      await initializePreferredPlaybackRate();
       await initializeHeartbeat();
       await initializeEventRecording();
 

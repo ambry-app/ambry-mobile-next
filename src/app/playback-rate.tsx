@@ -46,13 +46,13 @@ export default function PlaybackRateRoute() {
   const setPlaybackRateAndDisplay = useCallback(
     (value: number) => {
       setDisplayPlaybackRate(value);
-      if (isSettingsMode && session) {
-        setPreferredPlaybackRate(session, value);
+      if (isSettingsMode) {
+        setPreferredPlaybackRate(value);
       } else {
         Player.setPlaybackRate(value);
       }
     },
-    [isSettingsMode, session, setDisplayPlaybackRate],
+    [isSettingsMode, setDisplayPlaybackRate],
   );
 
   if (!session) return null;

@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 import {
   DEFAULT_PREFERRED_PLAYBACK_RATE,
@@ -9,96 +9,86 @@ import {
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
 
-export async function setPreferredPlaybackRate(
-  userEmail: string,
-  rate: number,
-) {
+// The local settings table holds a single device-scoped row
+const SETTINGS_ROW_ID = "local";
+
+export async function setPreferredPlaybackRate(rate: number) {
   await getDb()
-    .insert(schema.localUserSettings)
+    .insert(schema.localSettings)
     .values({
-      userEmail,
+      id: SETTINGS_ROW_ID,
       preferredPlaybackRate: rate,
     })
     .onConflictDoUpdate({
-      target: [schema.localUserSettings.userEmail],
+      target: [schema.localSettings.id],
       set: {
         preferredPlaybackRate: sql`excluded.preferred_playback_rate`,
       },
     });
 }
 
-export async function getPreferredPlaybackRate(
-  userEmail: string,
-): Promise<number> {
-  const response = await getDb().query.localUserSettings.findFirst({
+export async function getPreferredPlaybackRate(): Promise<number> {
+  const response = await getDb().query.localSettings.findFirst({
     columns: {
       preferredPlaybackRate: true,
     },
-    where: eq(schema.localUserSettings.userEmail, userEmail),
   });
 
   return response?.preferredPlaybackRate ?? DEFAULT_PREFERRED_PLAYBACK_RATE;
 }
 
-export async function setSleepTimerEnabled(
-  userEmail: string,
-  enabled: boolean,
-) {
+export async function setSleepTimerEnabled(enabled: boolean) {
   await getDb()
-    .insert(schema.localUserSettings)
+    .insert(schema.localSettings)
     .values({
-      userEmail,
+      id: SETTINGS_ROW_ID,
       sleepTimerEnabled: enabled,
     })
     .onConflictDoUpdate({
-      target: [schema.localUserSettings.userEmail],
+      target: [schema.localSettings.id],
       set: {
         sleepTimerEnabled: sql`excluded.sleep_timer_enabled`,
       },
     });
 }
 
-export async function setSleepTimerTime(userEmail: string, seconds: number) {
+export async function setSleepTimerTime(seconds: number) {
   await getDb()
-    .insert(schema.localUserSettings)
+    .insert(schema.localSettings)
     .values({
-      userEmail,
+      id: SETTINGS_ROW_ID,
       sleepTimer: seconds,
     })
     .onConflictDoUpdate({
-      target: [schema.localUserSettings.userEmail],
+      target: [schema.localSettings.id],
       set: {
         sleepTimer: sql`excluded.sleep_timer`,
       },
     });
 }
 
-export async function setSleepTimerMotionDetectionEnabled(
-  userEmail: string,
-  enabled: boolean,
-) {
+export async function setSleepTimerMotionDetectionEnabled(enabled: boolean) {
   await getDb()
-    .insert(schema.localUserSettings)
+    .insert(schema.localSettings)
     .values({
-      userEmail,
+      id: SETTINGS_ROW_ID,
       sleepTimerMotionDetectionEnabled: enabled,
     })
     .onConflictDoUpdate({
-      target: [schema.localUserSettings.userEmail],
+      target: [schema.localSettings.id],
       set: {
         sleepTimerMotionDetectionEnabled: sql`excluded.sleep_timer_motion_detection_enabled`,
       },
     });
 }
 
-export async function getSleepTimerSettings(userEmail: string) {
-  const response = await getDb().query.localUserSettings.findFirst({
+export async function getSleepTimerSettings() {
+  const response = await getDb().query.localSettings.findFirst({
     columns: {
       sleepTimer: true,
       sleepTimerEnabled: true,
       sleepTimerMotionDetectionEnabled: true,
     },
-    where: eq(schema.localUserSettings.userEmail, userEmail),
   });
 
   if (response) {

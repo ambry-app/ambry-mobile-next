@@ -33,7 +33,7 @@ import {
 } from "@/stores/track-player";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
-  createLocalUserSettings,
+  createLocalSettings,
   createMedia,
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
@@ -95,14 +95,13 @@ describe("sleep-timer-service", () => {
   describe("initialize", () => {
     it("loads settings from database and sets store state", async () => {
       const db = getDb();
-      await createLocalUserSettings(db, {
-        userEmail: session.email,
+      await createLocalSettings(db, {
         sleepTimer: 1800,
         sleepTimerEnabled: true,
         sleepTimerMotionDetectionEnabled: true,
       });
 
-      await sleepTimerService.initialize(session);
+      await sleepTimerService.initialize();
 
       const state = useSleepTimer.getState();
       expect(state.initialized).toBe(true);
@@ -112,7 +111,7 @@ describe("sleep-timer-service", () => {
     });
 
     it("uses defaults when no settings exist in database", async () => {
-      await sleepTimerService.initialize(session);
+      await sleepTimerService.initialize();
 
       const state = useSleepTimer.getState();
       expect(state.initialized).toBe(true);
@@ -126,7 +125,7 @@ describe("sleep-timer-service", () => {
     it("skips if already initialized", async () => {
       useSleepTimer.setState({ initialized: true, sleepTimer: 999 });
 
-      await sleepTimerService.initialize(session);
+      await sleepTimerService.initialize();
 
       // Should not have changed the value
       expect(useSleepTimer.getState().sleepTimer).toBe(999);
@@ -135,22 +134,20 @@ describe("sleep-timer-service", () => {
 
   describe("setSleepTimerEnabled", () => {
     beforeEach(async () => {
-      await sleepTimerService.initialize(session);
+      await sleepTimerService.initialize();
     });
 
     it("updates store state", async () => {
-      await sleepTimerService.setSleepTimerEnabled(session, true);
+      await sleepTimerService.setSleepTimerEnabled(true);
 
       expect(useSleepTimer.getState().sleepTimerEnabled).toBe(true);
     });
 
     it("persists to database", async () => {
-      await sleepTimerService.setSleepTimerEnabled(session, true);
+      await sleepTimerService.setSleepTimerEnabled(true);
 
       const db = getDb();
-      const settings = await db.query.localUserSettings.findFirst({
-        where: (s, { eq }) => eq(s.userEmail, session.email),
-      });
+      const settings = await db.query.localSettings.findFirst();
       expect(settings?.sleepTimerEnabled).toBe(true);
     });
 
@@ -159,7 +156,7 @@ describe("sleep-timer-service", () => {
       await setupLoadedPlaythrough({ position: 100 });
       await trackPlayerService.play(PlayPauseSource.USER);
 
-      await sleepTimerService.setSleepTimerEnabled(session, true);
+      await sleepTimerService.setSleepTimerEnabled(true);
 
       // Trigger time should be set
       const triggerTime = useSleepTimer.getState().sleepTimerTriggerTime;
@@ -170,11 +167,11 @@ describe("sleep-timer-service", () => {
       // Set up an active timer with a playing playthrough
       await setupLoadedPlaythrough({ position: 100 });
       await trackPlayerService.play(PlayPauseSource.USER);
-      await sleepTimerService.setSleepTimerEnabled(session, true);
+      await sleepTimerService.setSleepTimerEnabled(true);
       expect(useSleepTimer.getState().sleepTimerTriggerTime).not.toBeNull();
 
       // Disable it
-      await sleepTimerService.setSleepTimerEnabled(session, false);
+      await sleepTimerService.setSleepTimerEnabled(false);
 
       expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
     });
@@ -182,7 +179,7 @@ describe("sleep-timer-service", () => {
     it("clears trigger time when enabling but not playing", async () => {
       // Load playthrough but don't start playing
       await setupLoadedPlaythrough({ position: 100 });
-      await sleepTimerService.setSleepTimerEnabled(session, true);
+      await sleepTimerService.setSleepTimerEnabled(true);
 
       expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
     });
@@ -190,22 +187,20 @@ describe("sleep-timer-service", () => {
 
   describe("setSleepTimerTime", () => {
     beforeEach(async () => {
-      await sleepTimerService.initialize(session);
+      await sleepTimerService.initialize();
     });
 
     it("updates store state", async () => {
-      await sleepTimerService.setSleepTimerTime(session, 1200);
+      await sleepTimerService.setSleepTimerTime(1200);
 
       expect(useSleepTimer.getState().sleepTimer).toBe(1200);
     });
 
     it("persists to database", async () => {
-      await sleepTimerService.setSleepTimerTime(session, 1200);
+      await sleepTimerService.setSleepTimerTime(1200);
 
       const db = getDb();
-      const settings = await db.query.localUserSettings.findFirst({
-        where: (s, { eq }) => eq(s.userEmail, session.email),
-      });
+      const settings = await db.query.localSettings.findFirst();
       expect(settings?.sleepTimer).toBe(1200);
     });
 
@@ -213,7 +208,7 @@ describe("sleep-timer-service", () => {
       // Start with an active timer
       await setupLoadedPlaythrough({ position: 100 });
       await trackPlayerService.play(PlayPauseSource.USER);
-      await sleepTimerService.setSleepTimerEnabled(session, true);
+      await sleepTimerService.setSleepTimerEnabled(true);
 
       const originalTriggerTime =
         useSleepTimer.getState().sleepTimerTriggerTime;
@@ -223,7 +218,7 @@ describe("sleep-timer-service", () => {
       jest.advanceTimersByTime(5000);
 
       // Change the duration
-      await sleepTimerService.setSleepTimerTime(session, 1800);
+      await sleepTimerService.setSleepTimerTime(1800);
 
       // Trigger time should have been reset (new time based on new duration)
       const newTriggerTime = useSleepTimer.getState().sleepTimerTriggerTime;
@@ -233,7 +228,7 @@ describe("sleep-timer-service", () => {
 
     it("does not reset trigger time when timer is not active", async () => {
       // Timer not active
-      await sleepTimerService.setSleepTimerTime(session, 1800);
+      await sleepTimerService.setSleepTimerTime(1800);
 
       expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
     });
@@ -241,14 +236,11 @@ describe("sleep-timer-service", () => {
 
   describe("setSleepTimerMotionDetectionEnabled", () => {
     beforeEach(async () => {
-      await sleepTimerService.initialize(session);
+      await sleepTimerService.initialize();
     });
 
     it("updates store state", async () => {
-      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
-        session,
-        true,
-      );
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(true);
 
       expect(useSleepTimer.getState().sleepTimerMotionDetectionEnabled).toBe(
         true,
@@ -256,22 +248,17 @@ describe("sleep-timer-service", () => {
     });
 
     it("persists to database", async () => {
-      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
-        session,
-        true,
-      );
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(true);
 
       const db = getDb();
-      const settings = await db.query.localUserSettings.findFirst({
-        where: (s, { eq }) => eq(s.userEmail, session.email),
-      });
+      const settings = await db.query.localSettings.findFirst();
       expect(settings?.sleepTimerMotionDetectionEnabled).toBe(true);
     });
 
     it("starts motion detection when enabled and timer is active", async () => {
       // Start with sleep timer enabled and playing
       await setupLoadedPlaythrough({ position: 100 });
-      await sleepTimerService.setSleepTimerEnabled(session, true);
+      await sleepTimerService.setSleepTimerEnabled(true);
       await trackPlayerService.play(PlayPauseSource.USER);
       await jest.advanceTimersByTimeAsync(100);
 
@@ -279,10 +266,7 @@ describe("sleep-timer-service", () => {
       expect(activityTrackerFake.getState().isTracking).toBe(false);
 
       // Enable motion detection
-      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
-        session,
-        true,
-      );
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(true);
 
       // Motion detection should now be started
       expect(activityTrackerFake.getState().isTracking).toBe(true);
@@ -290,12 +274,9 @@ describe("sleep-timer-service", () => {
 
     it("stops motion detection when disabled and timer is active", async () => {
       // Start with motion detection enabled
-      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
-        session,
-        true,
-      );
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(true);
       await setupLoadedPlaythrough({ position: 100 });
-      await sleepTimerService.setSleepTimerEnabled(session, true);
+      await sleepTimerService.setSleepTimerEnabled(true);
       await trackPlayerService.play(PlayPauseSource.USER);
       await jest.advanceTimersByTimeAsync(100);
 
@@ -303,10 +284,7 @@ describe("sleep-timer-service", () => {
       expect(activityTrackerFake.getState().isTracking).toBe(true);
 
       // Disable motion detection
-      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
-        session,
-        false,
-      );
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(false);
 
       // Motion detection should be stopped
       expect(activityTrackerFake.getState().isTracking).toBe(false);
@@ -314,10 +292,7 @@ describe("sleep-timer-service", () => {
 
     it("does not start motion detection when timer is not active", async () => {
       // Enable motion detection without timer active
-      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
-        session,
-        true,
-      );
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(true);
 
       // Motion detection should not start (not playing)
       expect(activityTrackerFake.getState().isTracking).toBe(false);
@@ -325,13 +300,10 @@ describe("sleep-timer-service", () => {
 
     it("timer starts when disabling motion detection while timer was stopped due to movement", async () => {
       // Enable motion detection
-      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
-        session,
-        true,
-      );
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(true);
 
       await setupLoadedPlaythrough({ position: 100 });
-      await sleepTimerService.setSleepTimerEnabled(session, true);
+      await sleepTimerService.setSleepTimerEnabled(true);
       await trackPlayerService.play(PlayPauseSource.USER);
       await jest.advanceTimersByTimeAsync(100);
 
@@ -342,10 +314,7 @@ describe("sleep-timer-service", () => {
       expect(useSleepTimer.getState().sleepTimerTriggerTime).toBeNull();
 
       // Now disable motion detection
-      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
-        session,
-        false,
-      );
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(false);
 
       // Timer should now start (motion detection disabled = movement doesn't matter)
       expect(useSleepTimer.getState().sleepTimerTriggerTime).not.toBeNull();
@@ -354,13 +323,10 @@ describe("sleep-timer-service", () => {
 
   describe("motion detection integration", () => {
     beforeEach(async () => {
-      await sleepTimerService.initialize(session);
+      await sleepTimerService.initialize();
       // Enable motion detection
-      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
-        session,
-        true,
-      );
-      await sleepTimerService.setSleepTimerEnabled(session, true);
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(true);
+      await sleepTimerService.setSleepTimerEnabled(true);
     });
 
     it("starts motion detection when playback starts and motion detection is enabled", async () => {
@@ -385,10 +351,7 @@ describe("sleep-timer-service", () => {
 
     it("does not start motion detection when motion detection is disabled", async () => {
       // Disable motion detection
-      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
-        session,
-        false,
-      );
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(false);
 
       await setupLoadedPlaythrough({ position: 100 });
       await trackPlayerService.play(PlayPauseSource.USER);
@@ -400,12 +363,9 @@ describe("sleep-timer-service", () => {
 
   describe("isStationary state and timer behavior", () => {
     beforeEach(async () => {
-      await sleepTimerService.initialize(session);
-      await sleepTimerService.setSleepTimerMotionDetectionEnabled(
-        session,
-        true,
-      );
-      await sleepTimerService.setSleepTimerEnabled(session, true);
+      await sleepTimerService.initialize();
+      await sleepTimerService.setSleepTimerMotionDetectionEnabled(true);
+      await sleepTimerService.setSleepTimerEnabled(true);
       await setupLoadedPlaythrough({ position: 100 });
     });
 
@@ -492,8 +452,8 @@ describe("sleep-timer-service", () => {
 
   describe("play/pause event handling", () => {
     beforeEach(async () => {
-      await sleepTimerService.initialize(session);
-      await sleepTimerService.setSleepTimerEnabled(session, true);
+      await sleepTimerService.initialize();
+      await sleepTimerService.setSleepTimerEnabled(true);
       await setupLoadedPlaythrough({ position: 100 });
     });
 
@@ -548,8 +508,8 @@ describe("sleep-timer-service", () => {
 
   describe("seek event handling", () => {
     beforeEach(async () => {
-      await sleepTimerService.initialize(session);
-      await sleepTimerService.setSleepTimerEnabled(session, true);
+      await sleepTimerService.initialize();
+      await sleepTimerService.setSleepTimerEnabled(true);
 
       // Load playthrough and start playing
       await setupLoadedPlaythrough({ position: 100 });
@@ -615,9 +575,9 @@ describe("sleep-timer-service", () => {
 
   describe("timer check and trigger", () => {
     beforeEach(async () => {
-      await sleepTimerService.initialize(session);
-      await sleepTimerService.setSleepTimerTime(session, 60); // 60 second timer for easier testing
-      await sleepTimerService.setSleepTimerEnabled(session, true);
+      await sleepTimerService.initialize();
+      await sleepTimerService.setSleepTimerTime(60); // 60 second timer for easier testing
+      await sleepTimerService.setSleepTimerEnabled(true);
 
       // Set up loaded playthrough and start playing
       await setupLoadedPlaythrough({ position: 100 });
@@ -671,7 +631,7 @@ describe("sleep-timer-service", () => {
 
   describe("timer not enabled", () => {
     beforeEach(async () => {
-      await sleepTimerService.initialize(session);
+      await sleepTimerService.initialize();
       // Sleep timer is disabled by default
     });
 
