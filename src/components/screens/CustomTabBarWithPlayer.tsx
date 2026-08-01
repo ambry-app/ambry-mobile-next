@@ -422,9 +422,6 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
     opacity: clamp01(expansion.value),
   }));
 
-  // The two trees deliberately overlap. With the layout no longer morphing,
-  // non-overlapping fades leave a stretch in the middle where neither tree is
-  // visible and the player looks empty.
   const miniTreeStyle = useAnimatedStyle(() => {
     const e = clamp01(expansion.value);
     return {
@@ -440,7 +437,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
   const expandedTreeStyle = useAnimatedStyle(() => {
     const e = clamp01(expansion.value);
     return {
-      opacity: interpolate(e, [0.25, 0.75], [0, 1], Extrapolation.CLAMP),
+      opacity: interpolate(e, [0.5, 1], [0, 1], Extrapolation.CLAMP),
       transform: [
         {
           translateY: interpolate(
