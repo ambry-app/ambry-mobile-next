@@ -46,8 +46,16 @@ export function bumpShelfDataVersion() {
 }
 
 /**
+ * Reset store to initial state. Called on sign-out so the next sign-in
+ * re-initializes from the database and performs an initial sync.
+ */
+export function reset() {
+  useDataVersion.setState(initialDataVersionState, true);
+}
+
+/**
  * Reset store to initial state for testing.
  */
 export function resetForTesting() {
-  useDataVersion.setState(initialDataVersionState, true);
+  reset();
 }

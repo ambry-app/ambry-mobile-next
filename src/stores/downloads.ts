@@ -43,8 +43,16 @@ export function removeDownloadFromStore(mediaId: string) {
 }
 
 /**
+ * Reset store to initial state. Called on sign-out so the next sign-in
+ * re-initializes from the database for the new session.
+ */
+export function reset() {
+  useDownloads.setState(initialDownloadsState, true);
+}
+
+/**
  * Reset store to initial state for testing.
  */
 export function resetForTesting() {
-  useDownloads.setState(initialDownloadsState, true);
+  reset();
 }

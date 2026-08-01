@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useKeyboardState } from "react-native-keyboard-controller";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -88,11 +88,22 @@ export function FullLibrary({
 
   if (media.length === 0) {
     return (
-      <View
-        style={[
+      <Animated.ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[
           styles.emptyContainer,
           topInset > 0 && { paddingTop: topInset },
         ]}
+        showsVerticalScrollIndicator={false}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            progressViewOffset={topInset}
+          />
+        }
       >
         <FontAwesome6
           name="book-open"
@@ -105,7 +116,7 @@ export function FullLibrary({
           Log into your Ambry server on the web and add some audiobooks to get
           started.
         </Text>
-      </View>
+      </Animated.ScrollView>
     );
   }
 
@@ -148,7 +159,7 @@ export function FullLibrary({
 
 const styles = StyleSheet.create({
   emptyContainer: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 48,

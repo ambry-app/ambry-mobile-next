@@ -24,6 +24,7 @@ import {
 import { setupTestDatabase } from "@test/db-test-utils";
 import { DEFAULT_TEST_SESSION } from "@test/factories";
 import {
+  getGraphQLVariables,
   graphqlSuccess,
   graphqlUnauthorized,
   installFetchMock,
@@ -128,6 +129,40 @@ describe("sync-service", () => {
       // Session should be cleared
       const { session: currentSession } = useSession.getState();
       expect(currentSession).toBeNull();
+    });
+
+    it("re-fetches the entire library when fullResync is set", async () => {
+      const firstServerTime = "2024-01-15T10:00:00.000Z";
+      const secondServerTime = "2024-01-16T10:00:00.000Z";
+      const thirdServerTime = "2024-01-17T10:00:00.000Z";
+
+      // First sync stores the cursor
+      mockGraphQL(
+        mockFetch,
+        graphqlSuccess(emptyLibraryChanges(firstServerTime)),
+      );
+      await syncLibrary(session);
+
+      // A normal second sync sends the stored cursor
+      mockGraphQL(
+        mockFetch,
+        graphqlSuccess(emptyLibraryChanges(secondServerTime)),
+      );
+      await syncLibrary(session);
+      expect(getGraphQLVariables(mockFetch, 1)?.since).toBe(firstServerTime);
+
+      // A full resync ignores the stored cursor and asks for everything
+      mockGraphQL(
+        mockFetch,
+        graphqlSuccess(emptyLibraryChanges(thirdServerTime)),
+      );
+      await syncLibrary(session, { fullResync: true });
+      expect(getGraphQLVariables(mockFetch, 2)?.since).toBeNull();
+
+      // The data version advances to the new server time even with no changes
+      expect(useDataVersion.getState().libraryDataVersion).toBe(
+        new Date(thirdServerTime).getTime(),
+      );
     });
   });
 

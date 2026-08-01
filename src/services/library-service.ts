@@ -173,11 +173,13 @@ export function usePaginatedLibraryData<T, Cursor>(
     setLoading(false);
   }, [getPage, getCursor, cursor, loading, hasMore, pageSize]);
 
-  // Reload all currently loaded items
+  // Reload all currently loaded items, but always at least one page — a
+  // screen that is currently empty must be able to pick up rows that a sync
+  // just inserted.
   const reload = useCallback(async () => {
     setLoading(true);
 
-    const count = items?.length || 0;
+    const count = Math.max(items?.length || 0, pageSize);
     let all: T[] = [];
     let nextCursor: Cursor | undefined = undefined;
     let fetched = 0;
