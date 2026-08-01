@@ -88,9 +88,17 @@ export async function startFreshPlaythrough(session: Session, mediaId: string) {
 /**
  * Reload the currently loaded playthrough if it matches the given mediaId.
  *
- * This is used when switching between streaming and downloaded audio.
- * The reload is "smooth" - no pause/play events are recorded and no seek-back
- * happens. The player just switches to the new source at the same position.
+ * Used when switching between streaming and downloaded audio. The player picks
+ * up the new source at the same position, with no seek-back: the rewind is
+ * applied by callers of `pause()`, and the reload resets TrackPlayer directly.
+ *
+ * It deliberately does *not* tag its play/pause as INTERNAL, which would
+ * suppress them. The reset emits a pause and the resume emits a play; when the
+ * reload succeeds those two cancel out in the accumulation window and nothing
+ * is recorded. When it fails - the download was deleted and the stream cannot
+ * be reached, say - the resume never lands, so only the pause survives and a
+ * genuine pause is recorded and the heartbeat stops. Suppressing the pair would
+ * leave the event log claiming playback continued while the audio was silent.
  */
 export async function reloadCurrentPlaythroughIfMedia(
   session: Session,
