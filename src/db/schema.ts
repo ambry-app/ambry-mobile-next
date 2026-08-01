@@ -628,7 +628,6 @@ export const localSettings = sqliteTable("local_settings", {
   )
     .notNull()
     .default(DEFAULT_SLEEP_TIMER_MOTION_DETECTION_ENABLED),
-  sleepTimerTriggerTime: integer("sleep_timer_trigger_time"),
 });
 
 export const shelvedMedia = sqliteTable(

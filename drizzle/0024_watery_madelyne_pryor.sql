@@ -1,0 +1,1 @@
+ALTER TABLE `local_settings` DROP COLUMN `sleep_timer_trigger_time`;
