@@ -370,6 +370,15 @@ export async function loadPlaythroughIntoPlayer(
  *
  * This is used for seamless switching between streaming and downloaded content
  * (or vice versa) when the underlying media source changes.
+ *
+ * Note that this calls TrackPlayer directly rather than going through `play()`
+ * and `pause()`, so the resulting transitions are reported as EXTERNAL rather
+ * than INTERNAL. That is deliberate, not an oversight: routing it through the
+ * wrappers would tag the pair INTERNAL and suppress it, which is only correct
+ * while the reload succeeds. If the new source cannot be played - the download
+ * was deleted and the device is offline, say - the resume never lands, and the
+ * unsuppressed pause is what records that playback actually stopped and stops
+ * the position heartbeat. See `reloadCurrentPlaythroughIfMedia`.
  */
 export async function reloadCurrentPlaythrough(
   session: Session,
