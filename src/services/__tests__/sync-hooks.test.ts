@@ -99,7 +99,7 @@ describe("usePullToRefresh", () => {
     );
     const playthroughResponse = new Response(
       JSON.stringify({
-        data: { syncEvents: emptySyncEventsResult(serverTime) },
+        data: emptySyncEventsResult(serverTime),
       }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
@@ -120,10 +120,7 @@ describe("usePullToRefresh", () => {
 
     // Mock successful responses for both sync operations
     mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges(serverTime)));
-    mockGraphQL(
-      mockFetch,
-      graphqlSuccess({ syncEvents: emptySyncEventsResult(serverTime) }),
-    );
+    mockGraphQL(mockFetch, graphqlSuccess(emptySyncEventsResult(serverTime)));
 
     const { result } = renderHook(() => usePullToRefresh(DEFAULT_TEST_SESSION));
 

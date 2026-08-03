@@ -1,22 +1,21 @@
 import { useEffect } from "react";
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
-import { SafeAreaView } from "react-native-safe-area-context";
 import * as Sentry from "@sentry/react-native";
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import { Stack, useNavigationContainerRef } from "expo-router";
 import { DefaultTheme, ThemeProvider } from "expo-router/react-navigation";
 import * as SplashScreen from "expo-splash-screen";
 
-import { Loading } from "@/components/Loading";
+import { ErrorScreen } from "@/components/ErrorScreen";
 import { MeasureScreenHeight } from "@/components/MeasureScreenHeight";
-import { ScreenCentered } from "@/components/ScreenCentered";
+import { SyncProgress } from "@/components/SyncProgress";
 import { getExpoDb } from "@/db/db";
-import { useAppBoot } from "@/services/boot-service";
+import { BootError, BootErrorKind, useAppBoot } from "@/services/boot-service";
 import { useRefreshLibraryDataVersion } from "@/services/data-version-service";
 import { useForegroundSync } from "@/services/sync-service";
-import { useSession } from "@/stores/session";
+import { clearSession, useSession } from "@/stores/session";
 import { useTrackPlayer } from "@/stores/track-player";
 import { Colors, surface } from "@/styles/colors";
 import { StackScreenOptionsProp } from "@/types/router";
@@ -54,9 +53,21 @@ function useSentryNavigationIntegration() {
   return ref;
 }
 
+function bootErrorMessage(error: BootError): string {
+  switch (error.kind) {
+    case BootErrorKind.NETWORK:
+      return "Could not reach your server. Check your connection and your server address, then try again.";
+    case BootErrorKind.SERVER:
+      return "Your server returned an error. Try again, or contact the server admin if it keeps happening.";
+    case BootErrorKind.UNEXPECTED:
+      return "Something went wrong while setting up your library on this device. Try again, or sign out and back in.";
+  }
+}
+
 function RootStackLayout() {
   useSentryNavigationIntegration();
-  const { isReady, migrationError, initialSyncComplete } = useAppBoot();
+  const { isReady, migrationError, initialSyncComplete, bootError, retryBoot } =
+    useAppBoot();
   const isLoggedIn = useSession((state) => !!state.session);
 
   useEffect(() => {
@@ -67,12 +78,10 @@ function RootStackLayout() {
 
   if (migrationError) {
     return (
-      <SafeAreaView>
-        <Text style={styles.text}>
-          The app failed to initialize in an irrecoverable way. Please delete
-          the app's data and start fresh.
-        </Text>
-      </SafeAreaView>
+      <ErrorScreen
+        title="Ambry couldn't start"
+        message="The app failed to initialize in an irrecoverable way. Please delete the app's data and start fresh."
+      />
     );
   }
 
@@ -80,13 +89,21 @@ function RootStackLayout() {
     return null;
   }
 
-  // Show loading spinner if logged in but initial sync not complete
-  if (isLoggedIn && !initialSyncComplete) {
+  // Boot got far enough to know it failed - say so instead of spinning forever
+  if (bootError) {
     return (
-      <ScreenCentered>
-        <Loading />
-      </ScreenCentered>
+      <ErrorScreen
+        title="Ambry couldn't finish setting up"
+        message={bootErrorMessage(bootError)}
+        onRetry={retryBoot}
+        onSignOut={isLoggedIn ? clearSession : undefined}
+      />
     );
+  }
+
+  // Report what the first sync is doing if logged in but not yet finished
+  if (isLoggedIn && !initialSyncComplete) {
+    return <SyncProgress />;
   }
 
   return (
@@ -152,12 +169,6 @@ const Theme = {
 };
 
 const styles = StyleSheet.create({
-  text: {
-    color: Colors.zinc[100],
-    fontSize: 18,
-    paddingHorizontal: 32,
-    paddingTop: 64,
-  },
   modalContent: {
     backgroundColor: surface.overlay,
   },

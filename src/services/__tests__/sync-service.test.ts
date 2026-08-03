@@ -8,7 +8,13 @@
  * The real sync service, GraphQL API, and database code runs.
  */
 
-import { sync, syncLibrary, syncPlaybackEvents } from "@/services/sync-service";
+import {
+  firstSyncError,
+  sync,
+  SyncErrorCode,
+  syncLibrary,
+  syncPlaybackEvents,
+} from "@/services/sync-service";
 import {
   resetForTesting as resetDataVersionStore,
   useDataVersion,
@@ -21,6 +27,12 @@ import {
   resetForTesting as resetSessionStore,
   useSession,
 } from "@/stores/session";
+import {
+  resetForTesting as resetSyncProgressStore,
+  SyncStage,
+  SyncTask,
+  useSyncProgress,
+} from "@/stores/sync-progress";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { DEFAULT_TEST_SESSION } from "@test/factories";
 import {
@@ -29,8 +41,11 @@ import {
   graphqlUnauthorized,
   installFetchMock,
   mockGraphQL,
+  mockNetworkError,
 } from "@test/fetch-mock";
 import {
+  createLibraryBook,
+  createLibraryPerson,
   emptyLibraryChanges,
   emptySyncEventsResult,
   resetSyncFixtureIdCounter,
@@ -52,6 +67,7 @@ function setupStores() {
   resetSessionStore();
   resetDataVersionStore();
   resetDeviceStore();
+  resetSyncProgressStore();
 
   useSession.setState({ session });
   useDataVersion.setState({
@@ -94,14 +110,119 @@ describe("sync-service", () => {
       const serverTime = "2024-01-15T10:00:00.000Z";
 
       mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges(serverTime)));
-      mockGraphQL(
-        mockFetch,
-        graphqlSuccess({ syncProgress: emptySyncEventsResult(serverTime) }),
-      );
+      mockGraphQL(mockFetch, graphqlSuccess(emptySyncEventsResult(serverTime)));
 
       const result = await sync(session);
 
-      expect(result).toEqual([undefined, undefined]);
+      expect(result.library.success).toBe(true);
+      expect(result.events.success).toBe(true);
+      expect(firstSyncError(result)).toBeNull();
+    });
+
+    it("reports a network failure instead of throwing", async () => {
+      mockNetworkError(mockFetch);
+      mockNetworkError(mockFetch);
+
+      const result = await sync(session);
+
+      expect(firstSyncError(result)?.code).toBe(SyncErrorCode.NETWORK);
+    });
+
+    it("reports a database failure instead of throwing", async () => {
+      const serverTime = "2024-01-15T10:00:00.000Z";
+
+      // A library payload the local schema cannot store: `id` is NOT NULL, so
+      // applying these changes throws inside the transaction.
+      mockGraphQL(
+        mockFetch,
+        graphqlSuccess({
+          ...emptyLibraryChanges(serverTime),
+          peopleChangedSince: [
+            { ...createLibraryPerson(), id: null as unknown as string },
+          ],
+        }),
+      );
+      mockGraphQL(mockFetch, graphqlSuccess(emptySyncEventsResult(serverTime)));
+
+      const result = await sync(session);
+
+      expect(result.library.success).toBe(false);
+      expect(firstSyncError(result)?.code).toBe(SyncErrorCode.UNEXPECTED);
+    });
+  });
+
+  // ===========================================================================
+  // Progress reporting
+  // ===========================================================================
+
+  describe("sync progress", () => {
+    it("names each step and counts rows as the library is written", async () => {
+      const serverTime = "2024-01-15T10:00:00.000Z";
+      const people = Array.from({ length: 3 }, (_, i) =>
+        createLibraryPerson({ id: `person-${i}` }),
+      );
+      const books = Array.from({ length: 2 }, (_, i) =>
+        createLibraryBook({ id: `book-${i}` }),
+      );
+
+      // Record every report rather than the end state, since the point is that
+      // progress is visible *during* the write
+      const reports: { detail: string; current: number; total: number }[] = [];
+      const unsubscribe = useSyncProgress.subscribe((state) => {
+        const { stage, detail, current, total } = state.tasks[SyncTask.LIBRARY];
+        if (stage === SyncStage.SAVING && detail) {
+          reports.push({ detail, current, total });
+        }
+      });
+
+      mockGraphQL(
+        mockFetch,
+        graphqlSuccess({
+          ...emptyLibraryChanges(serverTime),
+          peopleChangedSince: people,
+          booksChangedSince: books,
+        }),
+      );
+      mockGraphQL(mockFetch, graphqlSuccess(emptySyncEventsResult(serverTime)));
+
+      await syncLibrary(session);
+      unsubscribe();
+
+      expect(reports.map((r) => r.detail)).toEqual([
+        "people",
+        "people",
+        "books",
+        "books",
+      ]);
+      // Every report counts against the whole write, not just the current step
+      expect(reports.every((r) => r.total === 5)).toBe(true);
+      expect(reports.map((r) => r.current)).toEqual([0, 3, 3, 5]);
+    });
+
+    it("moves the library task through downloading to done", async () => {
+      const serverTime = "2024-01-15T10:00:00.000Z";
+      const stages: SyncStage[] = [];
+      const unsubscribe = useSyncProgress.subscribe((state) => {
+        const { stage } = state.tasks[SyncTask.LIBRARY];
+        if (stages[stages.length - 1] !== stage) stages.push(stage);
+      });
+
+      mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges(serverTime)));
+
+      await syncLibrary(session);
+      unsubscribe();
+
+      expect(stages).toEqual([SyncStage.DOWNLOADING, SyncStage.DONE]);
+    });
+
+    it("marks the task failed when the sync fails", async () => {
+      mockNetworkError(mockFetch);
+
+      await syncLibrary(session);
+
+      expect(useSyncProgress.getState().tasks[SyncTask.LIBRARY].stage).toBe(
+        SyncStage.FAILED,
+      );
     });
   });
 

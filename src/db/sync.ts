@@ -1,5 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
+import { chunkBoundValues, chunkRowsForInsert } from "@/db/chunk";
 import { getDb } from "@/db/db";
 import { rebuildPlaythroughs } from "@/db/playthrough-reducer";
 import {
@@ -161,6 +162,39 @@ export interface ApplyLibraryChangesResult {
 }
 
 /**
+ * Called as rows are written so callers can show progress. `detail` names what
+ * is being written right now ("books"), and the counts are across everything
+ * the call will write, not just the current step.
+ */
+export type ApplyProgressCallback = (progress: {
+  detail: string;
+  current: number;
+  total: number;
+}) => void;
+
+/**
+ * Tracks how far through a bulk write we are. `step` announces a new kind of
+ * row; `wrote` records rows that have landed.
+ */
+function progressReporter(total: number, onProgress?: ApplyProgressCallback) {
+  let detail = "";
+  let current = 0;
+
+  const emit = () => onProgress?.({ detail, current, total });
+
+  return {
+    step(nextDetail: string) {
+      detail = nextDetail;
+      emit();
+    },
+    wrote(rows: number) {
+      current += rows;
+      emit();
+    },
+  };
+}
+
+/**
  * Apply library changes from the server to the local database.
  * Returns the new data version timestamp if there were changes.
  */
@@ -168,6 +202,7 @@ export async function applyLibraryChanges(
   session: Session,
   changes: LibraryChangesInput,
   previousSyncInfo: LibrarySyncInfo,
+  onProgress?: ApplyProgressCallback,
 ): Promise<ApplyLibraryChangesResult> {
   log.info("applying library changes...");
 
@@ -327,164 +362,224 @@ export async function applyLibraryChanges(
       ? serverTime
       : previousSyncInfo.libraryDataVersion;
 
+  // Deletions are excluded: they are a single statement per type and would make
+  // the bar jump rather than describe the work that actually takes time.
+  const progress = progressReporter(
+    peopleValues.length +
+      authorValues.length +
+      narratorValues.length +
+      booksValues.length +
+      bookAuthorsValues.length +
+      seriesValues.length +
+      seriesBooksValues.length +
+      mediaValues.length +
+      mediaNarratorsValues.length,
+    onProgress,
+  );
+
   await getDb().transaction(async (tx) => {
     if (peopleValues.length !== 0) {
       log.debug("inserting", peopleValues.length, "people...");
-      await tx
-        .insert(schema.people)
-        .values(peopleValues)
-        .onConflictDoUpdate({
-          target: [schema.people.url, schema.people.id],
-          set: {
-            name: sql`excluded.name`,
-            description: sql`excluded.description`,
-            thumbnails: sql`excluded.thumbnails`,
-            updatedAt: sql`excluded.updated_at`,
-          },
-        });
+      progress.step("people");
+      for (const rows of chunkRowsForInsert(schema.people, peopleValues)) {
+        await tx
+          .insert(schema.people)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [schema.people.url, schema.people.id],
+            set: {
+              name: sql`excluded.name`,
+              description: sql`excluded.description`,
+              thumbnails: sql`excluded.thumbnails`,
+              updatedAt: sql`excluded.updated_at`,
+            },
+          });
+        progress.wrote(rows.length);
+      }
       log.debug("people inserted");
     }
 
     if (authorValues.length !== 0) {
       log.debug("inserting", authorValues.length, "authors...");
-      await tx
-        .insert(schema.authors)
-        .values(authorValues)
-        .onConflictDoUpdate({
-          target: [schema.authors.url, schema.authors.id],
-          set: {
-            personId: sql`excluded.person_id`,
-            name: sql`excluded.name`,
-            updatedAt: sql`excluded.updated_at`,
-          },
-        });
+      progress.step("authors");
+      for (const rows of chunkRowsForInsert(schema.authors, authorValues)) {
+        await tx
+          .insert(schema.authors)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [schema.authors.url, schema.authors.id],
+            set: {
+              personId: sql`excluded.person_id`,
+              name: sql`excluded.name`,
+              updatedAt: sql`excluded.updated_at`,
+            },
+          });
+        progress.wrote(rows.length);
+      }
       log.debug("authors inserted");
     }
 
     if (narratorValues.length !== 0) {
       log.debug(`inserting ${narratorValues.length} narrators...`);
-      await tx
-        .insert(schema.narrators)
-        .values(narratorValues)
-        .onConflictDoUpdate({
-          target: [schema.narrators.url, schema.narrators.id],
-          set: {
-            personId: sql`excluded.person_id`,
-            name: sql`excluded.name`,
-            updatedAt: sql`excluded.updated_at`,
-          },
-        });
+      progress.step("narrators");
+      for (const rows of chunkRowsForInsert(schema.narrators, narratorValues)) {
+        await tx
+          .insert(schema.narrators)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [schema.narrators.url, schema.narrators.id],
+            set: {
+              personId: sql`excluded.person_id`,
+              name: sql`excluded.name`,
+              updatedAt: sql`excluded.updated_at`,
+            },
+          });
+        progress.wrote(rows.length);
+      }
       log.debug("narrators inserted");
     }
 
     if (booksValues.length !== 0) {
       log.debug("inserting", booksValues.length, "books...");
-      await tx
-        .insert(schema.books)
-        .values(booksValues)
-        .onConflictDoUpdate({
-          target: [schema.books.url, schema.books.id],
-          set: {
-            title: sql`excluded.title`,
-            published: sql`excluded.published`,
-            publishedFormat: sql`excluded.published_format`,
-            updatedAt: sql`excluded.updated_at`,
-          },
-        });
+      progress.step("books");
+      for (const rows of chunkRowsForInsert(schema.books, booksValues)) {
+        await tx
+          .insert(schema.books)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [schema.books.url, schema.books.id],
+            set: {
+              title: sql`excluded.title`,
+              published: sql`excluded.published`,
+              publishedFormat: sql`excluded.published_format`,
+              updatedAt: sql`excluded.updated_at`,
+            },
+          });
+        progress.wrote(rows.length);
+      }
       log.debug("books inserted");
     }
 
     if (bookAuthorsValues.length !== 0) {
       log.debug(`inserting ${bookAuthorsValues.length} book authors...`);
-      await tx
-        .insert(schema.bookAuthors)
-        .values(bookAuthorsValues)
-        .onConflictDoUpdate({
-          target: [schema.bookAuthors.url, schema.bookAuthors.id],
-          set: {
-            bookId: sql`excluded.book_id`,
-            authorId: sql`excluded.author_id`,
-            updatedAt: sql`excluded.updated_at`,
-          },
-        });
+      progress.step("book authors");
+      for (const rows of chunkRowsForInsert(
+        schema.bookAuthors,
+        bookAuthorsValues,
+      )) {
+        await tx
+          .insert(schema.bookAuthors)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [schema.bookAuthors.url, schema.bookAuthors.id],
+            set: {
+              bookId: sql`excluded.book_id`,
+              authorId: sql`excluded.author_id`,
+              updatedAt: sql`excluded.updated_at`,
+            },
+          });
+        progress.wrote(rows.length);
+      }
       log.debug("book authors inserted");
     }
 
     if (seriesValues.length !== 0) {
       log.debug("inserting", seriesValues.length, "series...");
-      await tx
-        .insert(schema.series)
-        .values(seriesValues)
-        .onConflictDoUpdate({
-          target: [schema.series.url, schema.series.id],
-          set: {
-            name: sql`excluded.name`,
-            updatedAt: sql`excluded.updated_at`,
-          },
-        });
+      progress.step("series");
+      for (const rows of chunkRowsForInsert(schema.series, seriesValues)) {
+        await tx
+          .insert(schema.series)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [schema.series.url, schema.series.id],
+            set: {
+              name: sql`excluded.name`,
+              updatedAt: sql`excluded.updated_at`,
+            },
+          });
+        progress.wrote(rows.length);
+      }
       log.debug("series inserted");
     }
 
     if (seriesBooksValues.length !== 0) {
       log.debug(`inserting ${seriesBooksValues.length} series books...`);
-      await tx
-        .insert(schema.seriesBooks)
-        .values(seriesBooksValues)
-        .onConflictDoUpdate({
-          target: [schema.seriesBooks.url, schema.seriesBooks.id],
-          set: {
-            bookId: sql`excluded.book_id`,
-            seriesId: sql`excluded.series_id`,
-            bookNumber: sql`excluded.book_number`,
-            updatedAt: sql`excluded.updated_at`,
-          },
-        });
+      progress.step("series books");
+      for (const rows of chunkRowsForInsert(
+        schema.seriesBooks,
+        seriesBooksValues,
+      )) {
+        await tx
+          .insert(schema.seriesBooks)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [schema.seriesBooks.url, schema.seriesBooks.id],
+            set: {
+              bookId: sql`excluded.book_id`,
+              seriesId: sql`excluded.series_id`,
+              bookNumber: sql`excluded.book_number`,
+              updatedAt: sql`excluded.updated_at`,
+            },
+          });
+        progress.wrote(rows.length);
+      }
       log.debug("series books inserted");
     }
 
     if (mediaValues.length !== 0) {
       log.debug("inserting", mediaValues.length, "media...");
-      await tx
-        .insert(schema.media)
-        .values(mediaValues)
-        .onConflictDoUpdate({
-          target: [schema.media.url, schema.media.id],
-          set: {
-            status: sql`excluded.status`,
-            bookId: sql`excluded.book_id`,
-            duration: sql`excluded.duration`,
-            published: sql`excluded.published`,
-            publishedFormat: sql`excluded.published_format`,
-            publisher: sql`excluded.publisher`,
-            notes: sql`excluded.notes`,
-            description: sql`excluded.description`,
-            thumbnails: sql`excluded.thumbnails`,
-            abridged: sql`excluded.abridged`,
-            fullCast: sql`excluded.full_cast`,
-            chapters: sql`excluded.chapters`,
-            supplementalFiles: sql`excluded.supplemental_files`,
-            mp4Path: sql`excluded.mp4_path`,
-            mpdPath: sql`excluded.mpd_path`,
-            hlsPath: sql`excluded.hls_path`,
-            updatedAt: sql`excluded.updated_at`,
-          },
-        });
+      progress.step("media");
+      for (const rows of chunkRowsForInsert(schema.media, mediaValues)) {
+        await tx
+          .insert(schema.media)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [schema.media.url, schema.media.id],
+            set: {
+              status: sql`excluded.status`,
+              bookId: sql`excluded.book_id`,
+              duration: sql`excluded.duration`,
+              published: sql`excluded.published`,
+              publishedFormat: sql`excluded.published_format`,
+              publisher: sql`excluded.publisher`,
+              notes: sql`excluded.notes`,
+              description: sql`excluded.description`,
+              thumbnails: sql`excluded.thumbnails`,
+              abridged: sql`excluded.abridged`,
+              fullCast: sql`excluded.full_cast`,
+              chapters: sql`excluded.chapters`,
+              supplementalFiles: sql`excluded.supplemental_files`,
+              mp4Path: sql`excluded.mp4_path`,
+              mpdPath: sql`excluded.mpd_path`,
+              hlsPath: sql`excluded.hls_path`,
+              updatedAt: sql`excluded.updated_at`,
+            },
+          });
+        progress.wrote(rows.length);
+      }
       log.debug("media inserted");
     }
 
     if (mediaNarratorsValues.length !== 0) {
       log.debug(`inserting ${mediaNarratorsValues.length} media narrators...`);
-      await tx
-        .insert(schema.mediaNarrators)
-        .values(mediaNarratorsValues)
-        .onConflictDoUpdate({
-          target: [schema.mediaNarrators.url, schema.mediaNarrators.id],
-          set: {
-            mediaId: sql`excluded.media_id`,
-            narratorId: sql`excluded.narrator_id`,
-            updatedAt: sql`excluded.updated_at`,
-          },
-        });
+      progress.step("narrations");
+      for (const rows of chunkRowsForInsert(
+        schema.mediaNarrators,
+        mediaNarratorsValues,
+      )) {
+        await tx
+          .insert(schema.mediaNarrators)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [schema.mediaNarrators.url, schema.mediaNarrators.id],
+            set: {
+              mediaId: sql`excluded.media_id`,
+              narratorId: sql`excluded.narrator_id`,
+              updatedAt: sql`excluded.updated_at`,
+            },
+          });
+        progress.wrote(rows.length);
+      }
       log.debug("media narrators inserted");
     }
 
@@ -493,9 +588,9 @@ export async function applyLibraryChanges(
         log.debug(
           `deleting ${deletionIds[deletionType].length} ${deletionType}`,
         );
-        await tx
-          .delete(table)
-          .where(inArray(table.id, deletionIds[deletionType]));
+        for (const ids of chunkBoundValues(deletionIds[deletionType])) {
+          await tx.delete(table).where(inArray(table.id, ids));
+        }
         log.debug(`deleted ${deletionType}`);
       }
     }
@@ -590,6 +685,7 @@ export async function applyEventSyncResult(
   session: Session,
   syncResult: EventSyncResultInput,
   sentEventIds: string[],
+  onProgress?: ApplyProgressCallback,
 ): Promise<void> {
   const serverTime = new Date(syncResult.serverTime);
 
@@ -617,6 +713,13 @@ export async function applyEventSyncResult(
     },
   );
 
+  // Rebuilding walks each affected playthrough one at a time, so it is counted
+  // alongside the events themselves rather than left as a silent tail
+  const progress = progressReporter(
+    eventsPayload.length + affectedPlaythroughIds.size,
+    onProgress,
+  );
+
   await getDb().transaction(async (tx) => {
     // Mark sent events as synced
     if (sentEventIds.length > 0) {
@@ -625,16 +728,23 @@ export async function applyEventSyncResult(
 
     // Upsert received events from server
     if (syncResult.events.length > 0) {
-      await upsertPlaybackEvents(eventsPayload, tx);
+      progress.step("listening history");
+      await upsertPlaybackEvents(eventsPayload, tx, (rows) =>
+        progress.wrote(rows),
+      );
     }
 
     // Rebuild affected playthroughs from their events
     // This ensures client and server have identical derived state
+    if (affectedPlaythroughIds.size > 0) {
+      progress.step("playback positions");
+    }
     await rebuildPlaythroughs(
       Array.from(affectedPlaythroughIds),
       session,
       tx,
       serverTime,
+      (count) => progress.wrote(count),
     );
 
     // Update server profile with new sync time

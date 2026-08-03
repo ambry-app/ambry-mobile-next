@@ -5,7 +5,7 @@ import { getExpoDb } from "@/db/db";
 import { useSession } from "@/stores/session";
 import { logBase } from "@/utils/logger";
 
-import { sync } from "./sync-service";
+import { firstSyncError, sync } from "./sync-service";
 
 const log = logBase.extend("background-sync");
 
@@ -21,7 +21,13 @@ TaskManager.defineTask(BACKGROUND_SYNC_TASK_NAME, async () => {
   }
 
   try {
-    await sync(session);
+    const error = firstSyncError(await sync(session));
+
+    if (error) {
+      // Report the failure so the OS backs off and reschedules us
+      log.error("failed:", error.code);
+      return BackgroundTask.BackgroundTaskResult.Failed;
+    }
 
     log.info("performing WAL checkpoint");
     getExpoDb().execSync("PRAGMA wal_checkpoint(PASSIVE);");

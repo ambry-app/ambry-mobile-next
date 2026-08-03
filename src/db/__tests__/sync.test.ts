@@ -949,6 +949,60 @@ describe("sync", () => {
         );
       });
     });
+
+    // =========================================================================
+    // Large libraries
+    // =========================================================================
+
+    describe("large libraries", () => {
+      // A multi-row insert binds one parameter per column per row, and SQLite
+      // caps a statement at SQLITE_MAX_VARIABLE_NUMBER (32766) parameters. A
+      // first sync sends the whole library at once, so these batches have to be
+      // split up or the insert fails with "too many SQL variables".
+
+      it("inserts more media than fit in a single statement", async () => {
+        const db = getDb();
+        const book = createLibraryBook({ id: "book-1" });
+        // media is the widest table (21 columns), so it overflows first
+        const media = Array.from({ length: 2000 }, (_, i) =>
+          createLibraryMedia({ id: `media-${i}`, bookId: "book-1" }),
+        );
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges(),
+            booksChangedSince: [book],
+            mediaChangedSince: media,
+          }),
+        );
+
+        await syncLibrary(session);
+
+        const allMedia = await db.query.media.findMany();
+        expect(allMedia).toHaveLength(2000);
+      });
+
+      it("inserts more people than fit in a single statement", async () => {
+        const db = getDb();
+        const people = Array.from({ length: 5000 }, (_, i) =>
+          createLibraryPerson({ id: `person-${i}` }),
+        );
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges(),
+            peopleChangedSince: people,
+          }),
+        );
+
+        await syncLibrary(session);
+
+        const allPeople = await db.query.people.findMany();
+        expect(allPeople).toHaveLength(5000);
+      });
+    });
   });
 
   // ===========================================================================
