@@ -154,12 +154,13 @@ describe("background-sync-service", () => {
 
       // Mock GraphQL responses for library changes and sync events. This is
       // done this way because both syncs happen concurrently so we need to
-      // differentiate based on operation name.
+      // differentiate based on operation name. The client does not send an
+      // `operationName` field, so match on the query document itself.
       mockFetch.mockImplementation(
         async (input: RequestInfo | URL, init?: RequestInit) => {
           const body = JSON.parse(init?.body as string);
 
-          if (body.operationName === "LibraryChangesSince") {
+          if (body.query?.includes("query LibraryChangesSince")) {
             return new Response(
               JSON.stringify({ data: emptyLibraryChanges(serverTime) }),
               {
@@ -169,10 +170,10 @@ describe("background-sync-service", () => {
             );
           }
 
-          if (body.operationName === "SyncEvents") {
+          if (body.query?.includes("mutation SyncEvents")) {
             return new Response(
               JSON.stringify({
-                data: { syncEvents: emptySyncEventsResult(serverTime) },
+                data: emptySyncEventsResult(serverTime),
               }),
               {
                 status: 200,
@@ -203,7 +204,7 @@ describe("background-sync-service", () => {
       );
     });
 
-    it("returns failed when sync throws an error", async () => {
+    it("returns failed when sync fails", async () => {
       useSession.setState({ session });
 
       // Mock network error

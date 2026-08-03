@@ -27,17 +27,15 @@ export async function getLibraryDataVersion(
  * Initialize the data version store.
  * Loads sync timestamps from DB if not already initialized.
  * Returns whether initial sync is needed (for use by app boot).
+ *
+ * The "needs sync" answers always come from the stored timestamps rather than
+ * the store's `initialized` flag: those timestamps are only written once a sync
+ * has actually applied, so a boot that is retried after a failed initial sync
+ * still knows the sync is outstanding.
  */
 export async function initializeDataVersion(
   session: Session,
 ): Promise<{ needsInitialSync: boolean; needsFullPlaythroughResync: boolean }> {
-  if (useDataVersion.getState().initialized) {
-    log.debug("Already initialized, skipping");
-    return { needsInitialSync: false, needsFullPlaythroughResync: false }; // Already synced if we're initialized
-  }
-
-  log.debug("Initializing");
-
   const [
     { lastSyncTime: lastLibrarySyncTime, libraryDataVersion },
     { lastFullPlaythroughSyncTime },
@@ -46,10 +44,16 @@ export async function initializeDataVersion(
     getServerProfileSyncTimestamps(session),
   ]);
 
-  useDataVersion.setState({
-    initialized: true,
-    libraryDataVersion: libraryDataVersion?.getTime() ?? null,
-  });
+  if (useDataVersion.getState().initialized) {
+    log.debug("Store already initialized, leaving data version as-is");
+  } else {
+    log.debug("Initializing");
+
+    useDataVersion.setState({
+      initialized: true,
+      libraryDataVersion: libraryDataVersion?.getTime() ?? null,
+    });
+  }
 
   return {
     needsInitialSync: lastLibrarySyncTime === null,

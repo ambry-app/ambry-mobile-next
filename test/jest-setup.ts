@@ -393,6 +393,23 @@ jest.mock("expo-background-task", () => ({
   },
 }));
 
+// =============================================================================
+// Sentry (Native Module)
+// =============================================================================
+// @sentry/core ships untranspiled ESM, so importing the real SDK fails under
+// jest. Crash reporting has no observable behaviour to test anyway.
+
+export const mockSentryCaptureException = jest.fn();
+
+jest.mock("@sentry/react-native", () => ({
+  captureException: (error: unknown) => mockSentryCaptureException(error),
+  init: jest.fn(),
+  wrap: (component: unknown) => component,
+  reactNavigationIntegration: () => ({
+    registerNavigationContainer: jest.fn(),
+  }),
+}));
+
 /**
  * Get the task callback defined via TaskManager.defineTask.
  * Use this to manually invoke the background task in tests.

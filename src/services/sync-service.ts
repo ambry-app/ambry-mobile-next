@@ -27,7 +27,15 @@ import {
 } from "@/stores/data-version";
 import { getDeviceInfo } from "@/stores/device";
 import { clearSession, useSession } from "@/stores/session";
+import {
+  beginSyncProgress,
+  setSyncSaveProgress,
+  setSyncStage,
+  SyncStage,
+  SyncTask,
+} from "@/stores/sync-progress";
 import { DeviceInfo } from "@/types/device-info";
+import { Result } from "@/types/result";
 import { Session } from "@/types/session";
 import { logBase } from "@/utils/logger";
 
@@ -36,8 +44,37 @@ import { performWalCheckpoint } from "./db-service";
 const log = logBase.extend("sync-service");
 
 // =============================================================================
-// Error Logging
+// Errors
 // =============================================================================
+
+export enum SyncErrorCode {
+  /** The session is no longer valid; it has been cleared. */
+  UNAUTHORIZED = "SyncErrorUnauthorized",
+  /** The server could not be reached. */
+  NETWORK = "SyncErrorNetwork",
+  /** The server was reached but refused or failed the request. */
+  SERVER = "SyncErrorServer",
+  /** Anything else - a thrown exception, usually from the database. */
+  UNEXPECTED = "SyncErrorUnexpected",
+}
+
+export interface SyncError {
+  code: SyncErrorCode;
+  cause?: unknown;
+}
+
+/**
+ * A sync either applied cleanly or it did not. Callers get the failure back
+ * rather than an exception, so they can decide whether to surface it (initial
+ * sync) or quietly try again later (periodic sync).
+ */
+export type SyncOutcome = Result<void, SyncError>;
+
+const SYNC_OK: SyncOutcome = { success: true, result: undefined };
+
+function syncFailure(code: SyncErrorCode, cause?: unknown): SyncOutcome {
+  return { success: false, error: { code, cause } };
+}
 
 function logGQLError(error: ExecuteAuthenticatedError, context: string) {
   switch (error.code) {
@@ -54,6 +91,28 @@ function logGQLError(error: ExecuteAuthenticatedError, context: string) {
   }
 }
 
+/**
+ * Translate a GraphQL failure into a sync failure, clearing the session if the
+ * server no longer accepts our token.
+ */
+function handleGQLError(
+  error: ExecuteAuthenticatedError,
+  context: string,
+): SyncOutcome {
+  logGQLError(error, context);
+
+  switch (error.code) {
+    case ExecuteAuthenticatedErrorCode.UNAUTHORIZED:
+      clearSession();
+      return syncFailure(SyncErrorCode.UNAUTHORIZED);
+    case ExecuteAuthenticatedErrorCode.NETWORK_ERROR:
+      return syncFailure(SyncErrorCode.NETWORK);
+    case ExecuteAuthenticatedErrorCode.SERVER_ERROR:
+    case ExecuteAuthenticatedErrorCode.GQL_ERROR:
+      return syncFailure(SyncErrorCode.SERVER);
+  }
+}
+
 // =============================================================================
 // Library Sync
 // =============================================================================
@@ -65,7 +124,7 @@ interface SyncLibraryOptions {
 export async function syncLibrary(
   session: Session,
   options: SyncLibraryOptions = {},
-): Promise<void> {
+): Promise<SyncOutcome> {
   const { fullResync = false } = options;
 
   if (fullResync) {
@@ -74,45 +133,53 @@ export async function syncLibrary(
     log.debug("Syncing library");
   }
 
-  // 1. Get last sync info from DB; a full resync discards the stored cursor
-  // so the server sends the entire library again
-  const storedSyncInfo = await getLastLibrarySyncInfo(session);
-  const syncInfo = fullResync
-    ? { ...storedSyncInfo, lastSyncTime: null }
-    : storedSyncInfo;
+  try {
+    // 1. Get last sync info from DB; a full resync discards the stored cursor
+    // so the server sends the entire library again
+    const storedSyncInfo = await getLastLibrarySyncInfo(session);
+    const syncInfo = fullResync
+      ? { ...storedSyncInfo, lastSyncTime: null }
+      : storedSyncInfo;
 
-  // 2. Call GraphQL API to get changes
-  const result = await getLibraryChangesSince(session, syncInfo.lastSyncTime);
+    // 2. Call GraphQL API to get changes
+    setSyncStage(SyncTask.LIBRARY, SyncStage.DOWNLOADING);
+    const result = await getLibraryChangesSince(session, syncInfo.lastSyncTime);
 
-  if (!result.success) {
-    logGQLError(result.error, "syncLibrary:");
-
-    if (result.error.code === ExecuteAuthenticatedErrorCode.UNAUTHORIZED) {
-      clearSession();
+    if (!result.success) {
+      setSyncStage(SyncTask.LIBRARY, SyncStage.FAILED);
+      return handleGQLError(result.error, "syncLibrary:");
     }
-    return;
+
+    const changes = result.result;
+
+    if (!changes) {
+      log.info("No library changes to apply");
+      setSyncStage(SyncTask.LIBRARY, SyncStage.DONE);
+      return SYNC_OK;
+    }
+
+    // 3. Apply changes to DB
+    const { newDataAsOf } = await applyLibraryChanges(
+      session,
+      changes as LibraryChangesInput,
+      syncInfo,
+      ({ detail, current, total }) =>
+        setSyncSaveProgress(SyncTask.LIBRARY, detail, current, total),
+    );
+
+    // 4. Update global data version store
+    if (newDataAsOf) {
+      setLibraryDataVersion(newDataAsOf);
+    }
+
+    log.debug("Library sync complete");
+    setSyncStage(SyncTask.LIBRARY, SyncStage.DONE);
+    return SYNC_OK;
+  } catch (error) {
+    log.error("syncLibrary: unexpected failure", error);
+    setSyncStage(SyncTask.LIBRARY, SyncStage.FAILED);
+    return syncFailure(SyncErrorCode.UNEXPECTED, error);
   }
-
-  const changes = result.result;
-
-  if (!changes) {
-    log.info("No library changes to apply");
-    return;
-  }
-
-  // 3. Apply changes to DB
-  const { newDataAsOf } = await applyLibraryChanges(
-    session,
-    changes as LibraryChangesInput,
-    syncInfo,
-  );
-
-  // 4. Update global data version store
-  if (newDataAsOf) {
-    setLibraryDataVersion(newDataAsOf);
-  }
-
-  log.debug("Library sync complete");
 }
 
 // =============================================================================
@@ -145,7 +212,7 @@ const eventTypeMap: Record<string, PlaybackEventType> = {
 export async function syncPlaybackEvents(
   session: Session,
   options: SyncPlaybackEventsOptions = {},
-): Promise<void> {
+): Promise<SyncOutcome> {
   const { fullResync = false, deviceInfoOverride } = options;
 
   if (fullResync) {
@@ -154,72 +221,80 @@ export async function syncPlaybackEvents(
     log.debug("Syncing events (V2)");
   }
 
-  // 1. Get unsynced events from DB
-  const deviceInfo = deviceInfoOverride ?? (await getDeviceInfo());
-  const syncData = await getEventSyncData(session);
+  try {
+    // 1. Get unsynced events from DB
+    const deviceInfo = deviceInfoOverride ?? (await getDeviceInfo());
+    const syncData = await getEventSyncData(session);
 
-  // 2. Build GraphQL input (events only - no playthroughs)
-  const input: SyncEventsInput = {
-    lastSyncTime: fullResync ? null : syncData.lastSyncTime,
-    device: {
-      id: deviceInfo.id,
-      type: deviceTypeMap[deviceInfo.type] ?? DeviceTypeInput.Android,
-      brand: deviceInfo.brand,
-      modelName: deviceInfo.modelName,
-      osName: deviceInfo.osName,
-      osVersion: deviceInfo.osVersion,
-      appId: deviceInfo.appId,
-      appVersion: deviceInfo.appVersion,
-      appBuild: deviceInfo.appBuild,
-    },
-    events: syncData.unsyncedEvents.map((e) => ({
-      id: e.id,
-      playthroughId: e.playthroughId,
-      mediaId: e.mediaId,
-      type: eventTypeMap[e.type] ?? PlaybackEventType.Play,
-      timestamp: e.timestamp,
-      position: e.position,
-      playbackRate: e.playbackRate,
-      fromPosition: e.fromPosition,
-      toPosition: e.toPosition,
-      previousRate: e.previousRate,
-    })),
-  };
+    // 2. Build GraphQL input (events only - no playthroughs)
+    const input: SyncEventsInput = {
+      lastSyncTime: fullResync ? null : syncData.lastSyncTime,
+      device: {
+        id: deviceInfo.id,
+        type: deviceTypeMap[deviceInfo.type] ?? DeviceTypeInput.Android,
+        brand: deviceInfo.brand,
+        modelName: deviceInfo.modelName,
+        osName: deviceInfo.osName,
+        osVersion: deviceInfo.osVersion,
+        appId: deviceInfo.appId,
+        appVersion: deviceInfo.appVersion,
+        appBuild: deviceInfo.appBuild,
+      },
+      events: syncData.unsyncedEvents.map((e) => ({
+        id: e.id,
+        playthroughId: e.playthroughId,
+        mediaId: e.mediaId,
+        type: eventTypeMap[e.type] ?? PlaybackEventType.Play,
+        timestamp: e.timestamp,
+        position: e.position,
+        playbackRate: e.playbackRate,
+        fromPosition: e.fromPosition,
+        toPosition: e.toPosition,
+        previousRate: e.previousRate,
+      })),
+    };
 
-  // 3. Call GraphQL API
-  const result = await syncEvents(session, input);
+    // 3. Call GraphQL API
+    setSyncStage(SyncTask.EVENTS, SyncStage.DOWNLOADING);
+    const result = await syncEvents(session, input);
 
-  if (!result.success) {
-    logGQLError(result.error, "syncPlaythroughs:");
-    if (result.error.code === ExecuteAuthenticatedErrorCode.UNAUTHORIZED) {
-      clearSession();
+    if (!result.success) {
+      setSyncStage(SyncTask.EVENTS, SyncStage.FAILED);
+      return handleGQLError(result.error, "syncPlaythroughs:");
     }
-    return;
+
+    const syncResult = result.result.syncEvents;
+    if (!syncResult) {
+      log.info("No event sync result returned");
+      setSyncStage(SyncTask.EVENTS, SyncStage.DONE);
+      return SYNC_OK;
+    }
+
+    // 4. Apply result to DB (events only, rebuild affected playthroughs)
+    await applyEventSyncResult(
+      session,
+      syncResult,
+      syncData.unsyncedEvents.map((e) => e.id),
+      ({ detail, current, total }) =>
+        setSyncSaveProgress(SyncTask.EVENTS, detail, current, total),
+    );
+
+    // 5. If this was a full resync, update the timestamp
+    if (fullResync) {
+      await setLastFullPlaythroughSyncTime(session, new Date());
+    }
+
+    // 6. Notify UI that playthrough data changed
+    bumpPlaythroughDataVersion();
+
+    log.debug("Event sync complete");
+    setSyncStage(SyncTask.EVENTS, SyncStage.DONE);
+    return SYNC_OK;
+  } catch (error) {
+    log.error("syncPlaybackEvents: unexpected failure", error);
+    setSyncStage(SyncTask.EVENTS, SyncStage.FAILED);
+    return syncFailure(SyncErrorCode.UNEXPECTED, error);
   }
-
-  const syncResult = result.result.syncEvents;
-  if (!syncResult) {
-    log.info("No event sync result returned");
-    return;
-  }
-
-  // 4. Apply result to DB (events only, rebuild affected playthroughs)
-  await applyEventSyncResult(
-    session,
-    syncResult,
-    syncData.unsyncedEvents.map((e) => e.id),
-  );
-
-  // 5. If this was a full resync, update the timestamp
-  if (fullResync) {
-    await setLastFullPlaythroughSyncTime(session, new Date());
-  }
-
-  // 6. Notify UI that playthrough data changed
-  bumpPlaythroughDataVersion();
-
-  log.debug("Event sync complete");
-  return;
 }
 
 // =============================================================================
@@ -231,12 +306,36 @@ interface SyncOptions {
   fullLibraryResync?: boolean;
 }
 
-export async function sync(session: Session, options: SyncOptions = {}) {
+/**
+ * The library and event syncs are independent, so each reports its own outcome
+ * and one failing does not hide the other's result.
+ */
+export interface SyncResults {
+  library: SyncOutcome;
+  events: SyncOutcome;
+}
+
+/** The first failure across both halves of a sync, if either failed. */
+export function firstSyncError(results: SyncResults): SyncError | null {
+  if (!results.library.success) return results.library.error;
+  if (!results.events.success) return results.events.error;
+  return null;
+}
+
+export async function sync(
+  session: Session,
+  options: SyncOptions = {},
+): Promise<SyncResults> {
   const { fullEventResync = false, fullLibraryResync = false } = options;
-  return Promise.all([
+
+  beginSyncProgress();
+
+  const [library, events] = await Promise.all([
     syncLibrary(session, { fullResync: fullLibraryResync }),
     syncPlaybackEvents(session, { fullResync: fullEventResync }),
   ]);
+
+  return { library, events };
 }
 
 // =============================================================================
@@ -259,15 +358,15 @@ export function useForegroundSync(appState: AppStateStatus) {
         return;
       }
 
-      try {
-        await sync(session);
+      const error = firstSyncError(await sync(session));
 
-        log.debug("ForegroundSync: performing WAL checkpoint");
-        performWalCheckpoint();
+      log.debug("ForegroundSync: performing WAL checkpoint");
+      performWalCheckpoint();
 
+      if (error) {
+        log.error("ForegroundSync: failed:", error.code);
+      } else {
         log.info("ForegroundSync: completed successfully");
-      } catch (error) {
-        log.error("ForegroundSync: failed:", error);
       }
     };
 
@@ -294,13 +393,9 @@ export function usePullToRefresh(session: Session) {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    try {
-      await sync(session);
-    } catch (error) {
-      log.error("Pull-to-refresh sync error:", error);
-    } finally {
-      setRefreshing(false);
-    }
+    const error = firstSyncError(await sync(session));
+    if (error) log.error("Pull-to-refresh sync error:", error.code);
+    setRefreshing(false);
   }, [session]);
 
   return { refreshing, onRefresh };

@@ -275,6 +275,7 @@ export async function rebuildPlaythroughs(
   session: Session,
   tx: Database,
   refreshedAt: Date,
+  onRebuilt?: (count: number) => void,
 ): Promise<void> {
   if (playthroughIds.length === 0) return;
 
@@ -282,5 +283,6 @@ export async function rebuildPlaythroughs(
 
   for (const playthroughId of playthroughIds) {
     await rebuildPlaythrough(playthroughId, session, tx, refreshedAt);
+    onRebuilt?.(1);
   }
 }

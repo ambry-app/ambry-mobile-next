@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
-import { EVENT_INSERT_CHUNK_SIZE } from "@/constants";
+import { chunkBoundValues, chunkRowsForInsert } from "@/db/chunk";
 import { Database, getDb } from "@/db/db";
 import { rebuildPlaythrough } from "@/db/playthrough-reducer";
 import * as schema from "@/db/schema";
@@ -553,10 +553,12 @@ export async function markEventsSynced(
 ): Promise<void> {
   if (eventIds.length === 0) return;
 
-  await db
-    .update(schema.playbackEvents)
-    .set({ syncedAt })
-    .where(inArray(schema.playbackEvents.id, eventIds));
+  for (const ids of chunkBoundValues(eventIds)) {
+    await db
+      .update(schema.playbackEvents)
+      .set({ syncedAt })
+      .where(inArray(schema.playbackEvents.id, ids));
+  }
 }
 
 /**
@@ -566,10 +568,9 @@ export async function markEventsSynced(
 export async function upsertPlaybackEvents(
   events: PlaybackEventInsert[],
   db: Database = getDb(),
+  onWritten?: (rows: number) => void,
 ): Promise<void> {
-  for (let i = 0; i < events.length; i += EVENT_INSERT_CHUNK_SIZE) {
-    const chunk = events.slice(i, i + EVENT_INSERT_CHUNK_SIZE);
-
+  for (const chunk of chunkRowsForInsert(schema.playbackEvents, events)) {
     await db
       .insert(schema.playbackEvents)
       .values(chunk)
@@ -589,6 +590,8 @@ export async function upsertPlaybackEvents(
           syncedAt: sql`excluded.synced_at`,
         },
       });
+
+    onWritten?.(chunk.length);
   }
 }
 
