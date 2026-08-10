@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { Platform, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useKeyboardState } from "react-native-keyboard-controller";
 import Animated from "react-native-reanimated";
@@ -14,17 +13,10 @@ import {
   usePaginatedLibraryData,
 } from "@/services/library-service";
 import { usePullToRefresh } from "@/services/sync-service";
-import { useScreen } from "@/stores/screen";
 import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 
-// FlatList layout constants for 2-column grid
-const FLATLIST_PADDING = 8;
-const TILE_PADDING = 8;
-const TILE_MARGIN_BOTTOM = 8;
-const TILE_GAP = 12; // gap between image and text in Tile component
-const TEXT_HEIGHT = 46; // approximate height for 3 lines of text (title, author, narrator)
 const NUM_COLUMNS = 2;
 
 type FullLibraryProps = {
@@ -40,7 +32,6 @@ export function FullLibrary({
   scrollHandler,
   topInset = 0,
 }: FullLibraryProps) {
-  const screenWidth = useScreen((state) => state.screenWidth);
   const { bottom: safeAreaBottom } = useSafeAreaInsets();
   const playerLoaded = useTrackPlayer((state) => !!state.playthrough);
 
@@ -60,27 +51,6 @@ export function FullLibrary({
   const page = usePaginatedLibraryData(PAGE_SIZE, getPage, getCursor);
   const { items: media, hasMore, loadMore } = page;
   const { refreshing, onRefresh } = usePullToRefresh(session);
-
-  // Calculate item height for getItemLayout optimization
-  // Tile width = (screenWidth - flatlist padding) / numColumns
-  // Image width = tile width - tile padding * 2
-  // Image height = image width (square aspect ratio)
-  // Total item height = image height + gap + text height + margin bottom
-  const itemHeight = useMemo(() => {
-    const contentWidth = screenWidth - FLATLIST_PADDING * 2;
-    const tileWidth = contentWidth / NUM_COLUMNS;
-    const imageWidth = tileWidth - TILE_PADDING * 2;
-    return imageWidth + TILE_GAP + TEXT_HEIGHT + TILE_MARGIN_BOTTOM;
-  }, [screenWidth]);
-
-  const getItemLayout = useMemo(
-    () => (_data: unknown, index: number) => ({
-      length: itemHeight,
-      offset: itemHeight * index,
-      index,
-    }),
-    [itemHeight],
-  );
 
   if (!media) {
     return null;
@@ -140,7 +110,10 @@ export function FullLibrary({
           <MediaTile media={item} />
         </View>
       )}
-      getItemLayout={getItemLayout}
+      // No getItemLayout: tile rows are not a fixed height (the text block
+      // varies with how many lines it renders), and when getItemLayout is set
+      // VirtualizedList stops measuring cells entirely, so every estimate error
+      // accumulates into the spacer above the viewport and the content jumps.
       removeClippedSubviews={Platform.OS === "android"}
       maxToRenderPerBatch={10}
       windowSize={5}
