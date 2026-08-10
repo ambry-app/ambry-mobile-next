@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useKeyboardState } from "react-native-keyboard-controller";
 import Animated, {
@@ -12,17 +12,10 @@ import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { MediaTile } from "@/components/Tiles";
 import { PAGE_SIZE, PLAYER_HEIGHT, TAB_BAR_BASE_HEIGHT } from "@/constants";
 import { getSearchedMedia, useLibraryData } from "@/services/library-service";
-import { useScreen } from "@/stores/screen";
 import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
 
-// FlatList layout constants for 2-column grid
-const FLATLIST_PADDING = 8;
-const TILE_PADDING = 8;
-const TILE_MARGIN_BOTTOM = 8;
-const TILE_GAP = 12;
-const TEXT_HEIGHT = 46;
 const NUM_COLUMNS = 2;
 
 type SearchResultsProps = {
@@ -34,7 +27,6 @@ const MINI_PROGRESS_BAR_HEIGHT = 2;
 
 export function SearchResults(props: SearchResultsProps) {
   const { session, searchQuery } = props;
-  const screenWidth = useScreen((state) => state.screenWidth);
   const { bottom: safeAreaBottom } = useSafeAreaInsets();
   const playerLoaded = useTrackPlayer((state) => !!state.playthrough);
 
@@ -61,22 +53,6 @@ export function SearchResults(props: SearchResultsProps) {
   const media = useLibraryData(
     () => getSearchedMedia(session, PAGE_SIZE, searchQuery),
     [searchQuery],
-  );
-
-  const itemHeight = useMemo(() => {
-    const contentWidth = screenWidth - FLATLIST_PADDING * 2;
-    const tileWidth = contentWidth / NUM_COLUMNS;
-    const imageWidth = tileWidth - TILE_PADDING * 2;
-    return imageWidth + TILE_GAP + TEXT_HEIGHT + TILE_MARGIN_BOTTOM;
-  }, [screenWidth]);
-
-  const getItemLayout = useMemo(
-    () => (_data: unknown, index: number) => ({
-      length: itemHeight,
-      offset: itemHeight * index,
-      index,
-    }),
-    [itemHeight],
   );
 
   if (!media) {
@@ -118,7 +94,8 @@ export function SearchResults(props: SearchResultsProps) {
           <MediaTile media={item} />
         </View>
       )}
-      getItemLayout={getItemLayout}
+      // No getItemLayout: see FullLibrary — tile rows are not a fixed height,
+      // and a wrong estimate makes the content jump while scrolling.
       removeClippedSubviews={Platform.OS === "android"}
       maxToRenderPerBatch={10}
       windowSize={5}
