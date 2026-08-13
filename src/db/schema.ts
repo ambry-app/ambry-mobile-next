@@ -448,8 +448,11 @@ export const mediaTracks = sqliteTable(
     url: text("url").notNull(),
     id: text("id").notNull(),
     mediaId: text("media_id").notNull(),
-    // Position in the ordered track list, 0-based.
-    index: integer("index").notNull(),
+    // Position in the ordered track list, 0-based. The column is not called
+    // "index" because that is a reserved word in SQLite, and an unquoted
+    // reference to it in an upsert is a syntax error that takes the whole
+    // sync transaction down with it.
+    index: integer("track_index").notNull(),
     path: text("path").notNull(),
     // Bytes. Real rather than integer because audiobook files routinely exceed
     // what a 32-bit int holds.

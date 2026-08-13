@@ -11,6 +11,7 @@ import {
   createDownload,
   createMedia,
   createMediaNarrator,
+  createPerson,
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
 
@@ -297,6 +298,50 @@ describe("getAuthorsForBooks", () => {
     const result = await getAuthorsForBooks(DEFAULT_TEST_SESSION, [book.id]);
 
     expect(result[book.id]).toBeUndefined();
+  });
+
+  it("prints a composite byline once, not once per person", async () => {
+    const db = getDb();
+
+    const abraham = await createPerson(db, { name: "Daniel Abraham" });
+    const franck = await createPerson(db, { name: "Ty Franck" });
+    const book = await createBook(db);
+    await createBookAuthor(db, {
+      bookId: book.id,
+      author: {
+        name: "James S.A. Corey",
+        personIds: [abraham.id, franck.id],
+      },
+    });
+
+    const result = await getAuthorsForBooks(DEFAULT_TEST_SESSION, [book.id]);
+
+    expect(result[book.id]?.map((author) => author.name)).toEqual([
+      "James S.A. Corey",
+    ]);
+  });
+
+  it("returns authors in the order the operator billed them", async () => {
+    const db = getDb();
+
+    const book = await createBook(db);
+    await createBookAuthor(db, {
+      bookId: book.id,
+      position: 1,
+      author: { name: "Second Billed" },
+    });
+    await createBookAuthor(db, {
+      bookId: book.id,
+      position: 0,
+      author: { name: "First Billed" },
+    });
+
+    const result = await getAuthorsForBooks(DEFAULT_TEST_SESSION, [book.id]);
+
+    expect(result[book.id]?.map((author) => author.name)).toEqual([
+      "First Billed",
+      "Second Billed",
+    ]);
   });
 });
 

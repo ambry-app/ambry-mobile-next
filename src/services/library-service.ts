@@ -81,10 +81,18 @@ export {
   getSeriesWithBooks,
   type SeriesWithBooks,
 } from "@/db/library/get-series-with-books";
+export { getSetDetails, type SetDetails } from "@/db/library/get-set-details";
+export {
+  getSetPartCount,
+  getSetParts,
+  type SetParts,
+} from "@/db/library/get-set-parts";
 export {
   combineAuthorsAndNarrators,
+  getAuthorPeopleForBooks,
   getAuthorsForBooks,
   getMediaForBooks,
+  getNarratorPeopleForMedia,
   getNarratorsForMedia,
   getPlaythroughStatusesForMedia,
   getSavedForLaterStatusForMedia,

@@ -36,13 +36,17 @@ import {
   createLibraryAuthorPerson,
   createLibraryBook,
   createLibraryBookAuthor,
+  createLibraryBookUniverse,
   createLibraryDeletion,
   createLibraryMedia,
   createLibraryMediaNarrator,
+  createLibraryMediaTrack,
   createLibraryNarrator,
   createLibraryPerson,
+  createLibraryRecordingGroup,
   createLibrarySeries,
   createLibrarySeriesBook,
+  createLibraryUniverse,
   DeletionType,
   emptyLibraryChanges,
   resetSyncFixtureIdCounter,
@@ -335,6 +339,155 @@ describe("sync", () => {
         expect(allMedia[0]!.bookId).toBe("book-1");
         expect(allMedia[0]!.duration).toBe("7200"); // stored as string
         expect(allMedia[0]!.publisher).toBe("Test Publisher");
+      });
+
+      it("inserts media tracks for direct-play recordings", async () => {
+        const db = getDb();
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges(),
+            booksChangedSince: [createLibraryBook({ id: "book-1" })],
+            mediaChangedSince: [
+              createLibraryMedia({ id: "media-1", bookId: "book-1" }),
+            ],
+            mediaTracksChangedSince: [
+              createLibraryMediaTrack({
+                id: "track-2",
+                mediaId: "media-1",
+                index: 1,
+                path: "/library/book/02.m4b",
+                duration: 1800,
+                startOffset: 3600,
+              }),
+              createLibraryMediaTrack({
+                id: "track-1",
+                mediaId: "media-1",
+                index: 0,
+                path: "/library/book/01.m4b",
+                duration: 3600,
+                startOffset: 0,
+              }),
+            ],
+          }),
+        );
+
+        await syncLibrary(session);
+
+        const tracks = await db.query.mediaTracks.findMany({
+          orderBy: (t, { asc }) => asc(t.index),
+        });
+        expect(tracks).toHaveLength(2);
+        expect(tracks[0]!.path).toBe("/library/book/01.m4b");
+        expect(tracks[0]!.startOffset).toBe(0);
+        expect(tracks[1]!.path).toBe("/library/book/02.m4b");
+        expect(tracks[1]!.startOffset).toBe(3600);
+        expect(tracks[1]!.seekAccuracy).toBe("exact");
+      });
+
+      it("inserts a set and links its recordings to it", async () => {
+        const db = getDb();
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges(),
+            booksChangedSince: [createLibraryBook({ id: "book-1" })],
+            recordingGroupsChangedSince: [
+              createLibraryRecordingGroup({
+                id: "set-1",
+                bookId: "book-1",
+                partsTotal: 3,
+                partWord: "volume",
+                partWordPlural: "volumes",
+              }),
+            ],
+            mediaChangedSince: [
+              createLibraryMedia({
+                id: "media-1",
+                bookId: "book-1",
+                partNumber: 2,
+                recordingGroup: { __typename: "RecordingGroup", id: "set-1" },
+              }),
+            ],
+          }),
+        );
+
+        await syncLibrary(session);
+
+        const sets = await db.query.recordingGroups.findMany();
+        expect(sets).toHaveLength(1);
+        expect(sets[0]!.partsTotal).toBe(3);
+        expect(sets[0]!.partWord).toBe("volume");
+        expect(sets[0]!.partWordPlural).toBe("volumes");
+
+        const allMedia = await db.query.media.findMany();
+        expect(allMedia[0]!.recordingGroupId).toBe("set-1");
+        expect(allMedia[0]!.partNumber).toBe(2);
+      });
+
+      it("stores a recording's own title as an override", async () => {
+        const db = getDb();
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges(),
+            booksChangedSince: [
+              createLibraryBook({ id: "book-1", title: "Leviathan Wakes" }),
+            ],
+            mediaChangedSince: [
+              createLibraryMedia({
+                id: "media-1",
+                bookId: "book-1",
+                title: "Der Kalte Krieg",
+              }),
+              createLibraryMedia({ id: "media-2", bookId: "book-1" }),
+            ],
+          }),
+        );
+
+        await syncLibrary(session);
+
+        const allMedia = await db.query.media.findMany({
+          orderBy: (m, { asc }) => asc(m.id),
+        });
+        expect(allMedia[0]!.title).toBe("Der Kalte Krieg");
+        expect(allMedia[1]!.title).toBeNull();
+      });
+
+      it("inserts universes and their book links", async () => {
+        const db = getDb();
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges(),
+            booksChangedSince: [createLibraryBook({ id: "book-1" })],
+            universesChangedSince: [
+              createLibraryUniverse({ id: "universe-1", name: "The Cosmere" }),
+            ],
+            bookUniversesChangedSince: [
+              createLibraryBookUniverse({
+                id: "book-universe-1",
+                bookId: "book-1",
+                universeId: "universe-1",
+              }),
+            ],
+          }),
+        );
+
+        await syncLibrary(session);
+
+        const universes = await db.query.universes.findMany();
+        expect(universes).toHaveLength(1);
+        expect(universes[0]!.name).toBe("The Cosmere");
+
+        const links = await db.query.bookUniverses.findMany();
+        expect(links).toHaveLength(1);
+        expect(links[0]!.bookId).toBe("book-1");
+        expect(links[0]!.universeId).toBe("universe-1");
       });
 
       it("inserts book-author relationships", async () => {

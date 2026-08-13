@@ -29,6 +29,7 @@ async function getMedia(session: Session, mediaId: string) {
     .select({
       id: schema.media.id,
       title: schema.media.title,
+      partNumber: schema.media.partNumber,
       fullCast: schema.media.fullCast,
       abridged: schema.media.abridged,
       thumbnails: schema.media.thumbnails,
@@ -43,6 +44,12 @@ async function getMedia(session: Session, mediaId: string) {
         title: schema.books.title,
         published: schema.books.published,
         publishedFormat: schema.books.publishedFormat,
+      },
+      set: {
+        id: schema.recordingGroups.id,
+        partsTotal: schema.recordingGroups.partsTotal,
+        partWord: schema.recordingGroups.partWord,
+        partWordPlural: schema.recordingGroups.partWordPlural,
       },
       download: {
         thumbnails: schema.downloads.thumbnails,
@@ -61,6 +68,13 @@ async function getMedia(session: Session, mediaId: string) {
       and(
         eq(schema.downloads.url, schema.media.url),
         eq(schema.downloads.mediaId, schema.media.id),
+      ),
+    )
+    .leftJoin(
+      schema.recordingGroups,
+      and(
+        eq(schema.recordingGroups.url, schema.media.url),
+        eq(schema.recordingGroups.id, schema.media.recordingGroupId),
       ),
     )
     .where(and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)))

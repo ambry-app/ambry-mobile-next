@@ -836,7 +836,7 @@ export async function applyLibraryChanges(
             target: [schema.mediaTracks.url, schema.mediaTracks.id],
             set: {
               mediaId: sql`excluded.media_id`,
-              index: sql`excluded.index`,
+              index: sql`excluded.track_index`,
               path: sql`excluded.path`,
               size: sql`excluded.size`,
               mime: sql`excluded.mime`,

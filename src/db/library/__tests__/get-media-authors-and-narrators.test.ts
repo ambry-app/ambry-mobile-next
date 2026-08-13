@@ -21,6 +21,8 @@ function makeMediaHeaderInfo(mediaId: string, bookId: string): MediaHeaderInfo {
   return {
     id: mediaId,
     title: null,
+    partNumber: null,
+    set: null,
     fullCast: false,
     abridged: false,
     thumbnails: null,

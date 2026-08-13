@@ -1110,13 +1110,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "index": {
-          "name": "index",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
         "path": {
           "name": "path",
           "type": "text",
@@ -1186,6 +1179,13 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "track_index": {
+          "name": "track_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
         }
       },
       "indexes": {
@@ -1194,7 +1194,7 @@
           "columns": [
             "url",
             "media_id",
-            "index"
+            "track_index"
           ],
           "isUnique": false
         }

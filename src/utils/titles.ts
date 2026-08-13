@@ -16,19 +16,21 @@ export function recordingTitle(
 /**
  * How one part of a multi-part set is labelled, e.g. "Part 2 of 3".
  *
- * A set carries its own wording because not every set is made of "parts" —
+ * A set carries its own wording because not every set is made of "parts":
  * some are volumes, books or episodes. When the total is unknown the label
- * stops after the number rather than inventing one.
+ * stops after the number rather than inventing one. Pass `includeTotal: false`
+ * where the total is already on screen, so a tile reads "Part 2".
  */
 export function partLabel(
   partNumber: number | null | undefined,
   set: { partsTotal: number | null; partWord: string | null } | null,
+  { includeTotal = true }: { includeTotal?: boolean } = {},
 ): string | null {
   if (partNumber === null || partNumber === undefined) return null;
 
   const word = capitalize(set?.partWord ?? "part");
 
-  if (!set?.partsTotal) return `${word} ${partNumber}`;
+  if (!includeTotal || !set?.partsTotal) return `${word} ${partNumber}`;
 
   return `${word} ${partNumber} of ${set.partsTotal}`;
 }

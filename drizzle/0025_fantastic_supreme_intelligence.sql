@@ -30,7 +30,7 @@ CREATE TABLE `media_tracks` (
 	`url` text NOT NULL,
 	`id` text NOT NULL,
 	`media_id` text NOT NULL,
-	`index` integer NOT NULL,
+	`track_index` integer NOT NULL,
 	`path` text NOT NULL,
 	`size` real NOT NULL,
 	`mime` text,
@@ -45,7 +45,7 @@ CREATE TABLE `media_tracks` (
 	FOREIGN KEY (`url`,`media_id`) REFERENCES `media`(`url`,`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `media_tracks_media_index` ON `media_tracks` (`url`,`media_id`,`index`);--> statement-breakpoint
+CREATE INDEX `media_tracks_media_index` ON `media_tracks` (`url`,`media_id`,`track_index`);--> statement-breakpoint
 CREATE TABLE `recording_groups` (
 	`url` text NOT NULL,
 	`id` text NOT NULL,
