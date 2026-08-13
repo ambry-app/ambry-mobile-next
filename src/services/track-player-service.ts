@@ -43,6 +43,7 @@ import {
 import { logBase } from "@/utils/logger";
 import { documentDirectoryFilePath } from "@/utils/paths";
 import { subscribeToChange } from "@/utils/subscribe";
+import { recordingTitle } from "@/utils/titles";
 
 import { getSession } from "./session-service";
 
@@ -732,7 +733,10 @@ function buildAddTrack(
     duration: playthrough.media.duration
       ? parseFloat(playthrough.media.duration)
       : undefined,
-    title: playthrough.media.book.title,
+    title: recordingTitle(
+      playthrough.media.title,
+      playthrough.media.book.title,
+    ),
     artist: playthrough.media.book.bookAuthors
       .map((bookAuthor) => bookAuthor.author.name)
       .join(", "),

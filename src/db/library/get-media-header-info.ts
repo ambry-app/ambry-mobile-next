@@ -28,6 +28,7 @@ async function getMedia(session: Session, mediaId: string) {
   const rows = await getDb()
     .select({
       id: schema.media.id,
+      title: schema.media.title,
       fullCast: schema.media.fullCast,
       abridged: schema.media.abridged,
       thumbnails: schema.media.thumbnails,

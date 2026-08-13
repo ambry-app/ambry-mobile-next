@@ -6,6 +6,7 @@ import { MediaHeaderInfo } from "@/services/library-service";
 import { useScreen } from "@/stores/screen";
 import { Colors } from "@/styles/colors";
 import { durationDisplay } from "@/utils/time";
+import { recordingTitle } from "@/utils/titles";
 
 /**
  * Top padding above the thumbnail. Exported because MediaScreen needs it to
@@ -39,7 +40,7 @@ export function Header({ media }: HeaderProps) {
           textStyle={{ textAlign: "center" }}
           baseFontSize={16}
           titleWeight={700}
-          title={media.book.title}
+          title={recordingTitle(media.title, media.book.title)}
           series={media.book.series.map((sb) => `${sb.name} #${sb.bookNumber}`)}
           authors={media.book.authors.map((author) => author.name)}
           narrators={media.narrators.map((narrator) => narrator.name)}

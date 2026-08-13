@@ -83,6 +83,7 @@ async function recentMedia(
   return getDb()
     .select({
       id: schema.media.id,
+      title: schema.media.title,
       thumbnails: schema.media.thumbnails,
       insertedAt: schema.media.insertedAt,
       book: {
@@ -129,6 +130,7 @@ async function searchMedia(
   return await getDb()
     .selectDistinct({
       id: schema.media.id,
+      title: schema.media.title,
       thumbnails: schema.media.thumbnails,
       book: {
         id: schema.books.id,

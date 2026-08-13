@@ -71,6 +71,7 @@ function makeMediaHeaderInfo(
 ): MediaHeaderInfo {
   return {
     id: mediaId,
+    title: null,
     fullCast: false,
     abridged: false,
     thumbnails: null,

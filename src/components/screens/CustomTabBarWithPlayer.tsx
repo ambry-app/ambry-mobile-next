@@ -41,6 +41,7 @@ import { LoadedPlaythrough, useTrackPlayer } from "@/stores/track-player";
 import { Colors, decorative, surface } from "@/styles/colors";
 import { Session } from "@/types/session";
 import { useBackHandler } from "@/utils/hooks";
+import { recordingTitle } from "@/utils/titles";
 
 import { TabBarTabs } from "./tab-bar/TabBarTabs";
 import { ChapterControls } from "./tab-bar-with-player/ChapterControls";
@@ -676,7 +677,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                   <PlayerContextMenu
                     session={session}
                     playthrough={playthrough}
-                    bookTitle={media.book.title}
+                    bookTitle={recordingTitle(media.title, media.book.title)}
                     authors={media.book.authorPeople}
                     narrators={media.narratorPeople}
                     onCollapse={collapse}
@@ -699,7 +700,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                       textStyle={{ textAlign: "center" }}
                       baseFontSize={16}
                       titleWeight={700}
-                      title={media.book.title}
+                      title={recordingTitle(media.title, media.book.title)}
                       authors={media.book.authors.map((a) => a.name)}
                       narrators={media.narrators.map((n) => n.name)}
                     />
@@ -763,7 +764,7 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                   <Pressable onPress={() => expand()}>
                     <BookDetailsText
                       baseFontSize={14}
-                      title={media.book.title}
+                      title={recordingTitle(media.title, media.book.title)}
                       authors={media.book.authors.map((a) => a.name)}
                       narrators={media.narrators.map((n) => n.name)}
                     />

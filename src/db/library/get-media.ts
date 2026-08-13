@@ -40,6 +40,7 @@ async function getMediaById(session: Session, mediaId: string) {
   const rows = await getDb()
     .select({
       id: schema.media.id,
+      title: schema.media.title,
       thumbnails: schema.media.thumbnails,
       book: {
         id: schema.books.id,

@@ -55,6 +55,7 @@ async function getMedia(
   return getDb()
     .select({
       id: schema.media.id,
+      title: schema.media.title,
       published: publishedExpr,
       thumbnails: schema.media.thumbnails,
       download: {

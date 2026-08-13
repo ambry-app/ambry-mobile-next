@@ -13,6 +13,7 @@ import { DownloadedMedia } from "@/services/library-service";
 import { useDownloads } from "@/stores/downloads";
 import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
+import { recordingTitle } from "@/utils/titles";
 
 import { FileSize } from "./FileSize";
 
@@ -44,7 +45,7 @@ export function DownloadRow({ media, session }: DownloadRowProps) {
       pathname: "/media/[id]",
       params: {
         id: media.id,
-        title: media.book.title,
+        title: recordingTitle(media.title, media.book.title),
       },
     });
   };
@@ -63,7 +64,7 @@ export function DownloadRow({ media, session }: DownloadRowProps) {
         <TouchableOpacity onPress={navigateToBook}>
           <BookDetailsText
             baseFontSize={14}
-            title={media.book.title}
+            title={recordingTitle(media.title, media.book.title)}
             authors={media.book.authors.map((author) => author.name)}
             narrators={media.narrators.map((narrator) => narrator.name)}
           />

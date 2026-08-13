@@ -38,6 +38,7 @@ export async function getInProgressPlaythroughWithMedia(
       media: {
         columns: {
           id: true,
+          title: true,
           thumbnails: true,
           mpdPath: true,
           hlsPath: true,
@@ -85,6 +86,7 @@ export async function getPlaythroughWithMedia(
       media: {
         columns: {
           id: true,
+          title: true,
           thumbnails: true,
           mpdPath: true,
           hlsPath: true,

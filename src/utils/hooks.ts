@@ -9,6 +9,7 @@ import { AppState, AppStateStatus, BackHandler } from "react-native";
 import { router } from "expo-router";
 
 import { logBase } from "@/utils/logger";
+import { recordingTitle } from "@/utils/titles";
 
 const log = logBase.extend("app-state");
 
@@ -162,6 +163,7 @@ type Book = {
 
 type Media = {
   id: string;
+  title?: string | null;
 };
 
 export function useNavigateToBookCallback(book: Book, media: Media[]) {
@@ -171,7 +173,7 @@ export function useNavigateToBookCallback(book: Book, media: Media[]) {
         pathname: "/media/[id]",
         params: {
           id: media[0].id,
-          title: book.title,
+          title: recordingTitle(media[0].title, book.title),
         },
       });
     } else {
