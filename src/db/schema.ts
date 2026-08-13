@@ -746,6 +746,13 @@ export const syncedServers = sqliteTable("synced_servers", {
   lastSyncTime: integer("last_sync_time", { mode: "timestamp_ms" }),
   // timestamp when library data actually changed locally (used for cache invalidation)
   libraryDataVersion: integer("library_data_version", { mode: "timestamp_ms" }),
+  // Set when a schema change adds columns the server has no reason to re-send,
+  // asking the next sync to re-fetch every entity. Deliberately separate from
+  // clearing lastSyncTime: the cursor still says when this device last heard
+  // about a deletion, and throwing it away is what loses deletions.
+  needsFullRefetch: integer("needs_full_refetch", { mode: "boolean" })
+    .notNull()
+    .default(false),
 });
 
 // data related to user accounts on specific servers

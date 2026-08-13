@@ -15,7 +15,7 @@ import { Result } from "@/types/result";
 import { Session } from "@/types/session";
 
 const libraryChangesSinceQuery = graphql(`
-  query LibraryChangesSince($since: DateTime) {
+  query LibraryChangesSince($since: DateTime, $deletedSince: DateTime) {
     peopleChangedSince(since: $since) {
       id
       name
@@ -198,7 +198,7 @@ const libraryChangesSinceQuery = graphql(`
       insertedAt
       updatedAt
     }
-    deletionsSince(since: $since) {
+    deletionsSince(since: $deletedSince) {
       type
       recordId
     }
@@ -206,9 +206,20 @@ const libraryChangesSinceQuery = graphql(`
   }
 `);
 
+/**
+ * `since` is the cursor for entities and `deletedSince` the cursor for
+ * deletions, because a full re-fetch needs different answers to the two
+ * questions: send me every entity, but only the deletions I have not seen.
+ *
+ * They are not interchangeable. `since: null` asks "what exists?" and gets the
+ * whole library; `deletedSince: null` asks "what did I miss?" from a client
+ * that has never synced, and correctly gets nothing. Passing null for both is
+ * what silently drops deletions.
+ */
 export function getLibraryChangesSince(
   session: Session,
   since: Date | null | undefined,
+  deletedSince: Date | null | undefined,
 ) {
   return executeAuthenticated(
     session.url,
@@ -216,6 +227,7 @@ export function getLibraryChangesSince(
     libraryChangesSinceQuery,
     {
       since,
+      deletedSince,
     },
   );
 }

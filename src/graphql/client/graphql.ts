@@ -645,6 +645,7 @@ export type User = {
 
 export type LibraryChangesSinceQueryVariables = Exact<{
   since?: InputMaybe<Scalars['DateTime']['input']>;
+  deletedSince?: InputMaybe<Scalars['DateTime']['input']>;
 }>;
 
 
@@ -689,7 +690,7 @@ export class TypedDocumentString<TResult, TVariables>
 }
 
 export const LibraryChangesSinceDocument = new TypedDocumentString(`
-    query LibraryChangesSince($since: DateTime) {
+    query LibraryChangesSince($since: DateTime, $deletedSince: DateTime) {
   peopleChangedSince(since: $since) {
     id
     name
@@ -872,7 +873,7 @@ export const LibraryChangesSinceDocument = new TypedDocumentString(`
     insertedAt
     updatedAt
   }
-  deletionsSince(since: $since) {
+  deletionsSince(since: $deletedSince) {
     type
     recordId
   }

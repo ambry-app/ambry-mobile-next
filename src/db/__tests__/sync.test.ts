@@ -492,33 +492,28 @@ describe("sync", () => {
         expect(links[0]!.universeId).toBe("universe-1");
       });
 
-      it("removes rows the server no longer has on a full fetch", async () => {
+      it("asks for every entity but only the missed deletions on a re-fetch", async () => {
         const db = getDb();
+        const firstServerTime = "2024-01-15T10:00:00.000Z";
 
-        // first sync: two books, each with a recording
         mockGraphQL(
           mockFetch,
           graphqlSuccess({
-            ...emptyLibraryChanges("2024-01-15T10:00:00.000Z"),
+            ...emptyLibraryChanges(firstServerTime),
             booksChangedSince: [
               createLibraryBook({ id: "keeper" }),
               createLibraryBook({ id: "goner" }),
             ],
-            mediaChangedSince: [
-              createLibraryMedia({ id: "media-keeper", bookId: "keeper" }),
-              createLibraryMedia({ id: "media-goner", bookId: "goner" }),
-            ],
           }),
         );
         await syncLibrary(session);
-        expect(await db.query.books.findMany()).toHaveLength(2);
 
-        // the cursor is cleared, as the schema migration does, and one book has
-        // been deleted on the server in the meantime. A full fetch carries no
-        // deletion records, so its absence is the only evidence.
+        // what the schema migration does: ask for a full re-fetch without
+        // throwing away the cursor that says when we last heard about a
+        // deletion
         await db
           .update(schema.syncedServers)
-          .set({ lastSyncTime: null })
+          .set({ needsFullRefetch: true })
           .where(eq(schema.syncedServers.url, session.url));
 
         mockGraphQL(
@@ -526,19 +521,53 @@ describe("sync", () => {
           graphqlSuccess({
             ...emptyLibraryChanges("2024-01-15T11:00:00.000Z"),
             booksChangedSince: [createLibraryBook({ id: "keeper" })],
-            mediaChangedSince: [
-              createLibraryMedia({ id: "media-keeper", bookId: "keeper" }),
-            ],
+            deletionsSince: [createLibraryDeletion(DeletionType.Book, "goner")],
           }),
         );
         await syncLibrary(session);
 
+        // entities: everything. deletions: only since we last checked.
+        const vars = getGraphQLVariables(mockFetch, 1);
+        expect(vars?.since).toBeNull();
+        expect(vars?.deletedSince).toBe(firstServerTime);
+
         expect((await db.query.books.findMany()).map((b) => b.id)).toEqual([
           "keeper",
         ]);
-        expect((await db.query.media.findMany()).map((m) => m.id)).toEqual([
-          "media-keeper",
-        ]);
+      });
+
+      it("clears the re-fetch flag once the re-fetch has landed", async () => {
+        const db = getDb();
+
+        mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges()));
+        await syncLibrary(session);
+
+        await db
+          .update(schema.syncedServers)
+          .set({ needsFullRefetch: true })
+          .where(eq(schema.syncedServers.url, session.url));
+
+        mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges()));
+        await syncLibrary(session);
+
+        const [server] = await db.query.syncedServers.findMany();
+        expect(server!.needsFullRefetch).toBe(false);
+
+        // and the next sync is incremental again
+        mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges()));
+        await syncLibrary(session);
+        expect(getGraphQLVariables(mockFetch, 2)?.since).not.toBeNull();
+      });
+
+      it("asks for nothing deleted when it has never synced", async () => {
+        mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges()));
+        await syncLibrary(session);
+
+        // a client holding nothing has no deletions to catch up on, which is
+        // exactly what a null deletions cursor means
+        const vars = getGraphQLVariables(mockFetch, 0);
+        expect(vars?.since).toBeNull();
+        expect(vars?.deletedSince).toBeNull();
       });
 
       it("leaves untouched rows alone during an incremental sync", async () => {
@@ -556,8 +585,6 @@ describe("sync", () => {
         );
         await syncLibrary(session);
 
-        // an incremental sync only mentions what changed; everything else must
-        // survive, which is exactly what reconciliation must not touch
         mockGraphQL(
           mockFetch,
           graphqlSuccess({
@@ -574,32 +601,6 @@ describe("sync", () => {
         });
         expect(books.map((b) => b.id)).toEqual(["book-1", "book-2"]);
         expect(books[0]!.title).toBe("Renamed");
-      });
-
-      it("does not touch another server's rows when reconciling", async () => {
-        const db = getDb();
-
-        await db.insert(schema.books).values({
-          url: "https://other-server.com",
-          id: "other-book",
-          title: "Other",
-          published: new Date(),
-          publishedFormat: "full",
-          insertedAt: new Date(),
-          updatedAt: new Date(),
-        });
-
-        mockGraphQL(
-          mockFetch,
-          graphqlSuccess({
-            ...emptyLibraryChanges(),
-            booksChangedSince: [createLibraryBook({ id: "ours" })],
-          }),
-        );
-        await syncLibrary(session);
-
-        const books = await db.query.books.findMany();
-        expect(books.map((b) => b.id).sort()).toEqual(["other-book", "ours"]);
       });
 
       it("inserts book-author relationships", async () => {

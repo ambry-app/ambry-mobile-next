@@ -134,16 +134,27 @@ export async function syncLibrary(
   }
 
   try {
-    // 1. Get last sync info from DB; a full resync discards the stored cursor
-    // so the server sends the entire library again
+    // 1. Get last sync info from DB. A full fetch asks for every entity, but
+    // still asks for deletions from the stored cursor: the server answers
+    // "none" to a null deletions cursor, which is right for a client holding
+    // nothing and wrong for one re-fetching a library it already has.
     const storedSyncInfo = await getLastLibrarySyncInfo(session);
-    const syncInfo = fullResync
+    const fullFetch = fullResync || storedSyncInfo.needsFullRefetch;
+    const syncInfo = fullFetch
       ? { ...storedSyncInfo, lastSyncTime: null }
       : storedSyncInfo;
 
+    if (storedSyncInfo.needsFullRefetch) {
+      log.info("Schema change asked for a full re-fetch");
+    }
+
     // 2. Call GraphQL API to get changes
     setSyncStage(SyncTask.LIBRARY, SyncStage.DOWNLOADING);
-    const result = await getLibraryChangesSince(session, syncInfo.lastSyncTime);
+    const result = await getLibraryChangesSince(
+      session,
+      syncInfo.lastSyncTime,
+      storedSyncInfo.lastSyncTime,
+    );
 
     if (!result.success) {
       setSyncStage(SyncTask.LIBRARY, SyncStage.FAILED);

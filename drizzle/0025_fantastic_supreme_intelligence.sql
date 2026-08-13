@@ -124,14 +124,15 @@ CREATE INDEX `media_published_index` ON `media` (`published`);--> statement-brea
 CREATE INDEX `media_url_status_inserted_at_idx` ON `media` (`url`,`status`,`inserted_at`);--> statement-breakpoint
 ALTER TABLE `media_narrators` ADD `position` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 ALTER TABLE `series_books` ADD `position` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
--- Library sync is a cursor, not a per-row synced flag: the server only returns
--- rows whose updated_at is newer than last_sync_time. Rows already on the
--- device were written before these columns existed and the server has no
--- reason to touch them again, so clearing the cursor is what makes the next
--- sync re-fetch the whole library and fill them in.
+ALTER TABLE `synced_servers` ADD `needs_full_refetch` integer DEFAULT false NOT NULL;--> statement-breakpoint
+-- These columns are new, and the server only re-sends rows whose updated_at is
+-- newer than last_sync_time, so rows already on the device would keep their
+-- missing columns forever. This asks the next sync to re-fetch every entity.
 --
--- A cursorless fetch gets no deletion records, so anything deleted while this
--- device was away would survive as a phantom. applyLibraryChanges reconciles
--- after a full fetch: the payload is the whole library, so a local row missing
--- from it is deleted.
-UPDATE `synced_servers` SET `last_sync_time` = NULL;
+-- The cursor itself is deliberately left alone. It records when this device
+-- last heard about a deletion, and a fetch that sends `since: null` for
+-- deletions is told there are none -- which is the right answer for a client
+-- that holds nothing, and the wrong one for a client re-fetching a library it
+-- already has. Keeping the cursor lets the next sync ask for all entities and
+-- only the deletions it actually missed.
+UPDATE `synced_servers` SET `needs_full_refetch` = true;

@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { chunkBoundValues, chunkRowsForInsert } from "@/db/chunk";
-import { Database, getDb } from "@/db/db";
+import { getDb } from "@/db/db";
 import { rebuildPlaythroughs } from "@/db/playthrough-reducer";
 import {
   getAllUnsyncedEvents,
@@ -26,6 +26,7 @@ const log = logBase.extend("db-sync");
 export interface LibrarySyncInfo {
   lastSyncTime: Date | null;
   libraryDataVersion: Date | null;
+  needsFullRefetch: boolean;
 }
 
 /**
@@ -41,6 +42,7 @@ export async function getLastLibrarySyncInfo(
   return {
     lastSyncTime: syncedServer?.lastSyncTime ?? null,
     libraryDataVersion: syncedServer?.libraryDataVersion ?? null,
+    needsFullRefetch: syncedServer?.needsFullRefetch ?? false,
   };
 }
 
@@ -215,42 +217,6 @@ const deletionsTables = {
  */
 export interface ApplyLibraryChangesResult {
   newDataAsOf: Date | null;
-}
-
-/**
- * Remove local rows the server did not send.
- *
- * Only valid after a full fetch. `deletionsSince(null)` is empty by design, so
- * a full fetch carries no deletion records at all and rows deleted since the
- * device last synced would otherwise linger forever: the cursor moves past
- * them and no later sync ever mentions them again. A full payload is the whole
- * library, though, so absence is itself the deletion.
- *
- * The diff is done in memory because it is almost always empty, and reading
- * ids is far cheaper than a NOT IN over thousands of bound values.
- */
-async function deleteRowsMissingFrom(
-  tx: Database,
-  table: (typeof deletionsTables)[keyof typeof deletionsTables],
-  session: Session,
-  presentIds: Set<string>,
-): Promise<number> {
-  const localRows = await tx
-    .select({ id: table.id })
-    .from(table)
-    .where(eq(table.url, session.url));
-
-  const missing = localRows
-    .map((row) => row.id)
-    .filter((id) => !presentIds.has(id));
-
-  for (const ids of chunkBoundValues(missing)) {
-    await tx
-      .delete(table)
-      .where(and(eq(table.url, session.url), inArray(table.id, ids)));
-  }
-
-  return missing.length;
 }
 
 /**
@@ -511,35 +477,6 @@ export async function applyLibraryChanges(
   );
 
   const serverTime = new Date(changes.serverTime);
-
-  // No cursor was sent, so the server answered with the whole library rather
-  // than a delta. That makes the payload authoritative about what exists.
-  const isFullFetch = previousSyncInfo.lastSyncTime === null;
-
-  const fullFetchContents = isFullFetch
-    ? (
-        [
-          ["media tracks", schema.mediaTracks, mediaTracksValues],
-          ["narrations", schema.mediaNarrators, mediaNarratorsValues],
-          ["media", schema.media, mediaValues],
-          ["sets", schema.recordingGroups, recordingGroupsValues],
-          ["series books", schema.seriesBooks, seriesBooksValues],
-          ["series", schema.series, seriesValues],
-          ["book authors", schema.bookAuthors, bookAuthorsValues],
-          ["book universes", schema.bookUniverses, bookUniversesValues],
-          ["universes", schema.universes, universesValues],
-          ["books", schema.books, booksValues],
-          ["narrators", schema.narrators, narratorValues],
-          ["author people", schema.authorPeople, authorPeopleValues],
-          ["authors", schema.authors, authorValues],
-          ["people", schema.people, peopleValues],
-        ] as const
-      ).map(([type, table, values]) => ({
-        type,
-        table,
-        ids: new Set(values.map((value) => value.id)),
-      }))
-    : [];
 
   const countChanges =
     changes.authorsChangedSince.length +
@@ -930,29 +867,21 @@ export async function applyLibraryChanges(
       }
     }
 
-    // A full fetch gets no deletion records, so absence from the payload is
-    // the only evidence a row is gone. Children first, same as above.
-    if (isFullFetch) {
-      for (const { type, table, ids } of fullFetchContents) {
-        const removed = await deleteRowsMissingFrom(tx, table, session, ids);
-        if (removed !== 0) {
-          log.info(`reconcile removed ${removed} stale ${type}`);
-        }
-      }
-    }
-
     await tx
       .insert(schema.syncedServers)
       .values({
         url: session.url,
         lastSyncTime: serverTime,
         libraryDataVersion: newDataAsOf,
+        needsFullRefetch: false,
       })
       .onConflictDoUpdate({
         target: [schema.syncedServers.url],
         set: {
           lastSyncTime: sql`excluded.last_sync_time`,
           libraryDataVersion: sql`excluded.library_data_version`,
+          // whatever asked for the re-fetch has now had it
+          needsFullRefetch: sql`excluded.needs_full_refetch`,
         },
       });
   });
