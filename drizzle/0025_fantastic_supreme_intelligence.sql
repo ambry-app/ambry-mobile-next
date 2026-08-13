@@ -128,7 +128,10 @@ ALTER TABLE `series_books` ADD `position` integer DEFAULT 0 NOT NULL;--> stateme
 -- rows whose updated_at is newer than last_sync_time. Rows already on the
 -- device were written before these columns existed and the server has no
 -- reason to touch them again, so clearing the cursor is what makes the next
--- sync re-fetch the whole library and fill them in. Deletions are not missed:
--- everything deleted before now was already applied, and the cursor this sync
--- writes covers everything after.
+-- sync re-fetch the whole library and fill them in.
+--
+-- A cursorless fetch gets no deletion records, so anything deleted while this
+-- device was away would survive as a phantom. applyLibraryChanges reconciles
+-- after a full fetch: the payload is the whole library, so a local row missing
+-- from it is deleted.
 UPDATE `synced_servers` SET `last_sync_time` = NULL;

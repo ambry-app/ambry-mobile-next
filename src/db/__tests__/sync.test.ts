@@ -12,6 +12,8 @@
  * TODO: Add new tests for syncEvents once GraphQL types are regenerated.
  */
 
+import { eq } from "drizzle-orm";
+
 import * as schema from "@/db/schema";
 import { getServerSyncTimestamps } from "@/db/sync-helpers";
 import { syncLibrary } from "@/services/sync-service";
@@ -488,6 +490,116 @@ describe("sync", () => {
         expect(links).toHaveLength(1);
         expect(links[0]!.bookId).toBe("book-1");
         expect(links[0]!.universeId).toBe("universe-1");
+      });
+
+      it("removes rows the server no longer has on a full fetch", async () => {
+        const db = getDb();
+
+        // first sync: two books, each with a recording
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges("2024-01-15T10:00:00.000Z"),
+            booksChangedSince: [
+              createLibraryBook({ id: "keeper" }),
+              createLibraryBook({ id: "goner" }),
+            ],
+            mediaChangedSince: [
+              createLibraryMedia({ id: "media-keeper", bookId: "keeper" }),
+              createLibraryMedia({ id: "media-goner", bookId: "goner" }),
+            ],
+          }),
+        );
+        await syncLibrary(session);
+        expect(await db.query.books.findMany()).toHaveLength(2);
+
+        // the cursor is cleared, as the schema migration does, and one book has
+        // been deleted on the server in the meantime. A full fetch carries no
+        // deletion records, so its absence is the only evidence.
+        await db
+          .update(schema.syncedServers)
+          .set({ lastSyncTime: null })
+          .where(eq(schema.syncedServers.url, session.url));
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges("2024-01-15T11:00:00.000Z"),
+            booksChangedSince: [createLibraryBook({ id: "keeper" })],
+            mediaChangedSince: [
+              createLibraryMedia({ id: "media-keeper", bookId: "keeper" }),
+            ],
+          }),
+        );
+        await syncLibrary(session);
+
+        expect((await db.query.books.findMany()).map((b) => b.id)).toEqual([
+          "keeper",
+        ]);
+        expect((await db.query.media.findMany()).map((m) => m.id)).toEqual([
+          "media-keeper",
+        ]);
+      });
+
+      it("leaves untouched rows alone during an incremental sync", async () => {
+        const db = getDb();
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges("2024-01-15T10:00:00.000Z"),
+            booksChangedSince: [
+              createLibraryBook({ id: "book-1" }),
+              createLibraryBook({ id: "book-2" }),
+            ],
+          }),
+        );
+        await syncLibrary(session);
+
+        // an incremental sync only mentions what changed; everything else must
+        // survive, which is exactly what reconciliation must not touch
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges("2024-01-15T11:00:00.000Z"),
+            booksChangedSince: [
+              createLibraryBook({ id: "book-1", title: "Renamed" }),
+            ],
+          }),
+        );
+        await syncLibrary(session);
+
+        const books = await db.query.books.findMany({
+          orderBy: (b, { asc }) => asc(b.id),
+        });
+        expect(books.map((b) => b.id)).toEqual(["book-1", "book-2"]);
+        expect(books[0]!.title).toBe("Renamed");
+      });
+
+      it("does not touch another server's rows when reconciling", async () => {
+        const db = getDb();
+
+        await db.insert(schema.books).values({
+          url: "https://other-server.com",
+          id: "other-book",
+          title: "Other",
+          published: new Date(),
+          publishedFormat: "full",
+          insertedAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges(),
+            booksChangedSince: [createLibraryBook({ id: "ours" })],
+          }),
+        );
+        await syncLibrary(session);
+
+        const books = await db.query.books.findMany();
+        expect(books.map((b) => b.id).sort()).toEqual(["other-book", "ours"]);
       });
 
       it("inserts book-author relationships", async () => {
