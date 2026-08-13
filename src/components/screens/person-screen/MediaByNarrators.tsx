@@ -72,8 +72,8 @@ function MediaByNarrator(props: MediaByNarratorProps) {
         <HeaderButton
           label={
             narrator.name === personName
-              ? `Read By ${narrator.name}`
-              : `Read As ${narrator.name}`
+              ? `Read by ${narrator.name}`
+              : `Read as ${narrator.name}`
           }
           onPress={navigateToNarrator}
           showCaret={hasMore}
