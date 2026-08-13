@@ -14,11 +14,11 @@ import { Session } from "@/types/session";
 
 import { PlayerContextMenuImpl } from "./PlayerContextMenuImpl";
 
+// A person credited on the recording. Authors arrive already expanded from
+// their byline, so a composite pen name contributes one entry per person.
 type AuthorOrNarrator = {
   id: string;
   name: string;
-  personId: string;
-  personName: string;
 };
 
 export type PlayerContextMenuProps = {
@@ -56,7 +56,7 @@ export function PlayerContextMenu({
       onCollapse();
       router.navigate({
         pathname: "/person/[id]",
-        params: { id: item.personId, title: item.personName },
+        params: { id: item.id, title: item.name },
       });
     },
     [onCollapse],

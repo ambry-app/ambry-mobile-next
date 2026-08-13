@@ -176,6 +176,13 @@
       "when": 1785610364053,
       "tag": "0024_watery_madelyne_pryor",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1786658199214,
+      "tag": "0025_fantastic_supreme_intelligence",
+      "breakpoints": true
     }
   ]
 }

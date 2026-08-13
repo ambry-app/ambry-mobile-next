@@ -677,8 +677,8 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
                     session={session}
                     playthrough={playthrough}
                     bookTitle={media.book.title}
-                    authors={media.book.authors}
-                    narrators={media.narrators}
+                    authors={media.book.authorPeople}
+                    narrators={media.narratorPeople}
                     onCollapse={collapse}
                   />
                 </View>

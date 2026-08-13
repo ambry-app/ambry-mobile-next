@@ -53,8 +53,12 @@ describe("test factories", () => {
       const author = await createAuthor(db);
 
       expect(author.id).toBe("author-1");
-      // Person is auto-created, so just verify it exists
-      expect(author.personId).toMatch(/^person-/);
+
+      // Person is auto-created, so just verify it got linked
+      const links = await db.query.authorPeople.findMany();
+      expect(links).toHaveLength(1);
+      expect(links[0]!.authorId).toBe(author.id);
+      expect(links[0]!.personId).toMatch(/^person-/);
     });
 
     it("creates an author with existing person", async () => {
@@ -62,7 +66,27 @@ describe("test factories", () => {
       const person = await createPerson(db, { id: "existing-person" });
       const author = await createAuthor(db, { personId: person.id });
 
-      expect(author.personId).toBe("existing-person");
+      const links = await db.query.authorPeople.findMany();
+      expect(links).toHaveLength(1);
+      expect(links[0]!.authorId).toBe(author.id);
+      expect(links[0]!.personId).toBe("existing-person");
+    });
+
+    it("creates a composite author linked to several people", async () => {
+      const db = getDb();
+      const abraham = await createPerson(db, { id: "abraham" });
+      const franck = await createPerson(db, { id: "franck" });
+      const author = await createAuthor(db, {
+        name: "James S.A. Corey",
+        personIds: [abraham.id, franck.id],
+      });
+
+      const links = await db.query.authorPeople.findMany();
+      expect(links.map((link) => link.personId).sort()).toEqual([
+        "abraham",
+        "franck",
+      ]);
+      expect(links.every((link) => link.authorId === author.id)).toBe(true);
     });
 
     it("creates a narrator with auto-created person", async () => {

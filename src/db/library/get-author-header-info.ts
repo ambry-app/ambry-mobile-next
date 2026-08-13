@@ -18,15 +18,28 @@ export async function getAuthorHeaderInfo(session: Session, authorId: string) {
       eq(schema.authors.id, authorId),
     ),
     with: {
-      person: {
-        columns: {
-          id: true,
-          name: true,
-          thumbnails: true,
+      authorPeople: {
+        columns: {},
+        with: {
+          person: {
+            columns: {
+              id: true,
+              name: true,
+              thumbnails: true,
+            },
+          },
         },
       },
     },
   });
 
-  return requireValue(author, "Author not found");
+  const found = requireValue(author, "Author not found");
+
+  // A byline can be one person writing under a pen name, or several people
+  // sharing one ("James S.A. Corey"). Callers get the list and decide.
+  return {
+    id: found.id,
+    name: found.name,
+    people: found.authorPeople.map((authorPerson) => authorPerson.person),
+  };
 }

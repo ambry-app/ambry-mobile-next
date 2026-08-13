@@ -9,6 +9,16 @@ type Author implements Node {
   id: ID!
   insertedAt: DateTime!
   name: String!
+  people: [Person!]!
+  person: Person! @deprecated(reason: "use `people` instead; an author can be linked to multiple people")
+  updatedAt: DateTime!
+}
+
+type AuthorPerson implements Node {
+  author: Author!
+  """The ID of an object"""
+  id: ID!
+  insertedAt: DateTime!
   person: Person!
   updatedAt: DateTime!
 }
@@ -23,6 +33,7 @@ type Book implements Node & SearchResult {
   publishedFormat: DateFormat!
   seriesBooks: [SeriesBook!]!
   title: String!
+  universes: [Universe!]!
   updatedAt: DateTime!
 }
 
@@ -32,6 +43,7 @@ type BookAuthor implements Node {
   """The ID of an object"""
   id: ID!
   insertedAt: DateTime!
+  position: Int!
   updatedAt: DateTime!
 }
 
@@ -43,6 +55,15 @@ type BookConnection {
 type BookEdge {
   cursor: String
   node: Book
+}
+
+type BookUniverse implements Node {
+  book: Book!
+  """The ID of an object"""
+  id: ID!
+  insertedAt: DateTime!
+  universe: Universe!
+  updatedAt: DateTime!
 }
 
 type Chapter {
@@ -103,14 +124,19 @@ type Deletion implements Node {
 
 enum DeletionType {
   AUTHOR
+  AUTHOR_PERSON
   BOOK
   BOOK_AUTHOR
+  BOOK_UNIVERSE
   MEDIA
   MEDIA_NARRATOR
+  MEDIA_TRACK
   NARRATOR
   PERSON
+  RECORDING_GROUP
   SERIES
   SERIES_BOOK
+  UNIVERSE
 }
 
 input DeviceInput {
@@ -132,14 +158,6 @@ enum DeviceTypeInput {
   IOS
 }
 
-input LoadPlayerStateInput {
-  mediaId: ID!
-}
-
-type LoadPlayerStatePayload {
-  playerState: PlayerState!
-}
-
 type Media implements Node {
   abridged: Boolean!
   book: Book!
@@ -156,13 +174,25 @@ type Media implements Node {
   mpdPath: String
   narrators: [Narrator!]!
   notes: String
-  playerState: PlayerState
+  """
+  For multi-part recordings: this recording's position in its part set; the set's total lives on the recording group
+  """
+  partNumber: Int
   published: Date
   publishedFormat: DateFormat!
   publisher: String
+  recordingGroup: RecordingGroup
   status: MediaProcessingStatus!
   supplementalFiles: [SupplementalFile!]!
   thumbnails: Thumbnails
+  """
+  Display-title override for this recording (translated/regional/retail title); null means the book's title applies
+  """
+  title: String
+  """
+  Direct-play audio files, in playback order; empty for media that only has the legacy packaged artifacts below
+  """
+  tracks: [MediaTrack!]!
   updatedAt: DateTime!
 }
 
@@ -182,6 +212,7 @@ type MediaNarrator implements Node {
   insertedAt: DateTime!
   media: Media!
   narrator: Narrator!
+  position: Int!
   updatedAt: DateTime!
 }
 
@@ -190,6 +221,43 @@ enum MediaProcessingStatus {
   PENDING
   PROCESSING
   READY
+}
+
+"""One audio file of a recording, played directly by the client"""
+type MediaTrack implements Node {
+  """
+  Audio codec as probed, e.g. "aac". Clients decide playability from this and `mime` — nothing here is assumed playable
+  """
+  codec: String
+  duration: Float!
+  """
+  Container as probed, e.g. "mov,mp4,m4a,3gp,3g2,mj2"
+  """
+  format: String
+  """The ID of an object"""
+  id: ID!
+  """Position in the recording's ordered track list, 0-based"""
+  index: Int!
+  insertedAt: DateTime!
+  media: Media!
+  """
+  Media type of the file, e.g. "audio/mp4"
+  """
+  mime: String
+  """
+  Where to fetch the file; requires the same authentication as any other media URL
+  """
+  path: String!
+  seekAccuracy: SeekAccuracy!
+  """
+  Size in bytes. A float because audiobook files routinely exceed what GraphQL's 32-bit Int can hold
+  """
+  size: Float!
+  """
+  Where this track starts on the book's continuous timeline, in seconds. Playback positions are always absolute book-seconds
+  """
+  startOffset: Float!
+  updatedAt: DateTime!
 }
 
 type Narrator implements Node {
@@ -270,93 +338,56 @@ enum PlaybackEventType {
   START
 }
 
-type PlayerState implements Node {
+type RecordingGroup implements Node {
+  """The work this set covers, same as its members'"""
+  book: Book!
   """The ID of an object"""
   id: ID!
   insertedAt: DateTime!
-  media: Media!
-  playbackRate: Float!
-  position: Float!
-  status: PlayerStateStatus!
+  media: [Media!]!
+  """Admin-only organizational label; clients should not display it"""
+  name: String!
+  """
+  Wording for one release in this set; null means "part"
+  """
+  partWord: String
+  """
+  Wording for several releases; null means "parts"
+  """
+  partWordPlural: String
+  """How many releases the set has, when known ("Part 2 of 3")"""
+  partsTotal: Int
   updatedAt: DateTime!
-}
-
-type PlayerStateConnection {
-  edges: [PlayerStateEdge]
-  pageInfo: PageInfo!
-}
-
-type PlayerStateEdge {
-  cursor: String
-  node: PlayerState
-}
-
-enum PlayerStateStatus {
-  FINISHED
-  IN_PROGRESS
-  NOT_STARTED
-}
-
-type Playthrough {
-  abandonedAt: DateTime
-  deletedAt: DateTime
-  finishedAt: DateTime
-  id: ID!
-  insertedAt: DateTime!
-  media: Media!
-  startedAt: DateTime!
-  status: PlaythroughStatus!
-  updatedAt: DateTime!
-}
-
-input PlaythroughInput {
-  abandonedAt: DateTime
-  deletedAt: DateTime
-  finishedAt: DateTime
-  id: ID!
-  mediaId: ID!
-  startedAt: DateTime!
-  status: PlaythroughStatus!
-}
-
-enum PlaythroughStatus {
-  ABANDONED
-  FINISHED
-  IN_PROGRESS
 }
 
 type RootMutationType {
   createSession(input: CreateSessionInput!): CreateSessionPayload
   deleteSession: DeleteSessionPayload
   """
-  Initializes a new player state or returns an existing player state for a given Media.
-  """
-  loadPlayerState(input: LoadPlayerStateInput!): LoadPlayerStatePayload
-  """
   V2 sync: events only, no playthroughs. All state is derived from events.
   """
   syncEvents(input: SyncEventsInput!): SyncEventsPayload
-  syncProgress(input: SyncProgressInput!): SyncProgressPayload
-  updatePlayerState(input: UpdatePlayerStateInput!): UpdatePlayerStatePayload
 }
 
 type RootQueryType {
+  authorPeopleChangedSince(since: DateTime): [AuthorPerson!]!
   authorsChangedSince(since: DateTime): [Author!]!
   bookAuthorsChangedSince(since: DateTime): [BookAuthor!]!
+  bookUniversesChangedSince(since: DateTime): [BookUniverse!]!
   books(after: String, before: String, first: Int, last: Int): BookConnection
   booksChangedSince(since: DateTime): [Book!]!
   deletionsSince(since: DateTime): [Deletion!]!
   me: User
   mediaChangedSince(since: DateTime): [Media!]!
   mediaNarratorsChangedSince(since: DateTime): [MediaNarrator!]!
+  mediaTracksChangedSince(since: DateTime): [MediaTrack!]!
   narratorsChangedSince(since: DateTime): [Narrator!]!
   node(
     """The ID of an object."""
     id: ID!
   ): Node
   peopleChangedSince(since: DateTime): [Person!]!
-  playerStates(after: String, before: String, first: Int, last: Int): PlayerStateConnection
-  playerStatesChangedSince(since: DateTime): [PlayerState!]!
+  recordingGroupsChangedSince(since: DateTime): [RecordingGroup!]!
   search(
     after: String
     before: String
@@ -368,6 +399,7 @@ type RootQueryType {
   seriesBooksChangedSince(since: DateTime): [SeriesBook!]!
   seriesChangedSince(since: DateTime): [Series!]!
   serverTime: DateTime!
+  universesChangedSince(since: DateTime): [Universe!]!
 }
 
 interface SearchResult {
@@ -382,6 +414,16 @@ type SearchResultConnection {
 type SearchResultEdge {
   cursor: String
   node: SearchResult
+}
+
+"""How accurately a player can seek within a track"""
+enum SeekAccuracy {
+  """
+  The file carries no seek index (e.g. VBR mp3 with no Xing header); positions may drift
+  """
+  APPROXIMATE
+  """Seeking lands where it says it does"""
+  EXACT
 }
 
 type Series implements Node & SearchResult {
@@ -399,6 +441,7 @@ type SeriesBook implements Node {
   """The ID of an object"""
   id: ID!
   insertedAt: DateTime!
+  position: Int!
   series: Series!
   updatedAt: DateTime!
 }
@@ -431,19 +474,6 @@ type SyncEventsPayload {
   serverTime: DateTime!
 }
 
-input SyncProgressInput {
-  device: DeviceInput!
-  events: [PlaybackEventInput!]!
-  lastSyncTime: DateTime
-  playthroughs: [PlaythroughInput!]!
-}
-
-type SyncProgressPayload {
-  events: [PlaybackEvent!]!
-  playthroughs: [Playthrough!]!
-  serverTime: DateTime!
-}
-
 type Thumbnails {
   blurhash: String
   extraLarge: String!
@@ -454,14 +484,13 @@ type Thumbnails {
   thumbhash: String!
 }
 
-input UpdatePlayerStateInput {
-  mediaId: ID!
-  playbackRate: Float
-  position: Float
-}
-
-type UpdatePlayerStatePayload {
-  playerState: PlayerState!
+type Universe implements Node {
+  books: [Book!]!
+  """The ID of an object"""
+  id: ID!
+  insertedAt: DateTime!
+  name: String!
+  updatedAt: DateTime!
 }
 
 type User {
@@ -469,6 +498,5 @@ type User {
   confirmedAt: DateTime
   email: String!
   insertedAt: DateTime!
-  loadedPlayerState: PlayerState
   updatedAt: DateTime!
 }

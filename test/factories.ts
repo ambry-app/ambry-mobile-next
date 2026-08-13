@@ -57,6 +57,10 @@ export async function createPerson(
 
 type AuthorOverrides = Partial<typeof schema.authors.$inferInsert> & {
   person?: PersonOverrides;
+  /** Link this author to an existing person. */
+  personId?: string;
+  /** Link this author to several people, as for a composite pen name. */
+  personIds?: string[];
 };
 
 export async function createAuthor(
@@ -64,31 +68,38 @@ export async function createAuthor(
   overrides: AuthorOverrides = {},
 ): Promise<typeof schema.authors.$inferSelect> {
   const now = new Date();
-  const { person: personOverrides, ...rest } = overrides;
+  const { person: personOverrides, personId, personIds, ...rest } = overrides;
   const id = rest.id ?? nextId("author");
   const url = rest.url ?? DEFAULT_TEST_SESSION.url;
 
-  // Create or use existing person
-  let personId = rest.personId;
-  if (!personId) {
-    const person = await createPerson(db, {
-      url,
-      ...personOverrides,
-    });
-    personId = person.id;
+  // An author is a byline linked to one or more people. Callers name the
+  // people they care about; everyone else gets one made for them.
+  let linkedPersonIds = personIds ?? (personId ? [personId] : []);
+  if (linkedPersonIds.length === 0) {
+    const person = await createPerson(db, { url, ...personOverrides });
+    linkedPersonIds = [person.id];
   }
 
   const author: typeof schema.authors.$inferInsert = {
     url,
     id,
     name: rest.name ?? `Author ${id}`,
-    personId,
     insertedAt: now,
     updatedAt: now,
     ...rest,
   };
 
   await db.insert(schema.authors).values(author);
+  await db.insert(schema.authorPeople).values(
+    linkedPersonIds.map((linkedPersonId) => ({
+      url,
+      id: nextId("author-person"),
+      authorId: id,
+      personId: linkedPersonId,
+      insertedAt: now,
+      updatedAt: now,
+    })),
+  );
 
   const result = await db.query.authors.findFirst({
     where: (a, { and, eq }) => and(eq(a.url, author.url), eq(a.id, author.id)),

@@ -33,6 +33,7 @@ import {
 } from "@test/fetch-mock";
 import {
   createLibraryAuthor,
+  createLibraryAuthorPerson,
   createLibraryBook,
   createLibraryBookAuthor,
   createLibraryDeletion,
@@ -205,6 +206,10 @@ describe("sync", () => {
         const author = createLibraryAuthor({
           id: "author-1",
           name: "John Author",
+        });
+        const authorPerson = createLibraryAuthorPerson({
+          id: "author-person-1",
+          authorId: "author-1",
           personId: "person-1",
         });
 
@@ -214,6 +219,7 @@ describe("sync", () => {
             ...emptyLibraryChanges(),
             peopleChangedSince: [person],
             authorsChangedSince: [author],
+            authorPeopleChangedSince: [authorPerson],
           }),
         );
 
@@ -223,7 +229,11 @@ describe("sync", () => {
         expect(authors).toHaveLength(1);
         expect(authors[0]!.id).toBe("author-1");
         expect(authors[0]!.name).toBe("John Author");
-        expect(authors[0]!.personId).toBe("person-1");
+
+        const authorPeople = await db.query.authorPeople.findMany();
+        expect(authorPeople).toHaveLength(1);
+        expect(authorPeople[0]!.authorId).toBe("author-1");
+        expect(authorPeople[0]!.personId).toBe("person-1");
       });
 
       it("inserts new narrators from server response", async () => {
@@ -332,7 +342,6 @@ describe("sync", () => {
         const person = createLibraryPerson({ id: "person-1" });
         const author = createLibraryAuthor({
           id: "author-1",
-          personId: "person-1",
         });
         const book = createLibraryBook({ id: "book-1" });
         const bookAuthor = createLibraryBookAuthor({
@@ -562,11 +571,9 @@ describe("sync", () => {
         const person = createLibraryPerson({ id: "person-1" });
         const author1 = createLibraryAuthor({
           id: "author-1",
-          personId: "person-1",
         });
         const author2 = createLibraryAuthor({
           id: "author-2",
-          personId: "person-1",
         });
         const book = createLibraryBook({ id: "book-1" });
 
@@ -664,8 +671,13 @@ describe("sync", () => {
           graphqlSuccess({
             ...emptyLibraryChanges(),
             peopleChangedSince: [person1, person2],
-            authorsChangedSince: [
-              createLibraryAuthor({ id: "author-1", personId: "person-1" }),
+            authorsChangedSince: [createLibraryAuthor({ id: "author-1" })],
+            authorPeopleChangedSince: [
+              createLibraryAuthorPerson({
+                id: "author-person-1",
+                authorId: "author-1",
+                personId: "person-1",
+              }),
             ],
           }),
         );
@@ -675,8 +687,47 @@ describe("sync", () => {
           mockFetch,
           graphqlSuccess({
             ...emptyLibraryChanges(),
+            authorPeopleChangedSince: [
+              createLibraryAuthorPerson({
+                id: "author-person-1",
+                authorId: "author-1",
+                personId: "person-2",
+              }),
+            ],
+          }),
+        );
+        await syncLibrary(session);
+
+        const authorPeople = await db.query.authorPeople.findMany();
+        expect(authorPeople).toHaveLength(1);
+        expect(authorPeople[0]!.personId).toBe("person-2");
+      });
+
+      it("links one byline to several people for a composite pen name", async () => {
+        const db = getDb();
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges(),
+            peopleChangedSince: [
+              createLibraryPerson({ id: "person-1" }),
+              createLibraryPerson({ id: "person-2" }),
+            ],
             authorsChangedSince: [
-              createLibraryAuthor({ id: "author-1", personId: "person-2" }),
+              createLibraryAuthor({ id: "author-1", name: "James S.A. Corey" }),
+            ],
+            authorPeopleChangedSince: [
+              createLibraryAuthorPerson({
+                id: "author-person-1",
+                authorId: "author-1",
+                personId: "person-1",
+              }),
+              createLibraryAuthorPerson({
+                id: "author-person-2",
+                authorId: "author-1",
+                personId: "person-2",
+              }),
             ],
           }),
         );
@@ -684,7 +735,12 @@ describe("sync", () => {
 
         const authors = await db.query.authors.findMany();
         expect(authors).toHaveLength(1);
-        expect(authors[0]!.personId).toBe("person-2");
+
+        const authorPeople = await db.query.authorPeople.findMany();
+        expect(authorPeople.map((link) => link.personId).sort()).toEqual([
+          "person-1",
+          "person-2",
+        ]);
       });
 
       it("updates narrator's person when changed on the server", async () => {

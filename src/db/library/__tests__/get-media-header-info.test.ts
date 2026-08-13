@@ -82,7 +82,6 @@ describe("getMediaHeaderInfo", () => {
 
     expect(result.book.authors).toHaveLength(1);
     expect(result.book.authors[0]?.name).toBe("Jane Austen");
-    expect(result.book.authors[0]?.person).toBeDefined();
   });
 
   it("returns media with series info", async () => {

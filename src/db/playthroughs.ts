@@ -56,7 +56,6 @@ export async function getInProgressPlaythroughWithMedia(
                 with: {
                   author: {
                     columns: { id: true, name: true },
-                    with: { person: { columns: { id: true } } },
                   },
                 },
               },
@@ -104,7 +103,6 @@ export async function getPlaythroughWithMedia(
                 with: {
                   author: {
                     columns: { id: true, name: true },
-                    with: { person: { columns: { id: true } } },
                   },
                 },
               },

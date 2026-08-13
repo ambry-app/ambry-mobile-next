@@ -33,10 +33,18 @@ const libraryChangesSinceQuery = graphql(`
     }
     authorsChangedSince(since: $since) {
       id
+      name
+      insertedAt
+      updatedAt
+    }
+    authorPeopleChangedSince(since: $since) {
+      id
+      author {
+        id
+      }
       person {
         id
       }
-      name
       insertedAt
       updatedAt
     }
@@ -65,6 +73,24 @@ const libraryChangesSinceQuery = graphql(`
       author {
         id
       }
+      position
+      insertedAt
+      updatedAt
+    }
+    universesChangedSince(since: $since) {
+      id
+      name
+      insertedAt
+      updatedAt
+    }
+    bookUniversesChangedSince(since: $since) {
+      id
+      book {
+        id
+      }
+      universe {
+        id
+      }
       insertedAt
       updatedAt
     }
@@ -83,6 +109,18 @@ const libraryChangesSinceQuery = graphql(`
         id
       }
       bookNumber
+      position
+      insertedAt
+      updatedAt
+    }
+    recordingGroupsChangedSince(since: $since) {
+      id
+      book {
+        id
+      }
+      partsTotal
+      partWord
+      partWordPlural
       insertedAt
       updatedAt
     }
@@ -91,6 +129,11 @@ const libraryChangesSinceQuery = graphql(`
       book {
         id
       }
+      title
+      recordingGroup {
+        id
+      }
+      partNumber
       status
       description
       thumbnails {
@@ -134,6 +177,24 @@ const libraryChangesSinceQuery = graphql(`
       narrator {
         id
       }
+      position
+      insertedAt
+      updatedAt
+    }
+    mediaTracksChangedSince(since: $since) {
+      id
+      media {
+        id
+      }
+      index
+      path
+      size
+      mime
+      format
+      codec
+      duration
+      startOffset
+      seekAccuracy
       insertedAt
       updatedAt
     }

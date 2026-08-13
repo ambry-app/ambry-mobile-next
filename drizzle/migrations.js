@@ -26,6 +26,7 @@ import m0021 from './0021_violet_reavers.sql';
 import m0022 from './0022_graceful_elektra.sql';
 import m0023 from './0023_amused_rhino.sql';
 import m0024 from './0024_watery_madelyne_pryor.sql';
+import m0025 from './0025_fantastic_supreme_intelligence.sql';
 
   export default {
     journal,
@@ -54,7 +55,8 @@ m0020,
 m0021,
 m0022,
 m0023,
-m0024
+m0024,
+m0025
     }
   }
   

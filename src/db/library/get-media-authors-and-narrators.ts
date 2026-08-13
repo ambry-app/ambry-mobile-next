@@ -36,11 +36,20 @@ async function getAuthors(session: Session, bookId: string) {
         eq(schema.authors.id, schema.bookAuthors.authorId),
       ),
     )
+    // A composite byline yields one row per person, which is what we want
+    // here: each person earns their own entry in the rail.
+    .innerJoin(
+      schema.authorPeople,
+      and(
+        eq(schema.authorPeople.url, schema.authors.url),
+        eq(schema.authorPeople.authorId, schema.authors.id),
+      ),
+    )
     .innerJoin(
       schema.people,
       and(
-        eq(schema.people.url, schema.authors.url),
-        eq(schema.people.id, schema.authors.personId),
+        eq(schema.people.url, schema.authorPeople.url),
+        eq(schema.people.id, schema.authorPeople.personId),
       ),
     )
     .where(
@@ -49,7 +58,7 @@ async function getAuthors(session: Session, bookId: string) {
         eq(schema.bookAuthors.bookId, bookId),
       ),
     )
-    .orderBy(asc(schema.bookAuthors.insertedAt));
+    .orderBy(asc(schema.bookAuthors.position));
 
   return rows.map((row) => ({
     ...row,
@@ -89,7 +98,7 @@ async function getNarrators(session: Session, mediaId: string) {
         eq(schema.mediaNarrators.mediaId, mediaId),
       ),
     )
-    .orderBy(asc(schema.mediaNarrators.insertedAt));
+    .orderBy(asc(schema.mediaNarrators.position));
 
   return rows.map((row) => ({
     ...row,

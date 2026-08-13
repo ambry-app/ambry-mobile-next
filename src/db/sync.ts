@@ -56,8 +56,14 @@ export interface LibraryChangesInput {
   }[];
   authorsChangedSince: {
     id: string;
-    person: { id: string };
     name: string;
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  authorPeopleChangedSince: {
+    id: string;
+    author: { id: string };
+    person: { id: string };
     insertedAt: string;
     updatedAt: string;
   }[];
@@ -80,6 +86,20 @@ export interface LibraryChangesInput {
     id: string;
     book: { id: string };
     author: { id: string };
+    position: number;
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  universesChangedSince: {
+    id: string;
+    name: string;
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  bookUniversesChangedSince: {
+    id: string;
+    book: { id: string };
+    universe: { id: string };
     insertedAt: string;
     updatedAt: string;
   }[];
@@ -94,12 +114,25 @@ export interface LibraryChangesInput {
     book: { id: string };
     series: { id: string };
     bookNumber: string;
+    position: number;
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  recordingGroupsChangedSince: {
+    id: string;
+    book: { id: string };
+    partsTotal: number | null;
+    partWord: string | null;
+    partWordPlural: string | null;
     insertedAt: string;
     updatedAt: string;
   }[];
   mediaChangedSince: {
     id: string;
     book: { id: string };
+    title: string | null;
+    recordingGroup: { id: string } | null;
+    partNumber: number | null;
     status: string;
     description: string | null;
     thumbnails: Thumbnails | null;
@@ -132,6 +165,22 @@ export interface LibraryChangesInput {
     id: string;
     media: { id: string };
     narrator: { id: string };
+    position: number;
+    insertedAt: string;
+    updatedAt: string;
+  }[];
+  mediaTracksChangedSince: {
+    id: string;
+    media: { id: string };
+    index: number;
+    path: string;
+    size: number;
+    mime: string | null;
+    format: string | null;
+    codec: string | null;
+    duration: number;
+    startOffset: number;
+    seekAccuracy: string;
     insertedAt: string;
     updatedAt: string;
   }[];
@@ -142,14 +191,21 @@ export interface LibraryChangesInput {
   serverTime: string;
 }
 
+// Ordered children-first so a delete never trips a foreign key on the way
+// through.
 const deletionsTables = {
+  MEDIA_TRACK: schema.mediaTracks,
   MEDIA_NARRATOR: schema.mediaNarrators,
   MEDIA: schema.media,
+  RECORDING_GROUP: schema.recordingGroups,
   SERIES_BOOK: schema.seriesBooks,
   SERIES: schema.series,
   BOOK_AUTHOR: schema.bookAuthors,
+  BOOK_UNIVERSE: schema.bookUniverses,
+  UNIVERSE: schema.universes,
   BOOK: schema.books,
   NARRATOR: schema.narrators,
+  AUTHOR_PERSON: schema.authorPeople,
   AUTHOR: schema.authors,
   PERSON: schema.people,
 };
@@ -222,12 +278,24 @@ export async function applyLibraryChanges(
     return {
       url: session.url,
       id: author.id,
-      personId: author.person.id,
       name: author.name,
       insertedAt: new Date(author.insertedAt),
       updatedAt: new Date(author.updatedAt),
     };
   });
+
+  const authorPeopleValues = changes.authorPeopleChangedSince.map(
+    (authorPerson) => {
+      return {
+        url: session.url,
+        id: authorPerson.id,
+        authorId: authorPerson.author.id,
+        personId: authorPerson.person.id,
+        insertedAt: new Date(authorPerson.insertedAt),
+        updatedAt: new Date(authorPerson.updatedAt),
+      };
+    },
+  );
 
   const narratorValues = changes.narratorsChangedSince.map((narrator) => {
     return {
@@ -262,8 +330,32 @@ export async function applyLibraryChanges(
         id: bookAuthor.id,
         bookId: bookAuthor.book.id,
         authorId: bookAuthor.author.id,
+        position: bookAuthor.position,
         insertedAt: new Date(bookAuthor.insertedAt),
         updatedAt: new Date(bookAuthor.updatedAt),
+      };
+    },
+  );
+
+  const universesValues = changes.universesChangedSince.map((universe) => {
+    return {
+      url: session.url,
+      id: universe.id,
+      name: universe.name,
+      insertedAt: new Date(universe.insertedAt),
+      updatedAt: new Date(universe.updatedAt),
+    };
+  });
+
+  const bookUniversesValues = changes.bookUniversesChangedSince.map(
+    (bookUniverse) => {
+      return {
+        url: session.url,
+        id: bookUniverse.id,
+        bookId: bookUniverse.book.id,
+        universeId: bookUniverse.universe.id,
+        insertedAt: new Date(bookUniverse.insertedAt),
+        updatedAt: new Date(bookUniverse.updatedAt),
       };
     },
   );
@@ -286,8 +378,24 @@ export async function applyLibraryChanges(
         bookId: seriesBook.book.id,
         seriesId: seriesBook.series.id,
         bookNumber: seriesBook.bookNumber,
+        position: seriesBook.position,
         insertedAt: new Date(seriesBook.insertedAt),
         updatedAt: new Date(seriesBook.updatedAt),
+      };
+    },
+  );
+
+  const recordingGroupsValues = changes.recordingGroupsChangedSince.map(
+    (recordingGroup) => {
+      return {
+        url: session.url,
+        id: recordingGroup.id,
+        bookId: recordingGroup.book.id,
+        partsTotal: recordingGroup.partsTotal,
+        partWord: recordingGroup.partWord,
+        partWordPlural: recordingGroup.partWordPlural,
+        insertedAt: new Date(recordingGroup.insertedAt),
+        updatedAt: new Date(recordingGroup.updatedAt),
       };
     },
   );
@@ -302,6 +410,9 @@ export async function applyLibraryChanges(
         | "error"
         | "ready",
       bookId: media.book.id,
+      title: media.title,
+      recordingGroupId: media.recordingGroup?.id ?? null,
+      partNumber: media.partNumber,
       duration: media.duration ? media.duration.toString() : null,
       published: media.published ? new Date(media.published) : null,
       publishedFormat: media.publishedFormat.toLowerCase() as
@@ -331,11 +442,31 @@ export async function applyLibraryChanges(
         id: mediaNarrator.id,
         mediaId: mediaNarrator.media.id,
         narratorId: mediaNarrator.narrator.id,
+        position: mediaNarrator.position,
         insertedAt: new Date(mediaNarrator.insertedAt),
         updatedAt: new Date(mediaNarrator.updatedAt),
       };
     },
   );
+
+  const mediaTracksValues = changes.mediaTracksChangedSince.map((track) => {
+    return {
+      url: session.url,
+      id: track.id,
+      mediaId: track.media.id,
+      index: track.index,
+      path: track.path,
+      size: track.size,
+      mime: track.mime,
+      format: track.format,
+      codec: track.codec,
+      duration: track.duration,
+      startOffset: track.startOffset,
+      seekAccuracy: track.seekAccuracy.toLowerCase() as schema.SeekAccuracy,
+      insertedAt: new Date(track.insertedAt),
+      updatedAt: new Date(track.updatedAt),
+    };
+  });
 
   const deletionIds = groupBy(
     changes.deletionsSince,
@@ -347,15 +478,20 @@ export async function applyLibraryChanges(
 
   const countChanges =
     changes.authorsChangedSince.length +
+    changes.authorPeopleChangedSince.length +
     changes.bookAuthorsChangedSince.length +
     changes.booksChangedSince.length +
+    changes.bookUniversesChangedSince.length +
     changes.deletionsSince.length +
     changes.mediaChangedSince.length +
     changes.mediaNarratorsChangedSince.length +
+    changes.mediaTracksChangedSince.length +
     changes.narratorsChangedSince.length +
     changes.peopleChangedSince.length +
+    changes.recordingGroupsChangedSince.length +
     changes.seriesBooksChangedSince.length +
-    changes.seriesChangedSince.length;
+    changes.seriesChangedSince.length +
+    changes.universesChangedSince.length;
 
   const newDataAsOf =
     countChanges > 0 || previousSyncInfo.lastSyncTime === null
@@ -367,13 +503,18 @@ export async function applyLibraryChanges(
   const progress = progressReporter(
     peopleValues.length +
       authorValues.length +
+      authorPeopleValues.length +
       narratorValues.length +
       booksValues.length +
       bookAuthorsValues.length +
+      universesValues.length +
+      bookUniversesValues.length +
       seriesValues.length +
       seriesBooksValues.length +
+      recordingGroupsValues.length +
       mediaValues.length +
-      mediaNarratorsValues.length,
+      mediaNarratorsValues.length +
+      mediaTracksValues.length,
     onProgress,
   );
 
@@ -409,7 +550,6 @@ export async function applyLibraryChanges(
           .onConflictDoUpdate({
             target: [schema.authors.url, schema.authors.id],
             set: {
-              personId: sql`excluded.person_id`,
               name: sql`excluded.name`,
               updatedAt: sql`excluded.updated_at`,
             },
@@ -417,6 +557,29 @@ export async function applyLibraryChanges(
         progress.wrote(rows.length);
       }
       log.debug("authors inserted");
+    }
+
+    if (authorPeopleValues.length !== 0) {
+      log.debug(`inserting ${authorPeopleValues.length} author people...`);
+      progress.step("author names");
+      for (const rows of chunkRowsForInsert(
+        schema.authorPeople,
+        authorPeopleValues,
+      )) {
+        await tx
+          .insert(schema.authorPeople)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [schema.authorPeople.url, schema.authorPeople.id],
+            set: {
+              authorId: sql`excluded.author_id`,
+              personId: sql`excluded.person_id`,
+              updatedAt: sql`excluded.updated_at`,
+            },
+          });
+        progress.wrote(rows.length);
+      }
+      log.debug("author people inserted");
     }
 
     if (narratorValues.length !== 0) {
@@ -475,12 +638,58 @@ export async function applyLibraryChanges(
             set: {
               bookId: sql`excluded.book_id`,
               authorId: sql`excluded.author_id`,
+              position: sql`excluded.position`,
               updatedAt: sql`excluded.updated_at`,
             },
           });
         progress.wrote(rows.length);
       }
       log.debug("book authors inserted");
+    }
+
+    if (universesValues.length !== 0) {
+      log.debug("inserting", universesValues.length, "universes...");
+      progress.step("universes");
+      for (const rows of chunkRowsForInsert(
+        schema.universes,
+        universesValues,
+      )) {
+        await tx
+          .insert(schema.universes)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [schema.universes.url, schema.universes.id],
+            set: {
+              name: sql`excluded.name`,
+              updatedAt: sql`excluded.updated_at`,
+            },
+          });
+        progress.wrote(rows.length);
+      }
+      log.debug("universes inserted");
+    }
+
+    if (bookUniversesValues.length !== 0) {
+      log.debug(`inserting ${bookUniversesValues.length} book universes...`);
+      progress.step("book universes");
+      for (const rows of chunkRowsForInsert(
+        schema.bookUniverses,
+        bookUniversesValues,
+      )) {
+        await tx
+          .insert(schema.bookUniverses)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [schema.bookUniverses.url, schema.bookUniverses.id],
+            set: {
+              bookId: sql`excluded.book_id`,
+              universeId: sql`excluded.universe_id`,
+              updatedAt: sql`excluded.updated_at`,
+            },
+          });
+        progress.wrote(rows.length);
+      }
+      log.debug("book universes inserted");
     }
 
     if (seriesValues.length !== 0) {
@@ -518,12 +727,38 @@ export async function applyLibraryChanges(
               bookId: sql`excluded.book_id`,
               seriesId: sql`excluded.series_id`,
               bookNumber: sql`excluded.book_number`,
+              position: sql`excluded.position`,
               updatedAt: sql`excluded.updated_at`,
             },
           });
         progress.wrote(rows.length);
       }
       log.debug("series books inserted");
+    }
+
+    if (recordingGroupsValues.length !== 0) {
+      log.debug(`inserting ${recordingGroupsValues.length} sets...`);
+      progress.step("sets");
+      for (const rows of chunkRowsForInsert(
+        schema.recordingGroups,
+        recordingGroupsValues,
+      )) {
+        await tx
+          .insert(schema.recordingGroups)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [schema.recordingGroups.url, schema.recordingGroups.id],
+            set: {
+              bookId: sql`excluded.book_id`,
+              partsTotal: sql`excluded.parts_total`,
+              partWord: sql`excluded.part_word`,
+              partWordPlural: sql`excluded.part_word_plural`,
+              updatedAt: sql`excluded.updated_at`,
+            },
+          });
+        progress.wrote(rows.length);
+      }
+      log.debug("sets inserted");
     }
 
     if (mediaValues.length !== 0) {
@@ -538,6 +773,9 @@ export async function applyLibraryChanges(
             set: {
               status: sql`excluded.status`,
               bookId: sql`excluded.book_id`,
+              title: sql`excluded.title`,
+              recordingGroupId: sql`excluded.recording_group_id`,
+              partNumber: sql`excluded.part_number`,
               duration: sql`excluded.duration`,
               published: sql`excluded.published`,
               publishedFormat: sql`excluded.published_format`,
@@ -575,12 +813,44 @@ export async function applyLibraryChanges(
             set: {
               mediaId: sql`excluded.media_id`,
               narratorId: sql`excluded.narrator_id`,
+              position: sql`excluded.position`,
               updatedAt: sql`excluded.updated_at`,
             },
           });
         progress.wrote(rows.length);
       }
       log.debug("media narrators inserted");
+    }
+
+    if (mediaTracksValues.length !== 0) {
+      log.debug(`inserting ${mediaTracksValues.length} media tracks...`);
+      progress.step("audio files");
+      for (const rows of chunkRowsForInsert(
+        schema.mediaTracks,
+        mediaTracksValues,
+      )) {
+        await tx
+          .insert(schema.mediaTracks)
+          .values(rows)
+          .onConflictDoUpdate({
+            target: [schema.mediaTracks.url, schema.mediaTracks.id],
+            set: {
+              mediaId: sql`excluded.media_id`,
+              index: sql`excluded.index`,
+              path: sql`excluded.path`,
+              size: sql`excluded.size`,
+              mime: sql`excluded.mime`,
+              format: sql`excluded.format`,
+              codec: sql`excluded.codec`,
+              duration: sql`excluded.duration`,
+              startOffset: sql`excluded.start_offset`,
+              seekAccuracy: sql`excluded.seek_accuracy`,
+              updatedAt: sql`excluded.updated_at`,
+            },
+          });
+        progress.wrote(rows.length);
+      }
+      log.debug("media tracks inserted");
     }
 
     for (const [deletionType, table] of Object.entries(deletionsTables)) {

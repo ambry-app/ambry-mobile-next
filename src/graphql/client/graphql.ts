@@ -41,6 +41,8 @@ export type Author = Node & {
   id: Scalars['ID']['output'];
   insertedAt: Scalars['DateTime']['output'];
   name: Scalars['String']['output'];
+  people: Array<Person>;
+  /** @deprecated use `people` instead; an author can be linked to multiple people */
   person: Person;
   updatedAt: Scalars['DateTime']['output'];
 };
@@ -51,6 +53,16 @@ export type AuthorAuthoredBooksArgs = {
   before?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type AuthorPerson = Node & {
+  __typename?: 'AuthorPerson';
+  author: Author;
+  /** The ID of an object */
+  id: Scalars['ID']['output'];
+  insertedAt: Scalars['DateTime']['output'];
+  person: Person;
+  updatedAt: Scalars['DateTime']['output'];
 };
 
 export type Book = Node & SearchResult & {
@@ -64,6 +76,7 @@ export type Book = Node & SearchResult & {
   publishedFormat: DateFormat;
   seriesBooks: Array<SeriesBook>;
   title: Scalars['String']['output'];
+  universes: Array<Universe>;
   updatedAt: Scalars['DateTime']['output'];
 };
 
@@ -74,6 +87,7 @@ export type BookAuthor = Node & {
   /** The ID of an object */
   id: Scalars['ID']['output'];
   insertedAt: Scalars['DateTime']['output'];
+  position: Scalars['Int']['output'];
   updatedAt: Scalars['DateTime']['output'];
 };
 
@@ -87,6 +101,16 @@ export type BookEdge = {
   __typename?: 'BookEdge';
   cursor?: Maybe<Scalars['String']['output']>;
   node?: Maybe<Book>;
+};
+
+export type BookUniverse = Node & {
+  __typename?: 'BookUniverse';
+  book: Book;
+  /** The ID of an object */
+  id: Scalars['ID']['output'];
+  insertedAt: Scalars['DateTime']['output'];
+  universe: Universe;
+  updatedAt: Scalars['DateTime']['output'];
 };
 
 export type Chapter = {
@@ -130,14 +154,19 @@ export type Deletion = Node & {
 
 export enum DeletionType {
   Author = 'AUTHOR',
+  AuthorPerson = 'AUTHOR_PERSON',
   Book = 'BOOK',
   BookAuthor = 'BOOK_AUTHOR',
+  BookUniverse = 'BOOK_UNIVERSE',
   Media = 'MEDIA',
   MediaNarrator = 'MEDIA_NARRATOR',
+  MediaTrack = 'MEDIA_TRACK',
   Narrator = 'NARRATOR',
   Person = 'PERSON',
+  RecordingGroup = 'RECORDING_GROUP',
   Series = 'SERIES',
-  SeriesBook = 'SERIES_BOOK'
+  SeriesBook = 'SERIES_BOOK',
+  Universe = 'UNIVERSE'
 }
 
 export type DeviceInput = {
@@ -159,15 +188,6 @@ export enum DeviceTypeInput {
   Ios = 'IOS'
 }
 
-export type LoadPlayerStateInput = {
-  mediaId: Scalars['ID']['input'];
-};
-
-export type LoadPlayerStatePayload = {
-  __typename?: 'LoadPlayerStatePayload';
-  playerState: PlayerState;
-};
-
 export type Media = Node & {
   __typename?: 'Media';
   abridged: Scalars['Boolean']['output'];
@@ -186,13 +206,19 @@ export type Media = Node & {
   mpdPath?: Maybe<Scalars['String']['output']>;
   narrators: Array<Narrator>;
   notes?: Maybe<Scalars['String']['output']>;
-  playerState?: Maybe<PlayerState>;
+  /** For multi-part recordings: this recording's position in its part set; the set's total lives on the recording group */
+  partNumber?: Maybe<Scalars['Int']['output']>;
   published?: Maybe<Scalars['Date']['output']>;
   publishedFormat: DateFormat;
   publisher?: Maybe<Scalars['String']['output']>;
+  recordingGroup?: Maybe<RecordingGroup>;
   status: MediaProcessingStatus;
   supplementalFiles: Array<SupplementalFile>;
   thumbnails?: Maybe<Thumbnails>;
+  /** Display-title override for this recording (translated/regional/retail title); null means the book's title applies */
+  title?: Maybe<Scalars['String']['output']>;
+  /** Direct-play audio files, in playback order; empty for media that only has the legacy packaged artifacts below */
+  tracks: Array<MediaTrack>;
   updatedAt: Scalars['DateTime']['output'];
 };
 
@@ -215,6 +241,7 @@ export type MediaNarrator = Node & {
   insertedAt: Scalars['DateTime']['output'];
   media: Media;
   narrator: Narrator;
+  position: Scalars['Int']['output'];
   updatedAt: Scalars['DateTime']['output'];
 };
 
@@ -224,6 +251,32 @@ export enum MediaProcessingStatus {
   Processing = 'PROCESSING',
   Ready = 'READY'
 }
+
+/** One audio file of a recording, played directly by the client */
+export type MediaTrack = Node & {
+  __typename?: 'MediaTrack';
+  /** Audio codec as probed, e.g. "aac". Clients decide playability from this and `mime` — nothing here is assumed playable */
+  codec?: Maybe<Scalars['String']['output']>;
+  duration: Scalars['Float']['output'];
+  /** Container as probed, e.g. "mov,mp4,m4a,3gp,3g2,mj2" */
+  format?: Maybe<Scalars['String']['output']>;
+  /** The ID of an object */
+  id: Scalars['ID']['output'];
+  /** Position in the recording's ordered track list, 0-based */
+  index: Scalars['Int']['output'];
+  insertedAt: Scalars['DateTime']['output'];
+  media: Media;
+  /** Media type of the file, e.g. "audio/mp4" */
+  mime?: Maybe<Scalars['String']['output']>;
+  /** Where to fetch the file; requires the same authentication as any other media URL */
+  path: Scalars['String']['output'];
+  seekAccuracy: SeekAccuracy;
+  /** Size in bytes. A float because audiobook files routinely exceed what GraphQL's 32-bit Int can hold */
+  size: Scalars['Float']['output'];
+  /** Where this track starts on the book's continuous timeline, in seconds. Playback positions are always absolute book-seconds */
+  startOffset: Scalars['Float']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
 
 export type Narrator = Node & {
   __typename?: 'Narrator';
@@ -316,75 +369,31 @@ export enum PlaybackEventType {
   Start = 'START'
 }
 
-export type PlayerState = Node & {
-  __typename?: 'PlayerState';
+export type RecordingGroup = Node & {
+  __typename?: 'RecordingGroup';
+  /** The work this set covers, same as its members' */
+  book: Book;
   /** The ID of an object */
   id: Scalars['ID']['output'];
   insertedAt: Scalars['DateTime']['output'];
-  media: Media;
-  playbackRate: Scalars['Float']['output'];
-  position: Scalars['Float']['output'];
-  status: PlayerStateStatus;
+  media: Array<Media>;
+  /** Admin-only organizational label; clients should not display it */
+  name: Scalars['String']['output'];
+  /** Wording for one release in this set; null means "part" */
+  partWord?: Maybe<Scalars['String']['output']>;
+  /** Wording for several releases; null means "parts" */
+  partWordPlural?: Maybe<Scalars['String']['output']>;
+  /** How many releases the set has, when known ("Part 2 of 3") */
+  partsTotal?: Maybe<Scalars['Int']['output']>;
   updatedAt: Scalars['DateTime']['output'];
 };
-
-export type PlayerStateConnection = {
-  __typename?: 'PlayerStateConnection';
-  edges?: Maybe<Array<Maybe<PlayerStateEdge>>>;
-  pageInfo: PageInfo;
-};
-
-export type PlayerStateEdge = {
-  __typename?: 'PlayerStateEdge';
-  cursor?: Maybe<Scalars['String']['output']>;
-  node?: Maybe<PlayerState>;
-};
-
-export enum PlayerStateStatus {
-  Finished = 'FINISHED',
-  InProgress = 'IN_PROGRESS',
-  NotStarted = 'NOT_STARTED'
-}
-
-export type Playthrough = {
-  __typename?: 'Playthrough';
-  abandonedAt?: Maybe<Scalars['DateTime']['output']>;
-  deletedAt?: Maybe<Scalars['DateTime']['output']>;
-  finishedAt?: Maybe<Scalars['DateTime']['output']>;
-  id: Scalars['ID']['output'];
-  insertedAt: Scalars['DateTime']['output'];
-  media: Media;
-  startedAt: Scalars['DateTime']['output'];
-  status: PlaythroughStatus;
-  updatedAt: Scalars['DateTime']['output'];
-};
-
-export type PlaythroughInput = {
-  abandonedAt?: InputMaybe<Scalars['DateTime']['input']>;
-  deletedAt?: InputMaybe<Scalars['DateTime']['input']>;
-  finishedAt?: InputMaybe<Scalars['DateTime']['input']>;
-  id: Scalars['ID']['input'];
-  mediaId: Scalars['ID']['input'];
-  startedAt: Scalars['DateTime']['input'];
-  status: PlaythroughStatus;
-};
-
-export enum PlaythroughStatus {
-  Abandoned = 'ABANDONED',
-  Finished = 'FINISHED',
-  InProgress = 'IN_PROGRESS'
-}
 
 export type RootMutationType = {
   __typename?: 'RootMutationType';
   createSession?: Maybe<CreateSessionPayload>;
   deleteSession?: Maybe<DeleteSessionPayload>;
-  /** Initializes a new player state or returns an existing player state for a given Media. */
-  loadPlayerState?: Maybe<LoadPlayerStatePayload>;
   /** V2 sync: events only, no playthroughs. All state is derived from events. */
   syncEvents?: Maybe<SyncEventsPayload>;
-  syncProgress?: Maybe<SyncProgressPayload>;
-  updatePlayerState?: Maybe<UpdatePlayerStatePayload>;
 };
 
 
@@ -393,44 +402,37 @@ export type RootMutationTypeCreateSessionArgs = {
 };
 
 
-export type RootMutationTypeLoadPlayerStateArgs = {
-  input: LoadPlayerStateInput;
-};
-
-
 export type RootMutationTypeSyncEventsArgs = {
   input: SyncEventsInput;
 };
 
-
-export type RootMutationTypeSyncProgressArgs = {
-  input: SyncProgressInput;
-};
-
-
-export type RootMutationTypeUpdatePlayerStateArgs = {
-  input: UpdatePlayerStateInput;
-};
-
 export type RootQueryType = {
   __typename?: 'RootQueryType';
+  authorPeopleChangedSince: Array<AuthorPerson>;
   authorsChangedSince: Array<Author>;
   bookAuthorsChangedSince: Array<BookAuthor>;
+  bookUniversesChangedSince: Array<BookUniverse>;
   books?: Maybe<BookConnection>;
   booksChangedSince: Array<Book>;
   deletionsSince: Array<Deletion>;
   me?: Maybe<User>;
   mediaChangedSince: Array<Media>;
   mediaNarratorsChangedSince: Array<MediaNarrator>;
+  mediaTracksChangedSince: Array<MediaTrack>;
   narratorsChangedSince: Array<Narrator>;
   node?: Maybe<Node>;
   peopleChangedSince: Array<Person>;
-  playerStates?: Maybe<PlayerStateConnection>;
-  playerStatesChangedSince: Array<PlayerState>;
+  recordingGroupsChangedSince: Array<RecordingGroup>;
   search?: Maybe<SearchResultConnection>;
   seriesBooksChangedSince: Array<SeriesBook>;
   seriesChangedSince: Array<Series>;
   serverTime: Scalars['DateTime']['output'];
+  universesChangedSince: Array<Universe>;
+};
+
+
+export type RootQueryTypeAuthorPeopleChangedSinceArgs = {
+  since?: InputMaybe<Scalars['DateTime']['input']>;
 };
 
 
@@ -440,6 +442,11 @@ export type RootQueryTypeAuthorsChangedSinceArgs = {
 
 
 export type RootQueryTypeBookAuthorsChangedSinceArgs = {
+  since?: InputMaybe<Scalars['DateTime']['input']>;
+};
+
+
+export type RootQueryTypeBookUniversesChangedSinceArgs = {
   since?: InputMaybe<Scalars['DateTime']['input']>;
 };
 
@@ -472,6 +479,11 @@ export type RootQueryTypeMediaNarratorsChangedSinceArgs = {
 };
 
 
+export type RootQueryTypeMediaTracksChangedSinceArgs = {
+  since?: InputMaybe<Scalars['DateTime']['input']>;
+};
+
+
 export type RootQueryTypeNarratorsChangedSinceArgs = {
   since?: InputMaybe<Scalars['DateTime']['input']>;
 };
@@ -487,15 +499,7 @@ export type RootQueryTypePeopleChangedSinceArgs = {
 };
 
 
-export type RootQueryTypePlayerStatesArgs = {
-  after?: InputMaybe<Scalars['String']['input']>;
-  before?: InputMaybe<Scalars['String']['input']>;
-  first?: InputMaybe<Scalars['Int']['input']>;
-  last?: InputMaybe<Scalars['Int']['input']>;
-};
-
-
-export type RootQueryTypePlayerStatesChangedSinceArgs = {
+export type RootQueryTypeRecordingGroupsChangedSinceArgs = {
   since?: InputMaybe<Scalars['DateTime']['input']>;
 };
 
@@ -518,6 +522,11 @@ export type RootQueryTypeSeriesChangedSinceArgs = {
   since?: InputMaybe<Scalars['DateTime']['input']>;
 };
 
+
+export type RootQueryTypeUniversesChangedSinceArgs = {
+  since?: InputMaybe<Scalars['DateTime']['input']>;
+};
+
 export type SearchResult = {
   id: Scalars['ID']['output'];
 };
@@ -533,6 +542,14 @@ export type SearchResultEdge = {
   cursor?: Maybe<Scalars['String']['output']>;
   node?: Maybe<SearchResult>;
 };
+
+/** How accurately a player can seek within a track */
+export enum SeekAccuracy {
+  /** The file carries no seek index (e.g. VBR mp3 with no Xing header); positions may drift */
+  Approximate = 'APPROXIMATE',
+  /** Seeking lands where it says it does */
+  Exact = 'EXACT'
+}
 
 export type Series = Node & SearchResult & {
   __typename?: 'Series';
@@ -559,6 +576,7 @@ export type SeriesBook = Node & {
   /** The ID of an object */
   id: Scalars['ID']['output'];
   insertedAt: Scalars['DateTime']['output'];
+  position: Scalars['Int']['output'];
   series: Series;
   updatedAt: Scalars['DateTime']['output'];
 };
@@ -595,20 +613,6 @@ export type SyncEventsPayload = {
   serverTime: Scalars['DateTime']['output'];
 };
 
-export type SyncProgressInput = {
-  device: DeviceInput;
-  events: Array<PlaybackEventInput>;
-  lastSyncTime?: InputMaybe<Scalars['DateTime']['input']>;
-  playthroughs: Array<PlaythroughInput>;
-};
-
-export type SyncProgressPayload = {
-  __typename?: 'SyncProgressPayload';
-  events: Array<PlaybackEvent>;
-  playthroughs: Array<Playthrough>;
-  serverTime: Scalars['DateTime']['output'];
-};
-
 export type Thumbnails = {
   __typename?: 'Thumbnails';
   blurhash?: Maybe<Scalars['String']['output']>;
@@ -620,15 +624,14 @@ export type Thumbnails = {
   thumbhash: Scalars['String']['output'];
 };
 
-export type UpdatePlayerStateInput = {
-  mediaId: Scalars['ID']['input'];
-  playbackRate?: InputMaybe<Scalars['Float']['input']>;
-  position?: InputMaybe<Scalars['Float']['input']>;
-};
-
-export type UpdatePlayerStatePayload = {
-  __typename?: 'UpdatePlayerStatePayload';
-  playerState: PlayerState;
+export type Universe = Node & {
+  __typename?: 'Universe';
+  books: Array<Book>;
+  /** The ID of an object */
+  id: Scalars['ID']['output'];
+  insertedAt: Scalars['DateTime']['output'];
+  name: Scalars['String']['output'];
+  updatedAt: Scalars['DateTime']['output'];
 };
 
 export type User = {
@@ -637,7 +640,6 @@ export type User = {
   confirmedAt?: Maybe<Scalars['DateTime']['output']>;
   email: Scalars['String']['output'];
   insertedAt: Scalars['DateTime']['output'];
-  loadedPlayerState?: Maybe<PlayerState>;
   updatedAt: Scalars['DateTime']['output'];
 };
 
@@ -646,7 +648,7 @@ export type LibraryChangesSinceQueryVariables = Exact<{
 }>;
 
 
-export type LibraryChangesSinceQuery = { __typename?: 'RootQueryType', serverTime: any, peopleChangedSince: Array<{ __typename?: 'Person', id: string, name: string, description?: string | null, insertedAt: any, updatedAt: any, thumbnails?: { __typename?: 'Thumbnails', extraLarge: string, large: string, medium: string, small: string, extraSmall: string, thumbhash: string } | null }>, authorsChangedSince: Array<{ __typename?: 'Author', id: string, name: string, insertedAt: any, updatedAt: any, person: { __typename?: 'Person', id: string } }>, narratorsChangedSince: Array<{ __typename?: 'Narrator', id: string, name: string, insertedAt: any, updatedAt: any, person: { __typename?: 'Person', id: string } }>, booksChangedSince: Array<{ __typename?: 'Book', id: string, title: string, published: any, publishedFormat: DateFormat, insertedAt: any, updatedAt: any }>, bookAuthorsChangedSince: Array<{ __typename?: 'BookAuthor', id: string, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, author: { __typename?: 'Author', id: string } }>, seriesChangedSince: Array<{ __typename?: 'Series', id: string, name: string, insertedAt: any, updatedAt: any }>, seriesBooksChangedSince: Array<{ __typename?: 'SeriesBook', id: string, bookNumber: any, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, series: { __typename?: 'Series', id: string } }>, mediaChangedSince: Array<{ __typename?: 'Media', id: string, status: MediaProcessingStatus, description?: string | null, published?: any | null, publishedFormat: DateFormat, publisher?: string | null, notes?: string | null, abridged: boolean, fullCast: boolean, mp4Path?: string | null, mpdPath?: string | null, hlsPath?: string | null, duration?: number | null, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, thumbnails?: { __typename?: 'Thumbnails', extraLarge: string, large: string, medium: string, small: string, extraSmall: string, thumbhash: string } | null, chapters: Array<{ __typename?: 'Chapter', id: string, title?: string | null, startTime: number, endTime?: number | null }>, supplementalFiles: Array<{ __typename?: 'SupplementalFile', filename: string, label?: string | null, mime: string, path: string }> }>, mediaNarratorsChangedSince: Array<{ __typename?: 'MediaNarrator', id: string, insertedAt: any, updatedAt: any, media: { __typename?: 'Media', id: string }, narrator: { __typename?: 'Narrator', id: string } }>, deletionsSince: Array<{ __typename?: 'Deletion', type: DeletionType, recordId: string }> };
+export type LibraryChangesSinceQuery = { __typename?: 'RootQueryType', serverTime: any, peopleChangedSince: Array<{ __typename?: 'Person', id: string, name: string, description?: string | null, insertedAt: any, updatedAt: any, thumbnails?: { __typename?: 'Thumbnails', extraLarge: string, large: string, medium: string, small: string, extraSmall: string, thumbhash: string } | null }>, authorsChangedSince: Array<{ __typename?: 'Author', id: string, name: string, insertedAt: any, updatedAt: any }>, authorPeopleChangedSince: Array<{ __typename?: 'AuthorPerson', id: string, insertedAt: any, updatedAt: any, author: { __typename?: 'Author', id: string }, person: { __typename?: 'Person', id: string } }>, narratorsChangedSince: Array<{ __typename?: 'Narrator', id: string, name: string, insertedAt: any, updatedAt: any, person: { __typename?: 'Person', id: string } }>, booksChangedSince: Array<{ __typename?: 'Book', id: string, title: string, published: any, publishedFormat: DateFormat, insertedAt: any, updatedAt: any }>, bookAuthorsChangedSince: Array<{ __typename?: 'BookAuthor', id: string, position: number, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, author: { __typename?: 'Author', id: string } }>, universesChangedSince: Array<{ __typename?: 'Universe', id: string, name: string, insertedAt: any, updatedAt: any }>, bookUniversesChangedSince: Array<{ __typename?: 'BookUniverse', id: string, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, universe: { __typename?: 'Universe', id: string } }>, seriesChangedSince: Array<{ __typename?: 'Series', id: string, name: string, insertedAt: any, updatedAt: any }>, seriesBooksChangedSince: Array<{ __typename?: 'SeriesBook', id: string, bookNumber: any, position: number, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, series: { __typename?: 'Series', id: string } }>, recordingGroupsChangedSince: Array<{ __typename?: 'RecordingGroup', id: string, partsTotal?: number | null, partWord?: string | null, partWordPlural?: string | null, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string } }>, mediaChangedSince: Array<{ __typename?: 'Media', id: string, title?: string | null, partNumber?: number | null, status: MediaProcessingStatus, description?: string | null, published?: any | null, publishedFormat: DateFormat, publisher?: string | null, notes?: string | null, abridged: boolean, fullCast: boolean, mp4Path?: string | null, mpdPath?: string | null, hlsPath?: string | null, duration?: number | null, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, recordingGroup?: { __typename?: 'RecordingGroup', id: string } | null, thumbnails?: { __typename?: 'Thumbnails', extraLarge: string, large: string, medium: string, small: string, extraSmall: string, thumbhash: string } | null, chapters: Array<{ __typename?: 'Chapter', id: string, title?: string | null, startTime: number, endTime?: number | null }>, supplementalFiles: Array<{ __typename?: 'SupplementalFile', filename: string, label?: string | null, mime: string, path: string }> }>, mediaNarratorsChangedSince: Array<{ __typename?: 'MediaNarrator', id: string, position: number, insertedAt: any, updatedAt: any, media: { __typename?: 'Media', id: string }, narrator: { __typename?: 'Narrator', id: string } }>, mediaTracksChangedSince: Array<{ __typename?: 'MediaTrack', id: string, index: number, path: string, size: number, mime?: string | null, format?: string | null, codec?: string | null, duration: number, startOffset: number, seekAccuracy: SeekAccuracy, insertedAt: any, updatedAt: any, media: { __typename?: 'Media', id: string } }>, deletionsSince: Array<{ __typename?: 'Deletion', type: DeletionType, recordId: string }> };
 
 export type CreateSessionMutationVariables = Exact<{
   input: CreateSessionInput;
@@ -705,10 +707,18 @@ export const LibraryChangesSinceDocument = new TypedDocumentString(`
   }
   authorsChangedSince(since: $since) {
     id
+    name
+    insertedAt
+    updatedAt
+  }
+  authorPeopleChangedSince(since: $since) {
+    id
+    author {
+      id
+    }
     person {
       id
     }
-    name
     insertedAt
     updatedAt
   }
@@ -737,6 +747,24 @@ export const LibraryChangesSinceDocument = new TypedDocumentString(`
     author {
       id
     }
+    position
+    insertedAt
+    updatedAt
+  }
+  universesChangedSince(since: $since) {
+    id
+    name
+    insertedAt
+    updatedAt
+  }
+  bookUniversesChangedSince(since: $since) {
+    id
+    book {
+      id
+    }
+    universe {
+      id
+    }
     insertedAt
     updatedAt
   }
@@ -755,6 +783,18 @@ export const LibraryChangesSinceDocument = new TypedDocumentString(`
       id
     }
     bookNumber
+    position
+    insertedAt
+    updatedAt
+  }
+  recordingGroupsChangedSince(since: $since) {
+    id
+    book {
+      id
+    }
+    partsTotal
+    partWord
+    partWordPlural
     insertedAt
     updatedAt
   }
@@ -763,6 +803,11 @@ export const LibraryChangesSinceDocument = new TypedDocumentString(`
     book {
       id
     }
+    title
+    recordingGroup {
+      id
+    }
+    partNumber
     status
     description
     thumbnails {
@@ -806,6 +851,24 @@ export const LibraryChangesSinceDocument = new TypedDocumentString(`
     narrator {
       id
     }
+    position
+    insertedAt
+    updatedAt
+  }
+  mediaTracksChangedSince(since: $since) {
+    id
+    media {
+      id
+    }
+    index
+    path
+    size
+    mime
+    format
+    codec
+    duration
+    startOffset
+    seekAccuracy
     insertedAt
     updatedAt
   }
