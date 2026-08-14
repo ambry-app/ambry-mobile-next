@@ -831,7 +831,13 @@ function legacySource(session: Session, playthrough: PlaythroughWithMedia) {
 
   return {
     url: path ? joinUrl(session.url, path) : "",
-    type: Platform.OS === "ios" ? TrackType.HLS : TrackType.Dash,
+    // Deliberately Dash on both platforms, including where the URL is an HLS
+    // manifest. That mismatch looks like a bug and probably is one, but it is
+    // what every deployed client plays legacy media with today, and legacy
+    // playback is the one path that must not change while direct-play is
+    // still being proven. Fix it when the legacy path is retired, not on the
+    // way past.
+    type: TrackType.Dash,
     artwork: playthrough.media.thumbnails
       ? joinUrl(session.url, playthrough.media.thumbnails.extraLarge)
       : undefined,
