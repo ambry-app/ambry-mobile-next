@@ -134,6 +134,21 @@ describe("multi-file playback", () => {
     expect(lastSeek?.to).toBe(8000);
   });
 
+  it("does not invent a position when the player has lost its track", async () => {
+    const playthrough = await threePartRecording(5000);
+    await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
+
+    // what a streaming read failure looks like: the player drops its item and
+    // reports zeros for everything
+    trackPlayerFake.setState({ position: 0, duration: 0 });
+
+    const { position } = await trackPlayerService.getAccurateProgress();
+
+    // the last known position, not the start of the file it happened to be on
+    expect(position).toBe(5000);
+    expect(position).not.toBe(3600);
+  });
+
   it("leaves a single-file recording exactly as it was", async () => {
     const db = getDb();
     const book = await createBook(db);

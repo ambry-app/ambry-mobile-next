@@ -130,6 +130,15 @@ export async function getProgress(): Promise<Progress> {
 
   if (timeline.length <= 1) return progress;
 
+  // A player that reports no duration has lost its track — it errored, or a
+  // streaming read failed — and everything it says is zeros. Callers detect
+  // that by the zero duration and fall back to the last known position, so it
+  // has to survive translation. Reporting the book's duration here regardless
+  // would hide it, and a position of zero would translate into the start of
+  // the current file: a plausible-looking number that would be recorded as a
+  // seek the listener never made.
+  if (progress.duration <= 0) return progress;
+
   const activeIndex = await TrackPlayer.getActiveTrackIndex();
   if (activeIndex === undefined) return progress;
 
