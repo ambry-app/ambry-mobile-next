@@ -15,6 +15,7 @@ import { DownloadedThumbnails, Thumbnails } from "@/db/schema";
 import {
   addOrUpdateDownload,
   removeDownloadFromStore,
+  setDownloadProgress,
   useDownloads,
 } from "@/stores/downloads";
 import { Session } from "@/types/session";
@@ -43,6 +44,7 @@ export async function initializeDownloads(session: Session) {
     downloads[d.mediaId] = {
       mediaId: d.mediaId,
       filePath: d.filePath,
+      files: d.files,
       status: d.status,
       thumbnails: d.thumbnails,
     };
@@ -62,7 +64,12 @@ export async function initializeDownloads(session: Session) {
 type DownloadPlan =
   | {
       kind: "tracks";
-      files: { trackId: string; remote: string; local: string }[];
+      files: {
+        trackId: string;
+        remote: string;
+        local: string;
+        size: number;
+      }[];
     }
   | { kind: "legacy"; remote: string; local: string };
 
@@ -79,6 +86,7 @@ function planDownload(
         // Numbered so the folder reads in playback order, and suffixed with
         // the real extension because the player picks its decoder from it.
         local: `${mediaId}/${String(track.index).padStart(3, "0")}${extensionOf(track.path)}`,
+        size: track.size,
       })),
     };
   }
@@ -101,16 +109,28 @@ function extensionOf(path: string): string {
   return dot > 0 ? name.slice(dot) : "";
 }
 
+/**
+ * Downloads currently in flight, so a cancel can actually stop the transfer
+ * rather than only forgetting about it.
+ */
+const inFlight = new Map<string, AbortController>();
+
+/**
+ * How often progress reaches the store. The native callback fires far more
+ * often than a progress bar can usefully move, and every update re-renders
+ * the downloads screen.
+ */
+const PROGRESS_REPORT_INTERVAL = 250;
+
 export async function startDownload(session: Session, mediaId: string) {
   const mediaInfo = await getMediaDownloadInfo(session, mediaId);
   const plan = mediaInfo && planDownload(mediaId, mediaInfo);
 
   if (!plan) {
-    // Nothing downloadable: no direct-play files and no packaged file either.
-    // Saying so beats the silent no-op this used to be, where the button did
-    // nothing and left no trace.
+    // Every audiobook a reader can reach has something to play, so this is a
+    // guard against a state that should not exist rather than something to
+    // report in the UI.
     log.warn("Nothing downloadable for media:", mediaId);
-    await recordUndownloadable(session, mediaId);
     return;
   }
 
@@ -136,12 +156,29 @@ export async function startDownload(session: Session, mediaId: string) {
     addOrUpdateDownload(download);
   }
 
+  // A direct-play recording knows its total up front, because every file's
+  // size is synced along with it. Legacy media has to wait for the server to
+  // say how big the one file is.
+  const knownTotal =
+    plan.kind === "tracks"
+      ? plan.files.reduce((total, file) => total + file.size, 0)
+      : 0;
+
+  const controller = new AbortController();
+  inFlight.set(mediaId, controller);
+
+  const progress = progressReporter(mediaId, knownTotal);
+
   try {
+    // Bytes belonging to files that have already finished, so a multi-file
+    // recording reports one running total rather than restarting per file.
+    let completedBytes = 0;
+
     for (const localPath of localPaths) {
-      const remote =
+      const entry =
         plan.kind === "tracks"
-          ? plan.files.find((f) => f.local === localPath)!.remote
-          : plan.remote;
+          ? plan.files.find((f) => f.local === localPath)!
+          : { remote: plan.remote, size: 0 };
 
       const file = new File(documentDirectoryFilePath(localPath));
       // A direct-play recording downloads into a folder of its own, which has
@@ -149,15 +186,24 @@ export async function startDownload(session: Session, mediaId: string) {
       file.parentDirectory.create({ intermediates: true, idempotent: true });
       if (file.exists) file.delete();
 
-      await File.downloadFileAsync(joinUrl(session.url, remote), file, {
+      await File.downloadFileAsync(joinUrl(session.url, entry.remote), file, {
         headers: { Authorization: `Bearer ${session.token}` },
+        signal: controller.signal,
+        onProgress: ({ bytesWritten, totalBytes }) => {
+          progress.report(completedBytes + bytesWritten, totalBytes);
+        },
       });
 
-      // Checked between files rather than only at the end, so cancelling a
-      // forty-file download stops at the next boundary instead of running the
-      // whole set to completion.
+      // Prefer the size we were told over the size we were sent: a server
+      // without Content-Length reports -1, and the synced size is exact.
+      completedBytes += entry.size || file.size;
+
+      // Checked between files as well, so a cancel that lands between two
+      // transfers is noticed without waiting for the whole set.
       if (await discardIfCancelled(session, mediaId, localPaths)) return;
     }
+
+    progress.complete(completedBytes);
 
     log.info("Download succeeded for media:", mediaId);
     download = await updateDownload(session, mediaId, {
@@ -171,6 +217,14 @@ export async function startDownload(session: Session, mediaId: string) {
     // reload player if the download is for the currently loaded media
     await reloadCurrentPlaythroughIfMedia(session, mediaId);
   } catch (error) {
+    // A cancelled transfer rejects with an AbortError. That is this app
+    // cancelling on purpose, not a failure worth reporting.
+    if (controller.signal.aborted) {
+      log.info("Download cancelled for media:", mediaId);
+      await discardIfCancelled(session, mediaId, localPaths);
+      return;
+    }
+
     log.warn("Download failed:", error);
 
     // Nothing in here may throw: every caller of startDownload is
@@ -186,26 +240,36 @@ export async function startDownload(session: Session, mediaId: string) {
     } catch (cleanupError) {
       log.warn("Failed to record download failure:", cleanupError);
     }
+  } finally {
+    inFlight.delete(mediaId);
   }
 }
 
 /**
- * Record that a recording cannot be downloaded at all.
+ * Push progress to the store, but no more often than a bar can usefully move.
  *
- * Surfacing it as a failed download is the point: the alternative was
- * returning silently, which left the user tapping a button that never did
- * anything.
+ * The final call is always let through, so a download never comes to rest
+ * showing 98%.
  */
-async function recordUndownloadable(session: Session, mediaId: string) {
-  try {
-    const download = await createDownload(session, mediaId, "");
-    addOrUpdateDownload(
-      await updateDownload(session, mediaId, { status: "error" }),
-    );
-    return download;
-  } catch (error) {
-    log.warn("Failed to record undownloadable media:", error);
-  }
+function progressReporter(mediaId: string, knownTotal: number) {
+  let lastReportedAt = 0;
+
+  return {
+    report(bytesWritten: number, reportedTotal: number) {
+      const now = Date.now();
+      if (now - lastReportedAt < PROGRESS_REPORT_INTERVAL) return;
+      lastReportedAt = now;
+
+      // A server that sends no Content-Length reports -1, which would render
+      // as a bar running backwards.
+      const total = knownTotal || Math.max(reportedTotal, 0);
+      setDownloadProgress(mediaId, bytesWritten, total);
+    },
+
+    complete(bytesWritten: number) {
+      setDownloadProgress(mediaId, bytesWritten, knownTotal || bytesWritten);
+    },
+  };
 }
 
 function joinUrl(base: string, path: string) {
@@ -242,19 +306,16 @@ async function discardIfCancelled(
 }
 
 /**
- * Cancel a download.
+ * Cancel a download, stopping the transfer as well as forgetting it.
  *
- * The File API has no cancellation, so this cannot stop a transfer that is
- * already running — it removes the record and the partial file, and the
- * transfer runs to completion in the background. `startDownload` notices the
- * missing record when it settles and discards the result (see
- * `discardIfCancelled`).
- *
- * This is the tradeoff for using the new API without resumable/progress
- * complexity: cancelling frees the record immediately but not the bandwidth.
+ * Aborting first is what frees the bandwidth: this used to be unable to stop a
+ * running transfer, so a cancelled forty-file download kept downloading in the
+ * background and was only discarded once it finished.
  */
 export async function cancelDownload(session: Session, mediaId: string) {
-  log.info("Canceling (removing) download:", mediaId);
+  log.info("Canceling download:", mediaId);
+
+  inFlight.get(mediaId)?.abort();
   await removeDownload(session, mediaId);
 }
 

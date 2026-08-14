@@ -396,7 +396,20 @@ class MockFile {
     deletedFiles.add(this.uri);
   }
 
-  static async downloadFileAsync(_url: string, path: any, _options?: any) {
+  static async downloadFileAsync(_url: string, path: any, options?: any) {
+    // A cancelled transfer rejects, the same way an aborted fetch does
+    if (options?.signal?.aborted) {
+      const error = new Error("Aborted");
+      error.name = "AbortError";
+      throw error;
+    }
+
+    // Report progress the way the native module does: some way through, then
+    // complete. Tests that care about the shape of aggregate progress need
+    // more than one callback per file.
+    options?.onProgress?.({ bytesWritten: 512, totalBytes: 1024 });
+    options?.onProgress?.({ bytesWritten: 1024, totalBytes: 1024 });
+
     // Writing a file brings it back into existence
     deletedFiles.delete(path.uri);
     return path;

@@ -167,7 +167,7 @@ describe("download service", () => {
       });
     });
 
-    it("reports an error when there is nothing to download", async () => {
+    it("does nothing when there is nothing to download", async () => {
       const db = getDb();
       const media = await createMedia(db, {
         id: "media-no-mp4",
@@ -181,12 +181,11 @@ describe("download service", () => {
 
       await startDownload(session, media.id);
 
+      // Every audiobook a reader can reach has something to play, so this is
+      // a guard against a state that should not exist rather than a failure
+      // worth showing anyone
       expect(downloadSpy).not.toHaveBeenCalled();
-      // Saying so beats the silent no-op this used to be, which left the user
-      // tapping a button that never did anything
-      expect(useDownloads.getState().downloads["media-no-mp4"]).toMatchObject({
-        status: "error",
-      });
+      expect(useDownloads.getState().downloads["media-no-mp4"]).toBeUndefined();
     });
 
     it("downloads every file of a direct-play recording", async () => {
@@ -236,6 +235,50 @@ describe("download service", () => {
         { trackId: first.id, path: "media-keyed/000.m4b" },
         { trackId: second.id, path: "media-keyed/001.opus" },
       ]);
+    });
+  });
+
+  describe("download progress", () => {
+    it("reports one running total across a recording's files", async () => {
+      const db = getDb();
+      const media = await createMedia(db, {
+        id: "media-progress",
+        mp4Path: null,
+      });
+      await createMediaTrack(db, {
+        mediaId: media.id,
+        index: 0,
+        size: 1024,
+        path: "/files/book/01.m4b",
+      });
+      await createMediaTrack(db, {
+        mediaId: media.id,
+        index: 1,
+        size: 1024,
+        path: "/files/book/02.m4b",
+      });
+
+      await startDownload(session, media.id);
+
+      // the total is known before the first byte arrives, because every
+      // file's size is synced with it
+      const download = useDownloads.getState().downloads["media-progress"];
+      expect(download?.totalBytes).toBe(2048);
+      expect(download?.bytesWritten).toBe(2048);
+    });
+
+    it("comes to rest at the full size rather than short of it", async () => {
+      const db = getDb();
+      const media = await createMedia(db, {
+        id: "media-complete",
+        mp4Path: "audio/media-complete/stream.mp4",
+      });
+
+      await startDownload(session, media.id);
+
+      const download = useDownloads.getState().downloads["media-complete"];
+      expect(download?.status).toBe("ready");
+      expect(download?.bytesWritten).toBe(download?.totalBytes);
     });
   });
 

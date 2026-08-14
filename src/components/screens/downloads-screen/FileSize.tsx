@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { StyleSheet, Text } from "react-native";
 import { File } from "expo-file-system";
 
@@ -8,17 +7,18 @@ import { formatBytes } from "@/utils/format";
 import { documentDirectoryFilePath } from "@/utils/paths";
 
 type FileSizeProps = {
-  filePath: string;
+  /**
+   * Every file the recording was downloaded as. A direct-play recording can be
+   * several; their sizes are summed, because what the reader wants to know is
+   * how much space the book takes.
+   */
+  filePaths: string[];
 };
 
-export function FileSize({ filePath }: FileSizeProps) {
-  const { size, isMissing } = useMemo(() => {
-    const file = new File(documentDirectoryFilePath(filePath));
-    if (!file.exists) {
-      return { size: null, isMissing: true };
-    }
-    return { size: formatBytes(file.size), isMissing: false };
-  }, [filePath]);
+export function FileSize({ filePaths }: FileSizeProps) {
+  // Not memoized by hand: the React Compiler does it, and keying off an array
+  // prop is exactly the case it cannot preserve.
+  const { size, isMissing } = totalSize(filePaths);
 
   if (isMissing) return <Text style={styles.errorText}>file is missing!</Text>;
 
@@ -43,3 +43,18 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
 });
+
+function totalSize(filePaths: string[]) {
+  if (filePaths.length === 0) return { size: null, isMissing: true };
+
+  let total = 0;
+  for (const filePath of filePaths) {
+    const file = new File(documentDirectoryFilePath(filePath));
+    // One missing file means the download cannot be played through, so it is
+    // reported as missing rather than quietly undercounting.
+    if (!file.exists) return { size: null, isMissing: true };
+    total += file.size;
+  }
+
+  return { size: formatBytes(total), isMissing: false };
+}
