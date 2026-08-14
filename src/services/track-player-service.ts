@@ -832,13 +832,12 @@ function legacySource(session: Session, playthrough: PlaythroughWithMedia) {
 
   return {
     url: path ? serverUrl(session.url, path) : "",
-    // Deliberately Dash on both platforms, including where the URL is an HLS
-    // manifest. That mismatch looks like a bug and probably is one, but it is
-    // what every deployed client plays legacy media with today, and legacy
-    // playback is the one path that must not change while direct-play is
-    // still being proven. Fix it when the legacy path is retired, not on the
-    // way past.
-    type: TrackType.Dash,
+    // The type has to match the manifest: iOS is served HLS, everything else
+    // DASH. Shipped code labelled both Dash, and AVPlayer tolerated it
+    // (verified on device) because it identifies HLS from the response
+    // itself — but nothing was relying on that tolerance, and a player that
+    // believed the label would be handed a DASH parser for an m3u8.
+    type: Platform.OS === "ios" ? TrackType.HLS : TrackType.Dash,
     artwork: playthrough.media.thumbnails
       ? serverUrl(session.url, playthrough.media.thumbnails.extraLarge)
       : undefined,

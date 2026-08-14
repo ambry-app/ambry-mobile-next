@@ -77,15 +77,16 @@ describe("legacy playback", () => {
     });
   });
 
-  it("keeps the track type every deployed client uses", async () => {
+  it("labels the manifest as the kind it actually is", async () => {
     const { playthrough } = await legacyRecording();
 
     await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
-    // Dash even here, where the URL above is an HLS manifest. The mismatch
-    // looks wrong and probably is, but it is what the fleet plays legacy
-    // media with, so it stays until the legacy path is retired.
-    expect(loadedTrack().type).toBe("dash");
+    const track = loadedTrack();
+    // jest-expo reports ios, which is served HLS. Shipped code said "dash"
+    // here regardless; AVPlayer tolerated it, but nothing depended on that.
+    expect(track.url).toContain(".m3u8");
+    expect(track.type).toBe("hls");
   });
 
   it("reports the media's own duration", async () => {
