@@ -44,6 +44,7 @@ import { logBase } from "@/utils/logger";
 import { documentDirectoryFilePath } from "@/utils/paths";
 import { subscribeToChange } from "@/utils/subscribe";
 import { recordingTitle } from "@/utils/titles";
+import { serverUrl } from "@/utils/urls";
 
 import { getSession } from "./session-service";
 
@@ -799,10 +800,10 @@ function directPlaySource(
   }
 
   return {
-    url: joinUrl(session.url, track.path),
+    url: serverUrl(session.url, track.path),
     type: TrackType.Default,
     artwork: playthrough.media.thumbnails
-      ? joinUrl(session.url, playthrough.media.thumbnails.extraLarge)
+      ? serverUrl(session.url, playthrough.media.thumbnails.extraLarge)
       : undefined,
     headers: { Authorization: `Bearer ${session.token}` },
   };
@@ -830,7 +831,7 @@ function legacySource(session: Session, playthrough: PlaythroughWithMedia) {
       : playthrough.media.mpdPath;
 
   return {
-    url: path ? joinUrl(session.url, path) : "",
+    url: path ? serverUrl(session.url, path) : "",
     // Deliberately Dash on both platforms, including where the URL is an HLS
     // manifest. That mismatch looks like a bug and probably is one, but it is
     // what every deployed client plays legacy media with today, and legacy
@@ -839,17 +840,10 @@ function legacySource(session: Session, playthrough: PlaythroughWithMedia) {
     // way past.
     type: TrackType.Dash,
     artwork: playthrough.media.thumbnails
-      ? joinUrl(session.url, playthrough.media.thumbnails.extraLarge)
+      ? serverUrl(session.url, playthrough.media.thumbnails.extraLarge)
       : undefined,
     headers: { Authorization: `Bearer ${session.token}` },
   };
-}
-
-/**
- * Join a server URL and a path without caring whether either has the slash.
- */
-function joinUrl(base: string, path: string) {
-  return `${base.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
 }
 
 /**

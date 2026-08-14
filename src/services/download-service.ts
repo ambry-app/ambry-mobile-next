@@ -21,6 +21,7 @@ import {
 import { Session } from "@/types/session";
 import { logBase } from "@/utils/logger";
 import { documentDirectoryFilePath } from "@/utils/paths";
+import { serverUrl } from "@/utils/urls";
 
 import { reloadCurrentPlaythroughIfMedia } from "./playback-controls";
 
@@ -186,7 +187,7 @@ export async function startDownload(session: Session, mediaId: string) {
       file.parentDirectory.create({ intermediates: true, idempotent: true });
       if (file.exists) file.delete();
 
-      await File.downloadFileAsync(joinUrl(session.url, entry.remote), file, {
+      await File.downloadFileAsync(serverUrl(session.url, entry.remote), file, {
         headers: { Authorization: `Bearer ${session.token}` },
         signal: controller.signal,
         onProgress: ({ bytesWritten, totalBytes }) => {
@@ -270,10 +271,6 @@ function progressReporter(mediaId: string, knownTotal: number) {
       setDownloadProgress(mediaId, bytesWritten, knownTotal || bytesWritten);
     },
   };
-}
-
-function joinUrl(base: string, path: string) {
-  return `${base.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
 }
 
 /**
@@ -374,27 +371,27 @@ async function downloadThumbnails(
 
   await Promise.all([
     File.downloadFileAsync(
-      `${session.url}/${thumbnails.extraSmall}`,
+      serverUrl(session.url, thumbnails.extraSmall),
       new File(downloadedThumbnails.extraSmall),
       options,
     ),
     File.downloadFileAsync(
-      `${session.url}/${thumbnails.small}`,
+      serverUrl(session.url, thumbnails.small),
       new File(downloadedThumbnails.small),
       options,
     ),
     File.downloadFileAsync(
-      `${session.url}/${thumbnails.medium}`,
+      serverUrl(session.url, thumbnails.medium),
       new File(downloadedThumbnails.medium),
       options,
     ),
     File.downloadFileAsync(
-      `${session.url}/${thumbnails.large}`,
+      serverUrl(session.url, thumbnails.large),
       new File(downloadedThumbnails.large),
       options,
     ),
     File.downloadFileAsync(
-      `${session.url}/${thumbnails.extraLarge}`,
+      serverUrl(session.url, thumbnails.extraLarge),
       new File(downloadedThumbnails.extraLarge),
       options,
     ),
