@@ -1,4 +1,3 @@
-import { GraphQLClient } from "graphql-request";
 import type { TypedDocumentString } from "./graphql";
 import type { Result } from "@/types/result";
 
