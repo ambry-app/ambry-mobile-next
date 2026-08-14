@@ -47,7 +47,25 @@ export async function getInProgressPlaythroughWithMedia(
         },
         with: {
           download: {
-            columns: { status: true, filePath: true, thumbnails: true },
+            columns: {
+              status: true,
+              filePath: true,
+              files: true,
+              thumbnails: true,
+            },
+          },
+          mediaTracks: {
+            columns: {
+              id: true,
+              index: true,
+              path: true,
+              mime: true,
+              format: true,
+              codec: true,
+              duration: true,
+              startOffset: true,
+            },
+            orderBy: (track, { asc }) => asc(track.index),
           },
           book: {
             columns: { id: true, title: true },
@@ -95,7 +113,25 @@ export async function getPlaythroughWithMedia(
         },
         with: {
           download: {
-            columns: { status: true, filePath: true, thumbnails: true },
+            columns: {
+              status: true,
+              filePath: true,
+              files: true,
+              thumbnails: true,
+            },
+          },
+          mediaTracks: {
+            columns: {
+              id: true,
+              index: true,
+              path: true,
+              mime: true,
+              format: true,
+              codec: true,
+              duration: true,
+              startOffset: true,
+            },
+            orderBy: (track, { asc }) => asc(track.index),
           },
           book: {
             columns: { id: true, title: true },

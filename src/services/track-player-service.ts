@@ -334,7 +334,8 @@ export async function loadPlaythroughIntoPlayer(
   const position = getEffectivePosition(playthrough);
   const playbackRate = playthrough.playbackRate;
 
-  const trackAdd = buildAddTrack(session, playthrough);
+  const tracks = buildAddTracks(session, playthrough);
+  const timeline = playthrough.media.mediaTracks;
 
   await TrackPlayer.reset();
 
@@ -346,7 +347,7 @@ export async function loadPlaythroughIntoPlayer(
   // state even though TrackPlayer is Ready.
   useTrackPlayer.setState(initialState);
 
-  await TrackPlayer.add(trackAdd);
+  await TrackPlayer.add(tracks, timeline);
   await TrackPlayer.seekTo(position);
   await TrackPlayer.setRate(playbackRate);
   await setPlayerOptions();
@@ -404,8 +405,10 @@ export async function reloadCurrentPlaythrough(
   await TrackPlayer.reset();
 
   // Load new track configuration (switches URL between file/stream)
-  const trackAdd = buildAddTrack(session, playthrough);
-  await TrackPlayer.add(trackAdd);
+  await TrackPlayer.add(
+    buildAddTracks(session, playthrough),
+    playthrough.media.mediaTracks,
+  );
 
   // Restore state
   await TrackPlayer.seekTo(position);
@@ -716,23 +719,19 @@ function stopTrackingProgress() {
 }
 
 /**
- * Build AddTrack options for a playthrough.
+ * Build the player's queue for a playthrough.
+ *
+ * A direct-play recording is its files in order; legacy media is the single
+ * packaged stream it has always been. Every entry carries the same title,
+ * artist and artwork, so the lock screen and notification describe the book
+ * rather than announcing which file is playing.
  */
-function buildAddTrack(
+function buildAddTracks(
   session: Session,
   playthrough: PlaythroughWithMedia,
-): AddTrack {
-  const streamOptions =
-    playthrough.media.download?.status === "ready"
-      ? buildDownloadedTrackAdd(playthrough)
-      : buildStreamingTrackAdd(session, playthrough);
-
-  return {
-    ...streamOptions,
+): AddTrack[] {
+  const shared = {
     pitchAlgorithm: PitchAlgorithm.Voice,
-    duration: playthrough.media.duration
-      ? parseFloat(playthrough.media.duration)
-      : undefined,
     title: recordingTitle(
       playthrough.media.title,
       playthrough.media.book.title,
@@ -740,42 +739,111 @@ function buildAddTrack(
     artist: playthrough.media.book.bookAuthors
       .map((bookAuthor) => bookAuthor.author.name)
       .join(", "),
+    // The playback service reads this back to know which playthrough a
+    // finished queue belonged to.
     description: playthrough.id,
   };
+
+  const tracks = playthrough.media.mediaTracks;
+
+  if (tracks.length > 0) {
+    return tracks.map((track) => ({
+      ...shared,
+      ...directPlaySource(session, playthrough, track),
+      duration: track.duration,
+    }));
+  }
+
+  return [
+    {
+      ...shared,
+      ...legacySource(session, playthrough),
+      duration: playthrough.media.duration
+        ? parseFloat(playthrough.media.duration)
+        : undefined,
+    },
+  ];
 }
 
-/**
- * Build AddTrack for downloaded media.
- */
-function buildDownloadedTrackAdd(playthrough: PlaythroughWithMedia) {
-  return {
-    url: documentDirectoryFilePath(playthrough.media.download!.filePath),
-    artwork: playthrough.media.download!.thumbnails
-      ? documentDirectoryFilePath(
-          playthrough.media.download!.thumbnails.extraLarge,
-        )
-      : undefined,
-  };
-}
+type MediaTrack = PlaythroughWithMedia["media"]["mediaTracks"][number];
 
 /**
- * Build AddTrack for streaming media.
+ * Where one file of a direct-play recording comes from.
+ *
+ * A downloaded recording plays from disk, file by file. A file with no local
+ * copy still streams, so a download that was interrupted part-way through
+ * degrades to a mixed queue rather than refusing to play.
+ *
+ * `TrackType.Default` is right for every plain audio file: the type only
+ * distinguishes streaming manifests, which direct-play never uses.
  */
-function buildStreamingTrackAdd(
+function directPlaySource(
   session: Session,
   playthrough: PlaythroughWithMedia,
+  track: MediaTrack,
 ) {
+  const download = playthrough.media.download;
+  const localPath =
+    download?.status === "ready"
+      ? download.files?.find((file) => file.trackId === track.id)?.path
+      : undefined;
+
+  if (localPath) {
+    return {
+      url: documentDirectoryFilePath(localPath),
+      type: TrackType.Default,
+      artwork: download?.thumbnails
+        ? documentDirectoryFilePath(download.thumbnails.extraLarge)
+        : undefined,
+    };
+  }
+
   return {
-    url:
-      Platform.OS === "ios"
-        ? `${session.url}${playthrough.media.hlsPath}`
-        : `${session.url}${playthrough.media.mpdPath}`,
-    type: TrackType.Dash,
+    url: joinUrl(session.url, track.path),
+    type: TrackType.Default,
     artwork: playthrough.media.thumbnails
-      ? `${session.url}/${playthrough.media.thumbnails.extraLarge}`
+      ? joinUrl(session.url, playthrough.media.thumbnails.extraLarge)
       : undefined,
     headers: { Authorization: `Bearer ${session.token}` },
   };
+}
+
+/**
+ * Where legacy packaged media comes from: the downloaded mp4 if there is one,
+ * otherwise the streaming manifest — HLS on iOS, DASH elsewhere.
+ */
+function legacySource(session: Session, playthrough: PlaythroughWithMedia) {
+  const download = playthrough.media.download;
+
+  if (download?.status === "ready" && download.filePath) {
+    return {
+      url: documentDirectoryFilePath(download.filePath),
+      artwork: download.thumbnails
+        ? documentDirectoryFilePath(download.thumbnails.extraLarge)
+        : undefined,
+    };
+  }
+
+  const path =
+    Platform.OS === "ios"
+      ? playthrough.media.hlsPath
+      : playthrough.media.mpdPath;
+
+  return {
+    url: path ? joinUrl(session.url, path) : "",
+    type: Platform.OS === "ios" ? TrackType.HLS : TrackType.Dash,
+    artwork: playthrough.media.thumbnails
+      ? joinUrl(session.url, playthrough.media.thumbnails.extraLarge)
+      : undefined,
+    headers: { Authorization: `Bearer ${session.token}` },
+  };
+}
+
+/**
+ * Join a server URL and a path without caring whether either has the slash.
+ */
+function joinUrl(base: string, path: string) {
+  return `${base.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
 }
 
 /**

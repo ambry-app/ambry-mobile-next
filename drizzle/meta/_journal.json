@@ -183,6 +183,13 @@
       "when": 1786658199214,
       "tag": "0025_fantastic_supreme_intelligence",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1786667452294,
+      "tag": "0026_parched_alex_wilder",
+      "breakpoints": true
     }
   ]
 }

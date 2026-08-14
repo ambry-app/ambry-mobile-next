@@ -24,6 +24,16 @@ export type Thumbnails = {
   thumbhash: string;
 };
 
+/**
+ * One downloaded audio file of a recording, as a path relative to the document
+ * directory. Keyed by track so a re-scan that reorders files cannot silently
+ * point playback at the wrong one.
+ */
+export type DownloadedFile = {
+  trackId: string;
+  path: string;
+};
+
 export type DownloadedThumbnails = {
   extraLarge: string;
   large: string;
@@ -783,7 +793,11 @@ export const downloads = sqliteTable(
     mediaId: text("media_id").notNull(),
     // when the download was initiated, not when it was completed
     downloadedAt: integer("downloaded_at", { mode: "timestamp" }).notNull(),
+    // Legacy packaged media: the single downloaded file. Empty for direct-play
+    // recordings, which store their files below.
     filePath: text("file_path").notNull(),
+    // Direct-play recordings: every file of the recording, in playback order.
+    files: text("files", { mode: "json" }).$type<DownloadedFile[] | null>(),
     thumbnails: text("thumbnails", {
       mode: "json",
     }).$type<DownloadedThumbnails | null>(),

@@ -1,4 +1,4 @@
-import { File, Paths } from "expo-file-system";
+import { Directory, File, Paths } from "expo-file-system";
 
 import {
   createDownload,
@@ -7,7 +7,10 @@ import {
   getDownload,
   updateDownload,
 } from "@/db/downloads";
-import { getMediaDownloadInfo } from "@/db/library/get-media-download-info";
+import {
+  getMediaDownloadInfo,
+  type MediaDownloadInfo,
+} from "@/db/library/get-media-download-info";
 import { DownloadedThumbnails, Thumbnails } from "@/db/schema";
 import {
   addOrUpdateDownload,
@@ -47,20 +50,77 @@ export async function initializeDownloads(session: Session) {
   useDownloads.setState({ initialized: true, downloads });
 }
 
+/**
+ * What a recording's download will consist of.
+ *
+ * A direct-play recording downloads its own files, keeping their real
+ * extensions and living in a folder of its own so a forty-file recording does
+ * not litter the document directory. Legacy media downloads the one packaged
+ * file it has, at the path it has always used, so existing downloads keep
+ * working untouched.
+ */
+type DownloadPlan =
+  | {
+      kind: "tracks";
+      files: { trackId: string; remote: string; local: string }[];
+    }
+  | { kind: "legacy"; remote: string; local: string };
+
+function planDownload(
+  mediaId: string,
+  mediaInfo: MediaDownloadInfo,
+): DownloadPlan | null {
+  if (mediaInfo.tracks.length > 0) {
+    return {
+      kind: "tracks",
+      files: mediaInfo.tracks.map((track) => ({
+        trackId: track.id,
+        remote: track.path,
+        // Numbered so the folder reads in playback order, and suffixed with
+        // the real extension because the player picks its decoder from it.
+        local: `${mediaId}/${String(track.index).padStart(3, "0")}${extensionOf(track.path)}`,
+      })),
+    };
+  }
+
+  if (mediaInfo.mp4Path) {
+    return {
+      kind: "legacy",
+      remote: mediaInfo.mp4Path,
+      local: `${mediaId}.mp4`,
+    };
+  }
+
+  return null;
+}
+
+function extensionOf(path: string): string {
+  const name = path.split("/").pop() ?? "";
+  const dot = name.lastIndexOf(".");
+
+  return dot > 0 ? name.slice(dot) : "";
+}
+
 export async function startDownload(session: Session, mediaId: string) {
-  // Query for mp4Path and thumbnails
   const mediaInfo = await getMediaDownloadInfo(session, mediaId);
-  if (!mediaInfo?.mp4Path) {
-    log.warn("No mp4Path found for media:", mediaId);
+  const plan = mediaInfo && planDownload(mediaId, mediaInfo);
+
+  if (!plan) {
+    // Nothing downloadable: no direct-play files and no packaged file either.
+    // Saying so beats the silent no-op this used to be, where the button did
+    // nothing and left no trace.
+    log.warn("Nothing downloadable for media:", mediaId);
+    await recordUndownloadable(session, mediaId);
     return;
   }
 
-  const { mp4Path, thumbnails } = mediaInfo;
-  const destinationFilePath = Paths.document.uri + `${mediaId}.mp4`;
+  const thumbnails = mediaInfo.thumbnails;
+  const localPaths =
+    plan.kind === "tracks" ? plan.files.map((f) => f.local) : [plan.local];
+  const destinationFilePath = plan.kind === "legacy" ? plan.local : "";
 
-  log.info("Starting download to", destinationFilePath);
+  log.info(`Starting download of ${localPaths.length} file(s) for`, mediaId);
 
-  // FIXME: stored file paths should be relative, not absolute
   let download = await createDownload(session, mediaId, destinationFilePath);
   addOrUpdateDownload(download);
 
@@ -77,20 +137,35 @@ export async function startDownload(session: Session, mediaId: string) {
   }
 
   try {
-    const file = new File(destinationFilePath);
-    if (file.exists) {
-      file.delete();
+    for (const localPath of localPaths) {
+      const remote =
+        plan.kind === "tracks"
+          ? plan.files.find((f) => f.local === localPath)!.remote
+          : plan.remote;
+
+      const file = new File(documentDirectoryFilePath(localPath));
+      // A direct-play recording downloads into a folder of its own, which has
+      // to exist before anything can be written into it.
+      file.parentDirectory.create({ intermediates: true, idempotent: true });
+      if (file.exists) file.delete();
+
+      await File.downloadFileAsync(joinUrl(session.url, remote), file, {
+        headers: { Authorization: `Bearer ${session.token}` },
+      });
+
+      // Checked between files rather than only at the end, so cancelling a
+      // forty-file download stops at the next boundary instead of running the
+      // whole set to completion.
+      if (await discardIfCancelled(session, mediaId, localPaths)) return;
     }
-
-    await File.downloadFileAsync(`${session.url}/${mp4Path}`, file, {
-      headers: { Authorization: `Bearer ${session.token}` },
-    });
-
-    if (await discardIfCancelled(session, mediaId, destinationFilePath)) return;
 
     log.info("Download succeeded for media:", mediaId);
     download = await updateDownload(session, mediaId, {
       status: "ready",
+      files:
+        plan.kind === "tracks"
+          ? plan.files.map((f) => ({ trackId: f.trackId, path: f.local }))
+          : null,
     });
     addOrUpdateDownload(download);
     // reload player if the download is for the currently loaded media
@@ -102,7 +177,7 @@ export async function startDownload(session: Session, mediaId: string) {
     // fire-and-forget, so an error escaping this handler becomes an unhandled
     // rejection rather than surfacing anywhere useful.
     try {
-      if (await discardIfCancelled(session, mediaId, destinationFilePath)) {
+      if (await discardIfCancelled(session, mediaId, localPaths)) {
         return;
       }
 
@@ -112,6 +187,29 @@ export async function startDownload(session: Session, mediaId: string) {
       log.warn("Failed to record download failure:", cleanupError);
     }
   }
+}
+
+/**
+ * Record that a recording cannot be downloaded at all.
+ *
+ * Surfacing it as a failed download is the point: the alternative was
+ * returning silently, which left the user tapping a button that never did
+ * anything.
+ */
+async function recordUndownloadable(session: Session, mediaId: string) {
+  try {
+    const download = await createDownload(session, mediaId, "");
+    addOrUpdateDownload(
+      await updateDownload(session, mediaId, { status: "error" }),
+    );
+    return download;
+  } catch (error) {
+    log.warn("Failed to record undownloadable media:", error);
+  }
+}
+
+function joinUrl(base: string, path: string) {
+  return `${base.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
 }
 
 /**
@@ -131,12 +229,15 @@ export async function startDownload(session: Session, mediaId: string) {
 async function discardIfCancelled(
   session: Session,
   mediaId: string,
-  destinationFilePath: string,
+  localPaths: string[],
 ): Promise<boolean> {
   if (await getDownload(session, mediaId)) return false;
 
   log.info("Download was cancelled while in flight, discarding:", mediaId);
-  await tryDelete(destinationFilePath);
+  for (const localPath of localPaths) {
+    await tryDelete(documentDirectoryFilePath(localPath));
+  }
+  await tryDeleteDirectory(mediaId);
   return true;
 }
 
@@ -162,9 +263,19 @@ export async function removeDownload(session: Session, mediaId: string) {
   const download = await getDownload(session, mediaId);
 
   if (download) {
-    const pathToDelete = documentDirectoryFilePath(download.filePath);
-    log.debug("Deleting file:", pathToDelete);
-    await tryDelete(pathToDelete);
+    // A direct-play recording keeps its files in a folder of its own; legacy
+    // media has the one file it has always had.
+    for (const file of download.files ?? []) {
+      log.debug("Deleting file:", file.path);
+      await tryDelete(documentDirectoryFilePath(file.path));
+    }
+    await tryDeleteDirectory(mediaId);
+
+    if (download.filePath) {
+      const pathToDelete = documentDirectoryFilePath(download.filePath);
+      log.debug("Deleting file:", pathToDelete);
+      await tryDelete(pathToDelete);
+    }
   }
 
   if (download?.thumbnails) {
@@ -231,6 +342,20 @@ async function downloadThumbnails(
   log.debug("Finished downloading thumbnails");
 
   return downloadedThumbnails;
+}
+
+/**
+ * Remove a recording's download folder, if it had one.
+ */
+async function tryDeleteDirectory(mediaId: string): Promise<void> {
+  try {
+    const directory = new Directory(Paths.document, mediaId);
+    if (directory.exists) {
+      directory.delete();
+    }
+  } catch (e) {
+    log.warn("Failed to delete download folder:", e);
+  }
 }
 
 async function tryDelete(path: string): Promise<void> {
