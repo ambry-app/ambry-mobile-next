@@ -338,6 +338,13 @@ export async function loadPlaythroughIntoPlayer(
   const tracks = buildAddTracks(session, playthrough);
   const timeline = playthrough.media.mediaTracks;
 
+  const loaded = {
+    id: playthrough.id,
+    mediaId: playthrough.mediaId,
+    // Cast is safe - we never load deleted playthroughs into the player
+    status: playthrough.status as "in_progress" | "finished" | "abandoned",
+  };
+
   await TrackPlayer.reset();
 
   // Reset store state immediately after reset, before loading new track. This
@@ -346,7 +353,14 @@ export async function loadPlaythroughIntoPlayer(
   // listeners. We must NOT overwrite playbackState/playWhenReady/isPlaying at
   // the end, or we'll create a race condition where the store ends up in None
   // state even though TrackPlayer is Ready.
-  useTrackPlayer.setState(initialState);
+  //
+  // The playthrough is the exception, and goes in here rather than at the end:
+  // it is what the UI mounts the player on, so clearing it unmounts the player
+  // for as long as the load takes. The loading screen would vanish, the screen
+  // behind it would reappear, and the player would pop back in once the load
+  // finished. Everything else is zeroed as before, and the `loadingNewMedia`
+  // scrim hides the player's contents until the real values land below.
+  useTrackPlayer.setState({ ...initialState, playthrough: loaded });
 
   await TrackPlayer.add(tracks, timeline);
   await TrackPlayer.seekTo(position);
@@ -362,12 +376,7 @@ export async function loadPlaythroughIntoPlayer(
     playbackRate: actualPlaybackRate,
     progress,
     streaming,
-    playthrough: {
-      id: playthrough.id,
-      mediaId: playthrough.mediaId,
-      // Cast is safe - we never load deleted playthroughs into the player
-      status: playthrough.status as "in_progress" | "finished" | "abandoned",
-    },
+    playthrough: loaded,
     ...buildInitialChapterState(playthrough.media.chapters, progress),
   });
 }
