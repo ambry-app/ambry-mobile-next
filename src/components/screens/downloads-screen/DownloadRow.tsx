@@ -13,7 +13,9 @@ import { DownloadedMedia } from "@/services/library-service";
 import { useDownloads } from "@/stores/downloads";
 import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
+import { recordingTitle } from "@/utils/titles";
 
+import { DownloadProgress } from "./DownloadProgress";
 import { FileSize } from "./FileSize";
 
 type DownloadRowProps = {
@@ -22,12 +24,20 @@ type DownloadRowProps = {
 };
 
 export function DownloadRow({ media, session }: DownloadRowProps) {
-  const { filePath, status } = useDownloads(
+  const { filePath, files, status, bytesWritten, totalBytes } = useDownloads(
     useShallow((state) => {
-      const { filePath, status } = state.downloads[media.id] || {};
-      return { filePath, status };
+      const { filePath, files, status, bytesWritten, totalBytes } =
+        state.downloads[media.id] || {};
+      return { filePath, files, status, bytesWritten, totalBytes };
     }),
   );
+
+  // A direct-play recording is its files; legacy media is the one it has.
+  const filePaths = files?.length
+    ? files.map((file) => file.path)
+    : filePath
+      ? [filePath]
+      : [];
 
   const onDelete = useCallback(() => {
     removeDownload(session, media.id);
@@ -44,7 +54,7 @@ export function DownloadRow({ media, session }: DownloadRowProps) {
       pathname: "/media/[id]",
       params: {
         id: media.id,
-        title: media.book.title,
+        title: recordingTitle(media.title, media.book.title),
       },
     });
   };
@@ -63,16 +73,23 @@ export function DownloadRow({ media, session }: DownloadRowProps) {
         <TouchableOpacity onPress={navigateToBook}>
           <BookDetailsText
             baseFontSize={14}
-            title={media.book.title}
+            title={recordingTitle(media.title, media.book.title)}
             authors={media.book.authors.map((author) => author.name)}
             narrators={media.narrators.map((narrator) => narrator.name)}
           />
-          {status === "ready" && <FileSize filePath={filePath!} />}
-          {status === "pending" && (
-            <View style={styles.loadingContainer}>
-              <Loading size={16} />
-            </View>
-          )}
+          {status === "ready" && <FileSize filePaths={filePaths} />}
+          {status === "pending" &&
+            (bytesWritten === undefined ? (
+              // Before the first byte lands there is nothing to measure
+              <View style={styles.loadingContainer}>
+                <Loading size={16} />
+              </View>
+            ) : (
+              <DownloadProgress
+                bytesWritten={bytesWritten}
+                totalBytes={totalBytes}
+              />
+            ))}
         </TouchableOpacity>
       </View>
       <View>

@@ -182,6 +182,32 @@ describe("track-player-service", () => {
 
       expect(useTrackPlayer.getState().streaming).toBe(false);
     });
+
+    it("never reports an empty player while swapping one book for another", async () => {
+      // The UI mounts the player on this field, so a moment without a
+      // playthrough is a moment without a player: the loading screen vanishes,
+      // the screen behind it comes back, and the player pops in again when the
+      // load finishes. Loading is allowed to take as long as it takes; what it
+      // may not do is unmount the player while it does.
+      await trackPlayerService.initialize();
+
+      const first = await createTestPlaythrough({ position: 10 });
+      const second = await createTestPlaythrough({ position: 20 });
+
+      await trackPlayerService.loadPlaythroughIntoPlayer(session, first);
+
+      const seen: (string | undefined)[] = [];
+      const unsubscribe = useTrackPlayer.subscribe((state) =>
+        seen.push(state.playthrough?.id),
+      );
+
+      await trackPlayerService.loadPlaythroughIntoPlayer(session, second);
+      unsubscribe();
+
+      expect(seen).not.toHaveLength(0);
+      expect(seen).not.toContain(undefined);
+      expect(seen.at(-1)).toBe(second.id);
+    });
   });
 
   describe("play", () => {

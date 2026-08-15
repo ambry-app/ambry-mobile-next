@@ -11,11 +11,11 @@ import {
 import { DownloadStatus } from "@/stores/downloads";
 import { Colors } from "@/styles/colors";
 
+// A person credited on the recording. Authors arrive already expanded from
+// their byline, so a composite pen name contributes one entry per person.
 type AuthorOrNarrator = {
   id: string;
   name: string;
-  personId: string;
-  personName: string;
 };
 
 export type PlayerContextMenuImplProps = {

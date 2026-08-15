@@ -9,12 +9,14 @@ import { groupMapBy } from "@/utils/group-map-by";
 export async function getAuthorsForBooks(session: Session, bookIds: string[]) {
   if (bookIds.length === 0) return {};
 
+  // Bylines are the author's name, not the people behind it. Joining people
+  // here would repeat a composite byline once per person ("James S.A. Corey,
+  // James S.A. Corey"); the people are fetched separately where they are
+  // actually shown.
   const authors = await getDb()
     .select({
       id: schema.authors.id,
       name: schema.authors.name,
-      personId: schema.people.id,
-      personName: schema.people.name,
       bookId: schema.bookAuthors.bookId,
     })
     .from(schema.bookAuthors)
@@ -25,11 +27,52 @@ export async function getAuthorsForBooks(session: Session, bookIds: string[]) {
         eq(schema.authors.id, schema.bookAuthors.authorId),
       ),
     )
+    .where(
+      and(
+        eq(schema.bookAuthors.url, session.url),
+        inArray(schema.bookAuthors.bookId, bookIds),
+      ),
+    )
+    .orderBy(asc(schema.bookAuthors.position));
+
+  return groupMapBy(
+    authors,
+    (author) => author.bookId,
+    ({ bookId: _bookId, ...author }) => author,
+  );
+}
+
+/**
+ * The people behind a book's bylines, for surfaces that navigate to a person
+ * rather than print a byline. A composite pen name contributes one entry per
+ * person, named by the person, so "James S.A. Corey" offers both humans.
+ */
+export async function getAuthorPeopleForBooks(
+  session: Session,
+  bookIds: string[],
+) {
+  if (bookIds.length === 0) return {};
+
+  const people = await getDb()
+    .selectDistinct({
+      id: schema.people.id,
+      name: schema.people.name,
+      bookId: schema.bookAuthors.bookId,
+      position: schema.bookAuthors.position,
+    })
+    .from(schema.bookAuthors)
+    .innerJoin(
+      schema.authorPeople,
+      and(
+        eq(schema.authorPeople.url, schema.bookAuthors.url),
+        eq(schema.authorPeople.authorId, schema.bookAuthors.authorId),
+      ),
+    )
     .innerJoin(
       schema.people,
       and(
-        eq(schema.people.url, schema.authors.url),
-        eq(schema.people.id, schema.authors.personId),
+        eq(schema.people.url, schema.authorPeople.url),
+        eq(schema.people.id, schema.authorPeople.personId),
       ),
     )
     .where(
@@ -38,12 +81,59 @@ export async function getAuthorsForBooks(session: Session, bookIds: string[]) {
         inArray(schema.bookAuthors.bookId, bookIds),
       ),
     )
-    .orderBy(asc(schema.bookAuthors.insertedAt));
+    .orderBy(asc(schema.bookAuthors.position));
 
   return groupMapBy(
-    authors,
-    (author) => author.bookId,
-    ({ bookId: _bookId, ...author }) => author,
+    people,
+    (person) => person.bookId,
+    ({ bookId: _bookId, position: _position, ...person }) => person,
+  );
+}
+
+/**
+ * The people behind a recording's narrator credits. Narrators map to exactly
+ * one person, so this is a rename rather than a fan-out.
+ */
+export async function getNarratorPeopleForMedia(
+  session: Session,
+  mediaIds: string[],
+) {
+  if (mediaIds.length === 0) return {};
+
+  const people = await getDb()
+    .selectDistinct({
+      id: schema.people.id,
+      name: schema.people.name,
+      mediaId: schema.mediaNarrators.mediaId,
+      position: schema.mediaNarrators.position,
+    })
+    .from(schema.mediaNarrators)
+    .innerJoin(
+      schema.narrators,
+      and(
+        eq(schema.narrators.url, schema.mediaNarrators.url),
+        eq(schema.narrators.id, schema.mediaNarrators.narratorId),
+      ),
+    )
+    .innerJoin(
+      schema.people,
+      and(
+        eq(schema.people.url, schema.narrators.url),
+        eq(schema.people.id, schema.narrators.personId),
+      ),
+    )
+    .where(
+      and(
+        eq(schema.mediaNarrators.url, session.url),
+        inArray(schema.mediaNarrators.mediaId, mediaIds),
+      ),
+    )
+    .orderBy(asc(schema.mediaNarrators.position));
+
+  return groupMapBy(
+    people,
+    (person) => person.mediaId,
+    ({ mediaId: _mediaId, position: _position, ...person }) => person,
   );
 }
 
@@ -99,8 +189,6 @@ export async function getNarratorsForMedia(
     .select({
       id: schema.narrators.id,
       name: schema.narrators.name,
-      personId: schema.people.id,
-      personName: schema.people.name,
       mediaId: schema.mediaNarrators.mediaId,
     })
     .from(schema.mediaNarrators)
@@ -111,20 +199,13 @@ export async function getNarratorsForMedia(
         eq(schema.narrators.id, schema.mediaNarrators.narratorId),
       ),
     )
-    .innerJoin(
-      schema.people,
-      and(
-        eq(schema.people.url, schema.narrators.url),
-        eq(schema.people.id, schema.narrators.personId),
-      ),
-    )
     .where(
       and(
         eq(schema.mediaNarrators.url, session.url),
         inArray(schema.mediaNarrators.mediaId, mediaIds),
       ),
     )
-    .orderBy(asc(schema.mediaNarrators.insertedAt));
+    .orderBy(asc(schema.mediaNarrators.position));
 
   return groupMapBy(
     narrators,

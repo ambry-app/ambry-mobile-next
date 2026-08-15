@@ -28,6 +28,8 @@ async function getMedia(session: Session, mediaId: string) {
   const rows = await getDb()
     .select({
       id: schema.media.id,
+      title: schema.media.title,
+      partNumber: schema.media.partNumber,
       fullCast: schema.media.fullCast,
       abridged: schema.media.abridged,
       thumbnails: schema.media.thumbnails,
@@ -42,6 +44,12 @@ async function getMedia(session: Session, mediaId: string) {
         title: schema.books.title,
         published: schema.books.published,
         publishedFormat: schema.books.publishedFormat,
+      },
+      set: {
+        id: schema.recordingGroups.id,
+        partsTotal: schema.recordingGroups.partsTotal,
+        partWord: schema.recordingGroups.partWord,
+        partWordPlural: schema.recordingGroups.partWordPlural,
       },
       download: {
         thumbnails: schema.downloads.thumbnails,
@@ -60,6 +68,13 @@ async function getMedia(session: Session, mediaId: string) {
       and(
         eq(schema.downloads.url, schema.media.url),
         eq(schema.downloads.mediaId, schema.media.id),
+      ),
+    )
+    .leftJoin(
+      schema.recordingGroups,
+      and(
+        eq(schema.recordingGroups.url, schema.media.url),
+        eq(schema.recordingGroups.id, schema.media.recordingGroupId),
       ),
     )
     .where(and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)))
@@ -99,18 +114,16 @@ async function getNarrators(session: Session, mediaId: string) {
         eq(schema.mediaNarrators.mediaId, mediaId),
       ),
     )
-    .orderBy(asc(schema.mediaNarrators.insertedAt));
+    .orderBy(asc(schema.mediaNarrators.position));
 }
 
+// The byline only ever renders author names, so this deliberately does not
+// join people: a composite byline would otherwise repeat once per person.
 async function getAuthors(session: Session, bookId: string) {
   return getDb()
     .select({
       id: schema.authors.id,
       name: schema.authors.name,
-      person: {
-        id: schema.people.id,
-        name: schema.people.name,
-      },
     })
     .from(schema.bookAuthors)
     .innerJoin(
@@ -120,20 +133,13 @@ async function getAuthors(session: Session, bookId: string) {
         eq(schema.authors.id, schema.bookAuthors.authorId),
       ),
     )
-    .innerJoin(
-      schema.people,
-      and(
-        eq(schema.people.url, schema.authors.url),
-        eq(schema.people.id, schema.authors.personId),
-      ),
-    )
     .where(
       and(
         eq(schema.bookAuthors.url, session.url),
         eq(schema.bookAuthors.bookId, bookId),
       ),
     )
-    .orderBy(asc(schema.bookAuthors.insertedAt));
+    .orderBy(asc(schema.bookAuthors.position));
 }
 
 async function getSeries(session: Session, bookId: string) {
@@ -156,5 +162,7 @@ async function getSeries(session: Session, bookId: string) {
         eq(schema.seriesBooks.url, session.url),
         eq(schema.seriesBooks.bookId, bookId),
       ),
-    );
+    )
+    // A book can be in several series; the operator decided their order.
+    .orderBy(asc(schema.seriesBooks.position));
 }

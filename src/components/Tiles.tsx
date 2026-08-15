@@ -18,6 +18,7 @@ import {
 } from "@/services/library-service";
 import { Colors, interactive, surface } from "@/styles/colors";
 import { useNavigateToBookCallback } from "@/utils/hooks";
+import { recordingTitle } from "@/utils/titles";
 
 import { BookDetailsText } from "./BookDetailsText";
 import { MultiThumbnailImage } from "./MultiThumbnailImage";
@@ -51,6 +52,7 @@ function isAnyMediaOnSavedShelf(
 
 type Media = {
   id: string;
+  title?: string | null;
   thumbnails: Thumbnails | null;
   narrators: {
     name: string;
@@ -257,7 +259,13 @@ export const TileText = React.memo(function TileText(props: TileTextProps) {
     <View>
       <BookDetailsText
         baseFontSize={16}
-        title={book.title}
+        title={
+          // a recording's own title only applies when it is the only one shown;
+          // a book tile covering several recordings goes by the book's title
+          media[0] && media.length === 1
+            ? recordingTitle(media[0].title, book.title)
+            : book.title
+        }
         authors={book.authors.map((author) => author.name)}
         narrators={
           // only show narrators if there is exactly one media
@@ -320,10 +328,17 @@ export const PlaythroughTile = React.memo(function PlaythroughTile(
       pathname: "/media/[id]",
       params: {
         id: playthrough.media.id,
-        title: playthrough.media.book.title,
+        title: recordingTitle(
+          playthrough.media.title,
+          playthrough.media.book.title,
+        ),
       },
     });
-  }, [playthrough.media.id, playthrough.media.book.title]);
+  }, [
+    playthrough.media.id,
+    playthrough.media.title,
+    playthrough.media.book.title,
+  ]);
 
   return (
     <Pressable onPress={navigateToMedia}>

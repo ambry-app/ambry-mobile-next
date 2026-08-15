@@ -45,6 +45,8 @@ interface TrackPlayerFakeState {
   playWhenReady: boolean;
   playbackState: string;
   currentTrack: unknown | null;
+  queue: unknown[];
+  activeTrackIndex: number | undefined;
   eventListeners: Map<string, ((event: unknown) => void)[]>;
 }
 
@@ -57,6 +59,11 @@ const createInitialState = (): TrackPlayerFakeState => ({
   playWhenReady: false,
   playbackState: "none",
   currentTrack: null,
+  // A recording can be several files. The fake tracks the whole queue and
+  // which file is active, because that is exactly the state the wrapper's
+  // book-position translation depends on.
+  queue: [] as unknown[],
+  activeTrackIndex: undefined as number | undefined,
   eventListeners: new Map(),
 });
 
@@ -136,6 +143,22 @@ export const mockTrackPlayerSeekTo = jest.fn(async (pos: number) => {
     Math.min(pos, trackPlayerState.duration || pos),
   );
 });
+export const mockTrackPlayerSkip = jest.fn(
+  async (index: number, initialPosition?: number) => {
+    trackPlayerState.activeTrackIndex = index;
+    trackPlayerState.currentTrack = trackPlayerState.queue[index] ?? null;
+
+    const track = trackPlayerState.queue[index];
+    if (track && typeof track === "object" && "duration" in track) {
+      trackPlayerState.duration = (track as { duration: number }).duration;
+    }
+
+    trackPlayerState.position = initialPosition ?? 0;
+  },
+);
+export const mockTrackPlayerGetActiveTrackIndex = jest.fn(
+  async () => trackPlayerState.activeTrackIndex,
+);
 export const mockTrackPlayerPlay = jest.fn(async () => {
   trackPlayerState.playWhenReady = true;
   trackPlayerState.playbackState = "playing";
@@ -169,12 +192,19 @@ export const mockTrackPlayerSetVolume = jest.fn(async (volume: number) => {
 export const mockTrackPlayerReset = jest.fn(async () => {
   trackPlayerState.position = 0;
   trackPlayerState.currentTrack = null;
+  trackPlayerState.queue = [];
+  trackPlayerState.activeTrackIndex = undefined;
   trackPlayerState.playWhenReady = false;
   trackPlayerState.playbackState = "none";
 });
-export const mockTrackPlayerAdd = jest.fn(async (track: unknown) => {
+export const mockTrackPlayerAdd = jest.fn(async (tracks: unknown) => {
+  const added = Array.isArray(tracks) ? tracks : [tracks];
+  trackPlayerState.queue = added;
+  trackPlayerState.activeTrackIndex = added.length > 0 ? 0 : undefined;
+
+  const track = added[0] ?? null;
   trackPlayerState.currentTrack = track;
-  // If track has duration, use it
+  // The player reports the duration of the file it is playing, not of the book
   if (track && typeof track === "object" && "duration" in track) {
     trackPlayerState.duration = (track as { duration: number }).duration;
   }
@@ -267,9 +297,12 @@ jest.mock("react-native-track-player", () => {
       setVolume: (volume: number) => mockTrackPlayerSetVolume(volume),
       // Queue Management
       reset: () => mockTrackPlayerReset(),
-      add: (track: unknown) => mockTrackPlayerAdd(track),
+      add: (tracks: unknown) => mockTrackPlayerAdd(tracks),
+      skip: (index: number, initialPosition?: number) =>
+        mockTrackPlayerSkip(index, initialPosition),
       // State Queries
       getProgress: () => mockTrackPlayerGetProgress(),
+      getActiveTrackIndex: () => mockTrackPlayerGetActiveTrackIndex(),
       getPlaybackState: () => mockTrackPlayerGetPlaybackState(),
       getPlayWhenReady: () => mockTrackPlayerGetPlayWhenReady(),
       getRate: () => mockTrackPlayerGetRate(),
@@ -314,12 +347,45 @@ jest.mock("react-native-track-player", () => {
  */
 const deletedFiles = new Set<string>();
 
+/**
+ * A direct-play recording downloads into a folder of its own, so the fake has
+ * to model directories as well as files.
+ */
+const createdDirectories = new Set<string>();
+
+class MockDirectory {
+  uri: string;
+
+  constructor(base: { uri: string } | string, ...segments: string[]) {
+    const baseUri = typeof base === "string" ? base : base.uri;
+    this.uri = [baseUri.replace(/\/+$/, ""), ...segments].join("/");
+  }
+
+  get exists() {
+    return createdDirectories.has(this.uri) && !deletedFiles.has(this.uri);
+  }
+
+  create(_options?: { intermediates?: boolean; idempotent?: boolean }) {
+    createdDirectories.add(this.uri);
+    deletedFiles.delete(this.uri);
+  }
+
+  delete() {
+    deletedFiles.add(this.uri);
+    createdDirectories.delete(this.uri);
+  }
+}
+
 class MockFile {
   uri: string;
   size: number = 1024;
 
   constructor(uri: string) {
     this.uri = uri;
+  }
+
+  get parentDirectory() {
+    return new MockDirectory(this.uri.split("/").slice(0, -1).join("/"));
   }
 
   get exists() {
@@ -330,7 +396,20 @@ class MockFile {
     deletedFiles.add(this.uri);
   }
 
-  static async downloadFileAsync(_url: string, path: any, _options?: any) {
+  static async downloadFileAsync(_url: string, path: any, options?: any) {
+    // A cancelled transfer rejects, the same way an aborted fetch does
+    if (options?.signal?.aborted) {
+      const error = new Error("Aborted");
+      error.name = "AbortError";
+      throw error;
+    }
+
+    // Report progress the way the native module does: some way through, then
+    // complete. Tests that care about the shape of aggregate progress need
+    // more than one callback per file.
+    options?.onProgress?.({ bytesWritten: 512, totalBytes: 1024 });
+    options?.onProgress?.({ bytesWritten: 1024, totalBytes: 1024 });
+
     // Writing a file brings it back into existence
     deletedFiles.delete(path.uri);
     return path;
@@ -344,6 +423,7 @@ jest.mock("expo-file-system", () => ({
     },
   },
   File: MockFile,
+  Directory: MockDirectory,
 }));
 
 /** True if the file at `uri` has not been deleted by the code under test. */
@@ -363,6 +443,7 @@ export function mockFileWritten(uri: string): void {
 /** Forget all recorded deletions. Call between tests. */
 export function resetMockFileSystem(): void {
   deletedFiles.clear();
+  createdDirectories.clear();
 }
 
 // =============================================================================

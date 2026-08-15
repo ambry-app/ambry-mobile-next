@@ -1,5 +1,6 @@
 import * as FileSystem from "expo-file-system";
 
+import { getDownload } from "@/db/downloads";
 import {
   cancelDownload,
   initializeDownloads,
@@ -14,6 +15,7 @@ import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createDownload as createDownloadFactory,
   createMedia,
+  createMediaTrack,
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
 import {
@@ -108,7 +110,9 @@ describe("download service", () => {
       const state = useDownloads.getState();
       expect(state.downloads["media-dl"]).toMatchObject({
         mediaId: "media-dl",
-        filePath: "file:///test-document-directory/media-dl.mp4",
+        // Stored relative: iOS moves the document directory between app
+        // upgrades, so an absolute path goes stale.
+        filePath: "media-dl.mp4",
         status: "ready",
       });
     });
@@ -163,7 +167,7 @@ describe("download service", () => {
       });
     });
 
-    it("does nothing if media has no mp4Path", async () => {
+    it("does nothing when there is nothing to download", async () => {
       const db = getDb();
       const media = await createMedia(db, {
         id: "media-no-mp4",
@@ -177,8 +181,104 @@ describe("download service", () => {
 
       await startDownload(session, media.id);
 
+      // Every audiobook a reader can reach has something to play, so this is
+      // a guard against a state that should not exist rather than a failure
+      // worth showing anyone
       expect(downloadSpy).not.toHaveBeenCalled();
       expect(useDownloads.getState().downloads["media-no-mp4"]).toBeUndefined();
+    });
+
+    it("downloads every file of a direct-play recording", async () => {
+      const db = getDb();
+      const media = await createMedia(db, { id: "media-parts", mp4Path: null });
+      await createMediaTrack(db, {
+        mediaId: media.id,
+        index: 0,
+        path: "/files/book/01.m4b",
+      });
+      await createMediaTrack(db, {
+        mediaId: media.id,
+        index: 1,
+        path: "/files/book/02.m4b",
+      });
+
+      await startDownload(session, media.id);
+
+      const download = await getDownload(session, media.id);
+      expect(download?.status).toBe("ready");
+      // Numbered so the folder reads in playback order, with the real
+      // extension so the player can pick a decoder
+      expect(download?.files?.map((file) => file.path)).toEqual([
+        "media-parts/000.m4b",
+        "media-parts/001.m4b",
+      ]);
+    });
+
+    it("keeps each downloaded file tied to its track", async () => {
+      const db = getDb();
+      const media = await createMedia(db, { id: "media-keyed", mp4Path: null });
+      const first = await createMediaTrack(db, {
+        mediaId: media.id,
+        index: 0,
+        path: "/files/book/01.m4b",
+      });
+      const second = await createMediaTrack(db, {
+        mediaId: media.id,
+        index: 1,
+        path: "/files/book/02.opus",
+      });
+
+      await startDownload(session, media.id);
+
+      const download = await getDownload(session, media.id);
+      expect(download?.files).toEqual([
+        { trackId: first.id, path: "media-keyed/000.m4b" },
+        { trackId: second.id, path: "media-keyed/001.opus" },
+      ]);
+    });
+  });
+
+  describe("download progress", () => {
+    it("reports one running total across a recording's files", async () => {
+      const db = getDb();
+      const media = await createMedia(db, {
+        id: "media-progress",
+        mp4Path: null,
+      });
+      await createMediaTrack(db, {
+        mediaId: media.id,
+        index: 0,
+        size: 1024,
+        path: "/files/book/01.m4b",
+      });
+      await createMediaTrack(db, {
+        mediaId: media.id,
+        index: 1,
+        size: 1024,
+        path: "/files/book/02.m4b",
+      });
+
+      await startDownload(session, media.id);
+
+      // the total is known before the first byte arrives, because every
+      // file's size is synced with it
+      const download = useDownloads.getState().downloads["media-progress"];
+      expect(download?.totalBytes).toBe(2048);
+      expect(download?.bytesWritten).toBe(2048);
+    });
+
+    it("comes to rest at the full size rather than short of it", async () => {
+      const db = getDb();
+      const media = await createMedia(db, {
+        id: "media-complete",
+        mp4Path: "audio/media-complete/stream.mp4",
+      });
+
+      await startDownload(session, media.id);
+
+      const download = useDownloads.getState().downloads["media-complete"];
+      expect(download?.status).toBe("ready");
+      expect(download?.bytesWritten).toBe(download?.totalBytes);
     });
   });
 

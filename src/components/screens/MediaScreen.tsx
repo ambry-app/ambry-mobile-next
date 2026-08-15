@@ -22,6 +22,7 @@ import { MediaDescription } from "@/components/screens/media-screen/MediaDescrip
 import { OtherBooksByAuthors } from "@/components/screens/media-screen/OtherBooksByAuthors";
 import { OtherEditions } from "@/components/screens/media-screen/OtherEditions";
 import { OtherMediaByNarrators } from "@/components/screens/media-screen/OtherMediaByNarrators";
+import { PartsInSet } from "@/components/screens/media-screen/PartsInSet";
 import { PlaythroughHistory } from "@/components/screens/media-screen/PlaythroughHistory";
 import { getMediaHeaderInfo, useLibraryData } from "@/services/library-service";
 import { usePullToRefresh } from "@/services/sync-service";
@@ -55,6 +56,7 @@ export function MediaScreen(props: MediaScreenProps) {
       />
       <MediaDescription media={media} />
       <MediaAuthorsAndNarrators media={media} session={session} />
+      <PartsInSet media={media} session={session} />
       <OtherEditions media={media} session={session} />
       {media.book.series.length > 0 && (
         <BooksInSeries media={media} session={session} />

@@ -100,6 +100,7 @@ async function getMediaForNarrator(
   const results = await getDb()
     .select({
       id: schema.media.id,
+      title: schema.media.title,
       thumbnails: schema.media.thumbnails,
       download: {
         thumbnails: schema.downloads.thumbnails,

@@ -8,21 +8,17 @@ import {
   DeletionType,
   MediaProcessingStatus,
   PlaybackEventType,
-  PlaythroughStatus,
+  SeekAccuracy,
 } from "@/graphql/client/graphql";
 
 // Re-export for convenience in tests
-export {
-  DateFormat,
-  DeletionType,
-  MediaProcessingStatus,
-  PlaybackEventType,
-  PlaythroughStatus,
-};
+export { DateFormat, DeletionType, MediaProcessingStatus, PlaybackEventType };
 
 // Type aliases for individual array element types
 type PersonChange = LibraryChangesSinceQuery["peopleChangedSince"][number];
 type AuthorChange = LibraryChangesSinceQuery["authorsChangedSince"][number];
+type AuthorPersonChange =
+  LibraryChangesSinceQuery["authorPeopleChangedSince"][number];
 type NarratorChange = LibraryChangesSinceQuery["narratorsChangedSince"][number];
 type BookChange = LibraryChangesSinceQuery["booksChangedSince"][number];
 type BookAuthorChange =
@@ -33,6 +29,13 @@ type SeriesBookChange =
 type MediaChange = LibraryChangesSinceQuery["mediaChangedSince"][number];
 type MediaNarratorChange =
   LibraryChangesSinceQuery["mediaNarratorsChangedSince"][number];
+type MediaTrackChange =
+  LibraryChangesSinceQuery["mediaTracksChangedSince"][number];
+type UniverseChange = LibraryChangesSinceQuery["universesChangedSince"][number];
+type BookUniverseChange =
+  LibraryChangesSinceQuery["bookUniversesChangedSince"][number];
+type RecordingGroupChange =
+  LibraryChangesSinceQuery["recordingGroupsChangedSince"][number];
 type DeletionChange = LibraryChangesSinceQuery["deletionsSince"][number];
 
 // Counter for unique IDs
@@ -56,13 +59,18 @@ export function emptyLibraryChanges(
     serverTime,
     peopleChangedSince: [],
     authorsChangedSince: [],
+    authorPeopleChangedSince: [],
     narratorsChangedSince: [],
     booksChangedSince: [],
     bookAuthorsChangedSince: [],
+    universesChangedSince: [],
+    bookUniversesChangedSince: [],
     seriesChangedSince: [],
     seriesBooksChangedSince: [],
+    recordingGroupsChangedSince: [],
     mediaChangedSince: [],
     mediaNarratorsChangedSince: [],
+    mediaTracksChangedSince: [],
     deletionsSince: [],
   };
 }
@@ -94,16 +102,40 @@ export function createLibraryPerson(
 // =============================================================================
 
 export function createLibraryAuthor(
-  overrides: Partial<AuthorChange> & { personId?: string } = {},
+  overrides: Partial<AuthorChange> = {},
 ): AuthorChange {
   const id = overrides.id ?? nextId("author");
-  const personId = overrides.personId ?? nextId("person");
   const now = new Date().toISOString();
 
   return {
     __typename: "Author",
     id,
     name: `Author ${id}`,
+    insertedAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
+// =============================================================================
+// Author Person (join table)
+// =============================================================================
+
+export function createLibraryAuthorPerson(
+  overrides: Partial<AuthorPersonChange> & {
+    authorId?: string;
+    personId?: string;
+  } = {},
+): AuthorPersonChange {
+  const id = overrides.id ?? nextId("author-person");
+  const authorId = overrides.authorId ?? nextId("author");
+  const personId = overrides.personId ?? nextId("person");
+  const now = new Date().toISOString();
+
+  return {
+    __typename: "AuthorPerson",
+    id,
+    author: { __typename: "Author", id: authorId },
     person: { __typename: "Person", id: personId },
     insertedAt: now,
     updatedAt: now,
@@ -175,6 +207,7 @@ export function createLibraryBookAuthor(
     id,
     book: { __typename: "Book", id: bookId },
     author: { __typename: "Author", id: authorId },
+    position: 0,
     insertedAt: now,
     updatedAt: now,
     ...overrides,
@@ -221,6 +254,7 @@ export function createLibrarySeriesBook(
     id,
     book: { __typename: "Book", id: bookId },
     series: { __typename: "Series", id: seriesId },
+    position: 0,
     bookNumber: "1",
     insertedAt: now,
     updatedAt: now,
@@ -258,6 +292,109 @@ export function createLibraryMedia(
     duration: 3600,
     chapters: [],
     supplementalFiles: [],
+    title: null,
+    recordingGroup: null,
+    partNumber: null,
+    insertedAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
+// =============================================================================
+// Media Track (direct-play audio file)
+// =============================================================================
+
+export function createLibraryMediaTrack(
+  overrides: Partial<MediaTrackChange> & { mediaId?: string } = {},
+): MediaTrackChange {
+  const id = overrides.id ?? nextId("media-track");
+  const mediaId = overrides.mediaId ?? nextId("media");
+  const now = new Date().toISOString();
+
+  return {
+    __typename: "MediaTrack",
+    id,
+    media: { __typename: "Media", id: mediaId },
+    index: 0,
+    path: `/library/${mediaId}/track.m4b`,
+    size: 1024,
+    mime: "audio/mp4",
+    format: "mov,mp4,m4a,3gp,3g2,mj2",
+    codec: "aac",
+    duration: 3600,
+    startOffset: 0,
+    seekAccuracy: SeekAccuracy.Exact,
+    insertedAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
+// =============================================================================
+// Recording Group (a "Set" of multi-part recordings)
+// =============================================================================
+
+export function createLibraryRecordingGroup(
+  overrides: Partial<RecordingGroupChange> & { bookId?: string } = {},
+): RecordingGroupChange {
+  const id = overrides.id ?? nextId("recording-group");
+  const bookId = overrides.bookId ?? nextId("book");
+  const now = new Date().toISOString();
+
+  return {
+    __typename: "RecordingGroup",
+    id,
+    book: { __typename: "Book", id: bookId },
+    partsTotal: null,
+    partWord: null,
+    partWordPlural: null,
+    insertedAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
+// =============================================================================
+// Universe
+// =============================================================================
+
+export function createLibraryUniverse(
+  overrides: Partial<UniverseChange> = {},
+): UniverseChange {
+  const id = overrides.id ?? nextId("universe");
+  const now = new Date().toISOString();
+
+  return {
+    __typename: "Universe",
+    id,
+    name: `Universe ${id}`,
+    insertedAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
+// =============================================================================
+// Book Universe (join table)
+// =============================================================================
+
+export function createLibraryBookUniverse(
+  overrides: Partial<BookUniverseChange> & {
+    bookId?: string;
+    universeId?: string;
+  } = {},
+): BookUniverseChange {
+  const id = overrides.id ?? nextId("book-universe");
+  const bookId = overrides.bookId ?? nextId("book");
+  const universeId = overrides.universeId ?? nextId("universe");
+  const now = new Date().toISOString();
+
+  return {
+    __typename: "BookUniverse",
+    id,
+    book: { __typename: "Book", id: bookId },
+    universe: { __typename: "Universe", id: universeId },
     insertedAt: now,
     updatedAt: now,
     ...overrides,
@@ -284,6 +421,7 @@ export function createLibraryMediaNarrator(
     id,
     media: { __typename: "Media", id: mediaId },
     narrator: { __typename: "Narrator", id: narratorId },
+    position: 0,
     insertedAt: now,
     updatedAt: now,
     ...overrides,

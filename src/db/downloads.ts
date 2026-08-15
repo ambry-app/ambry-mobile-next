@@ -84,6 +84,7 @@ export async function updateDownload(
   mediaId: string,
   attributes: {
     filePath?: string;
+    files?: schema.DownloadedFile[] | null;
     thumbnails?: schema.DownloadedThumbnails | null;
     status?: "error" | "ready";
   },

@@ -6,6 +6,7 @@ import { MediaHeaderInfo } from "@/services/library-service";
 import { useScreen } from "@/stores/screen";
 import { Colors } from "@/styles/colors";
 import { durationDisplay } from "@/utils/time";
+import { partLabel, recordingTitle } from "@/utils/titles";
 
 /**
  * Top padding above the thumbnail. Exported because MediaScreen needs it to
@@ -39,13 +40,20 @@ export function Header({ media }: HeaderProps) {
           textStyle={{ textAlign: "center" }}
           baseFontSize={16}
           titleWeight={700}
-          title={media.book.title}
+          title={recordingTitle(media.title, media.book.title)}
           series={media.book.series.map((sb) => `${sb.name} #${sb.bookNumber}`)}
           authors={media.book.authors.map((author) => author.name)}
           narrators={media.narrators.map((narrator) => narrator.name)}
           fullCast={media.fullCast}
         />
       </View>
+      {partLabel(media.partNumber, media.set) && (
+        <View>
+          <Text style={styles.partText}>
+            {partLabel(media.partNumber, media.set)}
+          </Text>
+        </View>
+      )}
       {media.duration && (
         <View>
           <Text style={styles.durationText}>
@@ -80,6 +88,11 @@ const styles = StyleSheet.create({
   narratorText: {
     fontSize: 14,
     color: Colors.zinc[400],
+  },
+  partText: {
+    color: Colors.zinc[400],
+    fontSize: 14,
+    marginTop: 4,
   },
   durationText: {
     color: Colors.zinc[500],

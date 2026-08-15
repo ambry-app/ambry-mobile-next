@@ -42,9 +42,10 @@ describe("getAuthorHeaderInfo", () => {
 
     expect(result.id).toBe(author.id);
     expect(result.name).toBe("Jane Austen");
-    expect(result.person.id).toBe(person.id);
-    expect(result.person.name).toBe("Jane Austen");
-    expect(result.person.thumbnails?.small).toBe("/thumbs/jane.jpg");
+    expect(result.people).toHaveLength(1);
+    expect(result.people[0]!.id).toBe(person.id);
+    expect(result.people[0]!.name).toBe("Jane Austen");
+    expect(result.people[0]!.thumbnails?.small).toBe("/thumbs/jane.jpg");
   });
 
   it("only returns author for the current session URL", async () => {

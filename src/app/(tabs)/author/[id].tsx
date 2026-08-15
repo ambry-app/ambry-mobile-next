@@ -7,9 +7,10 @@ import {
   SolidHeaderBackground,
   useFadingHeader,
 } from "@/components/FadingHeader";
+import { MultiThumbnailImage } from "@/components/MultiThumbnailImage";
 import { AuthorScreen } from "@/components/screens/AuthorScreen";
-import { ThumbnailImage } from "@/components/ThumbnailImage";
 import {
+  AuthorHeaderInfo,
   getAuthorHeaderInfo,
   useLibraryData,
 } from "@/services/library-service";
@@ -45,21 +46,21 @@ export default function AuthorRoute() {
           headerTitle: () =>
             author ? (
               <View style={styles.headerTitleContainer}>
-                <ThumbnailImage
-                  thumbnails={author.person.thumbnails}
+                <MultiThumbnailImage
+                  thumbnailPairs={author.people.map((person) => ({
+                    thumbnails: person.thumbnails,
+                    downloadedThumbnails: null,
+                  }))}
                   size="small"
                   style={styles.headerThumbnail}
                 />
                 <View style={styles.headerTextContainer}>
                   <Text style={styles.headerTitle} numberOfLines={1}>
-                    By{" "}
-                    {author.name !== author.person.name
-                      ? author.person.name
-                      : author.name}
+                    By {authorHeaderName(author)}
                   </Text>
-                  {author.name !== author.person.name && (
+                  {authorHeaderSubtitle(author) && (
                     <Text style={styles.headerSubtitle} numberOfLines={1}>
-                      writing as {author.name}
+                      {authorHeaderSubtitle(author)}
                     </Text>
                   )}
                 </View>
@@ -77,6 +78,39 @@ export default function AuthorRoute() {
       </Delay>
     </>
   );
+}
+
+/**
+ * A byline is one person's pen name, or several people sharing one. With a
+ * single person we lead with their real name and note the pen name below; with
+ * several there is no single real name to lead with, so the byline stands on
+ * its own and the people are named underneath.
+ */
+function authorHeaderName(author: AuthorHeaderInfo) {
+  const [person, ...rest] = author.people;
+
+  if (person && rest.length === 0) return person.name;
+
+  return author.name;
+}
+
+function authorHeaderSubtitle(author: AuthorHeaderInfo) {
+  const [person, ...rest] = author.people;
+
+  if (person && rest.length === 0) {
+    return person.name === author.name ? null : `writing as ${author.name}`;
+  }
+
+  if (author.people.length === 0) return null;
+
+  return `a pen name of ${joinNames(author.people.map((p) => p.name))}`;
+}
+
+function joinNames(names: string[]) {
+  if (names.length <= 1) return names.join("");
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+
+  return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
 }
 
 const styles = StyleSheet.create({

@@ -12,6 +12,8 @@
  * TODO: Add new tests for syncEvents once GraphQL types are regenerated.
  */
 
+import { eq } from "drizzle-orm";
+
 import * as schema from "@/db/schema";
 import { getServerSyncTimestamps } from "@/db/sync-helpers";
 import { syncLibrary } from "@/services/sync-service";
@@ -33,15 +35,20 @@ import {
 } from "@test/fetch-mock";
 import {
   createLibraryAuthor,
+  createLibraryAuthorPerson,
   createLibraryBook,
   createLibraryBookAuthor,
+  createLibraryBookUniverse,
   createLibraryDeletion,
   createLibraryMedia,
   createLibraryMediaNarrator,
+  createLibraryMediaTrack,
   createLibraryNarrator,
   createLibraryPerson,
+  createLibraryRecordingGroup,
   createLibrarySeries,
   createLibrarySeriesBook,
+  createLibraryUniverse,
   DeletionType,
   emptyLibraryChanges,
   resetSyncFixtureIdCounter,
@@ -205,6 +212,10 @@ describe("sync", () => {
         const author = createLibraryAuthor({
           id: "author-1",
           name: "John Author",
+        });
+        const authorPerson = createLibraryAuthorPerson({
+          id: "author-person-1",
+          authorId: "author-1",
           personId: "person-1",
         });
 
@@ -214,6 +225,7 @@ describe("sync", () => {
             ...emptyLibraryChanges(),
             peopleChangedSince: [person],
             authorsChangedSince: [author],
+            authorPeopleChangedSince: [authorPerson],
           }),
         );
 
@@ -223,7 +235,11 @@ describe("sync", () => {
         expect(authors).toHaveLength(1);
         expect(authors[0]!.id).toBe("author-1");
         expect(authors[0]!.name).toBe("John Author");
-        expect(authors[0]!.personId).toBe("person-1");
+
+        const authorPeople = await db.query.authorPeople.findMany();
+        expect(authorPeople).toHaveLength(1);
+        expect(authorPeople[0]!.authorId).toBe("author-1");
+        expect(authorPeople[0]!.personId).toBe("person-1");
       });
 
       it("inserts new narrators from server response", async () => {
@@ -327,12 +343,271 @@ describe("sync", () => {
         expect(allMedia[0]!.publisher).toBe("Test Publisher");
       });
 
+      it("inserts media tracks for direct-play recordings", async () => {
+        const db = getDb();
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges(),
+            booksChangedSince: [createLibraryBook({ id: "book-1" })],
+            mediaChangedSince: [
+              createLibraryMedia({ id: "media-1", bookId: "book-1" }),
+            ],
+            mediaTracksChangedSince: [
+              createLibraryMediaTrack({
+                id: "track-2",
+                mediaId: "media-1",
+                index: 1,
+                path: "/library/book/02.m4b",
+                duration: 1800,
+                startOffset: 3600,
+              }),
+              createLibraryMediaTrack({
+                id: "track-1",
+                mediaId: "media-1",
+                index: 0,
+                path: "/library/book/01.m4b",
+                duration: 3600,
+                startOffset: 0,
+              }),
+            ],
+          }),
+        );
+
+        await syncLibrary(session);
+
+        const tracks = await db.query.mediaTracks.findMany({
+          orderBy: (t, { asc }) => asc(t.index),
+        });
+        expect(tracks).toHaveLength(2);
+        expect(tracks[0]!.path).toBe("/library/book/01.m4b");
+        expect(tracks[0]!.startOffset).toBe(0);
+        expect(tracks[1]!.path).toBe("/library/book/02.m4b");
+        expect(tracks[1]!.startOffset).toBe(3600);
+        expect(tracks[1]!.seekAccuracy).toBe("exact");
+      });
+
+      it("inserts a set and links its recordings to it", async () => {
+        const db = getDb();
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges(),
+            booksChangedSince: [createLibraryBook({ id: "book-1" })],
+            recordingGroupsChangedSince: [
+              createLibraryRecordingGroup({
+                id: "set-1",
+                bookId: "book-1",
+                partsTotal: 3,
+                partWord: "volume",
+                partWordPlural: "volumes",
+              }),
+            ],
+            mediaChangedSince: [
+              createLibraryMedia({
+                id: "media-1",
+                bookId: "book-1",
+                partNumber: 2,
+                recordingGroup: { __typename: "RecordingGroup", id: "set-1" },
+              }),
+            ],
+          }),
+        );
+
+        await syncLibrary(session);
+
+        const sets = await db.query.recordingGroups.findMany();
+        expect(sets).toHaveLength(1);
+        expect(sets[0]!.partsTotal).toBe(3);
+        expect(sets[0]!.partWord).toBe("volume");
+        expect(sets[0]!.partWordPlural).toBe("volumes");
+
+        const allMedia = await db.query.media.findMany();
+        expect(allMedia[0]!.recordingGroupId).toBe("set-1");
+        expect(allMedia[0]!.partNumber).toBe(2);
+      });
+
+      it("stores a recording's own title as an override", async () => {
+        const db = getDb();
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges(),
+            booksChangedSince: [
+              createLibraryBook({ id: "book-1", title: "Leviathan Wakes" }),
+            ],
+            mediaChangedSince: [
+              createLibraryMedia({
+                id: "media-1",
+                bookId: "book-1",
+                title: "Der Kalte Krieg",
+              }),
+              createLibraryMedia({ id: "media-2", bookId: "book-1" }),
+            ],
+          }),
+        );
+
+        await syncLibrary(session);
+
+        const allMedia = await db.query.media.findMany({
+          orderBy: (m, { asc }) => asc(m.id),
+        });
+        expect(allMedia[0]!.title).toBe("Der Kalte Krieg");
+        expect(allMedia[1]!.title).toBeNull();
+      });
+
+      it("inserts universes and their book links", async () => {
+        const db = getDb();
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges(),
+            booksChangedSince: [createLibraryBook({ id: "book-1" })],
+            universesChangedSince: [
+              createLibraryUniverse({ id: "universe-1", name: "The Cosmere" }),
+            ],
+            bookUniversesChangedSince: [
+              createLibraryBookUniverse({
+                id: "book-universe-1",
+                bookId: "book-1",
+                universeId: "universe-1",
+              }),
+            ],
+          }),
+        );
+
+        await syncLibrary(session);
+
+        const universes = await db.query.universes.findMany();
+        expect(universes).toHaveLength(1);
+        expect(universes[0]!.name).toBe("The Cosmere");
+
+        const links = await db.query.bookUniverses.findMany();
+        expect(links).toHaveLength(1);
+        expect(links[0]!.bookId).toBe("book-1");
+        expect(links[0]!.universeId).toBe("universe-1");
+      });
+
+      it("asks for every entity but only the missed deletions on a re-fetch", async () => {
+        const db = getDb();
+        const firstServerTime = "2024-01-15T10:00:00.000Z";
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges(firstServerTime),
+            booksChangedSince: [
+              createLibraryBook({ id: "keeper" }),
+              createLibraryBook({ id: "goner" }),
+            ],
+          }),
+        );
+        await syncLibrary(session);
+
+        // what the schema migration does: ask for a full re-fetch without
+        // throwing away the cursor that says when we last heard about a
+        // deletion
+        await db
+          .update(schema.syncedServers)
+          .set({ needsFullRefetch: true })
+          .where(eq(schema.syncedServers.url, session.url));
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges("2024-01-15T11:00:00.000Z"),
+            booksChangedSince: [createLibraryBook({ id: "keeper" })],
+            deletionsSince: [createLibraryDeletion(DeletionType.Book, "goner")],
+          }),
+        );
+        await syncLibrary(session);
+
+        // entities: everything. deletions: only since we last checked.
+        const vars = getGraphQLVariables(mockFetch, 1);
+        expect(vars?.since).toBeNull();
+        expect(vars?.deletedSince).toBe(firstServerTime);
+
+        expect((await db.query.books.findMany()).map((b) => b.id)).toEqual([
+          "keeper",
+        ]);
+      });
+
+      it("clears the re-fetch flag once the re-fetch has landed", async () => {
+        const db = getDb();
+
+        mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges()));
+        await syncLibrary(session);
+
+        await db
+          .update(schema.syncedServers)
+          .set({ needsFullRefetch: true })
+          .where(eq(schema.syncedServers.url, session.url));
+
+        mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges()));
+        await syncLibrary(session);
+
+        const [server] = await db.query.syncedServers.findMany();
+        expect(server!.needsFullRefetch).toBe(false);
+
+        // and the next sync is incremental again
+        mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges()));
+        await syncLibrary(session);
+        expect(getGraphQLVariables(mockFetch, 2)?.since).not.toBeNull();
+      });
+
+      it("asks for nothing deleted when it has never synced", async () => {
+        mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges()));
+        await syncLibrary(session);
+
+        // a client holding nothing has no deletions to catch up on, which is
+        // exactly what a null deletions cursor means
+        const vars = getGraphQLVariables(mockFetch, 0);
+        expect(vars?.since).toBeNull();
+        expect(vars?.deletedSince).toBeNull();
+      });
+
+      it("leaves untouched rows alone during an incremental sync", async () => {
+        const db = getDb();
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges("2024-01-15T10:00:00.000Z"),
+            booksChangedSince: [
+              createLibraryBook({ id: "book-1" }),
+              createLibraryBook({ id: "book-2" }),
+            ],
+          }),
+        );
+        await syncLibrary(session);
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges("2024-01-15T11:00:00.000Z"),
+            booksChangedSince: [
+              createLibraryBook({ id: "book-1", title: "Renamed" }),
+            ],
+          }),
+        );
+        await syncLibrary(session);
+
+        const books = await db.query.books.findMany({
+          orderBy: (b, { asc }) => asc(b.id),
+        });
+        expect(books.map((b) => b.id)).toEqual(["book-1", "book-2"]);
+        expect(books[0]!.title).toBe("Renamed");
+      });
+
       it("inserts book-author relationships", async () => {
         const db = getDb();
         const person = createLibraryPerson({ id: "person-1" });
         const author = createLibraryAuthor({
           id: "author-1",
-          personId: "person-1",
         });
         const book = createLibraryBook({ id: "book-1" });
         const bookAuthor = createLibraryBookAuthor({
@@ -562,11 +837,9 @@ describe("sync", () => {
         const person = createLibraryPerson({ id: "person-1" });
         const author1 = createLibraryAuthor({
           id: "author-1",
-          personId: "person-1",
         });
         const author2 = createLibraryAuthor({
           id: "author-2",
-          personId: "person-1",
         });
         const book = createLibraryBook({ id: "book-1" });
 
@@ -664,8 +937,13 @@ describe("sync", () => {
           graphqlSuccess({
             ...emptyLibraryChanges(),
             peopleChangedSince: [person1, person2],
-            authorsChangedSince: [
-              createLibraryAuthor({ id: "author-1", personId: "person-1" }),
+            authorsChangedSince: [createLibraryAuthor({ id: "author-1" })],
+            authorPeopleChangedSince: [
+              createLibraryAuthorPerson({
+                id: "author-person-1",
+                authorId: "author-1",
+                personId: "person-1",
+              }),
             ],
           }),
         );
@@ -675,8 +953,47 @@ describe("sync", () => {
           mockFetch,
           graphqlSuccess({
             ...emptyLibraryChanges(),
+            authorPeopleChangedSince: [
+              createLibraryAuthorPerson({
+                id: "author-person-1",
+                authorId: "author-1",
+                personId: "person-2",
+              }),
+            ],
+          }),
+        );
+        await syncLibrary(session);
+
+        const authorPeople = await db.query.authorPeople.findMany();
+        expect(authorPeople).toHaveLength(1);
+        expect(authorPeople[0]!.personId).toBe("person-2");
+      });
+
+      it("links one byline to several people for a composite pen name", async () => {
+        const db = getDb();
+
+        mockGraphQL(
+          mockFetch,
+          graphqlSuccess({
+            ...emptyLibraryChanges(),
+            peopleChangedSince: [
+              createLibraryPerson({ id: "person-1" }),
+              createLibraryPerson({ id: "person-2" }),
+            ],
             authorsChangedSince: [
-              createLibraryAuthor({ id: "author-1", personId: "person-2" }),
+              createLibraryAuthor({ id: "author-1", name: "James S.A. Corey" }),
+            ],
+            authorPeopleChangedSince: [
+              createLibraryAuthorPerson({
+                id: "author-person-1",
+                authorId: "author-1",
+                personId: "person-1",
+              }),
+              createLibraryAuthorPerson({
+                id: "author-person-2",
+                authorId: "author-1",
+                personId: "person-2",
+              }),
             ],
           }),
         );
@@ -684,7 +1001,12 @@ describe("sync", () => {
 
         const authors = await db.query.authors.findMany();
         expect(authors).toHaveLength(1);
-        expect(authors[0]!.personId).toBe("person-2");
+
+        const authorPeople = await db.query.authorPeople.findMany();
+        expect(authorPeople.map((link) => link.personId).sort()).toEqual([
+          "person-1",
+          "person-2",
+        ]);
       });
 
       it("updates narrator's person when changed on the server", async () => {

@@ -34,6 +34,7 @@ export default function TabsWrapperLayout() {
         <Stack.Screen name="author/[id]" />
         <Stack.Screen name="narrator/[id]" />
         <Stack.Screen name="series/[id]" />
+        <Stack.Screen name="set/[id]" />
       </Stack>
       {playthrough ? (
         <CustomTabBarWithPlayer session={session} playthrough={playthrough} />

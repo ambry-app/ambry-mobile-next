@@ -77,6 +77,7 @@ async function getPlaythroughs(
       lastListenedAt: schema.playthroughs.lastEventAt,
       media: {
         id: schema.media.id,
+        title: schema.media.title,
         thumbnails: schema.media.thumbnails,
         duration: schema.media.duration,
       },

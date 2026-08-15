@@ -1,1 +1,1 @@
-export { Chapter, DownloadedThumbnails } from "@/db/schema";
+export { Chapter, DownloadedFile, DownloadedThumbnails } from "@/db/schema";

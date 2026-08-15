@@ -57,6 +57,10 @@ export async function createPerson(
 
 type AuthorOverrides = Partial<typeof schema.authors.$inferInsert> & {
   person?: PersonOverrides;
+  /** Link this author to an existing person. */
+  personId?: string;
+  /** Link this author to several people, as for a composite pen name. */
+  personIds?: string[];
 };
 
 export async function createAuthor(
@@ -64,31 +68,38 @@ export async function createAuthor(
   overrides: AuthorOverrides = {},
 ): Promise<typeof schema.authors.$inferSelect> {
   const now = new Date();
-  const { person: personOverrides, ...rest } = overrides;
+  const { person: personOverrides, personId, personIds, ...rest } = overrides;
   const id = rest.id ?? nextId("author");
   const url = rest.url ?? DEFAULT_TEST_SESSION.url;
 
-  // Create or use existing person
-  let personId = rest.personId;
-  if (!personId) {
-    const person = await createPerson(db, {
-      url,
-      ...personOverrides,
-    });
-    personId = person.id;
+  // An author is a byline linked to one or more people. Callers name the
+  // people they care about; everyone else gets one made for them.
+  let linkedPersonIds = personIds ?? (personId ? [personId] : []);
+  if (linkedPersonIds.length === 0) {
+    const person = await createPerson(db, { url, ...personOverrides });
+    linkedPersonIds = [person.id];
   }
 
   const author: typeof schema.authors.$inferInsert = {
     url,
     id,
     name: rest.name ?? `Author ${id}`,
-    personId,
     insertedAt: now,
     updatedAt: now,
     ...rest,
   };
 
   await db.insert(schema.authors).values(author);
+  await db.insert(schema.authorPeople).values(
+    linkedPersonIds.map((linkedPersonId) => ({
+      url,
+      id: nextId("author-person"),
+      authorId: id,
+      personId: linkedPersonId,
+      insertedAt: now,
+      updatedAt: now,
+    })),
+  );
 
   const result = await db.query.authors.findFirst({
     where: (a, { and, eq }) => and(eq(a.url, author.url), eq(a.id, author.id)),
@@ -339,6 +350,91 @@ export async function createMedia(
 
   const result = await db.query.media.findFirst({
     where: (m, { and, eq }) => and(eq(m.url, media.url), eq(m.id, media.id)),
+  });
+
+  return result!;
+}
+
+type RecordingGroupOverrides = Partial<
+  typeof schema.recordingGroups.$inferInsert
+> & {
+  book?: BookOverrides;
+};
+
+/** A set: several recordings that together cover one book. */
+export async function createRecordingGroup(
+  db: TestDatabase,
+  overrides: RecordingGroupOverrides = {},
+): Promise<typeof schema.recordingGroups.$inferSelect> {
+  const now = new Date();
+  const { book: bookOverrides, ...rest } = overrides;
+  const id = rest.id ?? nextId("recording-group");
+  const url = rest.url ?? DEFAULT_TEST_SESSION.url;
+
+  let bookId = rest.bookId;
+  if (!bookId) {
+    const book = await createBook(db, { url, ...bookOverrides });
+    bookId = book.id;
+  }
+
+  const recordingGroup: typeof schema.recordingGroups.$inferInsert = {
+    url,
+    id,
+    bookId,
+    insertedAt: now,
+    updatedAt: now,
+    ...rest,
+  };
+
+  await db.insert(schema.recordingGroups).values(recordingGroup);
+
+  const result = await db.query.recordingGroups.findFirst({
+    where: (rg, { and, eq }) =>
+      and(eq(rg.url, recordingGroup.url), eq(rg.id, recordingGroup.id)),
+  });
+
+  return result!;
+}
+
+type MediaTrackOverrides = Partial<typeof schema.mediaTracks.$inferInsert> & {
+  media?: MediaOverrides;
+};
+
+/** One direct-play audio file of a recording. */
+export async function createMediaTrack(
+  db: TestDatabase,
+  overrides: MediaTrackOverrides = {},
+): Promise<typeof schema.mediaTracks.$inferSelect> {
+  const now = new Date();
+  const { media: mediaOverrides, ...rest } = overrides;
+  const id = rest.id ?? nextId("media-track");
+  const url = rest.url ?? DEFAULT_TEST_SESSION.url;
+
+  let mediaId = rest.mediaId;
+  if (!mediaId) {
+    const media = await createMedia(db, { url, ...mediaOverrides });
+    mediaId = media.id;
+  }
+
+  const track: typeof schema.mediaTracks.$inferInsert = {
+    url,
+    id,
+    mediaId,
+    index: rest.index ?? 0,
+    path: rest.path ?? `/library/${mediaId}/track.m4b`,
+    size: rest.size ?? 1024,
+    duration: rest.duration ?? 3600,
+    startOffset: rest.startOffset ?? 0,
+    seekAccuracy: rest.seekAccuracy ?? "exact",
+    insertedAt: now,
+    updatedAt: now,
+    ...rest,
+  };
+
+  await db.insert(schema.mediaTracks).values(track);
+
+  const result = await db.query.mediaTracks.findFirst({
+    where: (t, { and, eq }) => and(eq(t.url, track.url), eq(t.id, track.id)),
   });
 
   return result!;

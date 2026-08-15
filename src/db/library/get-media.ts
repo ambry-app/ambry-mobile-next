@@ -5,7 +5,12 @@ import * as schema from "@/db/schema";
 import { Session } from "@/types/session";
 import { requireValue } from "@/utils/require-value";
 
-import { getAuthorsForBooks, getNarratorsForMedia } from "./shared-queries";
+import {
+  getAuthorPeopleForBooks,
+  getAuthorsForBooks,
+  getNarratorPeopleForMedia,
+  getNarratorsForMedia,
+} from "./shared-queries";
 
 export type Media = Awaited<ReturnType<typeof getMedia>>;
 
@@ -14,13 +19,20 @@ export async function getMedia(session: Session, mediaId: string) {
   const authorsForBooks = await getAuthorsForBooks(session, [media.book.id]);
   const narratorsForMedia = await getNarratorsForMedia(session, [media.id]);
 
+  // Bylines and "go to this person" want different lists: one composite pen
+  // name prints once but leads to two people.
+  const authorPeople = await getAuthorPeopleForBooks(session, [media.book.id]);
+  const narratorPeople = await getNarratorPeopleForMedia(session, [media.id]);
+
   return {
     ...media,
     book: {
       ...media.book,
       authors: authorsForBooks[media.book.id] || [],
+      authorPeople: authorPeople[media.book.id] || [],
     },
     narrators: narratorsForMedia[media.id] || [],
+    narratorPeople: narratorPeople[media.id] || [],
   };
 }
 
@@ -28,6 +40,7 @@ async function getMediaById(session: Session, mediaId: string) {
   const rows = await getDb()
     .select({
       id: schema.media.id,
+      title: schema.media.title,
       thumbnails: schema.media.thumbnails,
       book: {
         id: schema.books.id,

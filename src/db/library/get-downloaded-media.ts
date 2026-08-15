@@ -46,6 +46,7 @@ async function getDownloadedMediaByIds(session: Session, mediaIds: string[]) {
   return getDb()
     .select({
       id: schema.media.id,
+      title: schema.media.title,
       thumbnails: schema.media.thumbnails,
       book: {
         id: schema.books.id,

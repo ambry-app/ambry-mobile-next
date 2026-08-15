@@ -43,6 +43,8 @@ import {
 import { logBase } from "@/utils/logger";
 import { documentDirectoryFilePath } from "@/utils/paths";
 import { subscribeToChange } from "@/utils/subscribe";
+import { recordingTitle } from "@/utils/titles";
+import { serverUrl } from "@/utils/urls";
 
 import { getSession } from "./session-service";
 
@@ -333,7 +335,15 @@ export async function loadPlaythroughIntoPlayer(
   const position = getEffectivePosition(playthrough);
   const playbackRate = playthrough.playbackRate;
 
-  const trackAdd = buildAddTrack(session, playthrough);
+  const tracks = buildAddTracks(session, playthrough);
+  const timeline = playthrough.media.mediaTracks;
+
+  const loaded = {
+    id: playthrough.id,
+    mediaId: playthrough.mediaId,
+    // Cast is safe - we never load deleted playthroughs into the player
+    status: playthrough.status as "in_progress" | "finished" | "abandoned",
+  };
 
   await TrackPlayer.reset();
 
@@ -343,9 +353,16 @@ export async function loadPlaythroughIntoPlayer(
   // listeners. We must NOT overwrite playbackState/playWhenReady/isPlaying at
   // the end, or we'll create a race condition where the store ends up in None
   // state even though TrackPlayer is Ready.
-  useTrackPlayer.setState(initialState);
+  //
+  // The playthrough is the exception, and goes in here rather than at the end:
+  // it is what the UI mounts the player on, so clearing it unmounts the player
+  // for as long as the load takes. The loading screen would vanish, the screen
+  // behind it would reappear, and the player would pop back in once the load
+  // finished. Everything else is zeroed as before, and the `loadingNewMedia`
+  // scrim hides the player's contents until the real values land below.
+  useTrackPlayer.setState({ ...initialState, playthrough: loaded });
 
-  await TrackPlayer.add(trackAdd);
+  await TrackPlayer.add(tracks, timeline);
   await TrackPlayer.seekTo(position);
   await TrackPlayer.setRate(playbackRate);
   await setPlayerOptions();
@@ -359,12 +376,7 @@ export async function loadPlaythroughIntoPlayer(
     playbackRate: actualPlaybackRate,
     progress,
     streaming,
-    playthrough: {
-      id: playthrough.id,
-      mediaId: playthrough.mediaId,
-      // Cast is safe - we never load deleted playthroughs into the player
-      status: playthrough.status as "in_progress" | "finished" | "abandoned",
-    },
+    playthrough: loaded,
     ...buildInitialChapterState(playthrough.media.chapters, progress),
   });
 }
@@ -403,8 +415,10 @@ export async function reloadCurrentPlaythrough(
   await TrackPlayer.reset();
 
   // Load new track configuration (switches URL between file/stream)
-  const trackAdd = buildAddTrack(session, playthrough);
-  await TrackPlayer.add(trackAdd);
+  await TrackPlayer.add(
+    buildAddTracks(session, playthrough),
+    playthrough.media.mediaTracks,
+  );
 
   // Restore state
   await TrackPlayer.seekTo(position);
@@ -715,60 +729,126 @@ function stopTrackingProgress() {
 }
 
 /**
- * Build AddTrack options for a playthrough.
+ * Build the player's queue for a playthrough.
+ *
+ * A direct-play recording is its files in order; legacy media is the single
+ * packaged stream it has always been. Every entry carries the same title,
+ * artist and artwork, so the lock screen and notification describe the book
+ * rather than announcing which file is playing.
  */
-function buildAddTrack(
+function buildAddTracks(
   session: Session,
   playthrough: PlaythroughWithMedia,
-): AddTrack {
-  const streamOptions =
-    playthrough.media.download?.status === "ready"
-      ? buildDownloadedTrackAdd(playthrough)
-      : buildStreamingTrackAdd(session, playthrough);
-
-  return {
-    ...streamOptions,
+): AddTrack[] {
+  const shared = {
     pitchAlgorithm: PitchAlgorithm.Voice,
-    duration: playthrough.media.duration
-      ? parseFloat(playthrough.media.duration)
-      : undefined,
-    title: playthrough.media.book.title,
+    title: recordingTitle(
+      playthrough.media.title,
+      playthrough.media.book.title,
+    ),
     artist: playthrough.media.book.bookAuthors
       .map((bookAuthor) => bookAuthor.author.name)
       .join(", "),
+    // The playback service reads this back to know which playthrough a
+    // finished queue belonged to.
     description: playthrough.id,
   };
+
+  const tracks = playthrough.media.mediaTracks;
+
+  if (tracks.length > 0) {
+    return tracks.map((track) => ({
+      ...shared,
+      ...directPlaySource(session, playthrough, track),
+      duration: track.duration,
+    }));
+  }
+
+  return [
+    {
+      ...shared,
+      ...legacySource(session, playthrough),
+      duration: playthrough.media.duration
+        ? parseFloat(playthrough.media.duration)
+        : undefined,
+    },
+  ];
 }
 
+type MediaTrack = PlaythroughWithMedia["media"]["mediaTracks"][number];
+
 /**
- * Build AddTrack for downloaded media.
+ * Where one file of a direct-play recording comes from.
+ *
+ * A downloaded recording plays from disk, file by file. A file with no local
+ * copy still streams, so a download that was interrupted part-way through
+ * degrades to a mixed queue rather than refusing to play.
+ *
+ * `TrackType.Default` is right for every plain audio file: the type only
+ * distinguishes streaming manifests, which direct-play never uses.
  */
-function buildDownloadedTrackAdd(playthrough: PlaythroughWithMedia) {
+function directPlaySource(
+  session: Session,
+  playthrough: PlaythroughWithMedia,
+  track: MediaTrack,
+) {
+  const download = playthrough.media.download;
+  const localPath =
+    download?.status === "ready"
+      ? download.files?.find((file) => file.trackId === track.id)?.path
+      : undefined;
+
+  if (localPath) {
+    return {
+      url: documentDirectoryFilePath(localPath),
+      type: TrackType.Default,
+      artwork: download?.thumbnails
+        ? documentDirectoryFilePath(download.thumbnails.extraLarge)
+        : undefined,
+    };
+  }
+
   return {
-    url: documentDirectoryFilePath(playthrough.media.download!.filePath),
-    artwork: playthrough.media.download!.thumbnails
-      ? documentDirectoryFilePath(
-          playthrough.media.download!.thumbnails.extraLarge,
-        )
+    url: serverUrl(session.url, track.path),
+    type: TrackType.Default,
+    artwork: playthrough.media.thumbnails
+      ? serverUrl(session.url, playthrough.media.thumbnails.extraLarge)
       : undefined,
+    headers: { Authorization: `Bearer ${session.token}` },
   };
 }
 
 /**
- * Build AddTrack for streaming media.
+ * Where legacy packaged media comes from: the downloaded mp4 if there is one,
+ * otherwise the streaming manifest — HLS on iOS, DASH elsewhere.
  */
-function buildStreamingTrackAdd(
-  session: Session,
-  playthrough: PlaythroughWithMedia,
-) {
+function legacySource(session: Session, playthrough: PlaythroughWithMedia) {
+  const download = playthrough.media.download;
+
+  if (download?.status === "ready" && download.filePath) {
+    return {
+      url: documentDirectoryFilePath(download.filePath),
+      artwork: download.thumbnails
+        ? documentDirectoryFilePath(download.thumbnails.extraLarge)
+        : undefined,
+    };
+  }
+
+  const path =
+    Platform.OS === "ios"
+      ? playthrough.media.hlsPath
+      : playthrough.media.mpdPath;
+
   return {
-    url:
-      Platform.OS === "ios"
-        ? `${session.url}${playthrough.media.hlsPath}`
-        : `${session.url}${playthrough.media.mpdPath}`,
-    type: TrackType.Dash,
+    url: path ? serverUrl(session.url, path) : "",
+    // The type has to match the manifest: iOS is served HLS, everything else
+    // DASH. Shipped code labelled both Dash, and AVPlayer tolerated it
+    // (verified on device) because it identifies HLS from the response
+    // itself — but nothing was relying on that tolerance, and a player that
+    // believed the label would be handed a DASH parser for an m3u8.
+    type: Platform.OS === "ios" ? TrackType.HLS : TrackType.Dash,
     artwork: playthrough.media.thumbnails
-      ? `${session.url}/${playthrough.media.thumbnails.extraLarge}`
+      ? serverUrl(session.url, playthrough.media.thumbnails.extraLarge)
       : undefined,
     headers: { Authorization: `Bearer ${session.token}` },
   };

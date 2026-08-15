@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
 import { Session } from "@/types/session";
+import { recordingTitle } from "@/utils/titles";
 
 export async function getMediaTitle(
   session: Session,
@@ -10,7 +11,8 @@ export async function getMediaTitle(
 ): Promise<string | null> {
   const rows = await getDb()
     .select({
-      title: schema.books.title,
+      title: schema.media.title,
+      bookTitle: schema.books.title,
     })
     .from(schema.media)
     .innerJoin(
@@ -23,5 +25,8 @@ export async function getMediaTitle(
     .where(and(eq(schema.media.url, session.url), eq(schema.media.id, mediaId)))
     .limit(1);
 
-  return rows[0]?.title ?? null;
+  const row = rows[0];
+  if (!row) return null;
+
+  return recordingTitle(row.title, row.bookTitle);
 }
