@@ -124,6 +124,7 @@ async function getMediaForNarrator(
     .where(
       and(
         eq(schema.mediaNarrators.url, session.url),
+        eq(schema.media.status, "ready"),
         eq(schema.mediaNarrators.narratorId, narratorId),
       ),
     )

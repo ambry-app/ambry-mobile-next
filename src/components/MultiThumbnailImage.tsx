@@ -3,14 +3,23 @@ import { ImageStyle } from "expo-image";
 
 import { DownloadedThumbnails, Thumbnails } from "@/services/library-service";
 import { Colors, decorative } from "@/styles/colors";
+import { STACK_LIMIT } from "@/utils/editions";
 
 import { ThumbnailImage } from "./ThumbnailImage";
 
+type ThumbnailPair = {
+  thumbnails: Thumbnails | null;
+  downloadedThumbnails: DownloadedThumbnails | null;
+};
+
 type MultiThumbnailImageProps = {
-  thumbnailPairs: {
-    thumbnails: Thumbnails | null;
-    downloadedThumbnails: DownloadedThumbnails | null;
-  }[];
+  /**
+   * Covers front-to-back: index 0 faces the reader. Callers order these by
+   * whatever they are stacking — newest edition first for a book, first part
+   * first for a set — but the front of the stack is always the thing the tile
+   * stands for. See `@/utils/editions`.
+   */
+  thumbnailPairs: ThumbnailPair[];
   size: "extraSmall" | "small" | "medium" | "large" | "extraLarge";
   style?: StyleProp<ViewStyle>;
   imageStyle?: StyleProp<ImageStyle>;
@@ -18,71 +27,43 @@ type MultiThumbnailImageProps = {
 
 export function MultiThumbnailImage(props: MultiThumbnailImageProps) {
   const { thumbnailPairs, size, style, imageStyle } = props;
+  const covers = thumbnailPairs.slice(0, STACK_LIMIT);
 
-  if (thumbnailPairs.length === 0)
-    return <View style={[styles.container, style]} />;
+  if (covers.length === 0) return <View style={[styles.container, style]} />;
 
-  if (thumbnailPairs.length === 1)
+  if (covers.length === 1)
     return (
       <ThumbnailImage
-        {...thumbnailPairs[0]}
+        {...covers[0]!}
         size={size}
         style={style}
         imageStyle={imageStyle}
       />
     );
 
-  if (thumbnailPairs.length === 2)
-    return (
-      <View style={styles.multiContainer}>
-        <View style={styles.firstOfTwo}>
-          <ThumbnailImage
-            {...thumbnailPairs[0]}
-            size={size}
-            style={[styles.blackBorder, style]}
-            imageStyle={imageStyle}
-          />
-        </View>
-        <View style={styles.secondOfTwo}>
-          <ThumbnailImage
-            {...thumbnailPairs[1]}
-            size={size}
-            style={[styles.blackBorder, style]}
-            imageStyle={imageStyle}
-          />
-        </View>
-      </View>
-    );
+  const offsets = covers.length === 2 ? twoUp : threeUp;
 
-  if (thumbnailPairs.length >= 3)
-    return (
-      <View style={styles.multiContainer}>
-        <View style={styles.firstOfThree}>
+  // Painted back to front, so the first cover ends up on top. The backmost
+  // layer stays in normal flow and gives the stack its height; the rest sit
+  // on top of it.
+  const layers = covers
+    .map((pair, index) => ({ pair, offset: offsets[index]! }))
+    .reverse();
+
+  return (
+    <View style={styles.multiContainer}>
+      {layers.map(({ pair, offset }, index) => (
+        <View key={index} style={[offset, index === 0 ? null : styles.overlay]}>
           <ThumbnailImage
-            {...thumbnailPairs[0]}
+            {...pair}
             size={size}
             style={[styles.blackBorder, style]}
             imageStyle={imageStyle}
           />
         </View>
-        <View style={styles.secondOfThree}>
-          <ThumbnailImage
-            {...thumbnailPairs[1]}
-            size={size}
-            style={[styles.blackBorder, style]}
-            imageStyle={imageStyle}
-          />
-        </View>
-        <View style={styles.thirdOfThree}>
-          <ThumbnailImage
-            {...thumbnailPairs[2]}
-            size={size}
-            style={[styles.blackBorder, style]}
-            imageStyle={imageStyle}
-          />
-        </View>
-      </View>
-    );
+      ))}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -97,28 +78,28 @@ const styles = StyleSheet.create({
   multiContainer: {
     position: "relative",
   },
-  firstOfTwo: {
-    transform: [{ translateX: 4 }, { translateY: 4 }, { scale: 0.95 }],
-  },
-  secondOfTwo: {
+  overlay: {
     position: "absolute",
     top: 0,
     width: "100%",
+  },
+  frontOfTwo: {
     transform: [{ translateX: -4 }, { translateY: -4 }, { scale: 0.95 }],
   },
-  firstOfThree: {
-    transform: [{ translateX: 8 }, { translateY: 8 }, { scale: 0.9 }],
+  backOfTwo: {
+    transform: [{ translateX: 4 }, { translateY: 4 }, { scale: 0.95 }],
   },
-  secondOfThree: {
-    position: "absolute",
-    top: 0,
-    width: "100%",
-    transform: [{ scale: 0.9 }],
-  },
-  thirdOfThree: {
-    position: "absolute",
-    top: 0,
-    width: "100%",
+  frontOfThree: {
     transform: [{ translateX: -8 }, { translateY: -8 }, { scale: 0.9 }],
   },
+  middleOfThree: {
+    transform: [{ scale: 0.9 }],
+  },
+  backOfThree: {
+    transform: [{ translateX: 8 }, { translateY: 8 }, { scale: 0.9 }],
+  },
 });
+
+// front-to-back, matching the order callers hand us
+const twoUp = [styles.frontOfTwo, styles.backOfTwo];
+const threeUp = [styles.frontOfThree, styles.middleOfThree, styles.backOfThree];

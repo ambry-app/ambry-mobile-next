@@ -54,6 +54,7 @@ export async function getSetParts(
     .where(
       and(
         eq(schema.media.url, session.url),
+        eq(schema.media.status, "ready"),
         eq(schema.media.recordingGroupId, setId),
         excludeMediaId ? ne(schema.media.id, excludeMediaId) : undefined,
       ),

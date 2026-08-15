@@ -6,7 +6,7 @@ import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 import { ScrollHandler } from "@/components/FadingHeader";
 import { Loading } from "@/components/Loading";
-import { MediaTile } from "@/components/Tiles";
+import { EditionTile } from "@/components/Tiles";
 import { PAGE_SIZE, PLAYER_HEIGHT, TAB_BAR_BASE_HEIGHT } from "@/constants";
 import {
   getMediaPage,
@@ -47,7 +47,8 @@ export function FullLibrary({
 
   const getPage = (pageSize: number, cursor: Date | undefined) =>
     getMediaPage(session, pageSize, cursor);
-  const getCursor = (item: { insertedAt: Date }) => item.insertedAt;
+  const getCursor = (item: { representative: { insertedAt: Date } }) =>
+    item.representative.insertedAt;
   const page = usePaginatedLibraryData(PAGE_SIZE, getPage, getCursor);
   const { items: media, hasMore, loadMore } = page;
   const { refreshing, onRefresh } = usePullToRefresh(session);
@@ -103,11 +104,11 @@ export function FullLibrary({
       onScroll={scrollHandler}
       scrollEventThrottle={16}
       data={media}
-      keyExtractor={(item) => item.id}
+      keyExtractor={(item) => item.representative.id}
       numColumns={NUM_COLUMNS}
       renderItem={({ item }) => (
         <View style={styles.tile}>
-          <MediaTile media={item} />
+          <EditionTile edition={item} book={item.representative.book} />
         </View>
       )}
       // No getItemLayout: tile rows are not a fixed height (the text block

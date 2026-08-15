@@ -4,7 +4,7 @@ import Animated from "react-native-reanimated";
 import { FadeInOnMount } from "@/components/FadeInOnMount";
 import { ScrollHandler } from "@/components/FadingHeader";
 import { Header } from "@/components/screens/book-screen/Header";
-import { Tile } from "@/components/Tiles";
+import { EditionTile } from "@/components/Tiles";
 import { PAGE_SIZE } from "@/constants";
 import { getBookDetails, useLibraryData } from "@/services/library-service";
 import { Session } from "@/types/session";
@@ -15,8 +15,8 @@ type BookScreenProps = {
   scrollHandler?: ScrollHandler;
 };
 
-// NOTE: Media is hard-limited to PAGE_SIZE. This could be a paginated list,
-// but it seems really unlikely that a book will have that many media.
+// NOTE: Editions are hard-limited to PAGE_SIZE. This could be a paginated
+// list, but it seems really unlikely that a book will have that many.
 export function BookScreen({
   bookId,
   session,
@@ -33,8 +33,8 @@ export function BookScreen({
       showsVerticalScrollIndicator={false}
       onScroll={scrollHandler}
       scrollEventThrottle={16}
-      data={book.media}
-      keyExtractor={(item) => item.id}
+      data={book.editions}
+      keyExtractor={(item) => item.representative.id}
       numColumns={2}
       ListHeaderComponent={() => (
         <FadeInOnMount>
@@ -44,7 +44,7 @@ export function BookScreen({
       renderItem={({ item }) => {
         return (
           <FadeInOnMount style={styles.tile}>
-            <Tile media={[item]} book={book} />
+            <EditionTile edition={item} book={book} />
           </FadeInOnMount>
         );
       }}

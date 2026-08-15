@@ -17,8 +17,17 @@ import {
   Thumbnails,
 } from "@/services/library-service";
 import { Colors, interactive, surface } from "@/styles/colors";
-import { useNavigateToBookCallback } from "@/utils/hooks";
-import { recordingTitle } from "@/utils/titles";
+import {
+  Edition,
+  EditionMedia,
+  stackedRepresentatives,
+  toEditions,
+} from "@/utils/editions";
+import {
+  useNavigateToBookCallback,
+  useNavigateToMediaCallback,
+} from "@/utils/hooks";
+import { partsLabel, recordingTitle } from "@/utils/titles";
 
 import { BookDetailsText } from "./BookDetailsText";
 import { MultiThumbnailImage } from "./MultiThumbnailImage";
@@ -64,6 +73,20 @@ type Media = {
   isOnSavedShelf?: boolean;
 };
 
+/** A recording a book tile can collapse into editions. */
+type StackableMedia = Media & EditionMedia;
+
+/** What a set needs to describe itself on its own tile. */
+type SetInfo = {
+  id: string;
+  partsTotal: number | null;
+  partWord: string | null;
+  partWordPlural: string | null;
+};
+
+/** A recording that knows which set it belongs to, if any. */
+export type EditionTileMedia = StackableMedia & { set: SetInfo | null };
+
 type Book = {
   id: string;
   title: string;
@@ -78,7 +101,7 @@ type SeriesBook = {
 };
 
 type MediaProp = Media & { book: Book };
-type BookProp = Book & { media: Media[] };
+type BookProp = Book & { media: StackableMedia[] };
 type SeriesBookProp = SeriesBook & { book: BookProp };
 
 type MediaTileProps = {
@@ -115,6 +138,12 @@ type TileTextProps = {
   media: Media[];
 };
 
+type EditionTileProps = {
+  edition: Edition<EditionTileMedia>;
+  book: Book;
+  style?: StyleProp<ViewStyle>;
+};
+
 type PersonTileProps = {
   personId: string;
   name: string;
@@ -142,13 +171,25 @@ export const MediaTile = React.memo(function MediaTile(props: MediaTileProps) {
   );
 });
 
+/**
+ * A book, collapsed to one cover per edition.
+ *
+ * The recursive collapse means a book tile shows editions, not recordings: a
+ * book whose only edition is a three-part set is one cover, not three, and the
+ * set only fans out where it is the tile. Handing `Tile` the representatives
+ * also gives it the right click target for free — a lone edition leaves one
+ * entry, so the tile goes straight to it and skips the book screen.
+ */
 export const BookTile = React.memo(function BookTile(props: BookTileProps) {
   const { book, style } = props;
-  if (book.media.length === 0) return null;
+  const covers = useEditionCovers(book.media);
+
+  if (covers.length === 0) return null;
+
   return (
     <Tile
       book={book}
-      media={book.media}
+      media={covers}
       style={style}
       playthroughStatus={getBestPlaythroughStatus(book.media)}
       isOnSavedShelf={isAnyMediaOnSavedShelf(book.media)}
@@ -160,11 +201,14 @@ export const SeriesBookTile = React.memo(function SeriesBookTile(
   props: SeriesBookTileProps,
 ) {
   const { seriesBook, style } = props;
-  if (seriesBook.book.media.length === 0) return null;
+  const covers = useEditionCovers(seriesBook.book.media);
+
+  if (covers.length === 0) return null;
+
   return (
     <Tile
       book={seriesBook.book}
-      media={seriesBook.book.media}
+      media={covers}
       seriesBook={seriesBook}
       style={style}
       playthroughStatus={getBestPlaythroughStatus(seriesBook.book.media)}
@@ -173,6 +217,74 @@ export const SeriesBookTile = React.memo(function SeriesBookTile(
   );
 });
 
+/**
+ * One edition, rendered as itself.
+ *
+ * This is the one place a set fans out: its parts stack in part order, part 1
+ * facing front, under the book's title and a count of its parts. Everywhere
+ * else a set is one cover inside a larger stack. Either kind opens the
+ * recording it stands for — for a set that is its first part, whose screen
+ * carries the rest of the set.
+ */
+export const EditionTile = React.memo(function EditionTile(
+  props: EditionTileProps,
+) {
+  const { edition, book, style } = props;
+  const set = edition.kind === "set" ? edition.representative.set : null;
+
+  const navigateToEdition = useNavigateToMediaCallback(
+    edition.representative,
+    book,
+  );
+
+  return (
+    <Pressable onPress={navigateToEdition}>
+      <View style={[styles.container, style]}>
+        <TileImage
+          media={edition.media}
+          playthroughStatus={getBestPlaythroughStatus(edition.media)}
+          isOnSavedShelf={isAnyMediaOnSavedShelf(edition.media)}
+        />
+        <View>
+          <BookDetailsText
+            baseFontSize={16}
+            title={
+              set
+                ? book.title
+                : recordingTitle(edition.representative.title, book.title)
+            }
+            narrators={
+              set
+                ? undefined
+                : edition.representative.narrators.map((n) => n.name)
+            }
+          />
+          {set && (
+            <Text style={styles.partsLabel} numberOfLines={1}>
+              {partsLabel(set, edition.media.length)}
+            </Text>
+          )}
+        </View>
+      </View>
+    </Pressable>
+  );
+});
+
+function useEditionCovers(media: StackableMedia[]) {
+  return React.useMemo(
+    () => stackedRepresentatives(toEditions(media)),
+    [media],
+  );
+}
+
+/**
+ * The tile every stack is built from.
+ *
+ * `media` arrives already collapsed and in front-to-back order: index 0 is the
+ * cover that faces the reader and the thing the tile stands for. One entry
+ * means the tile navigates straight to that recording; several mean it stands
+ * for the book as a whole and opens the book screen.
+ */
 export const Tile = React.memo(function Tile(props: TileProps) {
   const { book, media, seriesBook, style, playthroughStatus, isOnSavedShelf } =
     props;
@@ -367,6 +479,12 @@ const styles = StyleSheet.create({
   container: {
     display: "flex",
     gap: 12,
+  },
+  // sits under the title in a tile's text block, so it lines up with it
+  // rather than centring like a person tile's label
+  partsLabel: {
+    fontSize: 12,
+    color: Colors.zinc[400],
   },
   playthroughContainer: {
     display: "flex",

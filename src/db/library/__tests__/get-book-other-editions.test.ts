@@ -10,6 +10,7 @@ import {
   createDownload,
   createMedia,
   createMediaNarrator,
+  createRecordingGroup,
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
 
@@ -80,8 +81,8 @@ describe("getBookOtherEditions", () => {
     );
 
     expect(result).not.toBeNull();
-    expect(result?.media).toHaveLength(1);
-    expect(result?.media[0]?.id).toBe(media2.id);
+    expect(result?.editions).toHaveLength(1);
+    expect(result?.editions[0]?.representative.id).toBe(media2.id);
   });
 
   it("excludes the current media from results", async () => {
@@ -99,10 +100,11 @@ describe("getBookOtherEditions", () => {
       10,
     );
 
-    expect(result?.media).toHaveLength(2);
-    expect(result?.media.map((m) => m.id)).not.toContain(media1.id);
-    expect(result?.media.map((m) => m.id)).toContain(media2.id);
-    expect(result?.media.map((m) => m.id)).toContain(media3.id);
+    const editionIds = result?.editions.map((e) => e.representative.id);
+    expect(result?.editions).toHaveLength(2);
+    expect(editionIds).not.toContain(media1.id);
+    expect(editionIds).toContain(media2.id);
+    expect(editionIds).toContain(media3.id);
   });
 
   it("includes narrators for each edition", async () => {
@@ -123,8 +125,10 @@ describe("getBookOtherEditions", () => {
       10,
     );
 
-    expect(result?.media[0]?.narrators).toHaveLength(1);
-    expect(result?.media[0]?.narrators[0]?.name).toBe("Rosamund Pike");
+    expect(result?.editions[0]?.representative.narrators).toHaveLength(1);
+    expect(result?.editions[0]?.representative.narrators[0]?.name).toBe(
+      "Rosamund Pike",
+    );
   });
 
   it("respects the limit parameter", async () => {
@@ -143,7 +147,7 @@ describe("getBookOtherEditions", () => {
       2,
     );
 
-    expect(result?.media).toHaveLength(2);
+    expect(result?.editions).toHaveLength(2);
   });
 
   it("includes download thumbnails when downloaded", async () => {
@@ -172,9 +176,121 @@ describe("getBookOtherEditions", () => {
       10,
     );
 
-    expect(result?.media[0]?.download?.thumbnails?.thumbhash).toBe(
-      "downloadhash",
+    expect(
+      result?.editions[0]?.representative.download?.thumbnails?.thumbhash,
+    ).toBe("downloadhash");
+  });
+
+  describe("when the reader is on a part of a set", () => {
+    it("leaves out the rest of the reader's own set", async () => {
+      const db = getDb();
+
+      const book = await createBook(db);
+      const set = await createRecordingGroup(db, {
+        bookId: book.id,
+        partsTotal: 3,
+      });
+      const parts = [];
+      for (let n = 1; n <= 3; n++) {
+        parts.push(
+          await createMedia(db, {
+            bookId: book.id,
+            recordingGroupId: set.id,
+            partNumber: n,
+          }),
+        );
+      }
+      const otherEdition = await createMedia(db, { bookId: book.id });
+
+      const result = await getBookOtherEditions(
+        DEFAULT_TEST_SESSION,
+        { ...makeMediaHeaderInfo(parts[0]!.id, book.id, book.title), set },
+        10,
+      );
+
+      expect(result?.editions).toHaveLength(1);
+      expect(result?.editions[0]?.representative.id).toBe(otherEdition.id);
+    });
+
+    it("leaves out a lone sibling rather than calling it an edition", async () => {
+      // the trap: with one part left over, dropping only the current recording
+      // leaves a one-part set, which collapses to a single edition and
+      // presents itself as a rival edition of the book
+      const db = getDb();
+
+      const book = await createBook(db);
+      const set = await createRecordingGroup(db, {
+        bookId: book.id,
+        partsTotal: 2,
+      });
+      const part1 = await createMedia(db, {
+        bookId: book.id,
+        recordingGroupId: set.id,
+        partNumber: 1,
+      });
+      await createMedia(db, {
+        bookId: book.id,
+        recordingGroupId: set.id,
+        partNumber: 2,
+      });
+
+      const result = await getBookOtherEditions(
+        DEFAULT_TEST_SESSION,
+        { ...makeMediaHeaderInfo(part1.id, book.id, book.title), set },
+        10,
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it("collapses a rival set into one stacked edition", async () => {
+      const db = getDb();
+
+      const book = await createBook(db);
+      const rival = await createRecordingGroup(db, {
+        bookId: book.id,
+        partsTotal: 3,
+      });
+      const rivalParts = [];
+      for (let n = 1; n <= 3; n++) {
+        rivalParts.push(
+          await createMedia(db, {
+            bookId: book.id,
+            recordingGroupId: rival.id,
+            partNumber: n,
+          }),
+        );
+      }
+      const current = await createMedia(db, { bookId: book.id });
+
+      const result = await getBookOtherEditions(
+        DEFAULT_TEST_SESSION,
+        makeMediaHeaderInfo(current.id, book.id, book.title),
+        10,
+      );
+
+      expect(result?.editions).toHaveLength(1);
+      expect(result?.editions[0]?.kind).toBe("set");
+      expect(result?.editions[0]?.media.map((m) => m.id)).toEqual(
+        rivalParts.map((p) => p.id),
+      );
+    });
+  });
+
+  it("leaves out recordings that are not ready", async () => {
+    const db = getDb();
+
+    const book = await createBook(db);
+    const current = await createMedia(db, { bookId: book.id });
+    await createMedia(db, { bookId: book.id, status: "processing" });
+
+    const result = await getBookOtherEditions(
+      DEFAULT_TEST_SESSION,
+      makeMediaHeaderInfo(current.id, book.id, book.title),
+      10,
     );
+
+    expect(result).toBeNull();
   });
 
   it("only returns editions for the current session URL", async () => {

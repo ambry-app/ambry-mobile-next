@@ -3,7 +3,7 @@ import { router } from "expo-router";
 
 import { HeaderButton } from "@/components/HeaderButton";
 import { SeeAllTile } from "@/components/SeeAllTile";
-import { MediaTile } from "@/components/Tiles";
+import { EditionTile } from "@/components/Tiles";
 import {
   HORIZONTAL_LIST_LIMIT,
   HORIZONTAL_TILE_SPACING,
@@ -30,7 +30,7 @@ export function OtherEditions(props: OtherEditionsProps) {
   );
 
   if (!book) return null;
-  if (!book.media[0]) return null;
+  if (!book.editions[0]) return null;
 
   const navigateToBook = () => {
     router.navigate({
@@ -43,7 +43,7 @@ export function OtherEditions(props: OtherEditionsProps) {
   };
 
   const tileSize = screenWidth / HORIZONTAL_TILE_WIDTH_RATIO;
-  const hasMore = book.media.length === HORIZONTAL_LIST_LIMIT;
+  const hasMore = book.editions.length === HORIZONTAL_LIST_LIMIT;
 
   return (
     <View style={styles.container}>
@@ -56,8 +56,8 @@ export function OtherEditions(props: OtherEditionsProps) {
       </View>
       <FlatList
         style={styles.list}
-        data={book.media}
-        keyExtractor={(item) => item.id}
+        data={book.editions}
+        keyExtractor={(item) => item.representative.id}
         horizontal={true}
         showsHorizontalScrollIndicator={false}
         snapToInterval={tileSize + HORIZONTAL_TILE_SPACING}
@@ -76,7 +76,7 @@ export function OtherEditions(props: OtherEditionsProps) {
         renderItem={({ item }) => {
           return (
             <View style={[styles.tile, { width: tileSize }]}>
-              <MediaTile media={{ ...item, book: book }} />
+              <EditionTile edition={item} book={book} />
             </View>
           );
         }}
