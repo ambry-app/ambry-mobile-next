@@ -400,6 +400,8 @@ describe("sync", () => {
               createLibraryRecordingGroup({
                 id: "set-1",
                 bookId: "book-1",
+                name: "GraphicAudio",
+                showLabel: true,
                 partsTotal: 3,
                 partWord: "volume",
                 partWordPlural: "volumes",
@@ -420,6 +422,8 @@ describe("sync", () => {
 
         const sets = await db.query.recordingGroups.findMany();
         expect(sets).toHaveLength(1);
+        expect(sets[0]!.name).toBe("GraphicAudio");
+        expect(sets[0]!.showLabel).toBe(true);
         expect(sets[0]!.partsTotal).toBe(3);
         expect(sets[0]!.partWord).toBe("volume");
         expect(sets[0]!.partWordPlural).toBe("volumes");

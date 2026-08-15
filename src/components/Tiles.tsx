@@ -27,7 +27,7 @@ import {
   useNavigateToBookCallback,
   useNavigateToMediaCallback,
 } from "@/utils/hooks";
-import { partsLabel, recordingTitle } from "@/utils/titles";
+import { partsLabel, recordingTitle, setLabel } from "@/utils/titles";
 
 import { BookDetailsText } from "./BookDetailsText";
 import { MultiThumbnailImage } from "./MultiThumbnailImage";
@@ -79,6 +79,8 @@ type StackableMedia = Media & EditionMedia;
 /** What a set needs to describe itself on its own tile. */
 type SetInfo = {
   id: string;
+  name: string | null;
+  showLabel: boolean;
   partsTotal: number | null;
   partWord: string | null;
   partWordPlural: string | null;
@@ -141,6 +143,14 @@ type TileTextProps = {
 type EditionTileProps = {
   edition: Edition<EditionTileMedia>;
   book: Book;
+  /**
+   * Whether to name the set, where it has a name readers should see. On by
+   * default: the places an edition renders as itself are the places a reader
+   * is choosing *between* editions, and "GraphicAudio" is the whole reason one
+   * of them is different. The library and search turn it off -- there the tile
+   * stands for a book among other books, not for one edition among its rivals.
+   */
+  showSetName?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -229,8 +239,9 @@ export const SeriesBookTile = React.memo(function SeriesBookTile(
 export const EditionTile = React.memo(function EditionTile(
   props: EditionTileProps,
 ) {
-  const { edition, book, style } = props;
+  const { edition, book, showSetName = true, style } = props;
   const set = edition.kind === "set" ? edition.representative.set : null;
+  const name = showSetName ? setLabel(set) : null;
 
   const navigateToEdition = useNavigateToMediaCallback(
     edition.representative,
@@ -259,6 +270,11 @@ export const EditionTile = React.memo(function EditionTile(
                 : edition.representative.narrators.map((n) => n.name)
             }
           />
+          {name && (
+            <Text style={styles.setName} numberOfLines={1}>
+              {name}
+            </Text>
+          )}
           {set && (
             <Text style={styles.partsLabel} numberOfLines={1}>
               {partsLabel(set, edition.media.length)}
@@ -480,8 +496,12 @@ const styles = StyleSheet.create({
     display: "flex",
     gap: 12,
   },
-  // sits under the title in a tile's text block, so it lines up with it
+  // both sit under the title in a tile's text block, so they line up with it
   // rather than centring like a person tile's label
+  setName: {
+    fontSize: 14,
+    color: Colors.zinc[300],
+  },
   partsLabel: {
     fontSize: 12,
     color: Colors.zinc[400],

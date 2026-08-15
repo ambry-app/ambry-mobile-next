@@ -1,4 +1,9 @@
-import { partLabel, partsLabel, recordingTitle } from "@/utils/titles";
+import {
+  partLabel,
+  partsLabel,
+  recordingTitle,
+  setLabel,
+} from "@/utils/titles";
 
 describe("recordingTitle", () => {
   it("uses the book's title when the recording has no override", () => {
@@ -75,5 +80,28 @@ describe("partsLabel", () => {
         5,
       ),
     ).toBe("5 volumes");
+  });
+});
+
+describe("setLabel", () => {
+  it("gives the name when the operator opted in", () => {
+    expect(setLabel({ name: "GraphicAudio", showLabel: true })).toBe(
+      "GraphicAudio",
+    );
+  });
+
+  it("withholds the name when they did not", () => {
+    // most set names are filing labels -- "batch 2", "from mam" -- so the
+    // flag is the only thing that may decide this, never the name itself
+    expect(setLabel({ name: "GraphicAudio", showLabel: false })).toBeNull();
+  });
+
+  it("has nothing to show for a set with no name", () => {
+    expect(setLabel({ name: null, showLabel: true })).toBeNull();
+  });
+
+  it("has nothing to show when there is no set", () => {
+    expect(setLabel(null)).toBeNull();
+    expect(setLabel(undefined)).toBeNull();
   });
 });

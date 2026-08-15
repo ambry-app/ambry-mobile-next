@@ -91,7 +91,11 @@ export function SearchResults(props: SearchResultsProps) {
       numColumns={NUM_COLUMNS}
       renderItem={({ item }) => (
         <View style={styles.tile}>
-          <EditionTile edition={item} book={item.representative.book} />
+          <EditionTile
+            edition={item}
+            book={item.representative.book}
+            showSetName={false}
+          />
         </View>
       )}
       // No getItemLayout: see FullLibrary — tile rows are not a fixed height,

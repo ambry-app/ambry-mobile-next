@@ -345,6 +345,15 @@ export const recordingGroups = sqliteTable(
     url: text("url").notNull(),
     id: text("id").notNull(),
     bookId: text("book_id").notNull(),
+    // This set's name ("GraphicAudio"). It tells this set apart from the
+    // book's other recordings, so it is unique per book rather than globally.
+    name: text("name"),
+    // Whether readers see `name`. An operator decision per set, never
+    // inferred from the name itself -- most sets have a name that means
+    // something to the operator and nothing to a reader.
+    showLabel: integer("show_label", { mode: "boolean" })
+      .notNull()
+      .default(false),
     // How many parts the set has, when known.
     partsTotal: integer("parts_total"),
     // Wording for one part / several parts; null means "part" / "parts".

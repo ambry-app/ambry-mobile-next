@@ -346,6 +346,8 @@ export function createLibraryRecordingGroup(
     __typename: "RecordingGroup",
     id,
     book: { __typename: "Book", id: bookId },
+    name: "Recording Group",
+    showLabel: false,
     partsTotal: null,
     partWord: null,
     partWordPlural: null,

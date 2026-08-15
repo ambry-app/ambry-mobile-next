@@ -1,0 +1,20 @@
+-- 0027 added `name` and `show_label` to recording_groups. The server only
+-- re-sends rows whose updated_at is newer than last_sync_time, so sets already
+-- on the device would keep their empty columns forever. This asks the next
+-- sync to re-fetch every entity.
+--
+-- Doing this on the device, rather than nudging updated_at server-side, is
+-- what makes the two deploys independent. A server-side touch races the app
+-- rollout: a device that syncs after the server deploys but before it has the
+-- new app version consumes those rows, advances its cursor, and never learns
+-- the fields exist. This fires when the device gains the columns, which is
+-- exactly when it needs them.
+--
+-- The cursor itself is deliberately left alone -- see 0025. It records when
+-- this device last heard about a deletion, and a fetch that sends `since: null`
+-- for deletions is told there are none, which is right for a device holding
+-- nothing and wrong for one re-fetching a library it already has.
+--
+-- Kept apart from 0027 so the schema change and the backfill can be reasoned
+-- about separately, and so a device that already applied 0027 still gets this.
+UPDATE `synced_servers` SET `needs_full_refetch` = true;

@@ -134,6 +134,8 @@ async function getPartsForSets(session: Session, setIds: string[]) {
       download: { thumbnails: schema.downloads.thumbnails },
       set: {
         id: schema.recordingGroups.id,
+        name: schema.recordingGroups.name,
+        showLabel: schema.recordingGroups.showLabel,
         partsTotal: schema.recordingGroups.partsTotal,
         partWord: schema.recordingGroups.partWord,
         partWordPlural: schema.recordingGroups.partWordPlural,
@@ -178,6 +180,8 @@ async function getPartsForSets(session: Session, setIds: string[]) {
 
 type SetRow = {
   id: string;
+  name: string | null;
+  showLabel: boolean;
   partsTotal: number | null;
   partWord: string | null;
   partWordPlural: string | null;

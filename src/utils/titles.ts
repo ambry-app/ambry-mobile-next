@@ -36,6 +36,22 @@ export function partLabel(
 }
 
 /**
+ * A set's name, when readers are meant to see it.
+ *
+ * Every set has a name, but most of them are filing labels that mean something
+ * to the operator and nothing to a reader ("batch 2", "from mam"). The server
+ * carries an explicit per-set choice, and this is the only thing that should
+ * decide whether the name reaches a screen — never the name itself.
+ */
+export function setLabel(
+  set: { name: string | null; showLabel: boolean } | null | undefined,
+): string | null {
+  if (!set?.showLabel) return null;
+
+  return set.name;
+}
+
+/**
  * How a whole set is described, e.g. "3 parts".
  */
 export function partsLabel(

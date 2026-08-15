@@ -15,7 +15,7 @@ import {
 } from "@/services/library-service";
 import { useScreen } from "@/stores/screen";
 import { Session } from "@/types/session";
-import { partLabel } from "@/utils/titles";
+import { partLabel, setLabel } from "@/utils/titles";
 
 type PartsInSetProps = {
   media: MediaHeaderInfo;
@@ -56,8 +56,14 @@ export function PartsInSet(props: PartsInSetProps) {
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
+        {/*
+          Named sets go by their name, as they do on the web app: a reader
+          looking at part 2 of the GraphicAudio recording is better served by
+          "GraphicAudio" than by a description of the section, and the tiles
+          below already say which parts they are.
+        */}
         <HeaderButton
-          label="Rest of this set"
+          label={setLabel(set) ?? "Rest of this set"}
           onPress={navigateToSet}
           showCaret
         />

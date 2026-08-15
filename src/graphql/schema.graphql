@@ -345,7 +345,7 @@ type RecordingGroup implements Node {
   id: ID!
   insertedAt: DateTime!
   media: [Media!]!
-  """Admin-only organizational label; clients should not display it"""
+  """This set's name, shown to readers only when `show_label` says so"""
   name: String!
   """
   Wording for one release in this set; null means "part"
@@ -357,6 +357,10 @@ type RecordingGroup implements Node {
   partWordPlural: String
   """How many releases the set has, when known ("Part 2 of 3")"""
   partsTotal: Int
+  """
+  Whether to show `name` on this set's tile; an operator choice, never inferred
+  """
+  showLabel: Boolean!
   updatedAt: DateTime!
 }
 

@@ -108,7 +108,11 @@ export function FullLibrary({
       numColumns={NUM_COLUMNS}
       renderItem={({ item }) => (
         <View style={styles.tile}>
-          <EditionTile edition={item} book={item.representative.book} />
+          <EditionTile
+            edition={item}
+            book={item.representative.book}
+            showSetName={false}
+          />
         </View>
       )}
       // No getItemLayout: tile rows are not a fixed height (the text block
