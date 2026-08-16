@@ -1,11 +1,13 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
 import { Session } from "@/types/session";
+import { toEditions } from "@/utils/editions";
 import { requireValue } from "@/utils/require-value";
 
 import {
+  getEditionMediaForBook,
   getNarratorsForMedia,
   getPlaythroughStatusesForMedia,
   getSavedForLaterStatusForMedia,
@@ -13,14 +15,20 @@ import {
 
 export type BookDetails = Awaited<ReturnType<typeof getBookDetails>>;
 
+/**
+ * A book and its editions.
+ *
+ * The book screen is where editions are shown as themselves, so a set arrives
+ * whole — one tile stacking its parts — rather than as loose recordings.
+ */
 export async function getBookDetails(
   session: Session,
   bookId: string,
-  mediaLimit: number,
+  editionLimit: number,
 ) {
   const book = await getBook(session, bookId);
   const authorsForBook = await getAuthorsForBook(session, bookId);
-  const mediaForBook = await getMediaForBook(session, bookId, mediaLimit);
+  const mediaForBook = await getEditionMediaForBook(session, bookId);
 
   const mediaIds = mediaForBook.map((m) => m.id);
   const narratorsForMedia = await getNarratorsForMedia(session, mediaIds);
@@ -30,15 +38,17 @@ export async function getBookDetails(
   );
   const savedForLater = await getSavedForLaterStatusForMedia(session, mediaIds);
 
+  const media = mediaForBook.map((media) => ({
+    ...media,
+    narrators: narratorsForMedia[media.id] ?? [],
+    playthroughStatus: playthroughStatuses[media.id] ?? null,
+    isOnSavedShelf: savedForLater.has(media.id),
+  }));
+
   return {
     ...book,
     authors: authorsForBook,
-    media: mediaForBook.map((media) => ({
-      ...media,
-      narrators: narratorsForMedia[media.id] ?? [],
-      playthroughStatus: playthroughStatuses[media.id] ?? null,
-      isOnSavedShelf: savedForLater.has(media.id),
-    })),
+    editions: toEditions(media).slice(0, editionLimit),
   };
 }
 
@@ -76,42 +86,4 @@ async function getAuthorsForBook(session: Session, bookId: string) {
       ),
     )
     .orderBy(asc(schema.bookAuthors.insertedAt));
-}
-
-async function getMediaForBook(
-  session: Session,
-  bookId: string,
-  limit: number,
-) {
-  return getDb()
-    .select({
-      id: schema.media.id,
-      title: schema.media.title,
-      thumbnails: schema.media.thumbnails,
-      download: {
-        thumbnails: schema.downloads.thumbnails,
-      },
-    })
-    .from(schema.media)
-    .leftJoin(
-      schema.downloads,
-      and(
-        eq(schema.downloads.url, schema.media.url),
-        eq(schema.downloads.mediaId, schema.media.id),
-      ),
-    )
-    .innerJoin(
-      schema.books,
-      and(
-        eq(schema.books.url, schema.media.url),
-        eq(schema.books.id, schema.media.bookId),
-      ),
-    )
-    .where(
-      and(eq(schema.media.url, session.url), eq(schema.media.bookId, bookId)),
-    )
-    .orderBy(
-      desc(sql`COALESCE(${schema.media.published}, ${schema.books.published})`),
-    )
-    .limit(limit);
 }

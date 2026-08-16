@@ -81,8 +81,8 @@ describe("getBookDetails", () => {
 
     const result = await getBookDetails(DEFAULT_TEST_SESSION, book.id, 10);
 
-    expect(result.media).toHaveLength(1);
-    expect(result.media[0]?.id).toBe(media.id);
+    expect(result.editions).toHaveLength(1);
+    expect(result.editions[0]?.representative.id).toBe(media.id);
   });
 
   it("returns media with narrators", async () => {
@@ -97,11 +97,13 @@ describe("getBookDetails", () => {
 
     const result = await getBookDetails(DEFAULT_TEST_SESSION, book.id, 10);
 
-    expect(result.media[0]?.narrators).toHaveLength(1);
-    expect(result.media[0]?.narrators[0]?.name).toBe("Stephen Fry");
+    expect(result.editions[0]?.representative.narrators).toHaveLength(1);
+    expect(result.editions[0]?.representative.narrators[0]?.name).toBe(
+      "Stephen Fry",
+    );
   });
 
-  it("respects media limit", async () => {
+  it("respects the edition limit", async () => {
     const db = getDb();
 
     const book = await createBook(db);
@@ -111,7 +113,7 @@ describe("getBookDetails", () => {
 
     const result = await getBookDetails(DEFAULT_TEST_SESSION, book.id, 2);
 
-    expect(result.media).toHaveLength(2);
+    expect(result.editions).toHaveLength(2);
   });
 
   it("includes download thumbnails when media is downloaded", async () => {
@@ -134,9 +136,9 @@ describe("getBookDetails", () => {
 
     const result = await getBookDetails(DEFAULT_TEST_SESSION, book.id, 10);
 
-    expect(result.media[0]?.download?.thumbnails?.thumbhash).toBe(
-      "downloadhash",
-    );
+    expect(
+      result.editions[0]?.representative.download?.thumbnails?.thumbhash,
+    ).toBe("downloadhash");
   });
 
   it("only returns book for the current session URL", async () => {

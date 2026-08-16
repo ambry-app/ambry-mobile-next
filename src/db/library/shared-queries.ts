@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
@@ -137,6 +137,75 @@ export async function getNarratorPeopleForMedia(
   );
 }
 
+/**
+ * Every ready recording of one book, with the set each belongs to, ready to
+ * be grouped into editions.
+ *
+ * Deliberately unlimited: a set has to arrive whole or it cannot be collapsed
+ * — a limit applied to recordings could cut a set in half and leave a stack
+ * claiming fewer parts than the set has. Callers limit *editions* instead,
+ * after grouping. A book has a handful of recordings, so this is cheap.
+ */
+export async function getEditionMediaForBook(
+  session: Session,
+  bookId: string,
+  { excludeSetId }: { excludeSetId?: string | null } = {},
+) {
+  const media = await getDb()
+    .select({
+      id: schema.media.id,
+      title: schema.media.title,
+      thumbnails: schema.media.thumbnails,
+      recordingGroupId: schema.media.recordingGroupId,
+      partNumber: schema.media.partNumber,
+      published: schema.media.published,
+      download: { thumbnails: schema.downloads.thumbnails },
+      set: {
+        id: schema.recordingGroups.id,
+        partsTotal: schema.recordingGroups.partsTotal,
+        partWord: schema.recordingGroups.partWord,
+        partWordPlural: schema.recordingGroups.partWordPlural,
+      },
+    })
+    .from(schema.media)
+    .leftJoin(
+      schema.downloads,
+      and(
+        eq(schema.downloads.url, schema.media.url),
+        eq(schema.downloads.mediaId, schema.media.id),
+      ),
+    )
+    .leftJoin(
+      schema.recordingGroups,
+      and(
+        eq(schema.recordingGroups.url, schema.media.url),
+        eq(schema.recordingGroups.id, schema.media.recordingGroupId),
+      ),
+    )
+    .where(
+      and(
+        eq(schema.media.url, session.url),
+        eq(schema.media.status, "ready"),
+        eq(schema.media.bookId, bookId),
+        excludeSetId
+          ? or(
+              isNull(schema.media.recordingGroupId),
+              ne(schema.media.recordingGroupId, excludeSetId),
+            )
+          : undefined,
+      ),
+    );
+
+  return media;
+}
+
+/**
+ * Every ready recording of the given books, for grouping into editions.
+ *
+ * Ordering is left to `toEditions`, which is the authority on it — sets have
+ * to be gathered before a book's recordings can be put in any meaningful
+ * order, and that cannot be expressed here.
+ */
 export async function getMediaForBooks(session: Session, bookIds: string[]) {
   if (bookIds.length === 0) return {};
 
@@ -145,6 +214,9 @@ export async function getMediaForBooks(session: Session, bookIds: string[]) {
       id: schema.media.id,
       bookId: schema.media.bookId,
       thumbnails: schema.media.thumbnails,
+      recordingGroupId: schema.media.recordingGroupId,
+      partNumber: schema.media.partNumber,
+      published: schema.media.published,
       download: { thumbnails: schema.downloads.thumbnails },
     })
     .from(schema.media)
@@ -155,21 +227,12 @@ export async function getMediaForBooks(session: Session, bookIds: string[]) {
         eq(schema.downloads.mediaId, schema.media.id),
       ),
     )
-    .innerJoin(
-      schema.books,
-      and(
-        eq(schema.books.url, schema.media.url),
-        eq(schema.books.id, schema.media.bookId),
-      ),
-    )
     .where(
       and(
         eq(schema.media.url, session.url),
+        eq(schema.media.status, "ready"),
         inArray(schema.media.bookId, bookIds),
       ),
-    )
-    .orderBy(
-      desc(sql`COALESCE(${schema.media.published}, ${schema.books.published})`),
     );
 
   return groupMapBy(

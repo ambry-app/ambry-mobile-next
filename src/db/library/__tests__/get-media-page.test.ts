@@ -10,6 +10,7 @@ import {
   createDownload,
   createMedia,
   createMediaNarrator,
+  createRecordingGroup,
   createSeries,
   createSeriesBook,
   DEFAULT_TEST_SESSION,
@@ -36,8 +37,8 @@ describe("getMediaPage", () => {
     const result = await getMediaPage(DEFAULT_TEST_SESSION, 10);
 
     expect(result).toHaveLength(1);
-    expect(result[0]?.id).toBe(media.id);
-    expect(result[0]?.book.title).toBe("Pride and Prejudice");
+    expect(result[0]?.representative.id).toBe(media.id);
+    expect(result[0]?.representative.book.title).toBe("Pride and Prejudice");
   });
 
   it("includes book authors", async () => {
@@ -52,8 +53,8 @@ describe("getMediaPage", () => {
 
     const result = await getMediaPage(DEFAULT_TEST_SESSION, 10);
 
-    expect(result[0]?.book.authors).toHaveLength(1);
-    expect(result[0]?.book.authors[0]?.name).toBe("Jane Austen");
+    expect(result[0]?.representative.book.authors).toHaveLength(1);
+    expect(result[0]?.representative.book.authors[0]?.name).toBe("Jane Austen");
   });
 
   it("includes media narrators", async () => {
@@ -68,8 +69,8 @@ describe("getMediaPage", () => {
 
     const result = await getMediaPage(DEFAULT_TEST_SESSION, 10);
 
-    expect(result[0]?.narrators).toHaveLength(1);
-    expect(result[0]?.narrators[0]?.name).toBe("Rosamund Pike");
+    expect(result[0]?.representative.narrators).toHaveLength(1);
+    expect(result[0]?.representative.narrators[0]?.name).toBe("Rosamund Pike");
   });
 
   it("includes download thumbnails when media is downloaded", async () => {
@@ -92,7 +93,9 @@ describe("getMediaPage", () => {
 
     const result = await getMediaPage(DEFAULT_TEST_SESSION, 10);
 
-    expect(result[0]?.download?.thumbnails?.thumbhash).toBe("downloadhash");
+    expect(result[0]?.representative.download?.thumbnails?.thumbhash).toBe(
+      "downloadhash",
+    );
   });
 
   it("only returns media with status 'ready'", async () => {
@@ -130,7 +133,7 @@ describe("getMediaPage", () => {
 
     const result = await getMediaPage(DEFAULT_TEST_SESSION, 10);
 
-    expect(result[0]?.id).toBe(newerMedia.id);
+    expect(result[0]?.representative.id).toBe(newerMedia.id);
   });
 
   it("respects the limit parameter", async () => {
@@ -193,6 +196,107 @@ describe("getMediaPage", () => {
 
     expect(result).toEqual([]);
   });
+
+  describe("sets", () => {
+    async function createSet(
+      db: ReturnType<typeof getDb>,
+      partCount: number,
+      { readyParts = partCount }: { readyParts?: number } = {},
+    ) {
+      const book = await createBook(db, { title: "The Way of Kings" });
+      const set = await createRecordingGroup(db, {
+        bookId: book.id,
+        partsTotal: partCount,
+      });
+      const parts = [];
+      for (let n = 1; n <= partCount; n++) {
+        parts.push(
+          await createMedia(db, {
+            bookId: book.id,
+            recordingGroupId: set.id,
+            partNumber: n,
+            status: n <= readyParts ? "ready" : "processing",
+          }),
+        );
+      }
+      return { book, set, parts };
+    }
+
+    it("collapses a set to one entry", async () => {
+      const db = getDb();
+      const { parts } = await createSet(db, 3);
+
+      const result = await getMediaPage(DEFAULT_TEST_SESSION, 10);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]?.kind).toBe("set");
+      expect(result[0]?.representative.id).toBe(parts[0]!.id);
+    });
+
+    it("stacks the set's parts in part order, first part in front", async () => {
+      const db = getDb();
+      const { parts } = await createSet(db, 3);
+
+      const result = await getMediaPage(DEFAULT_TEST_SESSION, 10);
+
+      expect(result[0]?.media.map((m) => m.id)).toEqual(parts.map((p) => p.id));
+    });
+
+    it("represents a set by its first *ready* part", async () => {
+      const db = getDb();
+      const book = await createBook(db);
+      const set = await createRecordingGroup(db, { bookId: book.id });
+      await createMedia(db, {
+        bookId: book.id,
+        recordingGroupId: set.id,
+        partNumber: 1,
+        status: "processing",
+      });
+      const readyPart = await createMedia(db, {
+        bookId: book.id,
+        recordingGroupId: set.id,
+        partNumber: 2,
+      });
+
+      const result = await getMediaPage(DEFAULT_TEST_SESSION, 10);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]?.representative.id).toBe(readyPart.id);
+    });
+
+    it("presents a set with one ready part as a single recording", async () => {
+      const db = getDb();
+      const { parts } = await createSet(db, 3, { readyParts: 1 });
+
+      const result = await getMediaPage(DEFAULT_TEST_SESSION, 10);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]?.kind).toBe("single");
+      expect(result[0]?.media.map((m) => m.id)).toEqual([parts[0]!.id]);
+    });
+
+    it("keeps a set and a standalone recording of the same book apart", async () => {
+      const db = getDb();
+      const { book } = await createSet(db, 2);
+      const standalone = await createMedia(db, { bookId: book.id });
+
+      const result = await getMediaPage(DEFAULT_TEST_SESSION, 10);
+
+      expect(result).toHaveLength(2);
+      expect(result.map((e) => e.representative.id)).toContain(standalone.id);
+    });
+
+    it("fills a page with entries, not with parts", async () => {
+      const db = getDb();
+      await createSet(db, 3);
+      await createSet(db, 3);
+      await createSet(db, 3);
+
+      const result = await getMediaPage(DEFAULT_TEST_SESSION, 2);
+
+      expect(result).toHaveLength(2);
+    });
+  });
 });
 
 describe("getSearchedMedia", () => {
@@ -236,7 +340,7 @@ describe("getSearchedMedia", () => {
     const result = await getSearchedMedia(DEFAULT_TEST_SESSION, 10, "Pride");
 
     expect(result).toHaveLength(1);
-    expect(result[0]?.book.title).toBe("Pride and Prejudice");
+    expect(result[0]?.representative.book.title).toBe("Pride and Prejudice");
   });
 
   it("finds media by author name", async () => {
@@ -256,7 +360,7 @@ describe("getSearchedMedia", () => {
     const result = await getSearchedMedia(DEFAULT_TEST_SESSION, 10, "Austen");
 
     expect(result).toHaveLength(1);
-    expect(result[0]?.book.authors[0]?.name).toBe("Jane Austen");
+    expect(result[0]?.representative.book.authors[0]?.name).toBe("Jane Austen");
   });
 
   it("finds media by narrator name", async () => {
@@ -276,7 +380,7 @@ describe("getSearchedMedia", () => {
     const result = await getSearchedMedia(DEFAULT_TEST_SESSION, 10, "Rosamund");
 
     expect(result).toHaveLength(1);
-    expect(result[0]?.narrators[0]?.name).toBe("Rosamund Pike");
+    expect(result[0]?.representative.narrators[0]?.name).toBe("Rosamund Pike");
   });
 
   it("finds media by series name", async () => {
@@ -298,7 +402,7 @@ describe("getSearchedMedia", () => {
     const result = await getSearchedMedia(DEFAULT_TEST_SESSION, 10, "Potter");
 
     expect(result).toHaveLength(1);
-    expect(result[0]?.book.title).toBe("Philosopher's Stone");
+    expect(result[0]?.representative.book.title).toBe("Philosopher's Stone");
   });
 
   it("returns distinct results for multiple matches", async () => {
@@ -374,7 +478,7 @@ describe("getSearchedMedia", () => {
     const result = await getSearchedMedia(DEFAULT_TEST_SESSION, 10, "Book");
 
     expect(result).toHaveLength(1);
-    expect(result[0]?.book.title).toBe("Ready Book");
+    expect(result[0]?.representative.book.title).toBe("Ready Book");
   });
 
   it("only returns media for the current session URL", async () => {

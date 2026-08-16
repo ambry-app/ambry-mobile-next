@@ -9,7 +9,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
-import { MediaTile } from "@/components/Tiles";
+import { EditionTile } from "@/components/Tiles";
 import { PAGE_SIZE, PLAYER_HEIGHT, TAB_BAR_BASE_HEIGHT } from "@/constants";
 import { getSearchedMedia, useLibraryData } from "@/services/library-service";
 import { useTrackPlayer } from "@/stores/track-player";
@@ -87,11 +87,11 @@ export function SearchResults(props: SearchResultsProps) {
       showsVerticalScrollIndicator={false}
       scrollEventThrottle={16}
       data={media}
-      keyExtractor={(item) => item.id}
+      keyExtractor={(item) => item.representative.id}
       numColumns={NUM_COLUMNS}
       renderItem={({ item }) => (
         <View style={styles.tile}>
-          <MediaTile media={item} />
+          <EditionTile edition={item} book={item.representative.book} />
         </View>
       )}
       // No getItemLayout: see FullLibrary — tile rows are not a fixed height,

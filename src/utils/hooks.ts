@@ -166,14 +166,36 @@ type Media = {
   title?: string | null;
 };
 
+export function useNavigateToMediaCallback(media: Media, book: Book) {
+  return useCallback(() => {
+    router.navigate({
+      pathname: "/media/[id]",
+      params: {
+        id: media.id,
+        title: recordingTitle(media.title, book.title),
+      },
+    });
+  }, [media, book]);
+}
+
+/**
+ * Where a book tile goes.
+ *
+ * `media` is the tile's collapsed list — one entry per edition — so a book
+ * with a single edition skips the book screen and opens that edition
+ * directly, even when the edition is a set of several parts. The book screen
+ * only earns its place when there is actually a choice to make.
+ */
 export function useNavigateToBookCallback(book: Book, media: Media[]) {
   return useCallback(() => {
-    if (media[0] && media.length === 1) {
+    const onlyEdition = media.length === 1 ? media[0] : undefined;
+
+    if (onlyEdition) {
       router.navigate({
         pathname: "/media/[id]",
         params: {
-          id: media[0].id,
-          title: recordingTitle(media[0].title, book.title),
+          id: onlyEdition.id,
+          title: recordingTitle(onlyEdition.title, book.title),
         },
       });
     } else {

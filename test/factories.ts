@@ -341,6 +341,10 @@ export async function createMedia(
     fullCast: false,
     abridged: false,
     publishedFormat: "full",
+    // Ready by default: readers only ever see ready recordings, so a fixture
+    // without a status should be one that shows up. Pass a status explicitly
+    // to test what happens to the ones that do not.
+    status: "ready",
     insertedAt: now,
     updatedAt: now,
     ...rest,
