@@ -88,10 +88,13 @@ export function PlayerContextMenu({
     await abandonPlaythrough(session, playthroughId);
   }, [session, playthroughId]);
 
+  // Collapses for the same reason the other two navigating items do: the
+  // expanded player covers the screen it is sending you to.
   const handleDownload = useCallback(() => {
+    onCollapse();
     startDownload(session, mediaId);
     router.navigate("/downloads");
-  }, [session, mediaId]);
+  }, [session, mediaId, onCollapse]);
 
   return (
     <PlayerContextMenuImpl
