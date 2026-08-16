@@ -74,8 +74,7 @@ export function partsLabel(
  *
  * A tile has room for lines, not for paragraphs, so the set's name and its
  * size share one. The name drops out when the operator has not asked for it,
- * leaving the size on its own. The separator is a middle dot rather than a
- * dash: the app has no dashes in rendered text.
+ * leaving the size on its own.
  */
 export function setSubtitle(
   set: {
@@ -87,10 +86,48 @@ export function setSubtitle(
   },
   count: number,
 ): string {
-  const name = setLabel(set);
-  const parts = partsLabel(set, count);
+  return withSetName(set, partsLabel(set, count));
+}
 
-  return name ? `${name} · ${parts}` : parts;
+/**
+ * The same line for one part of a set, e.g. "GraphicAudio · Part 1 of 2".
+ *
+ * Which part you are looking at and which set it came from are the two things
+ * that tell one recording of a book from another, so they travel together.
+ * Returns null for a recording that is not part of a set — there is nothing to
+ * say about it.
+ */
+export function partSubtitle(
+  partNumber: number | null | undefined,
+  set:
+    | {
+        name: string | null;
+        showLabel: boolean;
+        partsTotal: number | null;
+        partWord: string | null;
+      }
+    | null
+    | undefined,
+  options: { includeTotal?: boolean } = {},
+): string | null {
+  const part = partLabel(partNumber, set ?? null, options);
+
+  return part && withSetName(set, part);
+}
+
+/**
+ * Puts the set's name in front of a label, when readers are meant to see it.
+ *
+ * The separator is a middle dot rather than a dash: the app has no dashes in
+ * rendered text.
+ */
+function withSetName(
+  set: { name: string | null; showLabel: boolean } | null | undefined,
+  label: string,
+): string {
+  const name = setLabel(set);
+
+  return name ? `${name} · ${label}` : label;
 }
 
 function capitalize(word: string): string {

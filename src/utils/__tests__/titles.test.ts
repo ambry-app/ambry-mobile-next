@@ -1,6 +1,7 @@
 import {
   partLabel,
   partsLabel,
+  partSubtitle,
   recordingTitle,
   setLabel,
   setSubtitle,
@@ -145,5 +146,45 @@ describe("setSubtitle", () => {
         6,
       ),
     ).toBe("Dramatized · 6 episodes");
+  });
+});
+
+describe("partSubtitle", () => {
+  const set = {
+    name: "GraphicAudio",
+    showLabel: true,
+    partsTotal: 2,
+    partWord: null,
+  };
+
+  it("names the set the part came from", () => {
+    expect(partSubtitle(1, set)).toBe("GraphicAudio · Part 1 of 2");
+  });
+
+  it("leaves the part alone when the name is withheld", () => {
+    expect(partSubtitle(1, { ...set, showLabel: false })).toBe("Part 1 of 2");
+  });
+
+  it("has nothing to say about a recording outside a set", () => {
+    expect(partSubtitle(null, null)).toBeNull();
+    expect(partSubtitle(undefined, undefined)).toBeNull();
+  });
+
+  it("says nothing when the recording has no part number", () => {
+    // a set member with no number cannot be told from its siblings, and
+    // naming the set alone would not do it
+    expect(partSubtitle(null, set)).toBeNull();
+  });
+
+  it("drops the total where it is already on screen", () => {
+    expect(partSubtitle(1, set, { includeTotal: false })).toBe(
+      "GraphicAudio · Part 1",
+    );
+  });
+
+  it("keeps the set's own wording", () => {
+    expect(
+      partSubtitle(2, { ...set, partWord: "episode", partsTotal: 6 }),
+    ).toBe("GraphicAudio · Episode 2 of 6");
   });
 });
