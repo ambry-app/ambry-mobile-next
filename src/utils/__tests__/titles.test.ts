@@ -3,6 +3,7 @@ import {
   partsLabel,
   recordingTitle,
   setLabel,
+  setSubtitle,
 } from "@/utils/titles";
 
 describe("recordingTitle", () => {
@@ -103,5 +104,46 @@ describe("setLabel", () => {
   it("has nothing to show when there is no set", () => {
     expect(setLabel(null)).toBeNull();
     expect(setLabel(undefined)).toBeNull();
+  });
+});
+
+describe("setSubtitle", () => {
+  const threeParts = {
+    partsTotal: 3,
+    partWord: null,
+    partWordPlural: null,
+  };
+
+  it("joins the name and the size on one line", () => {
+    expect(
+      setSubtitle({ ...threeParts, name: "GraphicAudio", showLabel: true }, 3),
+    ).toBe("GraphicAudio · 3 parts");
+  });
+
+  it("leaves the size alone when the name is withheld", () => {
+    expect(
+      setSubtitle({ ...threeParts, name: "GraphicAudio", showLabel: false }, 3),
+    ).toBe("3 parts");
+  });
+
+  it("leaves the size alone when there is no name", () => {
+    expect(setSubtitle({ ...threeParts, name: null, showLabel: true }, 3)).toBe(
+      "3 parts",
+    );
+  });
+
+  it("keeps the set's own wording", () => {
+    expect(
+      setSubtitle(
+        {
+          name: "Dramatized",
+          showLabel: true,
+          partsTotal: 6,
+          partWord: "episode",
+          partWordPlural: "episodes",
+        },
+        6,
+      ),
+    ).toBe("Dramatized · 6 episodes");
   });
 });

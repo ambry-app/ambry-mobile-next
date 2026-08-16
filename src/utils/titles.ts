@@ -69,6 +69,30 @@ export function partsLabel(
   return `${total} ${word}`;
 }
 
+/**
+ * The line under a set's title, e.g. "GraphicAudio · 3 parts" or "3 parts".
+ *
+ * A tile has room for lines, not for paragraphs, so the set's name and its
+ * size share one. The name drops out when the operator has not asked for it,
+ * leaving the size on its own. The separator is a middle dot rather than a
+ * dash: the app has no dashes in rendered text.
+ */
+export function setSubtitle(
+  set: {
+    name: string | null;
+    showLabel: boolean;
+    partsTotal: number | null;
+    partWord: string | null;
+    partWordPlural: string | null;
+  },
+  count: number,
+): string {
+  const name = setLabel(set);
+  const parts = partsLabel(set, count);
+
+  return name ? `${name} · ${parts}` : parts;
+}
+
 function capitalize(word: string): string {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
