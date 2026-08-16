@@ -43,6 +43,7 @@ import {
 } from "@/types/track-player";
 import { logBase } from "@/utils/logger";
 import { documentDirectoryFilePath } from "@/utils/paths";
+import { type TimelineTrack } from "@/utils/playback-timeline";
 import { subscribeToChange } from "@/utils/subscribe";
 import { recordingTitle } from "@/utils/titles";
 import { serverUrl } from "@/utils/urls";
@@ -341,8 +342,7 @@ export async function loadPlaythroughIntoPlayer(
   const position = getEffectivePosition(playthrough);
   const playbackRate = playthrough.playbackRate;
 
-  const tracks = buildAddTracks(session, playthrough);
-  const timeline = playthrough.media.mediaTracks;
+  const { tracks, timeline } = buildQueue(session, playthrough);
 
   const loaded = {
     id: playthrough.id,
@@ -421,10 +421,8 @@ export async function reloadCurrentPlaythrough(
   await TrackPlayer.reset();
 
   // Load new track configuration (switches URL between file/stream)
-  await TrackPlayer.add(
-    buildAddTracks(session, playthrough),
-    playthrough.media.mediaTracks,
-  );
+  const { tracks, timeline } = buildQueue(session, playthrough);
+  await TrackPlayer.add(tracks, timeline);
 
   // Restore state
   await TrackPlayer.seekTo(position);
@@ -734,18 +732,32 @@ function stopTrackingProgress() {
   progressCheckInterval = null;
 }
 
+/** A queue and the timeline that describes it. Never one without the other. */
+export type Queue = {
+  tracks: AddTrack[];
+  timeline: TimelineTrack[];
+};
+
 /**
- * Build the player's queue for a playthrough.
+ * Build the player's queue for a playthrough, with its timeline.
  *
  * A direct-play recording is its files in order; legacy media is the single
  * packaged stream it has always been. Every entry carries the same title,
  * artist and artwork, so the lock screen and notification describe the book
  * rather than announcing which file is playing.
+ *
+ * **The timeline comes back with the queue because the two describe the same
+ * thing and are wrong apart.** `track-player-wrapper` translates book seconds
+ * against the timeline and skips against the queue, so a timeline of forty
+ * files over a queue of one sends `skip(37, …)` into a player holding a single
+ * track. Callers used to pass `media.mediaTracks` alongside separately, which
+ * was true only for as long as nothing could make the queue disagree with it —
+ * and the fallback below is exactly that.
  */
-function buildAddTracks(
+function buildQueue(
   session: Session,
   playthrough: PlaythroughWithMedia,
-): AddTrack[] {
+): Queue {
   const shared = {
     pitchAlgorithm: PitchAlgorithm.Voice,
     title: recordingTitle(
@@ -761,24 +773,68 @@ function buildAddTracks(
   };
 
   const tracks = playthrough.media.mediaTracks;
+  const legacyFile = strandedLegacyFile(playthrough);
 
-  if (tracks.length > 0) {
-    return tracks.map((track) => ({
-      ...shared,
-      ...directPlaySource(session, playthrough, track),
-      duration: track.duration,
-    }));
+  if (tracks.length > 0 && !legacyFile) {
+    return {
+      tracks: tracks.map((track) => ({
+        ...shared,
+        ...directPlaySource(session, playthrough, track),
+        duration: track.duration,
+      })),
+      timeline: tracks,
+    };
   }
 
-  return [
-    {
-      ...shared,
-      ...legacySource(session, playthrough),
-      duration: playthrough.media.duration
-        ? parseFloat(playthrough.media.duration)
-        : undefined,
-    },
-  ];
+  return {
+    tracks: [
+      {
+        ...shared,
+        ...(legacyFile
+          ? localSource(legacyFile, playthrough)
+          : legacySource(session, playthrough)),
+        duration: playthrough.media.duration
+          ? parseFloat(playthrough.media.duration)
+          : undefined,
+      },
+    ],
+    // One file holding the whole book needs no translation, which is what an
+    // empty timeline means to the wrapper.
+    timeline: [],
+  };
+}
+
+/**
+ * The downloaded packaged file of a recording that has since gained tracks,
+ * if that is the situation we are in.
+ *
+ * The back-catalogue reclaim relinks a legacy recording to its original files
+ * and gives it tracks. Anyone holding a download of it has a perfectly good
+ * copy of the same book on disk, keyed to nothing the new tracks mention — so
+ * without this the queue would be built from the tracks, no local file would
+ * match any of them, and the reader would silently start streaming a book they
+ * had already downloaded, over whatever connection they happen to be on.
+ *
+ * Playing their copy is unambiguous: it is one file and it is the whole book.
+ *
+ * The condition is deliberately narrow. `filePath` is only ever set for a
+ * legacy download (`download-service` writes `""` for a direct-play one), so a
+ * *per-track* download whose tracks were replaced by a re-scan does not land
+ * here — its local files are keyed by track id precisely so that a re-scan
+ * invalidates them rather than mapping playback onto the wrong file, and
+ * guessing an order for them would be exactly that mistake. Those re-download.
+ */
+function strandedLegacyFile(playthrough: PlaythroughWithMedia) {
+  const download = playthrough.media.download;
+  if (download?.status !== "ready") return null;
+  if (playthrough.media.mediaTracks.length === 0) return null;
+  if (!download.filePath) return null;
+
+  const hasLocalTrack = playthrough.media.mediaTracks.some((track) =>
+    download.files?.some((file) => file.trackId === track.id),
+  );
+
+  return hasLocalTrack ? null : download.filePath;
 }
 
 type MediaTrack = PlaythroughWithMedia["media"]["mediaTracks"][number];
@@ -825,6 +881,24 @@ function directPlaySource(
 }
 
 /**
+ * A file on this device, with the artwork that was downloaded beside it.
+ *
+ * No `type`: the packaged mp4 is a plain file to the player, and letting it
+ * sniff the container is what makes this work for both the pre-tracks case and
+ * a recording that has since gained them.
+ */
+function localSource(path: string, playthrough: PlaythroughWithMedia) {
+  const download = playthrough.media.download;
+
+  return {
+    url: documentDirectoryFilePath(path),
+    artwork: download?.thumbnails
+      ? documentDirectoryFilePath(download.thumbnails.extraLarge)
+      : undefined,
+  };
+}
+
+/**
  * Where legacy packaged media comes from: the downloaded mp4 if there is one,
  * otherwise the streaming manifest — HLS on iOS, DASH elsewhere.
  */
@@ -832,12 +906,7 @@ function legacySource(session: Session, playthrough: PlaythroughWithMedia) {
   const download = playthrough.media.download;
 
   if (download?.status === "ready" && download.filePath) {
-    return {
-      url: documentDirectoryFilePath(download.filePath),
-      artwork: download.thumbnails
-        ? documentDirectoryFilePath(download.thumbnails.extraLarge)
-        : undefined,
-    };
+    return localSource(download.filePath, playthrough);
   }
 
   const path =

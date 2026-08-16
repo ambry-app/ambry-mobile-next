@@ -21,6 +21,7 @@ import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createDownload,
   createMedia,
+  createMediaTrack,
   createPlaythrough,
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
@@ -181,6 +182,114 @@ describe("track-player-service", () => {
       await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
 
       expect(useTrackPlayer.getState().streaming).toBe(false);
+    });
+
+    // The back-catalogue reclaim relinks a legacy recording to its original
+    // files and gives it tracks. Everyone already holding a download of it has
+    // a perfectly good copy of the same book on disk, keyed to nothing the new
+    // tracks mention.
+    describe("a downloaded recording that has since gained tracks", () => {
+      async function downloadedThenRelinked() {
+        const db = getDb();
+        const media = await createMedia(db, {
+          duration: "300.0",
+          hlsPath: "/audio/test/hls.m3u8",
+          mpdPath: "/audio/test/manifest.mpd",
+        });
+        // Downloaded while it was still legacy: one packaged file, no per-track
+        // files, because there were no tracks to key them to.
+        await createDownload(db, {
+          mediaId: media.id,
+          filePath: "legacy-download.mp4",
+        });
+        // Relinked since: two files it has never been told about.
+        await createMediaTrack(db, {
+          mediaId: media.id,
+          index: 0,
+          startOffset: 0,
+          duration: 100,
+          path: "/library/a.mp3",
+        });
+        await createMediaTrack(db, {
+          mediaId: media.id,
+          index: 1,
+          startOffset: 100,
+          duration: 200,
+          path: "/library/b.mp3",
+        });
+        const playthrough = await createPlaythrough(db, {
+          mediaId: media.id,
+          status: "in_progress",
+        });
+        return getPlaythroughWithMedia(session, playthrough.id);
+      }
+
+      it("keeps playing the downloaded file instead of streaming the tracks", async () => {
+        const playthrough = await downloadedThenRelinked();
+
+        await trackPlayerService.loadPlaythroughIntoPlayer(
+          session,
+          playthrough,
+        );
+
+        const queue = trackPlayerFake.getState().queue as { url: string }[];
+        expect(queue).toHaveLength(1);
+        expect(queue[0]!.url).toContain("legacy-download.mp4");
+        expect(useTrackPlayer.getState().streaming).toBe(false);
+      });
+
+      // The queue and the timeline describe the same thing and are wrong
+      // apart: a two-file timeline over a one-file queue would translate a
+      // position past 100s into a skip to a track the player does not have.
+      it("reports position against the whole file, not the track timeline", async () => {
+        const playthrough = await downloadedThenRelinked();
+
+        await trackPlayerService.loadPlaythroughIntoPlayer(
+          session,
+          playthrough,
+        );
+        await trackPlayerService.seekTo(150, SeekSource.SCRUBBER);
+
+        const { position } = trackPlayerFake.getState();
+        expect(position).toBe(150);
+      });
+    });
+
+    // The mirror image, and the reason the fallback is narrow: per-track local
+    // files are keyed by track id so that a re-scan invalidates them rather
+    // than mapping playback onto the wrong file. Guessing an order would be
+    // exactly that mistake, so this one streams.
+    it("streams a direct-play recording whose downloaded files no longer match its tracks", async () => {
+      const db = getDb();
+      const media = await createMedia(db, { duration: "300.0" });
+      await createMediaTrack(db, {
+        mediaId: media.id,
+        index: 0,
+        startOffset: 0,
+        duration: 300,
+        path: "/library/new.mp3",
+      });
+      // A direct-play download carries no `filePath`; its files name track ids
+      // that a re-scan has since replaced.
+      await createDownload(db, {
+        mediaId: media.id,
+        filePath: "",
+        files: [{ trackId: "a-track-that-no-longer-exists", path: "old.mp3" }],
+      });
+      const playthrough = await createPlaythrough(db, {
+        mediaId: media.id,
+        status: "in_progress",
+      });
+
+      await trackPlayerService.loadPlaythroughIntoPlayer(
+        session,
+        (await getPlaythroughWithMedia(session, playthrough.id))!,
+      );
+
+      const queue = trackPlayerFake.getState().queue as { url: string }[];
+      expect(queue).toHaveLength(1);
+      expect(queue[0]!.url).toContain("/library/new.mp3");
+      expect(queue[0]!.url).not.toContain("old.mp3");
     });
 
     it("never reports an empty player while swapping one book for another", async () => {
