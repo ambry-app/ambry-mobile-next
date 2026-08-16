@@ -6,7 +6,7 @@ import { MediaHeaderInfo } from "@/services/library-service";
 import { useScreen } from "@/stores/screen";
 import { Colors } from "@/styles/colors";
 import { durationDisplay } from "@/utils/time";
-import { partLabel, recordingTitle } from "@/utils/titles";
+import { partSubtitle, recordingTitle } from "@/utils/titles";
 
 /**
  * Top padding above the thumbnail. Exported because MediaScreen needs it to
@@ -47,10 +47,10 @@ export function Header({ media }: HeaderProps) {
           fullCast={media.fullCast}
         />
       </View>
-      {partLabel(media.partNumber, media.set) && (
+      {partSubtitle(media.partNumber, media.set) && (
         <View>
           <Text style={styles.partText}>
-            {partLabel(media.partNumber, media.set)}
+            {partSubtitle(media.partNumber, media.set)}
           </Text>
         </View>
       )}

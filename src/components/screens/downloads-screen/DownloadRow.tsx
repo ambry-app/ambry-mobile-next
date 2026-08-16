@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { router } from "expo-router";
 import { useShallow } from "zustand/shallow";
@@ -13,7 +13,7 @@ import { DownloadedMedia } from "@/services/library-service";
 import { useDownloads } from "@/stores/downloads";
 import { Colors } from "@/styles/colors";
 import { Session } from "@/types/session";
-import { recordingTitle } from "@/utils/titles";
+import { partSubtitle, recordingTitle } from "@/utils/titles";
 
 import { DownloadProgress } from "./DownloadProgress";
 import { FileSize } from "./FileSize";
@@ -49,6 +49,8 @@ export function DownloadRow({ media, session }: DownloadRowProps) {
 
   if (!session || !status) return null;
 
+  const part = partSubtitle(media.partNumber, media.set);
+
   const navigateToBook = () => {
     router.navigate({
       pathname: "/media/[id]",
@@ -75,8 +77,17 @@ export function DownloadRow({ media, session }: DownloadRowProps) {
             baseFontSize={14}
             title={recordingTitle(media.title, media.book.title)}
             authors={media.book.authors.map((author) => author.name)}
-            narrators={media.narrators.map((narrator) => narrator.name)}
+            // which part this is beats who read it: parts of a set share a
+            // title *and* a cast, so the narrators cannot tell these rows
+            // apart and the part can. It takes the same line rather than a
+            // new one, so a set's rows stay the height of every other row.
+            narrators={part ? undefined : media.narrators.map((n) => n.name)}
           />
+          {part && (
+            <Text style={styles.partText} numberOfLines={1}>
+              {part}
+            </Text>
+          )}
           {status === "ready" && <FileSize filePaths={filePaths} />}
           {status === "pending" &&
             (bytesWritten === undefined ? (
@@ -128,5 +139,10 @@ const styles = StyleSheet.create({
   loadingContainer: {
     marginTop: 4,
     alignItems: "flex-start",
+  },
+  partText: {
+    // the narrators line this stands in for: baseFontSize - 4, same colour
+    fontSize: 10,
+    color: Colors.zinc[400],
   },
 });

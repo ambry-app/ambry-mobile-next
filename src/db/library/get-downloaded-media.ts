@@ -48,6 +48,16 @@ async function getDownloadedMediaByIds(session: Session, mediaIds: string[]) {
       id: schema.media.id,
       title: schema.media.title,
       thumbnails: schema.media.thumbnails,
+      // parts of a set share a title, so a downloads list that does not say
+      // which part it holds cannot tell its own rows apart
+      partNumber: schema.media.partNumber,
+      set: {
+        id: schema.recordingGroups.id,
+        name: schema.recordingGroups.name,
+        showLabel: schema.recordingGroups.showLabel,
+        partsTotal: schema.recordingGroups.partsTotal,
+        partWord: schema.recordingGroups.partWord,
+      },
       book: {
         id: schema.books.id,
         title: schema.books.title,
@@ -63,6 +73,13 @@ async function getDownloadedMediaByIds(session: Session, mediaIds: string[]) {
       and(
         eq(schema.books.url, schema.media.url),
         eq(schema.books.id, schema.media.bookId),
+      ),
+    )
+    .leftJoin(
+      schema.recordingGroups,
+      and(
+        eq(schema.recordingGroups.url, schema.media.url),
+        eq(schema.recordingGroups.id, schema.media.recordingGroupId),
       ),
     )
     .innerJoin(

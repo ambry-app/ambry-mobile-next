@@ -118,6 +118,8 @@ const libraryChangesSinceQuery = graphql(`
       book {
         id
       }
+      name
+      showLabel
       partsTotal
       partWord
       partWordPlural

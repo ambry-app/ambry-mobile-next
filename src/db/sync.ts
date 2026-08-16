@@ -123,6 +123,8 @@ export interface LibraryChangesInput {
   recordingGroupsChangedSince: {
     id: string;
     book: { id: string };
+    name: string;
+    showLabel: boolean;
     partsTotal: number | null;
     partWord: string | null;
     partWordPlural: string | null;
@@ -393,6 +395,8 @@ export async function applyLibraryChanges(
         url: session.url,
         id: recordingGroup.id,
         bookId: recordingGroup.book.id,
+        name: recordingGroup.name,
+        showLabel: recordingGroup.showLabel,
         partsTotal: recordingGroup.partsTotal,
         partWord: recordingGroup.partWord,
         partWordPlural: recordingGroup.partWordPlural,
@@ -752,6 +756,8 @@ export async function applyLibraryChanges(
             target: [schema.recordingGroups.url, schema.recordingGroups.id],
             set: {
               bookId: sql`excluded.book_id`,
+              name: sql`excluded.name`,
+              showLabel: sql`excluded.show_label`,
               partsTotal: sql`excluded.parts_total`,
               partWord: sql`excluded.part_word`,
               partWordPlural: sql`excluded.part_word_plural`,

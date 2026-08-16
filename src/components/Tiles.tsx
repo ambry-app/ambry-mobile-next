@@ -27,7 +27,7 @@ import {
   useNavigateToBookCallback,
   useNavigateToMediaCallback,
 } from "@/utils/hooks";
-import { partsLabel, recordingTitle } from "@/utils/titles";
+import { recordingTitle, setSubtitle } from "@/utils/titles";
 
 import { BookDetailsText } from "./BookDetailsText";
 import { MultiThumbnailImage } from "./MultiThumbnailImage";
@@ -79,6 +79,8 @@ type StackableMedia = Media & EditionMedia;
 /** What a set needs to describe itself on its own tile. */
 type SetInfo = {
   id: string;
+  name: string | null;
+  showLabel: boolean;
   partsTotal: number | null;
   partWord: string | null;
   partWordPlural: string | null;
@@ -260,8 +262,8 @@ export const EditionTile = React.memo(function EditionTile(
             }
           />
           {set && (
-            <Text style={styles.partsLabel} numberOfLines={1}>
-              {partsLabel(set, edition.media.length)}
+            <Text style={styles.setSubtitle} numberOfLines={1}>
+              {setSubtitle(set, edition.media.length)}
             </Text>
           )}
         </View>
@@ -482,7 +484,7 @@ const styles = StyleSheet.create({
   },
   // sits under the title in a tile's text block, so it lines up with it
   // rather than centring like a person tile's label
-  partsLabel: {
+  setSubtitle: {
     fontSize: 12,
     color: Colors.zinc[400],
   },

@@ -162,6 +162,8 @@ export async function getEditionMediaForBook(
       download: { thumbnails: schema.downloads.thumbnails },
       set: {
         id: schema.recordingGroups.id,
+        name: schema.recordingGroups.name,
+        showLabel: schema.recordingGroups.showLabel,
         partsTotal: schema.recordingGroups.partsTotal,
         partWord: schema.recordingGroups.partWord,
         partWordPlural: schema.recordingGroups.partWordPlural,

@@ -834,6 +834,22 @@ A few non-obvious workarounds exist because of how Expo SDK 57 lays out
 - **Web is not a supported target.** `expo export --platform all` fails on the
   missing `react-native-web`; bundle with
   `--platform ios --platform android` instead.
+- **Editing a migration's `.sql` does not invalidate Metro's cache — restart it
+  with `npm start -- --clear`.** `babel-plugin-inline-import` inlines each
+  `.sql` file into `drizzle/migrations.js` when *that* file is transformed, and
+  Metro keys its transform cache on `migrations.js` alone. Edit a `.sql` and the
+  app keeps running whatever was inlined the first time, silently.
+
+  This bites hardest with `drizzle-kit generate --custom`, which writes an
+  **empty** file for you to fill in. If Metro transforms `migrations.js` before
+  you fill it, the bundle carries `""` for that migration — and an empty
+  migration is not a no-op. Drizzle splits each migration on
+  `--> statement-breakpoint` **without trimming or dropping empty chunks** and
+  runs every one, so `""` reaches `prepareSync("")`, which returns a NULL
+  statement handle; expo-sqlite then calls `clear_bindings` on it and the
+  process dies with `SIGSEGV` in `exsqlite3_clear_bindings` before the boot
+  sequence logs a single line. It looks like a native crash, not a migration
+  bug, and editing the `.sql` to fix it appears to change nothing.
 - **Jetpack Compose components render native views, so they never accept bare
   string children.** Text must be wrapped in `<Text>` from
   `@expo/ui/jetpack-compose` — including inside slots like

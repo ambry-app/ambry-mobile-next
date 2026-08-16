@@ -1,4 +1,11 @@
-import { partLabel, partsLabel, recordingTitle } from "@/utils/titles";
+import {
+  partLabel,
+  partsLabel,
+  partSubtitle,
+  recordingTitle,
+  setLabel,
+  setSubtitle,
+} from "@/utils/titles";
 
 describe("recordingTitle", () => {
   it("uses the book's title when the recording has no override", () => {
@@ -75,5 +82,109 @@ describe("partsLabel", () => {
         5,
       ),
     ).toBe("5 volumes");
+  });
+});
+
+describe("setLabel", () => {
+  it("gives the name when the operator opted in", () => {
+    expect(setLabel({ name: "GraphicAudio", showLabel: true })).toBe(
+      "GraphicAudio",
+    );
+  });
+
+  it("withholds the name when they did not", () => {
+    // most set names are filing labels -- "batch 2", "from mam" -- so the
+    // flag is the only thing that may decide this, never the name itself
+    expect(setLabel({ name: "GraphicAudio", showLabel: false })).toBeNull();
+  });
+
+  it("has nothing to show for a set with no name", () => {
+    expect(setLabel({ name: null, showLabel: true })).toBeNull();
+  });
+
+  it("has nothing to show when there is no set", () => {
+    expect(setLabel(null)).toBeNull();
+    expect(setLabel(undefined)).toBeNull();
+  });
+});
+
+describe("setSubtitle", () => {
+  const threeParts = {
+    partsTotal: 3,
+    partWord: null,
+    partWordPlural: null,
+  };
+
+  it("joins the name and the size on one line", () => {
+    expect(
+      setSubtitle({ ...threeParts, name: "GraphicAudio", showLabel: true }, 3),
+    ).toBe("GraphicAudio · 3 parts");
+  });
+
+  it("leaves the size alone when the name is withheld", () => {
+    expect(
+      setSubtitle({ ...threeParts, name: "GraphicAudio", showLabel: false }, 3),
+    ).toBe("3 parts");
+  });
+
+  it("leaves the size alone when there is no name", () => {
+    expect(setSubtitle({ ...threeParts, name: null, showLabel: true }, 3)).toBe(
+      "3 parts",
+    );
+  });
+
+  it("keeps the set's own wording", () => {
+    expect(
+      setSubtitle(
+        {
+          name: "Dramatized",
+          showLabel: true,
+          partsTotal: 6,
+          partWord: "episode",
+          partWordPlural: "episodes",
+        },
+        6,
+      ),
+    ).toBe("Dramatized · 6 episodes");
+  });
+});
+
+describe("partSubtitle", () => {
+  const set = {
+    name: "GraphicAudio",
+    showLabel: true,
+    partsTotal: 2,
+    partWord: null,
+  };
+
+  it("names the set the part came from", () => {
+    expect(partSubtitle(1, set)).toBe("GraphicAudio · Part 1 of 2");
+  });
+
+  it("leaves the part alone when the name is withheld", () => {
+    expect(partSubtitle(1, { ...set, showLabel: false })).toBe("Part 1 of 2");
+  });
+
+  it("has nothing to say about a recording outside a set", () => {
+    expect(partSubtitle(null, null)).toBeNull();
+    expect(partSubtitle(undefined, undefined)).toBeNull();
+  });
+
+  it("says nothing when the recording has no part number", () => {
+    // a set member with no number cannot be told from its siblings, and
+    // naming the set alone would not do it
+    expect(partSubtitle(null, set)).toBeNull();
+  });
+
+  it("drops the total where it is already on screen", () => {
+    expect(partSubtitle(1, set, { includeTotal: false })).toBe(
+      "GraphicAudio · Part 1",
+    );
+  });
+
+  it("keeps the set's own wording", () => {
+    expect(
+      partSubtitle(2, { ...set, partWord: "episode", partsTotal: 6 }),
+    ).toBe("GraphicAudio · Episode 2 of 6");
   });
 });

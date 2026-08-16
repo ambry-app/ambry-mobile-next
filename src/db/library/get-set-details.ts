@@ -11,8 +11,9 @@ export type SetDetails = Awaited<ReturnType<typeof getSetDetails>>;
 
 /**
  * A set is several recordings that together cover one book, released as
- * separate parts. It has no name of its own that anyone should see — the
- * server's label is for the operator — so a set goes by its book.
+ * separate parts. It goes by its book, and carries its own name only where
+ * the operator has said readers should see it — most set names mean something
+ * to whoever filed them and nothing to a reader.
  */
 export async function getSetDetails(session: Session, setId: string) {
   const set = await getSet(session, setId);
@@ -29,6 +30,8 @@ async function getSet(session: Session, setId: string) {
   const rows = await getDb()
     .select({
       id: schema.recordingGroups.id,
+      name: schema.recordingGroups.name,
+      showLabel: schema.recordingGroups.showLabel,
       partsTotal: schema.recordingGroups.partsTotal,
       partWord: schema.recordingGroups.partWord,
       partWordPlural: schema.recordingGroups.partWordPlural,

@@ -36,6 +36,22 @@ export function partLabel(
 }
 
 /**
+ * A set's name, when readers are meant to see it.
+ *
+ * Every set has a name, but most of them are filing labels that mean something
+ * to the operator and nothing to a reader ("batch 2", "from mam"). The server
+ * carries an explicit per-set choice, and this is the only thing that should
+ * decide whether the name reaches a screen — never the name itself.
+ */
+export function setLabel(
+  set: { name: string | null; showLabel: boolean } | null | undefined,
+): string | null {
+  if (!set?.showLabel) return null;
+
+  return set.name;
+}
+
+/**
  * How a whole set is described, e.g. "3 parts".
  */
 export function partsLabel(
@@ -51,6 +67,67 @@ export function partsLabel(
     total === 1 ? (set.partWord ?? "part") : (set.partWordPlural ?? "parts");
 
   return `${total} ${word}`;
+}
+
+/**
+ * The line under a set's title, e.g. "GraphicAudio · 3 parts" or "3 parts".
+ *
+ * A tile has room for lines, not for paragraphs, so the set's name and its
+ * size share one. The name drops out when the operator has not asked for it,
+ * leaving the size on its own.
+ */
+export function setSubtitle(
+  set: {
+    name: string | null;
+    showLabel: boolean;
+    partsTotal: number | null;
+    partWord: string | null;
+    partWordPlural: string | null;
+  },
+  count: number,
+): string {
+  return withSetName(set, partsLabel(set, count));
+}
+
+/**
+ * The same line for one part of a set, e.g. "GraphicAudio · Part 1 of 2".
+ *
+ * Which part you are looking at and which set it came from are the two things
+ * that tell one recording of a book from another, so they travel together.
+ * Returns null for a recording that is not part of a set — there is nothing to
+ * say about it.
+ */
+export function partSubtitle(
+  partNumber: number | null | undefined,
+  set:
+    | {
+        name: string | null;
+        showLabel: boolean;
+        partsTotal: number | null;
+        partWord: string | null;
+      }
+    | null
+    | undefined,
+  options: { includeTotal?: boolean } = {},
+): string | null {
+  const part = partLabel(partNumber, set ?? null, options);
+
+  return part && withSetName(set, part);
+}
+
+/**
+ * Puts the set's name in front of a label, when readers are meant to see it.
+ *
+ * The separator is a middle dot rather than a dash: the app has no dashes in
+ * rendered text.
+ */
+function withSetName(
+  set: { name: string | null; showLabel: boolean } | null | undefined,
+  label: string,
+): string {
+  const name = setLabel(set);
+
+  return name ? `${name} · ${label}` : label;
 }
 
 function capitalize(word: string): string {

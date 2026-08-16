@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { AuthorsAndNarrators } from "@/components/AuthorsAndNarrators";
 import { MediaAuthorOrNarrator, SetDetails } from "@/services/library-service";
 import { Colors } from "@/styles/colors";
-import { partsLabel } from "@/utils/titles";
+import { setSubtitle } from "@/utils/titles";
 
 type HeaderProps = {
   set: SetDetails;
@@ -16,7 +16,7 @@ export function Header({ set, partCount, authorsAndNarrators }: HeaderProps) {
     <>
       <View style={styles.container}>
         <Text style={styles.title}>{set.book.title}</Text>
-        <Text style={styles.subtitle}>{partsLabel(set, partCount)}</Text>
+        <Text style={styles.subtitle}>{setSubtitle(set, partCount)}</Text>
       </View>
       <AuthorsAndNarrators authorsAndNarrators={authorsAndNarrators} />
     </>
