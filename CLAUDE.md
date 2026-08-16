@@ -194,7 +194,9 @@ the implementation is a contained change.
 **JS Context Architecture** (tested and confirmed):
 
 - TrackPlayer's foreground service keeps the **same JS context alive** even when app is swiped away
-- **While playing.** Pausing starts media3's user-engaged timeout (`DEFAULT_FOREGROUND_SERVICE_TIMEOUT_MS`, 10 minutes); after it expires the service is demoted and its started state cleared (verified: same pid, `isForeground=false startRequested=false`, both true again on play). Past that window the process is only cached, so it survives at Android's discretion — treat a cold boot after a long pause as normal, not exceptional
+- **While playing.** Pausing starts media3's user-engaged timeout (`DEFAULT_FOREGROUND_SERVICE_TIMEOUT_MS`, 10 minutes), and the service passes through three states, not two: foreground → demoted → stopped. Past the demote the process is only cached, so it survives at Android's discretion — treat a cold boot after a long pause as normal, not exceptional
+- **The demote is not the timeout expiring; it is RNTP's re-promotion being refused.** When the timeout fires, media3 asks for a demote by calling `onUpdateNotification(session, false)`, and RNTP's override hard-codes `true` — so it tries to re-promote, which means `startForegroundService()` from a backgrounded process. Android 12+ restricts that, and media3 swallows the refusal. On an idle phone the re-promote is granted and the service stays foreground indefinitely, so **"pause and wait ten minutes" demotes nothing on a quiet device** — it needs enough pressure for Android to refuse. Measured on a preview build: paused 11:25:08, YouTube took audio focus 11:29:54, `onStartCommand` at 11:35:05 (pause + 10m exactly), demoted by 11:35:27. Shortly after, the service stopped outright — `startRequested=false callStart=false types=0x0`, and the process fell to `curProcState=19` (CACHED_EMPTY)
+- **Which state the process dies in decides whether anything comes back.** Killed while the service is still *started*, Android restarts it sticky and builds a headless JS context that has listeners but no boot, no player and no playthrough — a dead end, and the one that can hit the Session-ID crash. Killed once the service has *stopped*, death is clean and final: no restart, no headless context, no media session, and reopening is an ordinary cold boot. The overnight case is the second one
 - All modules (stores, services) share the same runtime instance
 - Module-level variables, timers, and store subscriptions persist across app "kills"
 - Force-stopping via Android Settings kills the foreground service entirely (no remote playback possible)
@@ -920,6 +922,11 @@ A few non-obvious workarounds exist because of how Expo SDK 57 lays out
 - Expo DevTools: Network inspector, logs
 - Drizzle Studio: Database inspection (dev only)
 - React DevTools: Component inspection
+
+### Debugging a preview or production build
+
+- **The JS logger is `enabled: __DEV__`**, so outside a dev build the app prints nothing to logcat but `Running "main"`. Anything you were going to diagnose by reading `ReactNativeJS` lines has to be diagnosed another way: behaviour, or native logcat — `adb shell dumpsys media_session`, `adb shell dumpsys activity services <pkg>`, and RNTP's own `D/RNTP-…MusicService` lines, which do still print
+- **To kill the app the way Android's low-memory killer would, use `adb shell am crash <pkg>`.** `am kill` silently refuses in every process state, cached included: Android 14+ limits `killBackgroundProcesses` to the caller's own package. `am force-stop` works but marks the package stopped, which suppresses the sticky service restart you are usually trying to observe. `kill -9` and `run-as` need a debuggable build
 
 ## Git Workflow
 
