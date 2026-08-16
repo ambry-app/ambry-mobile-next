@@ -23,7 +23,7 @@ import {
   createPlaythrough,
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
-import { resetTrackPlayerFake } from "@test/jest-setup";
+import { resetTrackPlayerFake, trackPlayerFake } from "@test/jest-setup";
 
 // Set up fresh test DB
 const { getDb } = setupTestDatabase();
@@ -77,6 +77,34 @@ describe("position-heartbeat", () => {
       expect(await getCachedPosition(playthrough.id)).toBe(200);
     });
 
+    it("saves where the player is, not where the store thinks it is", async () => {
+      const db = getDb();
+      const media = await createMedia(db, { duration: "300.0" });
+      const playthrough = await createPlaythrough(db, {
+        mediaId: media.id,
+        position: 150,
+      });
+      const playthroughWithMedia = await getPlaythroughWithMedia(
+        session,
+        playthrough.id,
+      );
+
+      await trackPlayerService.loadPlaythroughIntoPlayer(
+        session,
+        playthroughWithMedia,
+      );
+
+      // Playback moves the player on without the store hearing about it. On
+      // Android that is every backgrounded listen: the progress poll is frozen
+      // while the player keeps going, and a heartbeat that read the store
+      // would persist a position minutes old.
+      trackPlayerFake.setState({ position: 275 });
+
+      await saveNow();
+
+      expect(await getCachedPosition(playthrough.id)).toBe(275);
+    });
+
     it("does not overwrite the cached position with invalid progress", async () => {
       const db = getDb();
       // Media with unknown duration: the player never reports a valid
@@ -101,7 +129,11 @@ describe("position-heartbeat", () => {
       await jest.advanceTimersByTimeAsync(60_000);
       await loadPromise;
 
-      await saveNow();
+      // The save asks the player rather than the store, and the player never
+      // answers with a valid duration, so this has to wait out that poll too.
+      const savePromise = saveNow();
+      await jest.advanceTimersByTimeAsync(60_000);
+      await savePromise;
 
       // The cached position survives instead of being zeroed
       expect(await getCachedPosition(playthrough.id)).toBe(150);

@@ -7,6 +7,8 @@
  * This service owns the seek-ui-state store.
  */
 
+import * as BackgroundTimer from "background-timer";
+
 import { SEEK_ACCUMULATION_WINDOW } from "@/constants";
 import { clearSeekingState, setSeekingState } from "@/stores/seek-ui-state";
 import { SeekSourceType } from "@/stores/track-player";
@@ -16,7 +18,13 @@ import * as Player from "./track-player-service";
 
 const log = logBase.extend("seek-service");
 
-let seekTimer: NodeJS.Timeout | null = null;
+/**
+ * A background timer, not `setTimeout`: the same accumulation window sits
+ * behind the notification's and lock screen's ±10s buttons, which are pressed
+ * with the app off screen, where JS timers do not tick. See
+ * `modules/background-timer`.
+ */
+let seekTimer: BackgroundTimer.BackgroundTimerHandle | null = null;
 
 // Core state for accumulation logic
 let isApplying = false;
@@ -99,9 +107,9 @@ function setupSeekState(currentPosition: number) {
  * Clear and restart the timer that applies the accumulated seek.
  */
 function restartTimer(source: SeekSourceType) {
-  if (seekTimer) clearTimeout(seekTimer);
+  BackgroundTimer.cancel(seekTimer);
 
-  seekTimer = setTimeout(
+  seekTimer = BackgroundTimer.schedule(
     () => applyAccumulatedSeek(source),
     SEEK_ACCUMULATION_WINDOW,
   );

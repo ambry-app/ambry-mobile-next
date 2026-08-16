@@ -384,12 +384,16 @@ export function useForegroundSync(appState: AppStateStatus) {
     if (session && appState === "active") {
       log.debug("ForegroundSync: syncing now and starting periodic sync");
       performSync();
+      // Plain timers on purpose: this hook only runs while appState is
+      // "active", and backgrounded syncing is background-sync-service's job.
+      // eslint-disable-next-line no-restricted-globals
       intervalId = setInterval(performSync, FOREGROUND_SYNC_INTERVAL);
     }
 
     return () => {
       if (intervalId) {
         log.debug("ForegroundSync: clearing periodic sync");
+        // eslint-disable-next-line no-restricted-globals
         clearInterval(intervalId);
       }
     };

@@ -6,6 +6,8 @@
  * force-killed.
  */
 
+import * as BackgroundTimer from "background-timer";
+
 import { PROGRESS_SAVE_INTERVAL } from "@/constants";
 import { updateStateCache } from "@/db/playthroughs";
 import * as Player from "@/services/track-player-service";
@@ -21,7 +23,14 @@ import { subscribeToChange } from "@/utils/subscribe";
 const log = logBase.extend("position-heartbeat");
 
 let initialized = false;
-let heartbeatInterval: NodeJS.Timeout | null = null;
+
+/**
+ * A background timer, not `setInterval`: the position this saves is the one
+ * that survives a crash, and the listening it needs to protect is mostly done
+ * with the app backgrounded, where JS timers do not tick. See
+ * `modules/background-timer`.
+ */
+let heartbeatInterval: BackgroundTimer.BackgroundTimerHandle | null = null;
 
 // =============================================================================
 // Public API
@@ -92,8 +101,11 @@ function start(): void {
     return;
   }
 
-  heartbeatInterval = setInterval(async () => {
-    await save();
+  heartbeatInterval = BackgroundTimer.scheduleInterval(() => {
+    // A tick that fails is a tick: the next one is 30 seconds away, and the
+    // save now asks the player, which can reject where reading the store
+    // could not.
+    save().catch((error) => log.error("Position save failed", error));
   }, PROGRESS_SAVE_INTERVAL);
 
   log.debug("Started heartbeat");
@@ -104,7 +116,7 @@ function start(): void {
  */
 function stop(): void {
   if (heartbeatInterval) {
-    clearInterval(heartbeatInterval);
+    BackgroundTimer.cancel(heartbeatInterval);
     heartbeatInterval = null;
     log.debug("Stopped heartbeat");
   }
@@ -120,7 +132,11 @@ async function save(): Promise<void> {
   const currentPlaythroughId = Player.getLoadedPlaythrough()?.id;
   if (!currentPlaythroughId) return;
 
-  const { position, duration } = Player.getProgress();
+  // Ask the player, not the store. The store's progress is written by a poll
+  // that only runs while the app is on screen, so a heartbeat firing in the
+  // background would otherwise persist whatever position was current when the
+  // screen went off - observed writing 60.0 while the player was at 551.9.
+  const { position, duration } = await Player.getAccurateProgress();
 
   // A zeroed duration means progress came from a player that lost its track
   // (or one that hasn't loaded yet). Never overwrite a good cached position

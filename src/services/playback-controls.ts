@@ -273,6 +273,9 @@ export function expandPlayer() {
 export function expandPlayerAndWait(): Promise<void> {
   requestExpandPlayer();
   return new Promise((resolve) => {
+    // A plain timer on purpose: this waits out an on-screen animation, so
+    // there is nothing to wait for unless the app is in the foreground.
+    // eslint-disable-next-line no-restricted-globals
     setTimeout(resolve, PLAYER_EXPAND_ANIMATION_DURATION);
   });
 }
