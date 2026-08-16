@@ -150,6 +150,44 @@ module.exports = defineConfig([
       ],
     },
   },
+  // Services run with the app backgrounded, where Android freezes JS timers.
+  //
+  // `JavaTimerManager.onHostPause` unhooks the choreographer callback that
+  // drives setTimeout/setInterval whenever the Activity pauses, so a service
+  // that reaches for one stops ticking the moment the screen goes off and
+  // fires everything overdue at once on resume. It passes every foreground
+  // test, which is how the sleep timer, the position heartbeat and seek
+  // accumulation each broke in turn. `background-timer` schedules natively
+  // instead.
+  //
+  // Scoped to the top level of src/services: hooks and components are
+  // foreground by definition, and tests drive whichever clock they install.
+  {
+    files: ["src/services/*.ts"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          name: "setTimeout",
+          message:
+            "Use schedule() from `background-timer` - JS timers freeze while the app is backgrounded on Android.",
+        },
+        {
+          name: "setInterval",
+          message:
+            "Use scheduleInterval() from `background-timer` - JS timers freeze while the app is backgrounded on Android.",
+        },
+        {
+          name: "clearTimeout",
+          message: "Use cancel() from `background-timer`.",
+        },
+        {
+          name: "clearInterval",
+          message: "Use cancel() from `background-timer`.",
+        },
+      ],
+    },
+  },
   // Reanimated shared values are mutable by design (`sharedValue.value = x`),
   // which the React Compiler rules read as mutating a captured value. They
   // can't model worklets, so the checks are turned off for the files that

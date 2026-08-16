@@ -194,12 +194,60 @@ the implementation is a contained change.
 **JS Context Architecture** (tested and confirmed):
 
 - TrackPlayer's foreground service keeps the **same JS context alive** even when app is swiped away
+- **While playing.** Pausing starts media3's user-engaged timeout (`DEFAULT_FOREGROUND_SERVICE_TIMEOUT_MS`, 10 minutes); after it expires the service is demoted and its started state cleared (verified: same pid, `isForeground=false startRequested=false`, both true again on play). Past that window the process is only cached, so it survives at Android's discretion — treat a cold boot after a long pause as normal, not exceptional
 - All modules (stores, services) share the same runtime instance
 - Module-level variables, timers, and store subscriptions persist across app "kills"
 - Force-stopping via Android Settings kills the foreground service entirely (no remote playback possible)
 - There is effectively **no dual-context scenario** in practice - the only way to trigger playback is to launch the app, which shares the existing context
 
 **Important**: Because the JS context persists, Zustand stores and module-level variables survive app "kills". If state appears to be lost, the likely cause is the **app boot sequence resetting it**, not context separation. The sleep timer is a good example: `sleepTimerTriggerTime` lives only in Zustand (not DB) and survives app kills because we don't reset it on boot. User preferences (duration, enabled) are persisted to DB, but transient runtime state (trigger time) stays in memory.
+
+**But timers survive without running — on Android they stop firing while backgrounded.**
+"Persist" above means the timer object is still there when you come back, not that it
+ticks while you are away. React Native drives `setTimeout`/`setInterval` from a
+choreographer frame callback that `JavaTimerManager.onHostPause` unhooks whenever the
+Activity pauses — Home press, screen off, or swipe — unless a headless JS task is
+active. RNTP's headless task is one-shot: it ends the moment `PlaybackService()`'s
+promise resolves, which is immediately, since it only registers listeners. Nothing
+holds the gate open, so **every JS timer freezes until `onHostResume`, then all overdue
+ones fire at once**.
+
+Measured on device 2026-08-15 (Pixel 9 Pro XL, dev build): playback backgrounded at
+23:22:51 produced zero JS output for eight minutes; a 5-minute sleep timer due at
+23:27:37 did not fire until the phone was unlocked at 23:31:03, then paused playback
+3m26s late. The `E/ReactNative: Tried to remove non-existent frame callback` line at
+`onHostDestroy` is RN unhooking those timers.
+
+What keeps working: anything driven by a **native event** (`emitDeviceEvent` →
+`NativeEventEmitter`), including remote play/pause, queue-ended, playback-state changes
+and `activity-tracker` motion events, plus the promise microtasks they trigger.
+
+**So services do not use `setTimeout`/`setInterval`. They use
+`modules/background-timer`,** an Expo module that schedules on an Android `Handler` of
+its own — off the choreographer, holding a partial wake lock while anything is
+pending — and delivers each fire as an event. Its API mirrors the globals
+(`schedule`, `scheduleInterval`, `cancel`, plus `delay(ms)` for polling loops), and on
+iOS it delegates to the JS timers, which already tick in the background there. Swapping
+the clock is the whole change a service needs; behaviour and every accumulation window
+are unaffected.
+
+An ESLint rule (`no-restricted-globals` over `src/services/*.ts`) makes that
+enforceable, because the boundary is invisible in a foreground test: `sleep-timer`,
+`position-heartbeat` and `seek-service` each moved onto a JS timer in a separate,
+carefully tested refactor, and each silently stopped working in the background. The two
+places that legitimately still use a plain timer — a player-expand animation, and the
+foreground sync interval that only runs while `appState === "active"` — carry an
+inline disable saying so.
+
+The same trap catches `await new Promise((resolve) => setTimeout(resolve, ms))` inside
+a polling loop. Backgrounded, that promise never settles, and everything awaiting it
+hangs: a remote ±10s used to leave `seek-service` holding `isApplying`, swallowing
+every later press until the app was reopened. Use `delay()`.
+
+One consequence worth keeping in mind: **the store's `progress` is only as fresh as the
+last poll, and code that runs in the background must ask the player instead.** That is
+why `position-heartbeat` calls `getAccurateProgress()` — reading the store there once
+persisted `Saved position: 60.0` while the player was at `551.861`.
 
 **Player State Architecture:**
 

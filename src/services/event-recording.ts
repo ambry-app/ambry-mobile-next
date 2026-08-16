@@ -21,6 +21,8 @@
  * ensure they're recorded for the correct playthrough before the switch.
  */
 
+import * as BackgroundTimer from "background-timer";
+
 import {
   PLAY_PAUSE_EVENT_ACCUMULATION_WINDOW,
   RATE_CHANGE_EVENT_ACCUMULATION_WINDOW,
@@ -76,13 +78,18 @@ type PendingSeekEvent = {
   playthroughId: string;
 };
 
-let playPauseEventTimer: NodeJS.Timeout | null = null;
+// The debounce windows below are background timers, not `setTimeout`. Remote
+// play, pause and ±10s all arrive with the app off screen, where JS timers do
+// not tick, and an event that flushes minutes late is recorded minutes late.
+// See `modules/background-timer`.
+
+let playPauseEventTimer: BackgroundTimer.BackgroundTimerHandle | null = null;
 let pendingPlayPauseEvent: PendingPlayPauseEvent | null = null;
 
-let rateChangeEventTimer: NodeJS.Timeout | null = null;
+let rateChangeEventTimer: BackgroundTimer.BackgroundTimerHandle | null = null;
 let pendingRateChangeEvent: PendingRateChangeEvent | null = null;
 
-let seekEventTimer: NodeJS.Timeout | null = null;
+let seekEventTimer: BackgroundTimer.BackgroundTimerHandle | null = null;
 let pendingSeekEvent: PendingSeekEvent | null = null;
 
 // =============================================================================
@@ -141,15 +148,15 @@ function setupStoreSubscriptions() {
  */
 function flushAllPendingEvents() {
   if (playPauseEventTimer) {
-    clearTimeout(playPauseEventTimer);
+    BackgroundTimer.cancel(playPauseEventTimer);
     flushPlayPauseEvent();
   }
   if (rateChangeEventTimer) {
-    clearTimeout(rateChangeEventTimer);
+    BackgroundTimer.cancel(rateChangeEventTimer);
     flushRateChangeEvent();
   }
   if (seekEventTimer) {
-    clearTimeout(seekEventTimer);
+    BackgroundTimer.cancel(seekEventTimer);
     flushSeekEvent();
   }
 }
@@ -168,7 +175,7 @@ function handlePlayPauseEvent(event: PlayPauseEvent) {
     pendingPlayPauseEvent &&
     pendingPlayPauseEvent.playthroughId !== event.playthroughId
   ) {
-    if (playPauseEventTimer) clearTimeout(playPauseEventTimer);
+    BackgroundTimer.cancel(playPauseEventTimer);
     flushPlayPauseEvent();
   }
 
@@ -190,8 +197,8 @@ function handlePlayPauseEvent(event: PlayPauseEvent) {
     };
   }
 
-  if (playPauseEventTimer) clearTimeout(playPauseEventTimer);
-  playPauseEventTimer = setTimeout(
+  BackgroundTimer.cancel(playPauseEventTimer);
+  playPauseEventTimer = BackgroundTimer.schedule(
     flushPlayPauseEvent,
     PLAY_PAUSE_EVENT_ACCUMULATION_WINDOW,
   );
@@ -247,7 +254,7 @@ function handleRateChangeEvent(event: RateChange) {
     pendingRateChangeEvent &&
     pendingRateChangeEvent.playthroughId !== event.playthroughId
   ) {
-    if (rateChangeEventTimer) clearTimeout(rateChangeEventTimer);
+    BackgroundTimer.cancel(rateChangeEventTimer);
     flushRateChangeEvent();
   }
 
@@ -265,8 +272,8 @@ function handleRateChangeEvent(event: RateChange) {
     };
   }
 
-  if (rateChangeEventTimer) clearTimeout(rateChangeEventTimer);
-  rateChangeEventTimer = setTimeout(
+  BackgroundTimer.cancel(rateChangeEventTimer);
+  rateChangeEventTimer = BackgroundTimer.schedule(
     flushRateChangeEvent,
     RATE_CHANGE_EVENT_ACCUMULATION_WINDOW,
   );
@@ -319,7 +326,7 @@ function handleSeekEvent(seek: Seek) {
     pendingSeekEvent &&
     pendingSeekEvent.playthroughId !== seek.playthroughId
   ) {
-    if (seekEventTimer) clearTimeout(seekEventTimer);
+    BackgroundTimer.cancel(seekEventTimer);
     flushSeekEvent();
   }
 
@@ -335,8 +342,11 @@ function handleSeekEvent(seek: Seek) {
     };
   }
 
-  if (seekEventTimer) clearTimeout(seekEventTimer);
-  seekEventTimer = setTimeout(flushSeekEvent, SEEK_EVENT_ACCUMULATION_WINDOW);
+  BackgroundTimer.cancel(seekEventTimer);
+  seekEventTimer = BackgroundTimer.schedule(
+    flushSeekEvent,
+    SEEK_EVENT_ACCUMULATION_WINDOW,
+  );
 }
 
 /**

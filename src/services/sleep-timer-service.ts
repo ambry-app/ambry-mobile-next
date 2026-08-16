@@ -14,6 +14,7 @@
  */
 
 import * as ActivityTracker from "activity-tracker";
+import * as BackgroundTimer from "background-timer";
 
 import {
   SLEEP_TIMER_FADE_OUT_TIME,
@@ -51,8 +52,14 @@ const log = logBase.extend("sleep-timer");
 
 const TIMER_CHECK_INTERVAL_MS = 1000;
 
-/** Interval that periodically checks if timer should trigger */
-let timerCheckInterval: NodeJS.Timeout | null = null;
+/**
+ * Interval that periodically checks if timer should trigger.
+ *
+ * A background timer, not `setInterval`: the whole point of a sleep timer is
+ * that it fires with the phone in a pocket, screen off, and JS timers stop
+ * ticking there. See `modules/background-timer`.
+ */
+let timerCheckInterval: BackgroundTimer.BackgroundTimerHandle | null = null;
 
 /** Subscription to activity state changes from native module */
 let activitySubscription: { remove: () => void } | null = null;
@@ -220,7 +227,10 @@ async function startTimer() {
   log.debug(`Starting timer, trigger at ${new Date(triggerTime)}`);
   setTriggerTime(triggerTime);
   await TrackPlayer.setVolume(1.0);
-  timerCheckInterval = setInterval(checkTimer, TIMER_CHECK_INTERVAL_MS);
+  timerCheckInterval = BackgroundTimer.scheduleInterval(
+    checkTimer,
+    TIMER_CHECK_INTERVAL_MS,
+  );
 }
 
 /**
@@ -229,10 +239,8 @@ async function startTimer() {
 async function stopTimer() {
   log.debug("Stopping timer");
 
-  if (timerCheckInterval) {
-    clearInterval(timerCheckInterval);
-    timerCheckInterval = null;
-  }
+  BackgroundTimer.cancel(timerCheckInterval);
+  timerCheckInterval = null;
 
   setTriggerTime(null);
   await TrackPlayer.setVolume(1.0);
@@ -436,10 +444,8 @@ function stopActivityTracking() {
  * Reset all module-level state for testing.
  */
 export function resetForTesting() {
-  if (timerCheckInterval) {
-    clearInterval(timerCheckInterval);
-    timerCheckInterval = null;
-  }
+  BackgroundTimer.cancel(timerCheckInterval);
+  timerCheckInterval = null;
 
   if (activitySubscription) {
     activitySubscription.remove();

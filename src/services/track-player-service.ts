@@ -8,6 +8,7 @@
  */
 
 import { Platform } from "react-native";
+import * as BackgroundTimer from "background-timer";
 
 import {
   getEffectivePosition,
@@ -54,7 +55,12 @@ const PROGRESS_UPDATE_INTERVAL = 1000;
 
 type PlayPauseDirection = "play" | "pause";
 
-let progressCheckInterval: NodeJS.Timeout | null = null;
+/**
+ * A background timer, not `setInterval`: playback carries on with the app off
+ * screen, where JS timers do not tick, and everything downstream reads the
+ * progress this writes. See `modules/background-timer`.
+ */
+let progressCheckInterval: BackgroundTimer.BackgroundTimerHandle | null = null;
 let awaitingIsPlayingMatch: PlayPauseDirection | null = null;
 
 let unsubscribeFunctions: (() => void)[] = [];
@@ -694,7 +700,7 @@ async function getProgressWaitForDuration(timeoutMs: number = 2000) {
     }
 
     // Wait before next poll
-    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    await BackgroundTimer.delay(pollIntervalMs);
   }
 
   // Timeout reached without getting a valid duration: the player's progress
@@ -712,7 +718,7 @@ async function getProgressWaitForDuration(timeoutMs: number = 2000) {
 function startTrackingProgress() {
   if (progressCheckInterval) return;
 
-  progressCheckInterval = setInterval(async () => {
+  progressCheckInterval = BackgroundTimer.scheduleInterval(async () => {
     const progress = await getAccurateProgress();
     useTrackPlayer.setState(buildNewProgress(progress));
   }, PROGRESS_UPDATE_INTERVAL);
@@ -724,7 +730,7 @@ function startTrackingProgress() {
 function stopTrackingProgress() {
   if (!progressCheckInterval) return;
 
-  clearInterval(progressCheckInterval);
+  BackgroundTimer.cancel(progressCheckInterval);
   progressCheckInterval = null;
 }
 
@@ -885,6 +891,11 @@ async function setPlayerOptions() {
  * This is needed because seekTo() can return before the seek actually completes,
  * especially for streaming content.
  *
+ * The poll sleeps on a background timer. A plain `setTimeout` here would never
+ * resolve with the app off screen, and this is awaited by every seek: a remote
+ * ±10s would leave `seek-service` holding `isApplying`, silently swallowing
+ * every further press until the app was reopened.
+ *
  * @param expectedPosition - The position we seeked to
  * @param timeoutMs - Maximum time to wait (default 500ms)
  * @param toleranceSeconds - How close is "close enough" (default 1 second)
@@ -908,7 +919,7 @@ async function waitForSeekToComplete(
     }
 
     // Wait before next poll
-    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    await BackgroundTimer.delay(pollIntervalMs);
   }
 
   // Timeout - return whatever position we have
@@ -1025,10 +1036,8 @@ useTrackPlayer.subscribe((state) => {
  */
 export function resetForTesting() {
   // Clear intervals
-  if (progressCheckInterval) {
-    clearInterval(progressCheckInterval);
-    progressCheckInterval = null;
-  }
+  BackgroundTimer.cancel(progressCheckInterval);
+  progressCheckInterval = null;
 
   // Reset module state
   awaitingIsPlayingMatch = null;
