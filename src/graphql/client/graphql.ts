@@ -65,7 +65,7 @@ export type AuthorPerson = Node & {
   updatedAt: Scalars['DateTime']['output'];
 };
 
-export type Book = Node & SearchResult & {
+export type Book = Node & {
   __typename?: 'Book';
   authors: Array<Author>;
   /** The ID of an object */
@@ -314,7 +314,7 @@ export type PageInfo = {
   startCursor?: Maybe<Scalars['String']['output']>;
 };
 
-export type Person = Node & SearchResult & {
+export type Person = Node & {
   __typename?: 'Person';
   authors: Array<Author>;
   description?: Maybe<Scalars['String']['output']>;
@@ -414,7 +414,6 @@ export type RootQueryType = {
   authorsChangedSince: Array<Author>;
   bookAuthorsChangedSince: Array<BookAuthor>;
   bookUniversesChangedSince: Array<BookUniverse>;
-  books?: Maybe<BookConnection>;
   booksChangedSince: Array<Book>;
   deletionsSince: Array<Deletion>;
   me?: Maybe<User>;
@@ -425,7 +424,6 @@ export type RootQueryType = {
   node?: Maybe<Node>;
   peopleChangedSince: Array<Person>;
   recordingGroupsChangedSince: Array<RecordingGroup>;
-  search?: Maybe<SearchResultConnection>;
   seriesBooksChangedSince: Array<SeriesBook>;
   seriesChangedSince: Array<Series>;
   serverTime: Scalars['DateTime']['output'];
@@ -450,14 +448,6 @@ export type RootQueryTypeBookAuthorsChangedSinceArgs = {
 
 export type RootQueryTypeBookUniversesChangedSinceArgs = {
   since?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
-
-export type RootQueryTypeBooksArgs = {
-  after?: InputMaybe<Scalars['String']['input']>;
-  before?: InputMaybe<Scalars['String']['input']>;
-  first?: InputMaybe<Scalars['Int']['input']>;
-  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -506,15 +496,6 @@ export type RootQueryTypeRecordingGroupsChangedSinceArgs = {
 };
 
 
-export type RootQueryTypeSearchArgs = {
-  after?: InputMaybe<Scalars['String']['input']>;
-  before?: InputMaybe<Scalars['String']['input']>;
-  first?: InputMaybe<Scalars['Int']['input']>;
-  last?: InputMaybe<Scalars['Int']['input']>;
-  query: Scalars['String']['input'];
-};
-
-
 export type RootQueryTypeSeriesBooksChangedSinceArgs = {
   since?: InputMaybe<Scalars['DateTime']['input']>;
 };
@@ -529,22 +510,6 @@ export type RootQueryTypeUniversesChangedSinceArgs = {
   since?: InputMaybe<Scalars['DateTime']['input']>;
 };
 
-export type SearchResult = {
-  id: Scalars['ID']['output'];
-};
-
-export type SearchResultConnection = {
-  __typename?: 'SearchResultConnection';
-  edges?: Maybe<Array<Maybe<SearchResultEdge>>>;
-  pageInfo: PageInfo;
-};
-
-export type SearchResultEdge = {
-  __typename?: 'SearchResultEdge';
-  cursor?: Maybe<Scalars['String']['output']>;
-  node?: Maybe<SearchResult>;
-};
-
 /** How accurately a player can seek within a track */
 export enum SeekAccuracy {
   /** The file carries no seek index (e.g. VBR mp3 with no Xing header); positions may drift */
@@ -553,7 +518,7 @@ export enum SeekAccuracy {
   Exact = 'EXACT'
 }
 
-export type Series = Node & SearchResult & {
+export type Series = Node & {
   __typename?: 'Series';
   /** The ID of an object */
   id: Scalars['ID']['output'];
