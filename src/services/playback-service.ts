@@ -128,9 +128,27 @@ export const PlaybackService = async function () {
   //   log.debug("RemotePlayId", args);
   // });
 
-  // TrackPlayer.addEventListener(Event.RemotePlayPause, () => {
-  //   log.debug("RemotePlayPause");
-  // });
+  // A headset's play/pause key arrives here, and only here. RNTP maps
+  // KEYCODE_MEDIA_PLAY_PAUSE straight to this event and reports the key
+  // handled (`MusicService.onMediaKeyEvent`), so media3 never gets to resolve
+  // the toggle against playback state into a play or a pause of its own.
+  // Without this listener the key does nothing at all - and does it silently,
+  // because the notification's button takes the other route, through the
+  // media session, and arrives as RemotePlay/RemotePause.
+  //
+  // The toggle is resolved here instead, against the same isPlaying the
+  // notification's own button is drawn from.
+  TrackPlayer.addEventListener(Event.RemotePlayPause, async () => {
+    log.debug("RemotePlayPause");
+
+    const { playing } = Player.isPlaying();
+
+    if (playing) {
+      await Player.pause(PlayPauseSource.REMOTE, PAUSE_REWIND_SECONDS);
+    } else {
+      await Player.play(PlayPauseSource.REMOTE);
+    }
+  });
 
   // TrackPlayer.addEventListener(Event.RemotePlaySearch, (args) => {
   //   log.debug("RemotePlaySearch", args);
