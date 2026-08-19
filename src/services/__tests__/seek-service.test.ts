@@ -23,7 +23,11 @@ import {
 } from "@/stores/track-player";
 import { setupTestDatabase } from "@test/db-test-utils";
 import { createMedia, DEFAULT_TEST_SESSION } from "@test/factories";
-import { resetTrackPlayerFake, trackPlayerFake } from "@test/jest-setup";
+import {
+  mockTrackPlayerSeekTo,
+  resetTrackPlayerFake,
+  trackPlayerFake,
+} from "@test/jest-setup";
 
 // Set up fresh test DB
 const { getDb } = setupTestDatabase();
@@ -284,6 +288,61 @@ describe("seek-service", () => {
 
       // First seek should have been applied
       expect(trackPlayerFake.getState().position).toBe(150);
+    });
+  });
+
+  describe("a seek that fails", () => {
+    // `isApplying` gates every entry point here, and it used to be cleared
+    // only on the success path - so one rejected seek shut the whole module
+    // for the life of the process.
+    const failOnce = () =>
+      mockTrackPlayerSeekTo.mockRejectedValueOnce(
+        new Error("player lost its track"),
+      );
+
+    it("releases the lock, so later seeks still apply", async () => {
+      await setupLoadedPlaythrough({ position: 100 });
+      failOnce();
+
+      await seekService.seekTo(150, SeekSource.SCRUBBER);
+      await jest.runAllTimersAsync();
+
+      // The failed seek did not move the player
+      expect(trackPlayerFake.getState().position).toBe(100);
+
+      // ...and the next one is not swallowed
+      await seekService.seekTo(200, SeekSource.SCRUBBER);
+      await jest.runAllTimersAsync();
+
+      expect(trackPlayerFake.getState().position).toBe(200);
+    });
+
+    it("clears the seeking UI instead of leaving the scrubber mid-drag", async () => {
+      await setupLoadedPlaythrough({ position: 100 });
+      failOnce();
+
+      await seekService.seekTo(150, SeekSource.SCRUBBER);
+      expect(useSeekUIState.getState().userIsSeeking).toBe(true);
+
+      await jest.runAllTimersAsync();
+
+      expect(useSeekUIState.getState().userIsSeeking).toBe(false);
+      expect(useSeekUIState.getState().seekPosition).toBeNull();
+    });
+
+    it("does not swallow a relative seek either", async () => {
+      await setupLoadedPlaythrough({ position: 100 });
+      failOnce();
+
+      await seekService.seekRelative(10, SeekSource.BUTTON);
+      await jest.runAllTimersAsync();
+
+      expect(trackPlayerFake.getState().position).toBe(100);
+
+      await seekService.seekRelative(10, SeekSource.BUTTON);
+      await jest.runAllTimersAsync();
+
+      expect(trackPlayerFake.getState().position).toBe(110);
     });
   });
 

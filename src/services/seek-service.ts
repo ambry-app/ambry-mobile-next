@@ -134,12 +134,23 @@ async function applyAccumulatedSeek(source: SeekSourceType) {
 
   log.debug(`Applying seek to ${positionToApply.toFixed(1)}`);
 
-  await Player.seekTo(positionToApply, source);
+  try {
+    await Player.seekTo(positionToApply, source);
+  } catch (error) {
+    // The lock and the seeking UI both outlive a failed seek without this.
+    // `isApplying` gates every entry point in this module, so a single
+    // rejected seek - a player that lost its track, a stream that cannot be
+    // reached - swallows every later seek for the life of the process, with
+    // the scrubber left mid-drag. Nothing upstream can catch it either: this
+    // runs from a background timer whose callback returns void, so the
+    // rejection surfaces as an unhandled one and the lock stays shut.
+    log.error("Seek failed, releasing the seek lock", error);
+  } finally {
+    // Clear UI seeking state
+    clearSeekUI();
 
-  // Clear UI seeking state
-  clearSeekUI();
-
-  isApplying = false;
+    isApplying = false;
+  }
 }
 
 /**
