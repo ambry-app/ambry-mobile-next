@@ -4,13 +4,10 @@ schema {
 }
 
 type Author implements Node {
-  authoredBooks(after: String, before: String, first: Int, last: Int): BookConnection
   """The ID of an object"""
   id: ID!
   insertedAt: DateTime!
   name: String!
-  people: [Person!]!
-  person: Person! @deprecated(reason: "use `people` instead; an author can be linked to multiple people")
   updatedAt: DateTime!
 }
 
@@ -23,17 +20,13 @@ type AuthorPerson implements Node {
   updatedAt: DateTime!
 }
 
-type Book implements Node & SearchResult {
-  authors: [Author!]!
+type Book implements Node {
   """The ID of an object"""
   id: ID!
   insertedAt: DateTime!
-  media: [Media!]!
   published: Date!
   publishedFormat: DateFormat!
-  seriesBooks: [SeriesBook!]!
   title: String!
-  universes: [Universe!]!
   updatedAt: DateTime!
 }
 
@@ -45,16 +38,6 @@ type BookAuthor implements Node {
   insertedAt: DateTime!
   position: Int!
   updatedAt: DateTime!
-}
-
-type BookConnection {
-  edges: [BookEdge]
-  pageInfo: PageInfo!
-}
-
-type BookEdge {
-  cursor: String
-  node: Book
 }
 
 type BookUniverse implements Node {
@@ -172,7 +155,6 @@ type Media implements Node {
   insertedAt: DateTime!
   mp4Path: String
   mpdPath: String
-  narrators: [Narrator!]!
   notes: String
   """
   For multi-part recordings: this recording's position in its part set; the set's total lives on the recording group
@@ -189,21 +171,7 @@ type Media implements Node {
   Display-title override for this recording (translated/regional/retail title); null means the book's title applies
   """
   title: String
-  """
-  Direct-play audio files, in playback order; empty for media that only has the legacy packaged artifacts below
-  """
-  tracks: [MediaTrack!]!
   updatedAt: DateTime!
-}
-
-type MediaConnection {
-  edges: [MediaEdge]
-  pageInfo: PageInfo!
-}
-
-type MediaEdge {
-  cursor: String
-  node: Media
 }
 
 type MediaNarrator implements Node {
@@ -265,7 +233,6 @@ type Narrator implements Node {
   id: ID!
   insertedAt: DateTime!
   name: String!
-  narratedMedia(after: String, before: String, first: Int, last: Int): MediaConnection
   person: Person!
   updatedAt: DateTime!
 }
@@ -275,26 +242,13 @@ interface Node {
   id: ID!
 }
 
-type PageInfo {
-  """When paginating forwards, the cursor to continue."""
-  endCursor: String
-  """When paginating forwards, are there more items?"""
-  hasNextPage: Boolean!
-  """When paginating backwards, are there more items?"""
-  hasPreviousPage: Boolean!
-  """When paginating backwards, the cursor to continue."""
-  startCursor: String
-}
-
-type Person implements Node & SearchResult {
-  authors: [Author!]!
+type Person implements Node {
   description: String
   """The ID of an object"""
   id: ID!
   imagePath: String @deprecated(reason: "use `thumbnails` instead")
   insertedAt: DateTime!
   name: String!
-  narrators: [Narrator!]!
   thumbnails: Thumbnails
   updatedAt: DateTime!
 }
@@ -344,7 +298,6 @@ type RecordingGroup implements Node {
   """The ID of an object"""
   id: ID!
   insertedAt: DateTime!
-  media: [Media!]!
   """This set's name, shown to readers only when `show_label` says so"""
   name: String!
   """
@@ -378,7 +331,6 @@ type RootQueryType {
   authorsChangedSince(since: DateTime): [Author!]!
   bookAuthorsChangedSince(since: DateTime): [BookAuthor!]!
   bookUniversesChangedSince(since: DateTime): [BookUniverse!]!
-  books(after: String, before: String, first: Int, last: Int): BookConnection
   booksChangedSince(since: DateTime): [Book!]!
   deletionsSince(since: DateTime): [Deletion!]!
   me: User
@@ -386,38 +338,12 @@ type RootQueryType {
   mediaNarratorsChangedSince(since: DateTime): [MediaNarrator!]!
   mediaTracksChangedSince(since: DateTime): [MediaTrack!]!
   narratorsChangedSince(since: DateTime): [Narrator!]!
-  node(
-    """The ID of an object."""
-    id: ID!
-  ): Node
   peopleChangedSince(since: DateTime): [Person!]!
   recordingGroupsChangedSince(since: DateTime): [RecordingGroup!]!
-  search(
-    after: String
-    before: String
-    first: Int
-    last: Int
-    """Must be at least 3 characters"""
-    query: String!
-  ): SearchResultConnection
   seriesBooksChangedSince(since: DateTime): [SeriesBook!]!
   seriesChangedSince(since: DateTime): [Series!]!
   serverTime: DateTime!
   universesChangedSince(since: DateTime): [Universe!]!
-}
-
-interface SearchResult {
-  id: ID!
-}
-
-type SearchResultConnection {
-  edges: [SearchResultEdge]
-  pageInfo: PageInfo!
-}
-
-type SearchResultEdge {
-  cursor: String
-  node: SearchResult
 }
 
 """How accurately a player can seek within a track"""
@@ -430,12 +356,11 @@ enum SeekAccuracy {
   EXACT
 }
 
-type Series implements Node & SearchResult {
+type Series implements Node {
   """The ID of an object"""
   id: ID!
   insertedAt: DateTime!
   name: String!
-  seriesBooks(after: String, before: String, first: Int, last: Int): SeriesBookConnection
   updatedAt: DateTime!
 }
 
@@ -448,16 +373,6 @@ type SeriesBook implements Node {
   position: Int!
   series: Series!
   updatedAt: DateTime!
-}
-
-type SeriesBookConnection {
-  edges: [SeriesBookEdge]
-  pageInfo: PageInfo!
-}
-
-type SeriesBookEdge {
-  cursor: String
-  node: SeriesBook
 }
 
 type SupplementalFile {
@@ -489,7 +404,6 @@ type Thumbnails {
 }
 
 type Universe implements Node {
-  books: [Book!]!
   """The ID of an object"""
   id: ID!
   insertedAt: DateTime!

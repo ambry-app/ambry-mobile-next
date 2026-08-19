@@ -36,23 +36,11 @@ export type Scalars = {
 
 export type Author = Node & {
   __typename?: 'Author';
-  authoredBooks?: Maybe<BookConnection>;
   /** The ID of an object */
   id: Scalars['ID']['output'];
   insertedAt: Scalars['DateTime']['output'];
   name: Scalars['String']['output'];
-  people: Array<Person>;
-  /** @deprecated use `people` instead; an author can be linked to multiple people */
-  person: Person;
   updatedAt: Scalars['DateTime']['output'];
-};
-
-
-export type AuthorAuthoredBooksArgs = {
-  after?: InputMaybe<Scalars['String']['input']>;
-  before?: InputMaybe<Scalars['String']['input']>;
-  first?: InputMaybe<Scalars['Int']['input']>;
-  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type AuthorPerson = Node & {
@@ -65,18 +53,14 @@ export type AuthorPerson = Node & {
   updatedAt: Scalars['DateTime']['output'];
 };
 
-export type Book = Node & SearchResult & {
+export type Book = Node & {
   __typename?: 'Book';
-  authors: Array<Author>;
   /** The ID of an object */
   id: Scalars['ID']['output'];
   insertedAt: Scalars['DateTime']['output'];
-  media: Array<Media>;
   published: Scalars['Date']['output'];
   publishedFormat: DateFormat;
-  seriesBooks: Array<SeriesBook>;
   title: Scalars['String']['output'];
-  universes: Array<Universe>;
   updatedAt: Scalars['DateTime']['output'];
 };
 
@@ -89,18 +73,6 @@ export type BookAuthor = Node & {
   insertedAt: Scalars['DateTime']['output'];
   position: Scalars['Int']['output'];
   updatedAt: Scalars['DateTime']['output'];
-};
-
-export type BookConnection = {
-  __typename?: 'BookConnection';
-  edges?: Maybe<Array<Maybe<BookEdge>>>;
-  pageInfo: PageInfo;
-};
-
-export type BookEdge = {
-  __typename?: 'BookEdge';
-  cursor?: Maybe<Scalars['String']['output']>;
-  node?: Maybe<Book>;
 };
 
 export type BookUniverse = Node & {
@@ -204,7 +176,6 @@ export type Media = Node & {
   insertedAt: Scalars['DateTime']['output'];
   mp4Path?: Maybe<Scalars['String']['output']>;
   mpdPath?: Maybe<Scalars['String']['output']>;
-  narrators: Array<Narrator>;
   notes?: Maybe<Scalars['String']['output']>;
   /** For multi-part recordings: this recording's position in its part set; the set's total lives on the recording group */
   partNumber?: Maybe<Scalars['Int']['output']>;
@@ -217,21 +188,7 @@ export type Media = Node & {
   thumbnails?: Maybe<Thumbnails>;
   /** Display-title override for this recording (translated/regional/retail title); null means the book's title applies */
   title?: Maybe<Scalars['String']['output']>;
-  /** Direct-play audio files, in playback order; empty for media that only has the legacy packaged artifacts below */
-  tracks: Array<MediaTrack>;
   updatedAt: Scalars['DateTime']['output'];
-};
-
-export type MediaConnection = {
-  __typename?: 'MediaConnection';
-  edges?: Maybe<Array<Maybe<MediaEdge>>>;
-  pageInfo: PageInfo;
-};
-
-export type MediaEdge = {
-  __typename?: 'MediaEdge';
-  cursor?: Maybe<Scalars['String']['output']>;
-  node?: Maybe<Media>;
 };
 
 export type MediaNarrator = Node & {
@@ -284,17 +241,8 @@ export type Narrator = Node & {
   id: Scalars['ID']['output'];
   insertedAt: Scalars['DateTime']['output'];
   name: Scalars['String']['output'];
-  narratedMedia?: Maybe<MediaConnection>;
   person: Person;
   updatedAt: Scalars['DateTime']['output'];
-};
-
-
-export type NarratorNarratedMediaArgs = {
-  after?: InputMaybe<Scalars['String']['input']>;
-  before?: InputMaybe<Scalars['String']['input']>;
-  first?: InputMaybe<Scalars['Int']['input']>;
-  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type Node = {
@@ -302,21 +250,8 @@ export type Node = {
   id: Scalars['ID']['output'];
 };
 
-export type PageInfo = {
-  __typename?: 'PageInfo';
-  /** When paginating forwards, the cursor to continue. */
-  endCursor?: Maybe<Scalars['String']['output']>;
-  /** When paginating forwards, are there more items? */
-  hasNextPage: Scalars['Boolean']['output'];
-  /** When paginating backwards, are there more items? */
-  hasPreviousPage: Scalars['Boolean']['output'];
-  /** When paginating backwards, the cursor to continue. */
-  startCursor?: Maybe<Scalars['String']['output']>;
-};
-
-export type Person = Node & SearchResult & {
+export type Person = Node & {
   __typename?: 'Person';
-  authors: Array<Author>;
   description?: Maybe<Scalars['String']['output']>;
   /** The ID of an object */
   id: Scalars['ID']['output'];
@@ -324,7 +259,6 @@ export type Person = Node & SearchResult & {
   imagePath?: Maybe<Scalars['String']['output']>;
   insertedAt: Scalars['DateTime']['output'];
   name: Scalars['String']['output'];
-  narrators: Array<Narrator>;
   thumbnails?: Maybe<Thumbnails>;
   updatedAt: Scalars['DateTime']['output'];
 };
@@ -376,7 +310,6 @@ export type RecordingGroup = Node & {
   /** The ID of an object */
   id: Scalars['ID']['output'];
   insertedAt: Scalars['DateTime']['output'];
-  media: Array<Media>;
   /** This set's name, shown to readers only when `show_label` says so */
   name: Scalars['String']['output'];
   /** Wording for one release in this set; null means "part" */
@@ -414,7 +347,6 @@ export type RootQueryType = {
   authorsChangedSince: Array<Author>;
   bookAuthorsChangedSince: Array<BookAuthor>;
   bookUniversesChangedSince: Array<BookUniverse>;
-  books?: Maybe<BookConnection>;
   booksChangedSince: Array<Book>;
   deletionsSince: Array<Deletion>;
   me?: Maybe<User>;
@@ -422,10 +354,8 @@ export type RootQueryType = {
   mediaNarratorsChangedSince: Array<MediaNarrator>;
   mediaTracksChangedSince: Array<MediaTrack>;
   narratorsChangedSince: Array<Narrator>;
-  node?: Maybe<Node>;
   peopleChangedSince: Array<Person>;
   recordingGroupsChangedSince: Array<RecordingGroup>;
-  search?: Maybe<SearchResultConnection>;
   seriesBooksChangedSince: Array<SeriesBook>;
   seriesChangedSince: Array<Series>;
   serverTime: Scalars['DateTime']['output'];
@@ -450,14 +380,6 @@ export type RootQueryTypeBookAuthorsChangedSinceArgs = {
 
 export type RootQueryTypeBookUniversesChangedSinceArgs = {
   since?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
-
-export type RootQueryTypeBooksArgs = {
-  after?: InputMaybe<Scalars['String']['input']>;
-  before?: InputMaybe<Scalars['String']['input']>;
-  first?: InputMaybe<Scalars['Int']['input']>;
-  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -491,11 +413,6 @@ export type RootQueryTypeNarratorsChangedSinceArgs = {
 };
 
 
-export type RootQueryTypeNodeArgs = {
-  id: Scalars['ID']['input'];
-};
-
-
 export type RootQueryTypePeopleChangedSinceArgs = {
   since?: InputMaybe<Scalars['DateTime']['input']>;
 };
@@ -503,15 +420,6 @@ export type RootQueryTypePeopleChangedSinceArgs = {
 
 export type RootQueryTypeRecordingGroupsChangedSinceArgs = {
   since?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
-
-export type RootQueryTypeSearchArgs = {
-  after?: InputMaybe<Scalars['String']['input']>;
-  before?: InputMaybe<Scalars['String']['input']>;
-  first?: InputMaybe<Scalars['Int']['input']>;
-  last?: InputMaybe<Scalars['Int']['input']>;
-  query: Scalars['String']['input'];
 };
 
 
@@ -529,22 +437,6 @@ export type RootQueryTypeUniversesChangedSinceArgs = {
   since?: InputMaybe<Scalars['DateTime']['input']>;
 };
 
-export type SearchResult = {
-  id: Scalars['ID']['output'];
-};
-
-export type SearchResultConnection = {
-  __typename?: 'SearchResultConnection';
-  edges?: Maybe<Array<Maybe<SearchResultEdge>>>;
-  pageInfo: PageInfo;
-};
-
-export type SearchResultEdge = {
-  __typename?: 'SearchResultEdge';
-  cursor?: Maybe<Scalars['String']['output']>;
-  node?: Maybe<SearchResult>;
-};
-
 /** How accurately a player can seek within a track */
 export enum SeekAccuracy {
   /** The file carries no seek index (e.g. VBR mp3 with no Xing header); positions may drift */
@@ -553,22 +445,13 @@ export enum SeekAccuracy {
   Exact = 'EXACT'
 }
 
-export type Series = Node & SearchResult & {
+export type Series = Node & {
   __typename?: 'Series';
   /** The ID of an object */
   id: Scalars['ID']['output'];
   insertedAt: Scalars['DateTime']['output'];
   name: Scalars['String']['output'];
-  seriesBooks?: Maybe<SeriesBookConnection>;
   updatedAt: Scalars['DateTime']['output'];
-};
-
-
-export type SeriesSeriesBooksArgs = {
-  after?: InputMaybe<Scalars['String']['input']>;
-  before?: InputMaybe<Scalars['String']['input']>;
-  first?: InputMaybe<Scalars['Int']['input']>;
-  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type SeriesBook = Node & {
@@ -581,18 +464,6 @@ export type SeriesBook = Node & {
   position: Scalars['Int']['output'];
   series: Series;
   updatedAt: Scalars['DateTime']['output'];
-};
-
-export type SeriesBookConnection = {
-  __typename?: 'SeriesBookConnection';
-  edges?: Maybe<Array<Maybe<SeriesBookEdge>>>;
-  pageInfo: PageInfo;
-};
-
-export type SeriesBookEdge = {
-  __typename?: 'SeriesBookEdge';
-  cursor?: Maybe<Scalars['String']['output']>;
-  node?: Maybe<SeriesBook>;
 };
 
 export type SupplementalFile = {
@@ -628,7 +499,6 @@ export type Thumbnails = {
 
 export type Universe = Node & {
   __typename?: 'Universe';
-  books: Array<Book>;
   /** The ID of an object */
   id: Scalars['ID']['output'];
   insertedAt: Scalars['DateTime']['output'];
