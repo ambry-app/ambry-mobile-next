@@ -13,10 +13,10 @@
 import { getPlaythroughWithMedia } from "@/db/playthroughs";
 import { PlaybackService } from "@/services/playback-service";
 import * as Player from "@/services/track-player-service";
+import { resetForTesting as resetTrackPlayerService } from "@/services/track-player-service";
 import {
   PlayPauseSource,
   PlayPauseType,
-  resetForTesting as resetTrackPlayerStore,
   useTrackPlayer,
 } from "@/stores/track-player";
 import { Event } from "@/types/track-player";
@@ -28,9 +28,8 @@ import {
 } from "@test/factories";
 import {
   mockTrackPlayerAddEventListener,
-  mockTrackPlayerPause,
-  mockTrackPlayerPlay,
   resetTrackPlayerFake,
+  trackPlayerFake,
 } from "@test/jest-setup";
 
 // Set up fresh test DB
@@ -39,8 +38,17 @@ const { getDb } = setupTestDatabase();
 const session = DEFAULT_TEST_SESSION;
 
 /**
+ * The native mock emits its events on a later tick, as the real module does.
+ */
+function flushNativeEvents() {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
+/**
  * Register the service and return the handler it attached for an event, so a
- * test can fire that event the way TrackPlayer would.
+ * test can fire it the way TrackPlayer would. There is no public way to emit
+ * an arbitrary event through the fake, and these handlers are the contract
+ * this file is about.
  */
 async function handlerFor(event: Event) {
   await PlaybackService();
@@ -59,8 +67,8 @@ async function handlerFor(event: Event) {
 }
 
 /**
- * Create a playthrough and load it, so the player is in the state it would be
- * in with a book open.
+ * Create a playthrough and load it through the real service, leaving the
+ * player in the state it would be in with a book open and paused.
  */
 async function loadPlaythrough(position: number) {
   const db = getDb();
@@ -84,36 +92,40 @@ async function loadPlaythrough(position: number) {
   return withMedia;
 }
 
-function setPlaying(playing: boolean) {
-  useTrackPlayer.setState({
-    isPlaying: { playing, bufferingDuringPlay: false },
-  });
-}
-
 describe("playback-service", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     resetTrackPlayerFake();
-    resetTrackPlayerStore();
+    resetTrackPlayerService();
+
+    // Registers the listeners that keep isPlaying in step with the player, so
+    // the toggle below reads the state the real app would read.
+    await Player.initialize();
+  });
+
+  afterEach(() => {
+    resetTrackPlayerService();
   });
 
   describe("RemotePlayPause", () => {
     // A headset's play/pause key arrives as this event and nothing else: RNTP
     // maps KEYCODE_MEDIA_PLAY_PAUSE to it and reports the key handled, so
     // media3 never resolves the toggle into a play or a pause of its own.
-    it("is handled at all", async () => {
+    it("is subscribed to at all", async () => {
       await expect(handlerFor(Event.RemotePlayPause)).resolves.toBeDefined();
     });
 
     it("pauses when playing", async () => {
       const handler = await handlerFor(Event.RemotePlayPause);
       const playthrough = await loadPlaythrough(50);
-      setPlaying(true);
+
+      await Player.play(PlayPauseSource.USER);
+      await flushNativeEvents();
+      expect(useTrackPlayer.getState().isPlaying.playing).toBe(true);
 
       await handler();
 
-      expect(mockTrackPlayerPause).toHaveBeenCalled();
-      expect(mockTrackPlayerPlay).not.toHaveBeenCalled();
+      expect(trackPlayerFake.getState().playbackState).toBe("paused");
 
       const { lastPlayPause } = useTrackPlayer.getState();
       expect(lastPlayPause?.type).toBe(PlayPauseType.PAUSE);
@@ -124,12 +136,12 @@ describe("playback-service", () => {
     it("plays when paused", async () => {
       const handler = await handlerFor(Event.RemotePlayPause);
       await loadPlaythrough(50);
-      setPlaying(false);
+
+      expect(useTrackPlayer.getState().isPlaying.playing).toBe(false);
 
       await handler();
 
-      expect(mockTrackPlayerPlay).toHaveBeenCalled();
-      expect(mockTrackPlayerPause).not.toHaveBeenCalled();
+      expect(trackPlayerFake.getState().playbackState).toBe("playing");
 
       const { lastPlayPause } = useTrackPlayer.getState();
       expect(lastPlayPause?.type).toBe(PlayPauseType.PLAY);
@@ -139,7 +151,9 @@ describe("playback-service", () => {
     it("rewinds on pause, like every other pause", async () => {
       const handler = await handlerFor(Event.RemotePlayPause);
       await loadPlaythrough(100);
-      setPlaying(true);
+
+      await Player.play(PlayPauseSource.USER);
+      await flushNativeEvents();
 
       await handler();
 
@@ -156,7 +170,10 @@ describe("playback-service", () => {
 
       await handler();
 
-      expect(mockTrackPlayerPlay).toHaveBeenCalled();
+      expect(trackPlayerFake.getState().playbackState).toBe("playing");
+      expect(useTrackPlayer.getState().lastPlayPause?.type).toBe(
+        PlayPauseType.PLAY,
+      );
       expect(useTrackPlayer.getState().lastPlayPause?.source).toBe(
         PlayPauseSource.REMOTE,
       );
@@ -166,9 +183,15 @@ describe("playback-service", () => {
       const handler = await handlerFor(Event.RemotePause);
       await loadPlaythrough(50);
 
+      await Player.play(PlayPauseSource.USER);
+      await flushNativeEvents();
+
       await handler();
 
-      expect(mockTrackPlayerPause).toHaveBeenCalled();
+      expect(trackPlayerFake.getState().playbackState).toBe("paused");
+      expect(useTrackPlayer.getState().lastPlayPause?.type).toBe(
+        PlayPauseType.PAUSE,
+      );
       expect(useTrackPlayer.getState().lastPlayPause?.source).toBe(
         PlayPauseSource.REMOTE,
       );
