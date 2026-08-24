@@ -118,6 +118,9 @@ jobs:
           curl -fsSL https://get.maestro.mobile.dev | bash
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
       - name: Boot smoke
+        env:
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: "240000"
+          MAESTRO_CLI_NO_ANALYTICS: "1"
         run: |
           UDID=$(xcrun simctl list devices available --json \
             | jq -r '[.devices[] | .[] | select(.name | test("^iPhone"))][0].udid')
