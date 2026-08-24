@@ -128,7 +128,7 @@ jobs:
           xcrun simctl bootstatus "$UDID" -b
           APP=$(find ios/DerivedData/Build/Products/Release-iphonesimulator -maxdepth 1 -name '*.app' | head -n 1)
           xcrun simctl install "$UDID" "$APP"
-          maestro test .maestro/boot-smoke.yaml || {
+          maestro --udid "$UDID" test .maestro/boot-smoke.yaml || {
             xcrun simctl spawn "$UDID" log show --last 10m > simulator-log.txt 2>&1 || true
             exit 1
           }
