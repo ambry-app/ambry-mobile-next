@@ -60,6 +60,9 @@ jobs:
 
     env:
       SENTRY_DISABLE_AUTO_UPLOAD: "true"
+      USE_CCACHE: "1"
+      CCACHE_DIR: /Users/runner/.ccache
+      CCACHE_MAXSIZE: 1.5G
 
     steps:
       - name: Checkout
@@ -78,6 +81,14 @@ jobs:
           path: ~/Library/Caches/CocoaPods
           key: pods-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
           restore-keys: pods-${{ runner.os }}-
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ runner.os }}-${{ github.sha }}
+          restore-keys: ccache-${{ runner.os }}-
+      - name: Install ccache
+        run: brew install ccache
       - name: Install dependencies
         run: npm ci
       - name: Run prebuild
@@ -153,6 +164,26 @@ jobs:
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+      - name: Cache AVD
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-34-pixel6
+      - name: Create AVD snapshot
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "Generated AVD snapshot for caching"
       - name: Boot smoke
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -160,6 +191,8 @@ jobs:
           arch: x86_64
           target: google_apis
           profile: pixel_6
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: |
             adb install android/app/build/outputs/apk/release/app-release.apk
