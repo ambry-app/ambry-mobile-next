@@ -74,6 +74,7 @@ export default {
         },
       ],
       "react-native-edge-to-edge",
+      "./modules/audio-player/plugin/remove-rntp-service",
       "expo-build-properties",
       "expo-sqlite",
       "expo-background-task",

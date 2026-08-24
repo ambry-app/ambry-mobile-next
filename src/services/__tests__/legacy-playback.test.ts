@@ -126,8 +126,9 @@ describe("legacy playback", () => {
 
     const track = loadedTrack();
     expect(track.url).toBe("file:///test-document-directory/media-1.mp4");
-    // local files are handed over without a type, as they always have been
-    expect(track.type).toBeUndefined();
+    // local files let the player sniff the container, as they always have -
+    // the native queue spells that "default" rather than leaving type absent
+    expect(track.type).toBe("default");
     expect(track.headers).toBeUndefined();
   });
 

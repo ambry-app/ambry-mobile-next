@@ -5,9 +5,13 @@
  * jest-setup.ts). The real store, database and service logic runs.
  *
  * These cover the remote-control handlers, which are the app's only route from
- * a headset or notification button to the player: RNTP's media session does
- * not touch the underlying player itself, it emits an event and waits for us
- * to issue the command.
+ * a headset or notification button to the player: the native module delivers
+ * every transport command un-acted and waits for us to issue the real one.
+ *
+ * There is no play/pause *toggle* here any more. RNTP swallowed the headset's
+ * KEYCODE_MEDIA_PLAY_PAUSE and made JS resolve it (the old RemotePlayPause
+ * handler); media3's session resolves the toggle against `playWhenReady`
+ * itself, so a headset key arrives as the play or the pause it meant.
  */
 
 import { getPlaythroughWithMedia } from "@/db/playthroughs";
@@ -19,7 +23,6 @@ import {
   PlayPauseType,
   useTrackPlayer,
 } from "@/stores/track-player";
-import { Event } from "@/types/track-player";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createMedia,
@@ -27,7 +30,7 @@ import {
   DEFAULT_TEST_SESSION,
 } from "@test/factories";
 import {
-  mockTrackPlayerAddEventListener,
+  audioPlayerFake,
   resetTrackPlayerFake,
   trackPlayerFake,
 } from "@test/jest-setup";
@@ -45,25 +48,17 @@ function flushNativeEvents() {
 }
 
 /**
- * Register the service and return the handler it attached for an event, so a
- * test can fire it the way TrackPlayer would. There is no public way to emit
- * an arbitrary event through the fake, and these handlers are the contract
- * this file is about.
+ * Deliver a remote command the way the native module would: un-acted, as an
+ * event. The handler chain it triggers is async, and the fake's own state
+ * emissions land on a later tick, so flush twice before asserting.
  */
-async function handlerFor(event: Event) {
-  await PlaybackService();
-
-  const registration = mockTrackPlayerAddEventListener.mock.calls.find(
-    ([registered]) => registered === event,
-  );
-
-  if (!registration) {
-    throw new Error(`PlaybackService registered no handler for ${event}`);
-  }
-
-  // The mock types handlers as taking a payload and returning void. These take
-  // no payload and are async, and the tests need to await what they do.
-  return registration[1] as unknown as () => Promise<void>;
+async function emitRemote(command: {
+  command: string;
+  [key: string]: unknown;
+}) {
+  audioPlayerFake.emitRemoteCommand(command);
+  await flushNativeEvents();
+  await flushNativeEvents();
 }
 
 /**
@@ -101,74 +96,22 @@ describe("playback-service", () => {
     // Registers the listeners that keep isPlaying in step with the player, so
     // the toggle below reads the state the real app would read.
     await Player.initialize();
+
+    // Registers the remote-command handlers under test, the way entry.js does.
+    await PlaybackService();
   });
 
   afterEach(() => {
     resetTrackPlayerService();
   });
 
-  describe("RemotePlayPause", () => {
-    // A headset's play/pause key arrives as this event and nothing else: RNTP
-    // maps KEYCODE_MEDIA_PLAY_PAUSE to it and reports the key handled, so
-    // media3 never resolves the toggle into a play or a pause of its own.
-    it("is subscribed to at all", async () => {
-      await expect(handlerFor(Event.RemotePlayPause)).resolves.toBeDefined();
-    });
-
-    it("pauses when playing", async () => {
-      const handler = await handlerFor(Event.RemotePlayPause);
-      const playthrough = await loadPlaythrough(50);
-
-      await Player.play(PlayPauseSource.USER);
-      await flushNativeEvents();
-      expect(useTrackPlayer.getState().isPlaying.playing).toBe(true);
-
-      await handler();
-
-      expect(trackPlayerFake.getState().playbackState).toBe("paused");
-
-      const { lastPlayPause } = useTrackPlayer.getState();
-      expect(lastPlayPause?.type).toBe(PlayPauseType.PAUSE);
-      expect(lastPlayPause?.source).toBe(PlayPauseSource.REMOTE);
-      expect(lastPlayPause?.playthroughId).toBe(playthrough.id);
-    });
-
-    it("plays when paused", async () => {
-      const handler = await handlerFor(Event.RemotePlayPause);
+  describe("remote play and pause", () => {
+    it("plays on a remote play", async () => {
       await loadPlaythrough(50);
 
       expect(useTrackPlayer.getState().isPlaying.playing).toBe(false);
 
-      await handler();
-
-      expect(trackPlayerFake.getState().playbackState).toBe("playing");
-
-      const { lastPlayPause } = useTrackPlayer.getState();
-      expect(lastPlayPause?.type).toBe(PlayPauseType.PLAY);
-      expect(lastPlayPause?.source).toBe(PlayPauseSource.REMOTE);
-    });
-
-    it("rewinds on pause, like every other pause", async () => {
-      const handler = await handlerFor(Event.RemotePlayPause);
-      await loadPlaythrough(100);
-
-      await Player.play(PlayPauseSource.USER);
-      await flushNativeEvents();
-
-      await handler();
-
-      expect(useTrackPlayer.getState().progress.position).toBeLessThan(100);
-    });
-  });
-
-  describe("RemotePlay and RemotePause", () => {
-    // The notification's buttons take the other route, through the media
-    // session, and arrive as these.
-    it("plays on RemotePlay", async () => {
-      const handler = await handlerFor(Event.RemotePlay);
-      await loadPlaythrough(50);
-
-      await handler();
+      await emitRemote({ command: "play" });
 
       expect(trackPlayerFake.getState().playbackState).toBe("playing");
       expect(useTrackPlayer.getState().lastPlayPause?.type).toBe(
@@ -179,22 +122,35 @@ describe("playback-service", () => {
       );
     });
 
-    it("pauses on RemotePause", async () => {
-      const handler = await handlerFor(Event.RemotePause);
-      await loadPlaythrough(50);
+    it("pauses on a remote pause", async () => {
+      const playthrough = await loadPlaythrough(50);
+
+      await Player.play(PlayPauseSource.USER);
+      await flushNativeEvents();
+      expect(useTrackPlayer.getState().isPlaying.playing).toBe(true);
+
+      await emitRemote({ command: "pause" });
+
+      expect(trackPlayerFake.getState().playbackState).toBe("paused");
+
+      const { lastPlayPause } = useTrackPlayer.getState();
+      expect(lastPlayPause?.type).toBe(PlayPauseType.PAUSE);
+      expect(lastPlayPause?.source).toBe(PlayPauseSource.REMOTE);
+      expect(lastPlayPause?.playthroughId).toBe(playthrough.id);
+    });
+
+    it("rewinds on pause, like every other pause", async () => {
+      // The whole reason the command arrives un-acted: the rewind must happen
+      // at pause time, before the event log sees the pause, not be patched in
+      // after a native pause already recorded the un-rewound position.
+      await loadPlaythrough(100);
 
       await Player.play(PlayPauseSource.USER);
       await flushNativeEvents();
 
-      await handler();
+      await emitRemote({ command: "pause" });
 
-      expect(trackPlayerFake.getState().playbackState).toBe("paused");
-      expect(useTrackPlayer.getState().lastPlayPause?.type).toBe(
-        PlayPauseType.PAUSE,
-      );
-      expect(useTrackPlayer.getState().lastPlayPause?.source).toBe(
-        PlayPauseSource.REMOTE,
-      );
+      expect(useTrackPlayer.getState().progress.position).toBeLessThan(100);
     });
   });
 });
