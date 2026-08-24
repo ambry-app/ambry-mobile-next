@@ -2,24 +2,10 @@ import AVFoundation
 import MediaPlayer
 import UIKit
 
-/// The one AVQueuePlayer, plus the two system surfaces the player feeds:
-/// MPRemoteCommandCenter (media keys, lock screen, control center buttons in)
-/// and MPNowPlayingInfoCenter (what those surfaces display). The Android half
-/// splits this between PlayerCore and PlaybackService because Android puts a
-/// media session inside a foreground service; iOS has no service and no task
-/// removal - JS keeps running under `UIBackgroundModes: ["audio"]` - so the
-/// whole native half fits in this one object.
-///
-/// Transport commands from remote surfaces are NOT acted on here. The command
-/// center is handler-based, so a command arrives with nothing having happened
-/// yet - exactly the contract the Android ForwardingPlayer has to fight for -
-/// and each handler just reports it to JS, which owns rate-scaled seeks and
-/// pause-rewind ordering, then drives the player through the ordinary API.
-///
-/// Everything runs on the main thread: the module dispatches every call there,
-/// and observation callbacks hop there before touching state. That is what
-/// makes the promise-ordering guarantee (a seekTo awaited before a play has
-/// been applied before the play is) hold on this platform too.
+/// The iOS half of the audio-player module: AVQueuePlayer plus the remote
+/// command center and now-playing info it feeds. Remote commands are NOT
+/// acted on natively - each handler reports to JS un-acted, same contract as
+/// the Android ForwardingPlayer. Everything runs on the main thread.
 final class PlayerCore {
   static let shared = PlayerCore()
 
@@ -35,41 +21,30 @@ final class PlayerCore {
     let durationSeconds: Double?
   }
 
-  /// Wired by the module; events are dropped while the JS runtime is gone.
   var emit: ((String, [String: Any]) -> Void)?
 
   private var player: AVQueuePlayer?
   private var tracks: [TrackSpec] = []
   private var currentIndex = 0
 
-  /// AVQueuePlayer consumes items as it advances and every rebuild creates
-  /// fresh ones (an AVPlayerItem cannot be re-inserted), so the queue's items
-  /// carry no index of their own - this map is how an item's notifications
-  /// and transitions find their way back to a track.
+  // Items are recreated on every rebuild (an AVPlayerItem cannot be
+  // re-inserted), so this map is how an item finds its track index.
   private var itemIndices: [ObjectIdentifier: Int] = [:]
 
-  /// Play intent, kept apart from whether audio is actually running:
-  /// AVPlayer's rate drops to zero for stalls and interruptions without the
-  /// intent changing, and the lock-screen toggle resolves against intent.
+  // Play intent, kept apart from whether audio is running: AVPlayer's rate
+  // drops to zero for stalls and interruptions without the intent changing.
   private var playWhenReady = false
   private var desiredRate: Float = 1.0
 
-  /// AVQueuePlayer ends with `currentItem == nil` and every read zeroed, so
-  /// the ended state has to be remembered alongside where the book stopped -
-  /// media3 keeps reporting the final position in STATE_ENDED and callers
-  /// were written against that.
+  // AVQueuePlayer ends with currentItem == nil and every read zeroed; media3
+  // keeps reporting the final position in STATE_ENDED, so remember it.
   private var ended = false
   private var endedPositionSeconds = 0.0
 
-  /// True while a rebuild is tearing the queue down, so the transient
-  /// `currentItem` changes it causes are not mistaken for playback advancing.
   private var suppressItemTransitions = false
 
-  /// Where each file starts on the book's timeline, and the book's whole
-  /// length. This is what lets the LOCK SCREEN speak book time: its bar must
-  /// read "3:12:44 of 14:02:10", not where file 23 of 40 happens to be. Nil
-  /// when the queue is a single stream (already the whole book) or a duration
-  /// is missing, in which case file time is shown as-is.
+  // Book-time offsets for the lock screen, mirroring the Android session's
+  // translation. Nil for a single stream or when a duration is missing.
   private var bookOffsets: [Double]?
   private var bookDurationSeconds = 0.0
 
@@ -89,8 +64,6 @@ final class PlayerCore {
   func setup() {
     guard player == nil else { return }
 
-    // .spokenAudio tells the system this is speech: other audio that ducks
-    // around us pauses instead, and the media controls surface accordingly.
     let session = AVAudioSession.sharedInstance()
     try? session.setCategory(.playback, mode: .spokenAudio, options: [])
 
@@ -191,10 +164,8 @@ final class PlayerCore {
     playWhenReady = true
     try? AVAudioSession.sharedInstance().setActive(true)
 
-    // Setting a nonzero rate IS the play command, and it keeps
-    // automaticallyWaitsToMinimizeStalling in charge: the player reports
-    // waitingToPlayAtSpecifiedRate (our "buffering") until it can sustain
-    // playback. defaultRate covers system-initiated resumes on iOS 16+.
+    // A nonzero rate IS the play command, and it keeps
+    // automaticallyWaitsToMinimizeStalling in charge.
     if #available(iOS 16.0, *) {
       player.defaultRate = desiredRate
     }
@@ -221,8 +192,6 @@ final class PlayerCore {
     let target = min(max(index, 0), tracks.count - 1)
     ended = false
 
-    // A natural queue end leaves the player empty, so seeking after it must
-    // rebuild no matter which index is asked for.
     if target == currentIndex, let item = player.currentItem {
       item.seek(
         to: CMTime(seconds: seconds, preferredTimescale: 1000),
@@ -238,11 +207,9 @@ final class PlayerCore {
       return
     }
 
-    // Crossing into another file: AVQueuePlayer only advances forward, so the
-    // queue is rebuilt from the target file. Playback is held during the
-    // rebuild and the seek lands before it resumes, which is what "atomic
-    // skip-to-(index, position)" means here - the listener never hears the
-    // head of the target file first.
+    // AVQueuePlayer only advances forward, so a cross-file seek rebuilds the
+    // queue; playback holds until the seek lands so the listener never hears
+    // the head of the target file.
     let wasPlaying = playWhenReady
     player.pause()
     rebuildQueue(from: target)
@@ -388,11 +355,6 @@ final class PlayerCore {
     }
   }
 
-  /// Each item gets its own asset because headers are per-track: streamed
-  /// files carry the session's bearer token, downloaded files carry nothing.
-  /// The header option only applies to HTTP requests, so local playback never
-  /// sees it. `type` needs no dispatch here: iOS is only ever served HLS for
-  /// legacy media, and AVPlayer identifies an m3u8 from the response itself.
   private func makeItem(_ spec: TrackSpec) -> AVPlayerItem {
     let url = parseUrl(spec.url)
     let options: [String: Any]? =
@@ -400,9 +362,7 @@ final class PlayerCore {
     let asset = AVURLAsset(url: url, options: options)
     let item = AVPlayerItem(asset: asset)
 
-    // Rate changes speed, the narrator keeps their voice. timeDomain is what
-    // RNTP's PitchAlgorithm.Voice mapped to, and it holds pitch across the
-    // whole 0.5-3.0 range the rate slider offers.
+    // What RNTP's PitchAlgorithm.Voice mapped to; holds pitch across 0.5-3.0.
     item.audioTimePitchAlgorithm = .timeDomain
     return item
   }
@@ -418,9 +378,6 @@ final class PlayerCore {
     guard !suppressItemTransitions else { return }
 
     guard let item = player?.currentItem else {
-      // The queue ran out. The didPlayToEnd notification for the final item
-      // has already recorded the ended state; this is just the reads going
-      // stale, which the snapshot's ended branch papers over.
       emitState()
       return
     }
@@ -463,8 +420,6 @@ final class PlayerCore {
           index == self.tracks.count - 1
         else { return }
 
-        // Intermediate items advance through the currentItem observation;
-        // only the final one ends the book.
         self.ended = true
         self.endedPositionSeconds =
           self.tracks[index].durationSeconds ?? item.duration.seconds
@@ -492,10 +447,8 @@ final class PlayerCore {
         self.emitState()
       })
 
-    // Interruptions (a call, another app taking the session): the system has
-    // already stopped the audio, so this acts natively and JS learns of the
-    // resulting state - the same visibility it has on Android, where
-    // ExoPlayer's focus handling does the equivalent.
+    // Interruptions act natively (the system already stopped the audio); JS
+    // learns of the resulting state, as it does on Android.
     notificationTokens.append(
       center.addObserver(
         forName: AVAudioSession.interruptionNotification,
@@ -528,9 +481,7 @@ final class PlayerCore {
         }
       })
 
-    // Becoming-noisy: unplugged headphones must pause, not hand the book to
-    // the room. iOS pauses the audio itself; this records the intent change
-    // so the state JS sees agrees with what happened.
+    // Becoming-noisy: iOS pauses the audio itself; record the intent change.
     notificationTokens.append(
       center.addObserver(
         forName: AVAudioSession.routeChangeNotification,
@@ -563,13 +514,8 @@ final class PlayerCore {
 
   // MARK: - Remote commands
 
-  /// Every handler reports the command to JS and acts on nothing - JS is the
-  /// actor, not an observer. The advertised commands are also where the lock
-  /// screen gets its shape: next/previous are disabled (an audiobook's files
-  /// are not chapters), and so is dragging the timeline - too sensitive to be
-  /// useful against a ten-hour book, so the position command is off and the
-  /// bar renders read-only. The ±10s skips are what the surfaces offer
-  /// instead, and JS scales them by the playback rate like any in-app press.
+  // Handlers report to JS and act on nothing. Next/previous and timeline
+  // dragging are disabled, matching the Android session's shape.
   private func configureRemoteCommands() {
     let center = MPRemoteCommandCenter.shared()
 
@@ -592,9 +538,7 @@ final class PlayerCore {
       self?.emitRemoteCommand("pause")
     }
 
-    // A headset's single button arrives as a toggle; resolving it against the
-    // play intent here mirrors media3's session doing the same on Android, so
-    // JS always receives the play or pause the press meant.
+    // Resolve a headset's toggle against play intent, as media3 does.
     handle(center.togglePlayPauseCommand) { [weak self] in
       guard let self else { return }
       self.emitRemoteCommand(self.playWhenReady ? "pause" : "play")
@@ -632,11 +576,8 @@ final class PlayerCore {
 
   // MARK: - Now playing
 
-  /// Everything time-shaped the lock screen shows is translated onto the
-  /// book's timeline, exactly as the Android session's interceptor does.
-  /// Elapsed time extrapolates from the rate between updates, so this only
-  /// needs calling at discontinuities - play, pause, seeks, rate changes and
-  /// track transitions - never on a tick.
+  // Book time, like the Android session. Elapsed extrapolates from the rate
+  // between updates, so this is only called at discontinuities.
   private func updateNowPlaying() {
     guard let player, !tracks.isEmpty else {
       MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
@@ -678,9 +619,6 @@ final class PlayerCore {
     MPNowPlayingInfoCenter.default().nowPlayingInfo = info
   }
 
-  /// One cover per queue - every track of a recording carries the same
-  /// artwork. Fetched with the track's headers because a streamed cover lives
-  /// behind the same authenticated server as the audio.
   private func loadArtwork(for spec: TrackSpec?) {
     guard let spec, let artworkUrl = spec.artworkUrl else {
       artwork = nil

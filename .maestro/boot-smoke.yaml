@@ -1,12 +1,4 @@
 # Boot smoke: the compiled binary launches and renders the sign-in screen.
-#
-# This is deliberately the whole test. It runs against a Release build with
-# no Metro and no server, so it can only prove the things the jest suite
-# can't: autolinking found every native module, the modules register without
-# crashing, migrations run, and the app reaches its first screen. The
-# behaviors that actually need exercising beyond that - background audio,
-# lock-screen transport, media keys - don't exist on a CI emulator; they are
-# device-verification work, not CI work.
 appId: app.ambry.mobile.dev
 ---
 - launchApp

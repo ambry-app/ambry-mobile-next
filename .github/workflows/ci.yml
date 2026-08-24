@@ -50,18 +50,6 @@ jobs:
       - name: Run prebuild
         run: npm run prebuild
 
-  # Prebuild generates the native projects but never compiles them, so a
-  # native-module error (or a dependency that stopped compiling against this
-  # RN version) would otherwise surface at the first real device build. These
-  # jobs compile a Release binary for each platform and then boot it in an
-  # emulator/simulator, asserting the sign-in screen renders. The boot smoke
-  # is deliberately the whole runtime test: it catches what compiling can't
-  # (autolinking misses, module registration crashes, migration failures)
-  # while the behaviors past that screen either need a server or a real
-  # device. For iOS this doubles as the free compile check: there is no local
-  # Apple toolchain and every EAS iOS build spends the plan's metered quota,
-  # so Swift iterates against this job and an EAS build is only spent once it
-  # is green.
   compile-ios:
     name: Compile & smoke iOS
     runs-on: macos-latest
