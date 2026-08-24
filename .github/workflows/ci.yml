@@ -37,3 +37,40 @@ jobs:
         run: npm test
       - name: Run prebuild
         run: npm run prebuild
+
+  # Prebuild generates the native projects but never compiles them, so a
+  # native-module error (or a dependency that stopped compiling against this
+  # RN version) would otherwise surface at the first real device build. That
+  # matters doubly for iOS, where there is no local toolchain and every EAS
+  # build spends the plan's quota: this is the free compile check.
+  compile-ios:
+    name: Compile iOS
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install dependencies
+        run: npm ci
+      - name: Run prebuild
+        run: npm run prebuild
+      - name: Compile
+        run: |
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -n 1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath ios/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            build > xcodebuild.log 2>&1 || {
+              echo "--- errors ---"
+              grep -E "error:" xcodebuild.log | head -n 50
+              echo "--- tail ---"
+              tail -n 30 xcodebuild.log
+              exit 1
+            }
+          grep -E "\*\* BUILD" xcodebuild.log

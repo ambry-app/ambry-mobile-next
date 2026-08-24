@@ -2,14 +2,12 @@
  * Track Player Wrapper
  *
  * The seam between the app and whatever actually plays audio. Today that is
- * `modules/audio-player` (media3) on Android; the API and event shapes are
- * still react-native-track-player's, because every service above this line
- * was written against them and the migration should be invisible from there.
- * RNTP itself is no longer called - its types remain the contract, its
- * native module sits inert in the APK until the migration lands and it is
- * removed. iOS has no implementation yet and is expected to be broken on
- * this branch; the app will not ship split, so parity is a gate for
- * finishing, not for spiking.
+ * `modules/audio-player` on both platforms (media3 on Android, AVQueuePlayer
+ * on iOS); the API and event shapes are still react-native-track-player's,
+ * because every service above this line was written against them and the
+ * migration should be invisible from there. RNTP itself is no longer called
+ * - its types remain the contract, its native module sits inert in the
+ * binary until the migration lands and it is removed.
  *
  * It is also where a recording's files stop being visible. A direct-play
  * recording can be one file or forty, but the player above this line only
