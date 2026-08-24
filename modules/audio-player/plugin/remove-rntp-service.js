@@ -30,6 +30,8 @@ const withoutRntpMusicService = (config) =>
         $: {
           "android:name": "com.doublesymmetry.trackplayer.service.MusicService",
           "tools:node": "remove",
+          // lintVitalRelease's Instantiatable check trips on the class name
+          "tools:ignore": "Instantiatable",
         },
       },
     ];
