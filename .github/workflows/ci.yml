@@ -128,7 +128,19 @@ jobs:
           xcrun simctl bootstatus "$UDID" -b
           APP=$(find ios/DerivedData/Build/Products/Release-iphonesimulator -maxdepth 1 -name '*.app' | head -n 1)
           xcrun simctl install "$UDID" "$APP"
-          maestro test .maestro/boot-smoke.yaml
+          maestro test .maestro/boot-smoke.yaml || {
+            xcrun simctl spawn "$UDID" log show --last 10m > simulator-log.txt 2>&1 || true
+            exit 1
+          }
+      - name: Upload smoke debug artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-smoke-debug
+          path: |
+            ~/.maestro/tests/
+            simulator-log.txt
+          if-no-files-found: ignore
 
   compile-android:
     name: Compile & smoke Android
@@ -199,4 +211,16 @@ jobs:
           disable-animations: true
           script: |
             adb install android/app/build/outputs/apk/release/app-release.apk
-            maestro test .maestro/boot-smoke.yaml
+            maestro test .maestro/boot-smoke.yaml || {
+              adb logcat -d > logcat.txt
+              exit 1
+            }
+      - name: Upload smoke debug artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-smoke-debug
+          path: |
+            ~/.maestro/tests/
+            logcat.txt
+          if-no-files-found: ignore
