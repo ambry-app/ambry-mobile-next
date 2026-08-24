@@ -1,11 +1,8 @@
 import ExpoModulesCore
 
-/// The JS boundary, mirroring the Android module function for function. Every
-/// call hops to the main thread before touching the player and resolves its
-/// promise from there, so callers get the same ordering guarantee on both
-/// platforms: a `seekTo` awaited before a `play` has been applied before the
-/// play is. Seeks additionally resolve only once the seek has landed, because
-/// AVPlayer's position reads don't reflect a seek until it completes.
+/// The JS boundary, mirroring the Android module. Calls hop to the main
+/// thread and resolve there (same ordering guarantee); seeks resolve only
+/// once landed, because AVPlayer's position reads lag a pending seek.
 public class AudioPlayerModule: Module {
   struct TrackRecord: Record {
     @Field var url: String = ""
@@ -14,10 +11,6 @@ public class AudioPlayerModule: Module {
     @Field var artwork: String? = nil
     @Field var headers: [String: String]? = nil
     @Field var type: String = "default"
-
-    // Seconds. The player derives real durations from the media; this feeds
-    // the lock screen's book-time translation, so its bar can show the book
-    // rather than the file currently playing.
     @Field var duration: Double? = nil
   }
 
