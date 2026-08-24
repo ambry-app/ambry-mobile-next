@@ -2,12 +2,19 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # player-module-spike is temporary: it lets the RNTP-replacement branch
+    # iterate against CI before it has a PR. Remove it when the branch merges.
+    branches: [main, player-module-spike]
   pull_request:
     branches: [main]
 
 env:
   MIX_ENV: test
+
+# The compile jobs are heavy; a superseded push doesn't deserve to finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   checks:
@@ -21,6 +28,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
       - name: Install dependencies
         run: npm ci
       - name: Check dependencies
@@ -40,16 +52,38 @@ jobs:
 
   # Prebuild generates the native projects but never compiles them, so a
   # native-module error (or a dependency that stopped compiling against this
-  # RN version) would otherwise surface at the first real device build. That
-  # matters doubly for iOS, where there is no local toolchain and every EAS
-  # build spends the plan's quota: this is the free compile check.
+  # RN version) would otherwise surface at the first real device build. These
+  # jobs compile a Release binary for each platform and then boot it in an
+  # emulator/simulator, asserting the sign-in screen renders. The boot smoke
+  # is deliberately the whole runtime test: it catches what compiling can't
+  # (autolinking misses, module registration crashes, migration failures)
+  # while the behaviors past that screen either need a server or a real
+  # device. For iOS this doubles as the free compile check: there is no local
+  # Apple toolchain and every EAS iOS build spends the plan's metered quota,
+  # so Swift iterates against this job and an EAS build is only spent once it
+  # is green.
   compile-ios:
-    name: Compile iOS
+    name: Compile & smoke iOS
     runs-on: macos-latest
+    timeout-minutes: 90
+
+    env:
+      SENTRY_DISABLE_AUTO_UPLOAD: "true"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Cache CocoaPods downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/CocoaPods
+          key: pods-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: pods-${{ runner.os }}-
       - name: Install dependencies
         run: npm ci
       - name: Run prebuild
@@ -61,7 +95,7 @@ jobs:
           xcodebuild \
             -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
-            -configuration Debug \
+            -configuration Release \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath ios/DerivedData \
             CODE_SIGNING_ALLOWED=NO \
@@ -74,3 +108,67 @@ jobs:
               exit 1
             }
           grep -E "\*\* BUILD" xcodebuild.log
+      - name: Install Maestro
+        run: |
+          curl -fsSL https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Boot smoke
+        run: |
+          UDID=$(xcrun simctl list devices available --json \
+            | jq -r '[.devices[] | .[] | select(.name | test("^iPhone"))][0].udid')
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          APP=$(find ios/DerivedData/Build/Products/Release-iphonesimulator -maxdepth 1 -name '*.app' | head -n 1)
+          xcrun simctl install "$UDID" "$APP"
+          maestro test .maestro/boot-smoke.yaml
+
+  compile-android:
+    name: Compile & smoke Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      SENTRY_DISABLE_AUTO_UPLOAD: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Install dependencies
+        run: npm ci
+      - name: Run prebuild
+        run: npm run prebuild
+      - name: Compile
+        run: cd android && ./gradlew :app:assembleRelease
+      - name: Install Maestro
+        run: |
+          curl -fsSL https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Boot smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb install android/app/build/outputs/apk/release/app-release.apk
+            maestro test .maestro/boot-smoke.yaml
