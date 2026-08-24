@@ -203,5 +203,11 @@ module.exports = defineConfig([
       "react-hooks/refs": "off",
     },
   },
-  globalIgnores(["**/expo-env.d.ts", "src/graphql/client/*"]),
+  globalIgnores([
+    "**/expo-env.d.ts",
+    "src/graphql/client/*",
+    // Expo config plugins are build-time CommonJS run by the config loader,
+    // not app code; the base config's type-aware rules cannot apply to them.
+    "modules/*/plugin/*.js",
+  ]),
 ]);

@@ -1,6 +1,6 @@
 import { PAUSE_REWIND_SECONDS } from "@/constants";
 import * as Operations from "@/services/playthrough-operations";
-import { seekRelative } from "@/services/seek-service";
+import { seekRelative, seekTo } from "@/services/seek-service";
 import * as Player from "@/services/track-player-service";
 import * as TrackPlayer from "@/services/track-player-wrapper";
 import { PlayPauseSource, SeekSource } from "@/stores/track-player";
@@ -128,27 +128,10 @@ export const PlaybackService = async function () {
   //   log.debug("RemotePlayId", args);
   // });
 
-  // A headset's play/pause key arrives here, and only here. RNTP maps
-  // KEYCODE_MEDIA_PLAY_PAUSE straight to this event and reports the key
-  // handled (`MusicService.onMediaKeyEvent`), so media3 never gets to resolve
-  // the toggle against playback state into a play or a pause of its own.
-  // Without this listener the key does nothing at all - and does it silently,
-  // because the notification's button takes the other route, through the
-  // media session, and arrives as RemotePlay/RemotePause.
-  //
-  // The toggle is resolved here instead, against the same isPlaying the
-  // notification's own button is drawn from.
-  TrackPlayer.addEventListener(Event.RemotePlayPause, async () => {
-    log.debug("RemotePlayPause");
-
-    const { playing } = Player.isPlaying();
-
-    if (playing) {
-      await Player.pause(PlayPauseSource.REMOTE, PAUSE_REWIND_SECONDS);
-    } else {
-      await Player.play(PlayPauseSource.REMOTE);
-    }
-  });
+  // There is no RemotePlayPause listener any more, on purpose. RNTP swallowed
+  // the headset's KEYCODE_MEDIA_PLAY_PAUSE and left JS to resolve the toggle;
+  // media3's session resolves it against `playWhenReady` itself, so a headset
+  // key arrives here as the RemotePlay or RemotePause it meant.
 
   // TrackPlayer.addEventListener(Event.RemotePlaySearch, (args) => {
   //   log.debug("RemotePlaySearch", args);
@@ -158,9 +141,15 @@ export const PlaybackService = async function () {
   //   log.debug("RemotePrevious");
   // });
 
-  // TrackPlayer.addEventListener(Event.RemoteSeek, (args) => {
-  //   log.debug("RemoteSeek", args);
-  // });
+  // The lock-screen seekbar. RNTP never advertised in-track seeking so the
+  // bar was inert; the new module does, and the wrapper has already
+  // translated the dragged position into book seconds.
+  TrackPlayer.addEventListener(Event.RemoteSeek, async (args) => {
+    log.debug("RemoteSeek", args);
+    const { position } = args;
+
+    seekTo(position, SeekSource.REMOTE);
+  });
 
   // TrackPlayer.addEventListener(Event.RemoteSetRating, (args) => {
   //   log.debug("RemoteSetRating", args);

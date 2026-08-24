@@ -169,9 +169,11 @@ describe("track-player-service", () => {
 
       const state = useTrackPlayer.getState();
 
-      // The key assertion: playbackState should be Ready (from event listener),
-      // NOT None (which would indicate the race condition bug)
-      expect(state.playbackState.state).toBe(State.Ready);
+      // The key assertion: playbackState came from the event listener and is
+      // NOT None (which would indicate the race condition bug). The wrapper
+      // maps ready-but-not-playing to Paused - RNTP's distinct Ready state
+      // does not survive the snapshot model, and nothing distinguishes them.
+      expect(state.playbackState.state).toBe(State.Paused);
     });
 
     it("sets streaming to false when media is downloaded", async () => {

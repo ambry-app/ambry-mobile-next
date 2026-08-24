@@ -1,6 +1,8 @@
 /**
  * Jest setup file - runs before each test file.
  */
+import { resetForTesting as resetTrackPlayerWrapper } from "@/services/track-player-wrapper";
+
 import type { TestDatabase } from "./db-test-utils";
 
 // =============================================================================
@@ -72,10 +74,24 @@ let trackPlayerState = createInitialState();
 // Track pending async event emissions so we can cancel them on reset
 let pendingEventEmissions: NodeJS.Immediate[] = [];
 
-// Helper to emit events to listeners
+// Helper to emit events to listeners.
+//
+// The RNTP-era event names stay the fake's internal lingua franca; the
+// wrapper now listens to the audio-player module's events, so each emission
+// is also translated into the one the wrapper actually receives.
 function emitTrackPlayerEvent(event: string, data: unknown) {
   const listeners = trackPlayerState.eventListeners.get(event) || [];
   listeners.forEach((handler) => handler(data));
+
+  switch (event) {
+    case "playback-state":
+    case "playback-play-when-ready-changed":
+      emitAudioPlayerEvent("onStateChange", nativeSnapshot());
+      break;
+    case "playback-queue-ended":
+      emitAudioPlayerEvent("onQueueEnded", undefined);
+      break;
+  }
 }
 
 // Helper to schedule async event emission (like real native module)
@@ -92,6 +108,9 @@ export function resetTrackPlayerFake() {
   pendingEventEmissions.forEach((handle) => clearImmediate(handle));
   pendingEventEmissions = [];
   trackPlayerState = createInitialState();
+  // The wrapper dedupes state emissions against what it last saw; a fresh
+  // fake needs that memory gone or a test's first emission can be swallowed.
+  resetTrackPlayerWrapper();
 }
 
 /**
@@ -334,6 +353,124 @@ jest.mock("react-native-track-player", () => {
     useProgress: jest.fn(() => ({ position: 0, duration: 0, buffered: 0 })),
   };
 });
+
+// =============================================================================
+// Audio Player Fake (Native Module)
+// =============================================================================
+// The wrapper drives `modules/audio-player` now. This fake implements the
+// module's primitive API over the same trackPlayerState record, so
+// trackPlayerFake and the mockTrackPlayer* fns above keep describing and
+// controlling the player exactly as before. The RNTP mock above survives only
+// for its enums, which the app still imports as the shared vocabulary.
+
+type MockAudioPlayerListener = (payload: any) => void;
+
+// Survives resetTrackPlayerFake() on purpose: the wrapper hooks native events
+// once per JS context, exactly as in production, so wiping registrations
+// between tests would deafen every test in a file after the first.
+const mockAudioPlayerListeners = new Map<string, MockAudioPlayerListener[]>();
+
+function emitAudioPlayerEvent(name: string, payload?: unknown) {
+  const listeners = mockAudioPlayerListeners.get(name) ?? [];
+  listeners.forEach((listener) => listener(payload));
+}
+
+/** The fake's RNTP-ish state string, as the native module's coarser state. */
+function nativeStateOf(playbackState: string): string {
+  switch (playbackState) {
+    case "buffering":
+    case "loading":
+      return "buffering";
+    case "ended":
+      return "ended";
+    case "playing":
+    case "paused":
+    case "ready":
+      return "ready";
+    default:
+      return "idle";
+  }
+}
+
+function nativeSnapshot() {
+  return {
+    state: nativeStateOf(trackPlayerState.playbackState),
+    playing: trackPlayerState.playbackState === "playing",
+    playWhenReady: trackPlayerState.playWhenReady,
+    index: trackPlayerState.activeTrackIndex ?? 0,
+    positionSeconds: trackPlayerState.position,
+    durationSeconds: trackPlayerState.duration,
+    bufferedSeconds: trackPlayerState.buffered,
+    rate: trackPlayerState.rate,
+  };
+}
+
+const mockAudioPlayerNative = {
+  addListener(name: string, listener: MockAudioPlayerListener) {
+    const listeners = mockAudioPlayerListeners.get(name) ?? [];
+    listeners.push(listener);
+    mockAudioPlayerListeners.set(name, listeners);
+    return { remove: () => {} };
+  },
+  setup: async () => mockTrackPlayerSetupPlayer(),
+  setQueue: async (tracks: unknown[]) => mockTrackPlayerAdd(tracks),
+  play: async () => mockTrackPlayerPlay(),
+  pause: async () => mockTrackPlayerPause(),
+  // The native seek is atomic over (file, position); the legacy mocks split it
+  // the way RNTP did, and tests assert against that split.
+  seekTo: async (index: number, seconds: number) => {
+    if (index === (trackPlayerState.activeTrackIndex ?? 0)) {
+      await mockTrackPlayerSeekTo(seconds);
+    } else {
+      await mockTrackPlayerSkip(index, seconds);
+    }
+  },
+  setRate: async (rate: number) => {
+    await mockTrackPlayerSetRate(rate);
+  },
+  setVolume: async (volume: number) => {
+    await mockTrackPlayerSetVolume(volume);
+  },
+  reset: async () => mockTrackPlayerReset(),
+  // Composed from the getter mocks so a test's mockImplementation on any of
+  // them still shapes what the wrapper sees.
+  getState: async () => {
+    const progress = await mockTrackPlayerGetProgress();
+    const { state } = await mockTrackPlayerGetPlaybackState();
+    const playWhenReady = await mockTrackPlayerGetPlayWhenReady();
+    const rate = await mockTrackPlayerGetRate();
+    const index = (await mockTrackPlayerGetActiveTrackIndex()) ?? 0;
+
+    return {
+      state: nativeStateOf(state),
+      playing: state === "playing",
+      playWhenReady,
+      index,
+      positionSeconds: progress.position,
+      durationSeconds: progress.duration,
+      bufferedSeconds: progress.buffered,
+      rate,
+    };
+  },
+};
+
+jest.mock("audio-player", () => ({
+  getAudioPlayer: () => mockAudioPlayerNative,
+}));
+
+/**
+ * Simulate the native side of the audio player.
+ */
+export const audioPlayerFake = {
+  /**
+   * A lock-screen, notification or media-key press, delivered the way the
+   * module delivers it: un-acted, as an event. Nothing has happened to the
+   * player when this fires - JS is the actor.
+   */
+  emitRemoteCommand(command: { command: string; [key: string]: unknown }) {
+    emitAudioPlayerEvent("onRemoteCommand", command);
+  },
+};
 
 // =============================================================================
 // Expo FileSystem Mock

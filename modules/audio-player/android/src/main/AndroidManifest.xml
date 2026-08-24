@@ -1,0 +1,19 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+  <application>
+    <!--
+      No androidx.media3.session.MediaSessionService intent-filter on purpose:
+      RNTP's MusicService still declares one while both are in the APK, and the
+      filter's job is media-button playback resumption after process death,
+      which is the revival path this player deletes by design (START_NOT_STICKY,
+      stop-unless-playing on task removal).
+    -->
+    <service
+      android:name="expo.modules.audioplayer.PlaybackService"
+      android:exported="false"
+      android:foregroundServiceType="mediaPlayback" />
+  </application>
+</manifest>
