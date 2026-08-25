@@ -1,9 +1,9 @@
 /**
  * Audio Player
  *
- * Ambry's own queue player, replacing react-native-track-player: media3 on
- * Android, AVQueuePlayer + MPRemoteCommandCenter + MPNowPlayingInfoCenter on
- * iOS, both behind this one contract.
+ * Ambry's own queue player: media3 on Android, AVQueuePlayer +
+ * MPRemoteCommandCenter + MPNowPlayingInfoCenter on iOS, both behind this
+ * one contract.
  *
  * The native side is deliberately primitive: it plays a flat queue of files
  * and reports track-relative state. Book time, timelines, seek semantics and

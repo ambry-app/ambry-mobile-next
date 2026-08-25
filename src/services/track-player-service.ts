@@ -30,17 +30,7 @@ import {
 } from "@/stores/track-player";
 import { Chapter } from "@/types/db-schema";
 import { type Session } from "@/types/session";
-import {
-  AddTrack,
-  AndroidAudioContentType,
-  Capability,
-  Event,
-  IOSCategory,
-  IOSCategoryMode,
-  PitchAlgorithm,
-  State,
-  TrackType,
-} from "@/types/track-player";
+import { AddTrack, Event, State, TrackType } from "@/types/track-player";
 import { logBase } from "@/utils/logger";
 import { documentDirectoryFilePath } from "@/utils/paths";
 import { type TimelineTrack } from "@/utils/playback-timeline";
@@ -371,7 +361,6 @@ export async function loadPlaythroughIntoPlayer(
   await TrackPlayer.add(tracks, timeline);
   await TrackPlayer.seekTo(position);
   await TrackPlayer.setRate(playbackRate);
-  await setPlayerOptions();
 
   const progress = await waitForSeekToComplete(position);
   const actualPlaybackRate = await TrackPlayer.getRate();
@@ -427,7 +416,6 @@ export async function reloadCurrentPlaythrough(
   // Restore state
   await TrackPlayer.seekTo(position);
   await TrackPlayer.setRate(playthrough.playbackRate);
-  await setPlayerOptions();
 
   // Update store with new derivation (e.g. streaming status changed)
   const streaming = playthrough.media.download?.status !== "ready";
@@ -523,16 +511,12 @@ function setupStoreSubscriptions() {
 }
 
 /**
- * Set up the Track Player with default options.
+ * Set up the player. The module configures itself natively (speech content
+ * type, spoken-audio session, interruption handling).
  */
 async function setupPlayer() {
   try {
-    await TrackPlayer.setupPlayer({
-      androidAudioContentType: AndroidAudioContentType.Speech,
-      iosCategory: IOSCategory.Playback,
-      iosCategoryMode: IOSCategoryMode.SpokenAudio,
-      autoHandleInterruptions: true,
-    });
+    await TrackPlayer.setupPlayer();
   } catch (error) {
     log.error("setupPlayer failed", error);
     return;
@@ -759,7 +743,6 @@ function buildQueue(
   playthrough: PlaythroughWithMedia,
 ): Queue {
   const shared = {
-    pitchAlgorithm: PitchAlgorithm.Voice,
     title: recordingTitle(
       playthrough.media.title,
       playthrough.media.book.title,
@@ -927,32 +910,6 @@ function legacySource(session: Session, playthrough: PlaythroughWithMedia) {
       : undefined,
     headers: { Authorization: `Bearer ${session.token}` },
   };
-}
-
-/**
- * Set player options.
- */
-async function setPlayerOptions() {
-  await TrackPlayer.updateOptions({
-    android: {
-      alwaysPauseOnInterruption: true,
-    },
-    capabilities: [
-      Capability.Play,
-      Capability.Pause,
-      Capability.JumpForward,
-      Capability.JumpBackward,
-    ],
-    notificationCapabilities: [
-      Capability.Play,
-      Capability.Pause,
-      Capability.JumpBackward,
-      Capability.JumpForward,
-    ],
-    forwardJumpInterval: 10,
-    backwardJumpInterval: 10,
-    progressUpdateEventInterval: 1,
-  });
 }
 
 /**

@@ -1,13 +1,11 @@
 /**
  * Track Player Wrapper
  *
- * The seam between the app and whatever actually plays audio. Today that is
+ * The seam between the app and whatever actually plays audio: today
  * `modules/audio-player` on both platforms (media3 on Android, AVQueuePlayer
- * on iOS); the API and event shapes are still react-native-track-player's,
- * because every service above this line was written against them and the
- * migration should be invisible from there. RNTP itself is no longer called
- * - its types remain the contract, its native module sits inert in the
- * binary until the migration lands and it is removed.
+ * on iOS). The API and event shapes are still react-native-track-player's -
+ * every service above this line was written against them, and they live on
+ * in `@/types/track-player` now that RNTP itself is gone.
  *
  * It is also where a recording's files stop being visible. A direct-play
  * recording can be one file or forty, but the player above this line only
@@ -19,18 +17,12 @@
  *
  * And it is where remote transport arrives. The native module delivers
  * notification, lock-screen and media-key presses un-acted, and this file
- * re-emits them as the RNTP remote events the playback service already
- * handles - so a remote ±10s goes through the same rate-scaled seek path as
- * an in-app press, and a remote pause runs pause-rewind before the event log
- * sees the pause.
+ * re-emits them as the remote events the playback service already handles -
+ * so a remote ±10s goes through the same rate-scaled seek path as an in-app
+ * press, and a remote pause runs pause-rewind before the event log sees the
+ * pause.
  */
 
-import type {
-  AddTrack,
-  PlaybackState,
-  Progress,
-} from "react-native-track-player";
-import { Event, State, TrackType } from "react-native-track-player";
 import {
   getAudioPlayer,
   type NativeTrack,
@@ -38,6 +30,8 @@ import {
   type RemoteCommand,
 } from "audio-player";
 
+import type { AddTrack, PlaybackState, Progress } from "@/types/track-player";
+import { Event, State, TrackType } from "@/types/track-player";
 import { logBase } from "@/utils/logger";
 import {
   bookDuration,

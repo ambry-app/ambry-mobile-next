@@ -60,7 +60,7 @@ npm run build:ios:preview      # Build iOS preview locally with EAS
 - **@expo/ui ~57.0.8**: Native SwiftUI / Jetpack Compose components
 - **Zustand 5.0.5**: Global state management
 - **Drizzle ORM ^0.45.1** with **Expo SQLite**: Local database
-- **react-native-track-player 5.0.0-alpha0**: Background audio playback (see note below)
+- **`modules/audio-player`**: Purpose-built background audio module (see Audio Playback Architecture)
 - **GraphQL**: Custom client with code generation for type safety
 - **react-native-logs**: Structured logging with color-coded extensions
 
@@ -160,59 +160,47 @@ Services contain business logic and are decoupled via store subscriptions (using
 - **`db-service.ts`**: Database initialization and migrations.
 - **`session-service.ts`**: Session access utilities.
 - **`auth-service.ts`**: Authentication logic.
-- **`track-player-wrapper.ts`**: Thin wrapper around TrackPlayer native module with logging.
+- **`track-player-wrapper.ts`**: The only file that talks to `modules/audio-player`. Translates book time against the loaded timeline and re-emits remote commands as the events the playback service handles.
 
 ### Audio Playback Architecture
 
-**Background Audio Service**:
+**Background Audio**:
 
-- Uses `react-native-track-player` (pinned to `5.0.0-alpha0`, see below)
-- Service registered in `entry.js` before app renders
-- Runs as Android foreground service with persistent notification
-- Service code: `src/services/playback-service.ts`
-- Handles TrackPlayer events and delegates to appropriate services
-- Remote control events (lock screen, headphones) handled via TrackPlayer events
+- `modules/audio-player`, a purpose-built Expo module: media3 ExoPlayer +
+  `MediaSessionService` on Android, AVQueuePlayer + `MPRemoteCommandCenter` +
+  `MPNowPlayingInfoCenter` on iOS. It replaced `react-native-track-player`
+  (relicensed proprietary upstream); the RNTP-shaped API the services speak
+  lives on in `@/types/track-player`, and `track-player-wrapper.ts` is the
+  only file that talks to the module.
+- The native side plays a flat queue of files and reports track-relative
+  state. Book time, seek semantics and the event log live above, in the
+  wrapper and services.
+- **Remote transport (notification, lock screen, media keys) reaches JS
+  un-acted — JS is the actor, not an observer.** That is why a remote ±10s is
+  rate-scaled like an in-app press and pause-rewind lands before the pause in
+  the event log. The lock screen shows book time on multi-file recordings;
+  next/previous and timeline dragging are disabled on purpose.
+- The Android lifecycle is deliberately narrow: `START_NOT_STICKY`, and task
+  removal stops the service unless something is playing. There is no revival
+  path and no headless JS context, by construction. iOS has no service at
+  all; JS keeps running under `UIBackgroundModes: ["audio"]`.
 
-**Why the track player version is pinned:**
+**JS Context Architecture**:
 
-`react-native-track-player` is deliberately held at `5.0.0-alpha0` and listed in
-`expo.install.exclude` so `expo install --fix` cannot move it. That release
-(August 2025) is the last one published under Apache-2.0.
-
-Upstream has since relicensed: v5 shipped in May 2026 as a **renamed, proprietary
-package**, `@rntp/player`, which is free only for strictly personal or academic
-use and otherwise requires a paid licence (see rntp.dev/pricing). The old
-`react-native-track-player` name is frozen at `4.1.2`.
-
-So the pin is a licensing decision, not an oversight. It does mean the player
-receives no upstream fixes — it still compiles against React Native 0.86, but any
-future incompatibility has to be patched locally, or resolved by taking a
-`@rntp/player` licence or migrating to `expo-audio`. Because all TrackPlayer
-access already funnels through `src/services/track-player-wrapper.ts`, swapping
-the implementation is a contained change.
-
-**JS Context Architecture** (tested and confirmed):
-
-- TrackPlayer's foreground service keeps the **same JS context alive** even when app is swiped away
-- **While playing.** Pausing starts media3's user-engaged timeout (`DEFAULT_FOREGROUND_SERVICE_TIMEOUT_MS`, 10 minutes), and the service passes through three states, not two: foreground → demoted → stopped. Past the demote the process is only cached, so it survives at Android's discretion — treat a cold boot after a long pause as normal, not exceptional
-- **The demote is not the timeout expiring; it is RNTP's re-promotion being refused.** When the timeout fires, media3 asks for a demote by calling `onUpdateNotification(session, false)`, and RNTP's override hard-codes `true` — so it tries to re-promote, which means `startForegroundService()` from a backgrounded process. Android 12+ restricts that, and media3 swallows the refusal. On an idle phone the re-promote is granted and the service stays foreground indefinitely, so **"pause and wait ten minutes" demotes nothing on a quiet device** — it needs enough pressure for Android to refuse. Measured on a preview build: paused 11:25:08, YouTube took audio focus 11:29:54, `onStartCommand` at 11:35:05 (pause + 10m exactly), demoted by 11:35:27. Shortly after, the service stopped outright — `startRequested=false callStart=false types=0x0`, and the process fell to `curProcState=19` (CACHED_EMPTY)
-- **Which state the process dies in decides whether anything comes back.** Killed while the service is still *started*, Android restarts it sticky and builds a headless JS context that has listeners but no boot, no player and no playthrough — a dead end, and the one that can hit the Session-ID crash. Killed once the service has *stopped*, death is clean and final: no restart, no headless context, no media session, and reopening is an ordinary cold boot. The overnight case is the second one
-- All modules (stores, services) share the same runtime instance
-- Module-level variables, timers, and store subscriptions persist across app "kills"
-- Force-stopping via Android Settings kills the foreground service entirely (no remote playback possible)
-- There is effectively **no dual-context scenario** in practice - the only way to trigger playback is to launch the app, which shares the existing context
-
-**Important**: Because the JS context persists, Zustand stores and module-level variables survive app "kills". If state appears to be lost, the likely cause is the **app boot sequence resetting it**, not context separation. The sleep timer is a good example: `sleepTimerTriggerTime` lives only in Zustand (not DB) and survives app kills because we don't reset it on boot. User preferences (duration, enabled) are persisted to DB, but transient runtime state (trigger time) stays in memory.
+- While playing, the Android foreground service keeps the app's JS context
+  alive through a swipe-away; stores, module-level state and subscriptions
+  survive. If state appears lost, suspect the boot sequence resetting it, not
+  context separation.
+- Swiped away while paused, the process may simply die. The next open is an
+  ordinary cold boot — never a revived headless context.
 
 **But timers survive without running — on Android they stop firing while backgrounded.**
 "Persist" above means the timer object is still there when you come back, not that it
 ticks while you are away. React Native drives `setTimeout`/`setInterval` from a
 choreographer frame callback that `JavaTimerManager.onHostPause` unhooks whenever the
 Activity pauses — Home press, screen off, or swipe — unless a headless JS task is
-active. RNTP's headless task is one-shot: it ends the moment `PlaybackService()`'s
-promise resolves, which is immediately, since it only registers listeners. Nothing
-holds the gate open, so **every JS timer freezes until `onHostResume`, then all overdue
-ones fire at once**.
+active, and this app never runs one. So **every JS timer freezes until
+`onHostResume`, then all overdue ones fire at once**.
 
 Measured on device 2026-08-15 (Pixel 9 Pro XL, dev build): playback backgrounded at
 23:22:51 produced zero JS output for eight minutes; a 5-minute sleep timer due at
@@ -925,8 +913,8 @@ A few non-obvious workarounds exist because of how Expo SDK 57 lays out
 
 ### Debugging a preview or production build
 
-- **The JS logger is `enabled: __DEV__`**, so outside a dev build the app prints nothing to logcat but `Running "main"`. Anything you were going to diagnose by reading `ReactNativeJS` lines has to be diagnosed another way: behaviour, or native logcat — `adb shell dumpsys media_session`, `adb shell dumpsys activity services <pkg>`, and RNTP's own `D/RNTP-…MusicService` lines, which do still print
-- **To kill the app the way Android's low-memory killer would, use `adb shell am crash <pkg>`.** `am kill` silently refuses in every process state, cached included: Android 14+ limits `killBackgroundProcesses` to the caller's own package. `am force-stop` works but marks the package stopped, which suppresses the sticky service restart you are usually trying to observe. `kill -9` and `run-as` need a debuggable build
+- **The JS logger is `enabled: __DEV__`**, so outside a dev build the app prints nothing to logcat but `Running "main"`. Anything you were going to diagnose by reading `ReactNativeJS` lines has to be diagnosed another way: behaviour, or native logcat — `adb shell dumpsys media_session` and `adb shell dumpsys activity services <pkg>`
+- **To kill the app the way Android's low-memory killer would, use `adb shell am crash <pkg>`.** `am kill` silently refuses in every process state, cached included: Android 14+ limits `killBackgroundProcesses` to the caller's own package. `kill -9` and `run-as` need a debuggable build
 
 ## Git Workflow
 
