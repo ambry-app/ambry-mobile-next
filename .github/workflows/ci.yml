@@ -62,7 +62,7 @@ jobs:
       SENTRY_DISABLE_AUTO_UPLOAD: "true"
       USE_CCACHE: "1"
       CCACHE_DIR: /Users/runner/.ccache
-      CCACHE_MAXSIZE: 1.5G
+      CCACHE_MAXSIZE: 3G
       # RN's compiler wrapper reads $CCACHE_BINARY; the build setting of the
       # same name doesn't reach compiler subprocesses
       CCACHE_BINARY: /usr/local/bin/ccache
