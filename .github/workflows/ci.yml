@@ -66,6 +66,9 @@ jobs:
       # RN's compiler wrapper reads $CCACHE_BINARY; the build setting of the
       # same name doesn't reach compiler subprocesses
       CCACHE_BINARY: /usr/local/bin/ccache
+      # reactnative.dev/docs/build-speed: content beats the default compiler
+      # mtime check on CI, where fresh checkouts break timestamp assumptions
+      CCACHE_COMPILERCHECK: content
 
     steps:
       - name: Checkout
@@ -199,7 +202,8 @@ jobs:
           npm run prebuild
           # the generated 2048m heap OOMs on release/R8 builds; leading \n
           # because the generated file has no trailing newline
-          printf '\norg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m\norg.gradle.caching=true\n' >> android/gradle.properties
+          # x86_64 only: the emulator smoke needs one ABI, not all four
+          printf '\norg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m\norg.gradle.caching=true\nreactNativeArchitectures=x86_64\n' >> android/gradle.properties
       - name: Compile
         run: cd android && ./gradlew :app:assembleRelease
       - name: Install Maestro
