@@ -183,6 +183,10 @@ jobs:
           restore-keys: npm-${{ runner.os }}-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          # the default is read-only off the default branch: nothing would
+          # ever seed the cache from a feature branch
+          cache-read-only: false
       - name: Install dependencies
         run: npm ci
       - name: Run prebuild
