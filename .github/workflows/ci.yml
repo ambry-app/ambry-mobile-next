@@ -63,6 +63,9 @@ jobs:
       USE_CCACHE: "1"
       CCACHE_DIR: /Users/runner/.ccache
       CCACHE_MAXSIZE: 1.5G
+      # RN's compiler wrapper reads $CCACHE_BINARY; the build setting of the
+      # same name doesn't reach compiler subprocesses
+      CCACHE_BINARY: /usr/local/bin/ccache
 
     steps:
       - name: Checkout
@@ -126,9 +129,7 @@ jobs:
             }
           grep -E "\*\* BUILD" xcodebuild.log
           echo "CompileC: $(grep -c '^CompileC ' xcodebuild.log || true)"
-          echo "Swift: $(grep -c 'SwiftDriver\\ Compilation ' xcodebuild.log || true)"
-          echo "top targets:"
-          grep -oE "in target '[^']+' from project '[^']+'" xcodebuild.log | sort | uniq -c | sort -rn | head -n 15
+          echo "ccache wrapper invocations: $(grep -c 'ccache-clang' xcodebuild.log || true)"
           ccache -s
       - name: Install Maestro
         run: |
