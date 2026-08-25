@@ -7,6 +7,7 @@
  * The real track-player store, database code, and service logic runs.
  */
 
+import { act, renderHook } from "@testing-library/react-native";
 import { getPlaythroughWithMedia } from "@/db/playthroughs";
 import * as trackPlayerService from "@/services/track-player-service";
 import {
@@ -704,6 +705,35 @@ describe("track-player-service", () => {
       expect(useTrackPlayer.getState().lastPlayPause?.source).toBe(
         PlayPauseSource.SLEEP_TIMER,
       );
+    });
+  });
+
+  describe("useDisplayProgress", () => {
+    it("advances the displayed position at the playback rate", async () => {
+      await trackPlayerService.initialize();
+      const playthrough = await createTestPlaythrough({
+        position: 100,
+        rate: 2,
+      });
+      await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
+
+      jest.useFakeTimers();
+      await trackPlayerService.play(PlayPauseSource.USER);
+      await jest.advanceTimersByTimeAsync(50);
+      expect(useTrackPlayer.getState().isPlaying.playing).toBe(true);
+
+      const { result, unmount } = renderHook(() =>
+        trackPlayerService.useDisplayProgress(),
+      );
+
+      // One wall-clock second at 2x moves the book position ~2 seconds
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(1000);
+      });
+      expect(result.current.position).toBeGreaterThanOrEqual(101.5);
+      expect(result.current.position).toBeLessThanOrEqual(102.5);
+
+      unmount();
     });
   });
 

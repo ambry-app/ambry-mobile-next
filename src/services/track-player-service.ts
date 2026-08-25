@@ -7,6 +7,7 @@
  * database.
  */
 
+import { useEffect, useState } from "react";
 import { Platform } from "react-native";
 import * as BackgroundTimer from "background-timer";
 
@@ -268,6 +269,45 @@ export function getAccurateProgress(): ProgressWithPercent {
   const trusted =
     progress.duration > 0 ? progress : useTrackPlayer.getState().progress;
   return withPercent(trusted);
+}
+
+/**
+ * Progress for display, re-rendering when the displayed second changes - at
+ * 2x that is twice a second, the same rate-scaled clock the lock screen
+ * shows. Paused, it follows the store.
+ */
+export function useDisplayProgress(): ProgressWithPercent {
+  const storeProgress = useTrackPlayer((s) => s.progress);
+  const playing = useTrackPlayer((s) => s.isPlaying.playing);
+  const playbackRate = useTrackPlayer((s) => s.playbackRate);
+  const [sampled, setSampled] = useState<ProgressWithPercent | null>(null);
+
+  useEffect(() => {
+    if (!playing) return;
+
+    // A plain interval on purpose: this drives mounted UI, which is
+    // foreground by definition. See the services timer rule in CLAUDE.md.
+    // eslint-disable-next-line no-restricted-globals
+    const interval = setInterval(
+      () => {
+        setSampled((previous) => {
+          const next = getAccurateProgress();
+          return previous &&
+            Math.floor(previous.position) === Math.floor(next.position)
+            ? previous
+            : next;
+        });
+      },
+      Math.max(1000 / playbackRate, 100),
+    );
+    return () => {
+      // eslint-disable-next-line no-restricted-globals
+      clearInterval(interval);
+      setSampled(null);
+    };
+  }, [playing, playbackRate]);
+
+  return sampled ?? storeProgress;
 }
 
 /**
