@@ -3,8 +3,7 @@
 import { App } from "expo-router/build/qualified-entry";
 import { renderRootComponent } from "expo-router/build/renderRootComponent";
 
-import { PlaybackService } from "@/services/playback-service";
-import { registerPlaybackService } from "@/services/track-player-wrapper";
+import { initPlaybackService } from "@/services/playback-service";
 
 import "@expo/metro-runtime";
 
@@ -12,4 +11,4 @@ import "@expo/metro-runtime";
 // should be added here.
 renderRootComponent(App);
 
-registerPlaybackService(() => PlaybackService);
+initPlaybackService();

@@ -102,9 +102,6 @@ function start(): void {
   }
 
   heartbeatInterval = BackgroundTimer.scheduleInterval(() => {
-    // A tick that fails is a tick: the next one is 30 seconds away, and the
-    // save now asks the player, which can reject where reading the store
-    // could not.
     save().catch((error) => log.error("Position save failed", error));
   }, PROGRESS_SAVE_INTERVAL);
 
@@ -132,11 +129,9 @@ async function save(): Promise<void> {
   const currentPlaythroughId = Player.getLoadedPlaythrough()?.id;
   if (!currentPlaythroughId) return;
 
-  // Ask the player, not the store. The store's progress is written by a poll
-  // that only runs while the app is on screen, so a heartbeat firing in the
-  // background would otherwise persist whatever position was current when the
-  // screen went off - observed writing 60.0 while the player was at 551.9.
-  const { position, duration } = await Player.getAccurateProgress();
+  // Ask the player's mirror, not the store: it extrapolates to this moment,
+  // where the store holds whatever the last snapshot carried.
+  const { position, duration } = Player.getAccurateProgress();
 
   // A zeroed duration means progress came from a player that lost its track
   // (or one that hasn't loaded yet). Never overwrite a good cached position

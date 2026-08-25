@@ -133,7 +133,7 @@ Services contain business logic and are decoupled via store subscriptions (using
 **Playback Services:**
 
 - **`track-player-service.ts`**: Core TrackPlayer integration. Owns `track-player` store. Handles play/pause/seek, progress tracking, loading playthroughs into TrackPlayer.
-- **`playback-service.ts`**: Registered in `entry.js`. Handles TrackPlayer events (remote play/pause, jump forward/backward, queue end).
+- **`playback-service.ts`**: Initialized in `entry.js`. Routes the player's remote transport (play/pause, ±seeks) and queue-end into the services.
 - **`playback-controls.ts`**: High-level playback API. Coordinates loading media, finishing/abandoning playthroughs, player UI expansion.
 - **`seek-service.ts`**: Handles user-initiated seeking with accumulation. Owns `seek-ui-state` store. Prevents overwhelming TrackPlayer with rapid seeks.
 - **`chapter-service.ts`**: Chapter navigation logic.

@@ -43,7 +43,7 @@ let targetPosition: number = 0;
 export async function seekTo(position: number, source: SeekSourceType) {
   if (isApplying) return;
 
-  const { position: currentPosition } = await Player.getAccurateProgress();
+  const { position: currentPosition } = Player.getAccurateProgress();
   setupSeekState(currentPosition);
 
   // Update state for absolute seek
@@ -71,7 +71,7 @@ export async function seekRelative(amount: number, source: SeekSourceType) {
 
   // On first tap, get fresh data from the player
   if (!seekTimer) {
-    const { position } = await Player.getAccurateProgress();
+    const { position } = Player.getAccurateProgress();
     setupSeekState(position);
   }
 

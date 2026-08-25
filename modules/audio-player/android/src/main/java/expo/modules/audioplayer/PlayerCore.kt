@@ -2,6 +2,8 @@ package expo.modules.audioplayer
 
 import android.content.Context
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.ForwardingPlayer
@@ -98,7 +100,12 @@ object PlayerCore {
       .build()
 
     exo.addListener(object : Player.Listener {
-      override fun onIsPlayingChanged(isPlaying: Boolean) = emitState()
+      // A snapshot every second while audio runs, so JS can mirror the
+      // player's state without polling across the bridge.
+      override fun onIsPlayingChanged(isPlaying: Boolean) {
+        if (isPlaying) startTick() else stopTick()
+        emitState()
+      }
 
       override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) = emitState()
 
@@ -165,9 +172,27 @@ object PlayerCore {
   }
 
   fun release() {
+    stopTick()
     player?.release()
     player = null
     sessionPlayer = null
+  }
+
+  private val tickHandler = Handler(Looper.getMainLooper())
+  private val tickRunnable = object : Runnable {
+    override fun run() {
+      emitState()
+      tickHandler.postDelayed(this, 1000L)
+    }
+  }
+
+  private fun startTick() {
+    tickHandler.removeCallbacks(tickRunnable)
+    tickHandler.postDelayed(tickRunnable, 1000L)
+  }
+
+  private fun stopTick() {
+    tickHandler.removeCallbacks(tickRunnable)
   }
 
   fun snapshot(): Map<String, Any?> {
