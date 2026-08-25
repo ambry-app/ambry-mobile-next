@@ -106,6 +106,7 @@ jobs:
           xcrun simctl boot "$UDID"
       - name: Compile
         run: |
+          echo "CCACHE_BINARY in Pods project: $(grep -c CCACHE_BINARY ios/Pods/Pods.xcodeproj/project.pbxproj || echo 0)"
           WORKSPACE=$(ls -d ios/*.xcworkspace | head -n 1)
           SCHEME=$(basename "$WORKSPACE" .xcworkspace)
           xcodebuild \
