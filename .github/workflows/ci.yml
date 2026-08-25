@@ -176,8 +176,9 @@ jobs:
       - name: Run prebuild
         run: |
           npm run prebuild
-          # the generated 2048m heap OOMs on release/R8 builds
-          echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m" >> android/gradle.properties
+          # the generated 2048m heap OOMs on release/R8 builds; leading \n
+          # because the generated file has no trailing newline
+          printf '\norg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m\n' >> android/gradle.properties
       - name: Compile
         run: cd android && ./gradlew :app:assembleRelease
       - name: Install Maestro
