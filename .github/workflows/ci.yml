@@ -211,10 +211,7 @@ jobs:
           disable-animations: true
           script: |
             adb install android/app/build/outputs/apk/release/app-release.apk
-            maestro test .maestro/boot-smoke.yaml || {
-              adb logcat -d > logcat.txt
-              exit 1
-            }
+            maestro test .maestro/boot-smoke.yaml || { adb logcat -d > logcat.txt; exit 1; }
       - name: Upload smoke debug artifacts
         if: failure()
         uses: actions/upload-artifact@v4
