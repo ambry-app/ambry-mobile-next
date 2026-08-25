@@ -43,6 +43,13 @@ final class PlayerCore {
 
   private var suppressItemTransitions = false
 
+  // AVPlayer's position reads lag a pending seek, so a cross-file seek would
+  // briefly report the new file's head (lock screen included). Reporting the
+  // target until the seek lands also matches media3, where position reflects
+  // a seek immediately.
+  private var pendingSeekSeconds: Double?
+  private var seekGeneration = 0
+
   // Book-time offsets for the lock screen, mirroring the Android session's
   // translation. Nil for a single stream or when a duration is missing.
   private var bookOffsets: [Double]?
@@ -110,6 +117,8 @@ final class PlayerCore {
     tracks = specs
     ended = false
     endedPositionSeconds = 0.0
+    seekGeneration += 1
+    pendingSeekSeconds = nil
 
     if specs.count > 1, specs.allSatisfy({ $0.durationSeconds != nil }) {
       var offsets: [Double] = []
@@ -145,6 +154,8 @@ final class PlayerCore {
     playWhenReady = false
     ended = false
     endedPositionSeconds = 0.0
+    seekGeneration += 1
+    pendingSeekSeconds = nil
     bookOffsets = nil
     bookDurationSeconds = 0.0
     artwork = nil
@@ -191,6 +202,9 @@ final class PlayerCore {
 
     let target = min(max(index, 0), tracks.count - 1)
     ended = false
+    seekGeneration += 1
+    let generation = seekGeneration
+    pendingSeekSeconds = seconds
 
     if target == currentIndex, let item = player.currentItem {
       item.seek(
@@ -199,8 +213,15 @@ final class PlayerCore {
         toleranceAfter: .zero
       ) { [weak self] _ in
         DispatchQueue.main.async {
-          self?.emitState()
-          self?.updateNowPlaying()
+          guard let self else {
+            completion()
+            return
+          }
+          if self.seekGeneration == generation {
+            self.pendingSeekSeconds = nil
+          }
+          self.emitState()
+          self.updateNowPlaying()
           completion()
         }
       }
@@ -229,6 +250,9 @@ final class PlayerCore {
         guard let self else {
           completion()
           return
+        }
+        if self.seekGeneration == generation {
+          self.pendingSeekSeconds = nil
         }
         if wasPlaying, self.playWhenReady {
           self.player?.rate = self.desiredRate
@@ -307,6 +331,7 @@ final class PlayerCore {
   }
 
   private func positionSeconds() -> Double {
+    if let pendingSeekSeconds { return pendingSeekSeconds }
     guard let player else { return 0.0 }
     let seconds = player.currentTime().seconds
     return seconds.isFinite && seconds >= 0 ? seconds : 0.0
