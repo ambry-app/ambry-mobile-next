@@ -74,7 +74,6 @@ export default {
         },
       ],
       "react-native-edge-to-edge",
-      "./modules/audio-player/plugin/remove-rntp-service",
       [
         "expo-build-properties",
         // ccache only where CI installs it; local and EAS builds don't have it
