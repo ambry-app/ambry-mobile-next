@@ -210,6 +210,7 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: |
+            adb shell settings put global hide_error_dialogs 1
             adb install android/app/build/outputs/apk/release/app-release.apk
             maestro test .maestro/boot-smoke.yaml || { adb logcat -d > logcat.txt; exit 1; }
       - name: Upload smoke debug artifacts
