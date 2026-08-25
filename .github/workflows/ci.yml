@@ -128,10 +128,18 @@ jobs:
           xcrun simctl bootstatus "$UDID" -b
           APP=$(find ios/DerivedData/Build/Products/Release-iphonesimulator -maxdepth 1 -name '*.app' | head -n 1)
           xcrun simctl install "$UDID" "$APP"
-          maestro --udid "$UDID" test .maestro/boot-smoke.yaml || {
+          ok=0
+          for attempt in 1 2 3; do
+            if maestro --udid "$UDID" test .maestro/boot-smoke.yaml; then
+              ok=1
+              break
+            fi
+            echo "maestro attempt $attempt failed"
+          done
+          if [ "$ok" != "1" ]; then
             xcrun simctl spawn "$UDID" log show --last 10m > simulator-log.txt 2>&1 || true
             exit 1
-          }
+          fi
       - name: Upload smoke debug artifacts
         if: failure()
         uses: actions/upload-artifact@v4
@@ -166,7 +174,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Run prebuild
-        run: npm run prebuild
+        run: |
+          npm run prebuild
+          # the generated 2048m heap OOMs on release/R8 builds
+          echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m" >> android/gradle.properties
       - name: Compile
         run: cd android && ./gradlew :app:assembleRelease
       - name: Install Maestro
