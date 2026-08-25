@@ -125,6 +125,10 @@ jobs:
               exit 1
             }
           grep -E "\*\* BUILD" xcodebuild.log
+          echo "CompileC: $(grep -c '^CompileC ' xcodebuild.log || true)"
+          echo "Swift: $(grep -c 'SwiftDriver\\ Compilation ' xcodebuild.log || true)"
+          echo "top targets:"
+          grep -oE "in target '[^']+' from project '[^']+'" xcodebuild.log | sort | uniq -c | sort -rn | head -n 15
           ccache -s
       - name: Install Maestro
         run: |
