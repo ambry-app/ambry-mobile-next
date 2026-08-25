@@ -1,7 +1,7 @@
 {
   "name": "ambry",
   "license": "MIT",
-  "main": "./entry.js",
+  "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
     "postinstall": "patch-package",
