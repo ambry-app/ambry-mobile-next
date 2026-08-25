@@ -55,6 +55,7 @@ final class PlayerCore {
   private var bookOffsets: [Double]?
   private var bookDurationSeconds = 0.0
 
+  private var periodicTimeObserver: Any?
   private var timeControlObservation: NSKeyValueObservation?
   private var currentItemObservation: NSKeyValueObservation?
   private var itemStatusObservation: NSKeyValueObservation?
@@ -90,11 +91,24 @@ final class PlayerCore {
       DispatchQueue.main.async { self?.handleCurrentItemChange() }
     }
 
+    // A snapshot every second while audio runs, so JS can mirror the
+    // player's state without polling across the bridge.
+    periodicTimeObserver = queuePlayer.addPeriodicTimeObserver(
+      forInterval: CMTime(seconds: 1.0, preferredTimescale: 10),
+      queue: .main
+    ) { [weak self] _ in
+      self?.emitState()
+    }
+
     observeNotifications()
     configureRemoteCommands()
   }
 
   func release() {
+    if let periodicTimeObserver {
+      player?.removeTimeObserver(periodicTimeObserver)
+    }
+    periodicTimeObserver = nil
     timeControlObservation = nil
     currentItemObservation = nil
     itemStatusObservation = nil

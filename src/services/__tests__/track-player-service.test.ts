@@ -16,7 +16,6 @@ import {
   SeekSource,
   useTrackPlayer,
 } from "@/stores/track-player";
-import { State } from "@/types/track-player";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createDownload,
@@ -169,11 +168,10 @@ describe("track-player-service", () => {
 
       const state = useTrackPlayer.getState();
 
-      // The key assertion: playbackState came from the event listener and is
-      // NOT None (which would indicate the race condition bug). The wrapper
-      // maps ready-but-not-playing to Paused - RNTP's distinct Ready state
-      // does not survive the snapshot model, and nothing distinguishes them.
-      expect(state.playbackState.state).toBe(State.Paused);
+      // The key assertion: the state came from the snapshot the fake emitted
+      // during add() and is NOT idle (which would indicate the race
+      // condition bug).
+      expect(state.state).toBe("ready");
     });
 
     it("sets streaming to false when media is downloaded", async () => {
@@ -715,7 +713,7 @@ describe("track-player-service", () => {
 
       const state = useTrackPlayer.getState();
       expect(state.initialized).toBe(true);
-      expect(state.playbackState.state).toBe(State.None);
+      expect(state.state).toBe("idle");
       expect(state.playWhenReady).toBe(false);
       expect(state.isPlaying.playing).toBe(false);
       expect(state.playbackRate).toBe(1.0);

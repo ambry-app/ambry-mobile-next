@@ -15,7 +15,7 @@
  */
 
 import { getPlaythroughWithMedia } from "@/db/playthroughs";
-import { PlaybackService } from "@/services/playback-service";
+import { initPlaybackService } from "@/services/playback-service";
 import * as Player from "@/services/track-player-service";
 import { resetForTesting as resetTrackPlayerService } from "@/services/track-player-service";
 import {
@@ -98,7 +98,7 @@ describe("playback-service", () => {
     await Player.initialize();
 
     // Registers the remote-command handlers under test, the way entry.js does.
-    await PlaybackService();
+    await initPlaybackService();
   });
 
   afterEach(() => {

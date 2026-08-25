@@ -26,7 +26,7 @@ jest.mock("@/utils/crypto", () => ({
 //   mockGraphQL(mockFetch, graphqlSuccess({ ... }));
 
 // =============================================================================
-// React Native Track Player Fake (Native Module)
+// Audio Player Fake (Native Module)
 // =============================================================================
 // We use a "fake" instead of mocks - a working implementation that maintains
 // internal state. This is more robust than mocks because:
@@ -49,7 +49,6 @@ interface TrackPlayerFakeState {
   currentTrack: unknown | null;
   queue: unknown[];
   activeTrackIndex: number | undefined;
-  eventListeners: Map<string, ((event: unknown) => void)[]>;
 }
 
 const createInitialState = (): TrackPlayerFakeState => ({
@@ -66,7 +65,6 @@ const createInitialState = (): TrackPlayerFakeState => ({
   // book-position translation depends on.
   queue: [] as unknown[],
   activeTrackIndex: undefined as number | undefined,
-  eventListeners: new Map(),
 });
 
 let trackPlayerState = createInitialState();
@@ -74,24 +72,8 @@ let trackPlayerState = createInitialState();
 // Track pending async event emissions so we can cancel them on reset
 let pendingEventEmissions: NodeJS.Immediate[] = [];
 
-// Helper to emit events to listeners.
-//
-// The RNTP-era event names stay the fake's internal lingua franca; the
-// wrapper now listens to the audio-player module's events, so each emission
-// is also translated into the one the wrapper actually receives.
-function emitTrackPlayerEvent(event: string, data: unknown) {
-  const listeners = trackPlayerState.eventListeners.get(event) || [];
-  listeners.forEach((handler) => handler(data));
-
-  switch (event) {
-    case "playback-state":
-    case "playback-play-when-ready-changed":
-      emitAudioPlayerEvent("onStateChange", nativeSnapshot());
-      break;
-    case "playback-queue-ended":
-      emitAudioPlayerEvent("onQueueEnded", undefined);
-      break;
-  }
+function emitSnapshotEvent() {
+  emitAudioPlayerEvent("onStateChange", nativeSnapshot());
 }
 
 // Helper to schedule async event emission (like real native module)
@@ -120,23 +102,30 @@ export function resetTrackPlayerFake() {
  *   trackPlayerFake.setState({ duration: 300, position: 50 });
  */
 export const trackPlayerFake = {
-  setState(partial: Partial<Omit<TrackPlayerFakeState, "eventListeners">>) {
+  setState(partial: Partial<TrackPlayerFakeState>) {
     Object.assign(trackPlayerState, partial);
+    // The wrapper reads a mirror of the last emitted snapshot, so a state
+    // poke has to emit one or the code under test never sees it.
+    emitSnapshotEvent();
   },
 
   getState() {
     return { ...trackPlayerState };
   },
 
+  emitQueueEnded() {
+    emitAudioPlayerEvent("onQueueEnded", undefined);
+  },
+
   // Simulate external events (e.g., system interruption)
   emitPlaybackStateChange(state: string) {
     trackPlayerState.playbackState = state;
-    emitTrackPlayerEvent("playback-state", { state });
+    emitSnapshotEvent();
   },
 
   emitPlayWhenReadyChange(playWhenReady: boolean) {
     trackPlayerState.playWhenReady = playWhenReady;
-    emitTrackPlayerEvent("playback-play-when-ready-changed", { playWhenReady });
+    emitSnapshotEvent();
   },
 };
 
@@ -184,23 +173,13 @@ export const mockTrackPlayerPlay = jest.fn(async () => {
   // Emit events asynchronously like the real native module does.
   // Native events fire AFTER the JS call returns, not synchronously within it.
   // This is important for testing race conditions between event handlers.
-  scheduleEventEmission(() => {
-    emitTrackPlayerEvent("playback-play-when-ready-changed", {
-      playWhenReady: true,
-    });
-    emitTrackPlayerEvent("playback-state", { state: "playing" });
-  });
+  scheduleEventEmission(emitSnapshotEvent);
 });
 export const mockTrackPlayerPause = jest.fn(async () => {
   trackPlayerState.playWhenReady = false;
   trackPlayerState.playbackState = "paused";
   // Emit events asynchronously like the real native module does.
-  scheduleEventEmission(() => {
-    emitTrackPlayerEvent("playback-play-when-ready-changed", {
-      playWhenReady: false,
-    });
-    emitTrackPlayerEvent("playback-state", { state: "paused" });
-  });
+  scheduleEventEmission(emitSnapshotEvent);
 });
 export const mockTrackPlayerSetRate = jest.fn(async (rate: number) => {
   trackPlayerState.rate = rate;
@@ -235,28 +214,9 @@ export const mockTrackPlayerAdd = jest.fn(async (tracks: unknown) => {
   // listeners. In real native code, events fire during the await and are
   // processed before subsequent synchronous code runs.
   trackPlayerState.playbackState = "ready";
-  emitTrackPlayerEvent("playback-state", { state: "ready" });
+  emitSnapshotEvent();
 });
 export const mockTrackPlayerSetupPlayer = jest.fn();
-export const mockTrackPlayerUpdateOptions = jest.fn();
-export const mockTrackPlayerAddEventListener = jest.fn(
-  (event: string, handler: (event: unknown) => void) => {
-    const listeners = trackPlayerState.eventListeners.get(event) || [];
-    listeners.push(handler);
-    trackPlayerState.eventListeners.set(event, listeners);
-    return { remove: () => {} };
-  },
-);
-export const mockTrackPlayerRegisterPlaybackService = jest.fn();
-
-// =============================================================================
-// Audio Player Fake (Native Module)
-// =============================================================================
-// The wrapper drives `modules/audio-player` now. This fake implements the
-// module's primitive API over the same trackPlayerState record, so
-// trackPlayerFake and the mockTrackPlayer* fns above keep describing and
-// controlling the player exactly as before. The RNTP mock above survives only
-// for its enums, which the app still imports as the shared vocabulary.
 
 type MockAudioPlayerListener = (payload: any) => void;
 

@@ -1,26 +1,25 @@
 /**
  * Track Player Wrapper
  *
- * The seam between the app and whatever actually plays audio: today
- * `modules/audio-player` on both platforms (media3 on Android, AVQueuePlayer
- * on iOS). The API and event shapes are still react-native-track-player's -
- * every service above this line was written against them, and they live on
- * in `@/types/track-player` now that RNTP itself is gone.
+ * The seam between the app and `modules/audio-player` (media3 on Android,
+ * AVQueuePlayer on iOS) - the only file that talks to the native module.
  *
- * It is also where a recording's files stop being visible. A direct-play
- * recording can be one file or forty, but the player above this line only
- * ever sees one continuous book: `getProgress` reports book seconds and the
- * book's whole duration, and `seekTo` takes book seconds. Callers cannot
- * observe a track index because none is exposed, which is what keeps
- * multi-file out of the UI, the chapter logic and the event log by
- * construction rather than by everyone remembering to convert.
+ * It is where a recording's files stop being visible. A direct-play recording
+ * can be one file or forty, but above this line there is only one continuous
+ * book: progress is book seconds against the book's whole duration, `seekTo`
+ * takes book seconds, and no track index is exposed - which keeps multi-file
+ * out of the UI, the chapter logic and the event log by construction.
  *
- * And it is where remote transport arrives. The native module delivers
- * notification, lock-screen and media-key presses un-acted, and this file
- * re-emits them as the remote events the playback service already handles -
- * so a remote ±10s goes through the same rate-scaled seek path as an in-app
- * press, and a remote pause runs pause-rewind before the event log sees the
- * pause.
+ * It is also where remote transport arrives. The native module delivers
+ * notification, lock-screen and media-key presses un-acted; they are
+ * re-emitted here (seek positions translated to book seconds) so a remote
+ * ±10s goes through the same rate-scaled path as an in-app press, and a
+ * remote pause runs pause-rewind before the event log sees the pause.
+ *
+ * Reads are synchronous. The module pushes a full snapshot on every
+ * discontinuity and once a second while playing, and the latest one is
+ * mirrored here - so `getProgress` and friends cost no native round trip.
+ * Commands stay async; a `seekTo` resolves once the seek has applied.
  */
 
 import {
@@ -30,8 +29,8 @@ import {
   type RemoteCommand,
 } from "audio-player";
 
-import type { AddTrack, PlaybackState, Progress } from "@/types/track-player";
-import { Event, State, TrackType } from "@/types/track-player";
+import type { AddTrack, PlayerState, Progress } from "@/types/track-player";
+import { TrackType } from "@/types/track-player";
 import { logBase } from "@/utils/logger";
 import {
   bookDuration,
@@ -42,65 +41,97 @@ import {
 
 const log = logBase.extend("track-player-wrapper");
 
+// The module's state vocabulary and the app's are the same words; this line
+// fails to compile if they ever drift.
+const _stateCheck: PlayerState = "idle" as PlayerSnapshot["state"];
+void _stateCheck;
+
+export type { PlayerState };
+
+/** The player's whole observable state, in book coordinates. */
+export type BookSnapshot = {
+  state: PlayerState;
+  playing: boolean;
+  playWhenReady: boolean;
+  rate: number;
+  progress: Progress;
+};
+
+/** A remote press, un-acted, with seek positions already in book seconds. */
+export type RemoteTransport =
+  | { command: "play" }
+  | { command: "pause" }
+  | { command: "seekBack"; intervalSeconds: number }
+  | { command: "seekForward"; intervalSeconds: number }
+  | { command: "seekTo"; positionSeconds: number };
+
 // The files behind the currently loaded recording, in playback order. Empty
 // for legacy media, whose single stream is already the whole book, so the
 // translation below collapses to a pass-through.
 let timeline: TimelineTrack[] = [];
 
-// =============================================================================
-// Event dispatch
-// =============================================================================
+const idleSnapshot: PlayerSnapshot = {
+  state: "idle",
+  playing: false,
+  playWhenReady: false,
+  index: 0,
+  positionSeconds: 0,
+  durationSeconds: 0,
+  bufferedSeconds: 0,
+  rate: 1,
+};
 
-type Handler = (payload: any) => void;
+let mirror: PlayerSnapshot = idleSnapshot;
 
-const handlers = new Map<Event, Set<Handler>>();
+// When the mirror was last written. While audio is running, position reads
+// extrapolate from here at the playback rate - the same continuity the iOS
+// lock screen shows - so a read is accurate at any moment, not just on the
+// second.
+let mirrorAt = 0;
 
-function dispatch(event: Event, payload: unknown) {
-  handlers.get(event)?.forEach((handler) => handler(payload));
+function setMirror(next: PlayerSnapshot) {
+  mirror = next;
+  mirrorAt = Date.now();
 }
 
-export function addEventListener(event: Event, handler: Handler) {
-  log.silly(`addEventListener ${event}`);
+// =============================================================================
+// Subscriptions
+// =============================================================================
 
-  // Registration is the first thing that happens at app start (entry.js), so
-  // it is also where the native hookup belongs: nothing may be emitted before
-  // someone could be listening.
+type Listener<T> = (payload: T) => void;
+
+const snapshotListeners = new Set<Listener<BookSnapshot>>();
+const remoteListeners = new Set<Listener<RemoteTransport>>();
+const queueEndedListeners = new Set<Listener<void>>();
+const errorListeners = new Set<Listener<string>>();
+
+function subscribe<T>(listeners: Set<Listener<T>>, listener: Listener<T>) {
+  // Subscribing is the first thing that happens at app start, so it is also
+  // where the native hookup belongs: nothing may be emitted before someone
+  // could be listening.
   hookNativeEvents();
-
-  let set = handlers.get(event);
-  if (!set) {
-    set = new Set();
-    handlers.set(event, set);
-  }
-  set.add(handler);
-
-  return {
-    remove: () => {
-      set.delete(handler);
-    },
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
   };
 }
 
-/**
- * Map the player's snapshot onto RNTP's State, which is what
- * `determineIsPlaying` and the store were written against.
- */
-function mapState(snapshot: PlayerSnapshot): State {
-  switch (snapshot.state) {
-    case "idle":
-      return State.None;
-    case "buffering":
-      return State.Buffering;
-    case "ended":
-      return State.Ended;
-    case "ready":
-      return snapshot.playing ? State.Playing : State.Paused;
-  }
+export function onSnapshot(listener: Listener<BookSnapshot>) {
+  return subscribe(snapshotListeners, listener);
 }
 
-let latestIndex = 0;
-let previousState: State | null = null;
-let previousPlayWhenReady: boolean | null = null;
+export function onRemoteCommand(listener: Listener<RemoteTransport>) {
+  return subscribe(remoteListeners, listener);
+}
+
+export function onQueueEnded(listener: Listener<void>) {
+  return subscribe(queueEndedListeners, listener);
+}
+
+export function onError(listener: Listener<string>) {
+  return subscribe(errorListeners, listener);
+}
+
 let nativeEventsHooked = false;
 
 function hookNativeEvents() {
@@ -110,77 +141,131 @@ function hookNativeEvents() {
   const native = getAudioPlayer();
 
   native.addListener("onStateChange", (snapshot) => {
-    latestIndex = snapshot.index;
-
-    const state = mapState(snapshot);
-    if (state !== previousState) {
-      previousState = state;
-      dispatch(Event.PlaybackState, { state });
-    }
-
-    if (snapshot.playWhenReady !== previousPlayWhenReady) {
-      previousPlayWhenReady = snapshot.playWhenReady;
-      dispatch(Event.PlaybackPlayWhenReadyChanged, {
-        playWhenReady: snapshot.playWhenReady,
-      });
-    }
+    setMirror(snapshot);
+    emitSnapshot();
   });
 
   native.addListener("onRemoteCommand", (command: RemoteCommand) => {
     log.debug(`remote command ${command.command}`);
-
-    switch (command.command) {
-      case "play":
-        return dispatch(Event.RemotePlay, {});
-      case "pause":
-        return dispatch(Event.RemotePause, {});
-      case "seekBack":
-        return dispatch(Event.RemoteJumpBackward, {
-          interval: command.intervalSeconds,
-        });
-      case "seekForward":
-        return dispatch(Event.RemoteJumpForward, {
-          interval: command.intervalSeconds,
-        });
-      case "seekTo":
-        // The lock-screen seekbar hands us a position inside the current
-        // file; the app's seek path speaks book seconds. An empty timeline is
-        // legacy media, whose single stream already is the whole book.
-        return dispatch(Event.RemoteSeek, {
-          position:
-            timeline.length === 0
-              ? command.positionSeconds
-              : bookPositionOf(
-                  timeline,
-                  command.index ?? latestIndex,
-                  command.positionSeconds,
-                ),
-        });
-    }
+    remoteListeners.forEach((listener) => listener(translateRemote(command)));
   });
 
   native.addListener("onQueueEnded", () => {
-    dispatch(Event.PlaybackQueueEnded, {});
+    queueEndedListeners.forEach((listener) => listener());
   });
 
   native.addListener("onError", ({ message }) => {
     log.error(`player error: ${message}`);
-    dispatch(Event.PlaybackError, { message });
+    errorListeners.forEach((listener) => listener(message));
+  });
+
+  // Seed the mirror, so a hot reload against a live player starts truthful.
+  void native.getState().then((snapshot) => {
+    setMirror(snapshot);
+    emitSnapshot();
   });
 }
 
+function emitSnapshot() {
+  const snapshot = getSnapshot();
+  snapshotListeners.forEach((listener) => listener(snapshot));
+}
+
+/**
+ * The lock-screen seekbar hands us a position inside the current file; the
+ * app's seek path speaks book seconds. An empty timeline is legacy media,
+ * whose single stream already is the whole book.
+ */
+function translateRemote(command: RemoteCommand): RemoteTransport {
+  if (command.command !== "seekTo") return command;
+  return {
+    command: "seekTo",
+    positionSeconds:
+      timeline.length === 0
+        ? command.positionSeconds
+        : bookPositionOf(
+            timeline,
+            command.index ?? mirror.index,
+            command.positionSeconds,
+          ),
+  };
+}
+
 // =============================================================================
-// Playback Control
+// State (synchronous, from the mirror)
 // =============================================================================
+
+/**
+ * Progress in book seconds, against the book's whole duration.
+ *
+ * A player that reports no duration has lost its track - it errored, or a
+ * streaming read failed - and everything it says is zeros. Callers detect
+ * that by the zero duration and fall back to the last known position, so it
+ * has to survive translation: a position of zero translated onto the current
+ * file would be a plausible-looking number recorded as a seek the listener
+ * never made.
+ */
+export function getProgress(): Progress {
+  const elapsed = mirror.playing ? (Date.now() - mirrorAt) / 1000 : 0;
+  const position = Math.min(
+    mirror.positionSeconds + elapsed * mirror.rate,
+    mirror.durationSeconds > 0 ? mirror.durationSeconds : Infinity,
+  );
+  const progress = {
+    position,
+    duration: mirror.durationSeconds,
+    buffered: mirror.bufferedSeconds,
+  };
+
+  if (timeline.length <= 1) return progress;
+  if (progress.duration <= 0) return progress;
+
+  return {
+    ...progress,
+    position: bookPositionOf(timeline, mirror.index, position),
+    duration: bookDuration(timeline),
+  };
+}
+
+export function getRate(): number {
+  return mirror.rate;
+}
+
+export function getPlayWhenReady(): boolean {
+  return mirror.playWhenReady;
+}
+
+export function getState(): PlayerState {
+  return mirror.state;
+}
+
+export function getSnapshot(): BookSnapshot {
+  return {
+    state: mirror.state,
+    playing: mirror.playing,
+    playWhenReady: mirror.playWhenReady,
+    rate: mirror.rate,
+    progress: getProgress(),
+  };
+}
+
+// =============================================================================
+// Commands
+// =============================================================================
+// Each command patches the mirror with what it just asked for, so a
+// synchronous read immediately after the await agrees with the command - the
+// confirming native snapshot arrives a beat later.
 
 export async function play() {
   log.silly("play");
-  return getAudioPlayer().play();
+  await getAudioPlayer().play();
+  setMirror({ ...mirror, playWhenReady: true });
 }
 
 export async function pause() {
   log.silly("pause");
-  return getAudioPlayer().pause();
+  await getAudioPlayer().pause();
+  setMirror({ ...mirror, playWhenReady: false, playing: false });
 }
 
 /**
@@ -188,24 +273,28 @@ export async function pause() {
  *
  * The native `seekTo` takes (file index, position) in one call, so crossing
  * into another file is the same operation as staying in this one and never
- * lands at the head of a file first.
+ * lands at the head of a file first. It resolves once the seek has applied.
  */
 export async function seekTo(position: number) {
   log.silly(`seekTo ${position.toFixed(1)}`);
 
-  const native = getAudioPlayer();
+  const target =
+    timeline.length <= 1
+      ? { index: mirror.index, position }
+      : trackAt(timeline, position);
 
-  if (timeline.length <= 1) {
-    return native.seekTo(latestIndex, position);
-  }
-
-  const target = trackAt(timeline, position);
-  return native.seekTo(target.index, target.position);
+  await getAudioPlayer().seekTo(target.index, target.position);
+  setMirror({
+    ...mirror,
+    index: target.index,
+    positionSeconds: target.position,
+  });
 }
 
 export async function setRate(rate: number) {
   log.silly(`setRate ${rate}`);
-  return getAudioPlayer().setRate(rate);
+  await getAudioPlayer().setRate(rate);
+  setMirror({ ...mirror, rate });
 }
 
 export async function setVolume(volume: number) {
@@ -220,25 +309,29 @@ export async function setVolume(volume: number) {
 export async function reset() {
   log.silly("reset");
   timeline = [];
+  setMirror(idleSnapshot);
   return getAudioPlayer().reset();
 }
 
 /**
  * Load a recording's files as the player's queue.
  *
- * `tracks` describes where each file sits on the book's timeline. Pass an empty
- * array for legacy media, whose single stream already is the whole book.
+ * `tracks` describes where each file sits on the book's timeline. Pass an
+ * empty array for legacy media, whose single stream already is the whole
+ * book. The player derives its duration from the media, so a single-file
+ * queue reports duration 0 until it has buffered - see
+ * `waitForValidProgress` in track-player-service.
  */
 export async function add(tracks: AddTrack[], timelineTracks: TimelineTrack[]) {
   log.silly(`add ${tracks.length} file(s)`);
   timeline = timelineTracks;
 
   const nativeTracks: NativeTrack[] = tracks.map((track) => ({
-    url: typeof track.url === "string" ? track.url : String(track.url),
+    url: track.url,
     title: track.title,
     artist: track.artist,
-    artwork: typeof track.artwork === "string" ? track.artwork : undefined,
-    headers: track.headers as Record<string, string> | undefined,
+    artwork: track.artwork,
+    headers: track.headers,
     duration: track.duration,
     type:
       track.type === TrackType.Dash
@@ -252,102 +345,13 @@ export async function add(tracks: AddTrack[], timelineTracks: TimelineTrack[]) {
 }
 
 // =============================================================================
-// State Queries
-// =============================================================================
-
-/**
- * Progress in book seconds, against the book's whole duration.
- *
- * The player reports where it is in the file it is playing. On a multi-file
- * recording that is neither the position the reader is at nor the length of
- * what they are listening to, so both are translated here.
- *
- * `buffered` is left as the player reports it: it describes the file being
- * streamed, and there is no meaningful book-wide equivalent.
- */
-export async function getProgress(): Promise<Progress> {
-  log.silly("getProgress");
-
-  const snapshot = await getAudioPlayer().getState();
-  latestIndex = snapshot.index;
-
-  const progress: Progress = {
-    position: snapshot.positionSeconds,
-    duration: snapshot.durationSeconds,
-    buffered: snapshot.bufferedSeconds,
-  };
-
-  if (timeline.length <= 1) return progress;
-
-  // A player that reports no duration has lost its track — it errored, or a
-  // streaming read failed — and everything it says is zeros. Callers detect
-  // that by the zero duration and fall back to the last known position, so it
-  // has to survive translation. Reporting the book's duration here regardless
-  // would hide it, and a position of zero would translate into the start of
-  // the current file: a plausible-looking number that would be recorded as a
-  // seek the listener never made.
-  if (progress.duration <= 0) return progress;
-
-  return {
-    ...progress,
-    position: bookPositionOf(
-      timeline,
-      snapshot.index,
-      snapshot.positionSeconds,
-    ),
-    duration: bookDuration(timeline),
-  };
-}
-
-export async function getRate(): Promise<number> {
-  log.silly("getRate");
-  const snapshot = await getAudioPlayer().getState();
-  return snapshot.rate;
-}
-
-export async function getPlaybackState(): Promise<PlaybackState> {
-  log.silly("getPlaybackState");
-  const snapshot = await getAudioPlayer().getState();
-  return { state: mapState(snapshot) } as PlaybackState;
-}
-
-export async function getPlayWhenReady(): Promise<boolean> {
-  log.silly("getPlayWhenReady");
-  const snapshot = await getAudioPlayer().getState();
-  return snapshot.playWhenReady;
-}
-
-// =============================================================================
 // Setup
 // =============================================================================
 
-/**
- * Create the native player. Options are accepted for signature compatibility
- * with the RNTP call sites and ignored: the module configures itself.
- */
-export async function setupPlayer(_options?: unknown) {
+export async function setupPlayer() {
   log.silly("setupPlayer");
   hookNativeEvents();
   return getAudioPlayer().setup();
-}
-
-/**
- * RNTP needed to be told its capabilities and jump intervals; the module
- * fixes both natively (play/pause/±10s). Kept so call sites don't change.
- */
-export async function updateOptions(_options?: unknown) {
-  log.silly("updateOptions (no-op)");
-}
-
-/**
- * RNTP ran the factory in its headless task; there is no headless task any
- * more, so the listeners are simply registered now, in the one JS context.
- */
-export function registerPlaybackService(
-  factory: () => () => Promise<void>,
-): void {
-  log.silly("registerPlaybackService");
-  void factory()();
 }
 
 // =============================================================================
@@ -355,15 +359,16 @@ export function registerPlaybackService(
 // =============================================================================
 
 /**
- * Forget the loaded recording and the change-detection state between tests.
- * The handler registry is cleared too, because every test re-registers its
- * services; the native hookup itself is once-per-JS-context in production and
- * survives, which is why the test fake keeps its listener table across resets.
+ * Forget the loaded recording, the mirror and every listener between tests.
+ * The native hookup itself is once-per-JS-context in production and survives,
+ * which is why the test fake keeps its listener table across resets.
  */
 export function resetForTesting() {
   timeline = [];
-  latestIndex = 0;
-  previousState = null;
-  previousPlayWhenReady = null;
-  handlers.clear();
+  mirror = idleSnapshot;
+  mirrorAt = 0;
+  snapshotListeners.clear();
+  remoteListeners.clear();
+  queueEndedListeners.clear();
+  errorListeners.clear();
 }
