@@ -2,9 +2,7 @@ name: CI
 
 on:
   push:
-    # player-module-spike is temporary: it lets the RNTP-replacement branch
-    # iterate against CI before it has a PR. Remove it when the branch merges.
-    branches: [main, player-module-spike]
+    branches: [main]
   pull_request:
     branches: [main]
 
