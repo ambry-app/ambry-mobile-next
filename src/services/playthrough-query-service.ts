@@ -190,8 +190,7 @@ export function usePlaythroughForPrompt(playthroughId: string) {
 }
 
 type ShouldPromptForFinishResult =
-  | { shouldPrompt: true; playthroughId: string }
-  | { shouldPrompt: false };
+  { shouldPrompt: true; playthroughId: string } | { shouldPrompt: false };
 
 /**
  * Determines if the user should be prompted to finish the active playthrough.
