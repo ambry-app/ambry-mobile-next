@@ -45,6 +45,30 @@ describe("getSetParts", () => {
     expect(parts.map((part) => part.partNumber)).toEqual([1, 2, 3]);
   });
 
+  it("keeps unlisted sibling parts reachable", async () => {
+    const db = getDb();
+    const book = await createBook(db);
+    const set = await createRecordingGroup(db, { bookId: book.id });
+
+    await createMedia(db, {
+      id: "part-1",
+      bookId: book.id,
+      recordingGroupId: set.id,
+      partNumber: 1,
+    });
+    await createMedia(db, {
+      id: "part-2",
+      bookId: book.id,
+      recordingGroupId: set.id,
+      partNumber: 2,
+      unlistedAt: new Date(),
+    });
+
+    const parts = await getSetParts(DEFAULT_TEST_SESSION, set.id);
+
+    expect(parts.map((part) => part.id)).toEqual(["part-1", "part-2"]);
+  });
+
   it("leaves out the recording the reader is already on", async () => {
     const db = getDb();
     const book = await createBook(db);

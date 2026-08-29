@@ -138,6 +138,7 @@ export interface LibraryChangesInput {
     recordingGroup: { id: string } | null;
     partNumber: number | null;
     status: string;
+    unlistedAt: string | null;
     description: string | null;
     thumbnails: Thumbnails | null;
     published: string | null;
@@ -410,6 +411,7 @@ export async function applyLibraryChanges(
       id: media.id,
       status: media.status.toLowerCase() as
         "pending" | "processing" | "error" | "ready",
+      unlistedAt: media.unlistedAt ? new Date(media.unlistedAt) : null,
       bookId: media.book.id,
       title: media.title,
       recordingGroupId: media.recordingGroup?.id ?? null,
@@ -773,6 +775,7 @@ export async function applyLibraryChanges(
             target: [schema.media.url, schema.media.id],
             set: {
               status: sql`excluded.status`,
+              unlistedAt: sql`excluded.unlisted_at`,
               bookId: sql`excluded.book_id`,
               title: sql`excluded.title`,
               recordingGroupId: sql`excluded.recording_group_id`,

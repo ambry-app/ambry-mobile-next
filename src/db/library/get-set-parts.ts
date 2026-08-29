@@ -54,6 +54,8 @@ export async function getSetParts(
     .where(
       and(
         eq(schema.media.url, session.url),
+        // deliberately no unlisted filter: whoever reached one part of a
+        // hidden set must still be able to reach the others
         eq(schema.media.status, "ready"),
         eq(schema.media.recordingGroupId, setId),
         excludeMediaId ? ne(schema.media.id, excludeMediaId) : undefined,

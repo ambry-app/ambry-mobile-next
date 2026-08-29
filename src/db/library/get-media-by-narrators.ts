@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/db";
 import * as schema from "@/db/schema";
@@ -125,6 +125,7 @@ async function getMediaForNarrator(
       and(
         eq(schema.mediaNarrators.url, session.url),
         eq(schema.media.status, "ready"),
+        isNull(schema.media.unlistedAt),
         eq(schema.mediaNarrators.narratorId, narratorId),
       ),
     )

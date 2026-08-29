@@ -278,6 +278,7 @@ export function createLibraryMedia(
     id,
     book: { __typename: "Book", id: bookId },
     status: MediaProcessingStatus.Ready,
+    unlistedAt: null,
     description: null,
     thumbnails: null,
     published: null,

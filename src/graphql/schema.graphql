@@ -171,6 +171,10 @@ type Media implements Node {
   Display-title override for this recording (translated/regional/retail title); null means the book's title applies
   """
   title: String
+  """
+  When an operator hid this recording from browsing and search; null means listed
+  """
+  unlistedAt: DateTime
   updatedAt: DateTime!
 }
 
@@ -194,7 +198,7 @@ enum MediaProcessingStatus {
 """One audio file of a recording, played directly by the client"""
 type MediaTrack implements Node {
   """
-  Audio codec as probed, e.g. "aac". Clients decide playability from this and `mime` — nothing here is assumed playable
+  Audio codec as probed, e.g. "aac". Clients decide playability from this and `mime`; nothing here is assumed playable
   """
   codec: String
   duration: Float!

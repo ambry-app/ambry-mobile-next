@@ -52,6 +52,28 @@ describe("getPlaythroughsPage", () => {
     expect(finished[0]?.status).toBe("finished");
   });
 
+  // Unlisting hides an audiobook from browsing, never from the shelf: a
+  // listener who started it keeps their way back in.
+  it("still lists playthroughs of unlisted media", async () => {
+    const db = getDb();
+
+    const book = await createBook(db);
+    const media = await createMedia(db, {
+      bookId: book.id,
+      unlistedAt: new Date(),
+    });
+    await createPlaythrough(db, { mediaId: media.id, status: "in_progress" });
+
+    const result = await getPlaythroughsPage(
+      DEFAULT_TEST_SESSION,
+      10,
+      "in_progress",
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.media.id).toBe(media.id);
+  });
+
   it("returns playthrough with media and book info", async () => {
     const db = getDb();
 

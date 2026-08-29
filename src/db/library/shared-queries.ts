@@ -6,6 +6,21 @@ import { PlaythroughStatus } from "@/db/schema";
 import { Session } from "@/types/session";
 import { groupMapBy } from "@/utils/group-map-by";
 
+/**
+ * Whether the joined `books` row has at least one ready, listed recording.
+ *
+ * For book-level lists, which otherwise select books without ever looking at
+ * their media: a book whose recordings are all unlisted (or not ready) would
+ * still occupy a row and render as a hole, since its tile has nothing to show.
+ */
+export const bookHasBrowsableMedia = sql`exists (
+  SELECT 1 FROM media
+  WHERE media.url = ${schema.books.url}
+    AND media.book_id = ${schema.books.id}
+    AND media.status = 'ready'
+    AND media.unlisted_at IS NULL
+)`;
+
 export async function getAuthorsForBooks(session: Session, bookIds: string[]) {
   if (bookIds.length === 0) return {};
 
@@ -188,6 +203,7 @@ export async function getEditionMediaForBook(
       and(
         eq(schema.media.url, session.url),
         eq(schema.media.status, "ready"),
+        isNull(schema.media.unlistedAt),
         eq(schema.media.bookId, bookId),
         excludeSetId
           ? or(
@@ -233,6 +249,7 @@ export async function getMediaForBooks(session: Session, bookIds: string[]) {
       and(
         eq(schema.media.url, session.url),
         eq(schema.media.status, "ready"),
+        isNull(schema.media.unlistedAt),
         inArray(schema.media.bookId, bookIds),
       ),
     );

@@ -1,0 +1,1 @@
+ALTER TABLE `media` ADD `unlisted_at` integer;

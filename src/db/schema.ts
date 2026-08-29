@@ -391,6 +391,9 @@ export const media = sqliteTable(
     status: text("status", {
       enum: ["pending", "processing", "error", "ready"],
     }),
+    // When an operator hid this audiobook from browsing and search. It stays
+    // playable and on the shelf; only listing surfaces filter on it.
+    unlistedAt: integer("unlisted_at", { mode: "timestamp" }),
     bookId: text("book_id").notNull(),
     // Display-title override for this audiobook (translated, regional or retail
     // title). Null means the book's own title applies.

@@ -160,6 +160,7 @@ async function getPartsForSets(session: Session, setIds: string[]) {
       and(
         eq(schema.media.url, session.url),
         eq(schema.media.status, "ready"),
+        isNull(schema.media.unlistedAt),
         inArray(schema.media.recordingGroupId, setIds),
       ),
     );
@@ -256,6 +257,7 @@ async function recentMedia(
       and(
         eq(schema.media.url, session.url),
         eq(schema.media.status, "ready"),
+        isNull(schema.media.unlistedAt),
         or(
           isNull(schema.media.recordingGroupId),
           eq(schema.media.id, firstReadyPartOfSet),
@@ -276,6 +278,7 @@ const firstReadyPartOfSet = sql`(
   WHERE part.url = ${schema.media.url}
     AND part.recording_group_id = ${schema.media.recordingGroupId}
     AND part.status = 'ready'
+    AND part.unlisted_at IS NULL
   ORDER BY part.part_number IS NULL, part.part_number ASC, part.id ASC
   LIMIT 1
 )`;
@@ -362,6 +365,7 @@ async function searchMedia(
       and(
         eq(schema.media.url, session.url),
         eq(schema.media.status, "ready"),
+        isNull(schema.media.unlistedAt),
         // one hit per set, same as the listing -- a set matching a search is
         // one result, not one per part
         or(
