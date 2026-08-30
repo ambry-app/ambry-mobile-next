@@ -79,7 +79,7 @@
     "@expo/vector-icons": "^15.0.2",
     "@react-hook/previous": "^1.0.1",
     "@react-native-community/slider": "5.1.1",
-    "@sentry/react-native": "8.21.0",
+    "@sentry/react-native": "^8.21.0",
     "activity-tracker": "file:./modules/activity-tracker",
     "background-timer": "file:./modules/background-timer",
     "core-js": "^3.43.0",
