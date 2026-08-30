@@ -319,9 +319,7 @@ export async function applyLibraryChanges(
       title: book.title,
       published: new Date(book.published),
       publishedFormat: book.publishedFormat.toLowerCase() as
-        | "full"
-        | "year_month"
-        | "year",
+        "full" | "year_month" | "year",
       insertedAt: new Date(book.insertedAt),
       updatedAt: new Date(book.updatedAt),
     };
@@ -411,10 +409,7 @@ export async function applyLibraryChanges(
       url: session.url,
       id: media.id,
       status: media.status.toLowerCase() as
-        | "pending"
-        | "processing"
-        | "error"
-        | "ready",
+        "pending" | "processing" | "error" | "ready",
       bookId: media.book.id,
       title: media.title,
       recordingGroupId: media.recordingGroup?.id ?? null,
@@ -422,9 +417,7 @@ export async function applyLibraryChanges(
       duration: media.duration ? media.duration.toString() : null,
       published: media.published ? new Date(media.published) : null,
       publishedFormat: media.publishedFormat.toLowerCase() as
-        | "full"
-        | "year_month"
-        | "year",
+        "full" | "year_month" | "year",
       publisher: media.publisher,
       notes: media.notes,
       description: media.description,

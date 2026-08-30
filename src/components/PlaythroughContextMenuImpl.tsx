@@ -16,10 +16,7 @@ import { Colors, interactive } from "@/styles/colors";
 import { useMenuState } from "@/utils/hooks";
 
 export type PlaythroughStatus =
-  | "in_progress"
-  | "finished"
-  | "abandoned"
-  | "deleted";
+  "in_progress" | "finished" | "abandoned" | "deleted";
 
 export type PlaythroughContextMenuImplProps = {
   status: PlaythroughStatus;

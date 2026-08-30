@@ -869,12 +869,6 @@ A few non-obvious workarounds exist because of how Expo SDK 57 lays out
 `node_modules/expo/` instead of hoisting them, which breaks packages that
 `require` them by bare name.
 
-- **`patches/@sentry+react-native+*.patch`** — one line. Sentry's Expo config
-  plugin still does `require("@expo/config-plugins")` in
-  `withSentryAndroidGradlePlugin.js`; the patch points it at
-  `expo/config-plugins`. Without it, every command that reads the app config
-  (including `expo-doctor` and `prebuild`) fails outright. Applied automatically
-  by the `postinstall` script.
 - **`jest.moduleDirectories`** includes `node_modules/expo/node_modules` so
   `jest-expo`'s preset can resolve `expo-modules-core`. Upstream acknowledges
   this in their own source with a `TODO: This is an invalid dependency chain`.
