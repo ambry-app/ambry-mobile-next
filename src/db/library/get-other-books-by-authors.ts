@@ -7,6 +7,7 @@ import { flatMapGroups } from "@/utils/flat-map-groups";
 
 import { MediaHeaderInfo } from "./get-media-header-info";
 import {
+  bookHasBrowsableMedia,
   getAuthorsForBooks,
   getMediaForBooks,
   getNarratorsForMedia,
@@ -126,6 +127,7 @@ async function getBooksForAuthor(
         eq(schema.authors.url, session.url),
         eq(schema.authors.id, authorId),
         ne(schema.books.id, withoutBookId),
+        bookHasBrowsableMedia,
       ),
     )
     .groupBy(schema.books.id)

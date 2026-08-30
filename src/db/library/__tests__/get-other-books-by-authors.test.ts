@@ -88,6 +88,7 @@ describe("getOtherBooksByAuthors", () => {
       published: new Date("2010-08-31"),
     });
     await createBookAuthor(db, { bookId: otherBook.id, authorId: author.id });
+    await createMedia(db, { bookId: otherBook.id });
 
     const bookInfo = makeBookInfo(currentBook.id, [
       makeAuthorInfo(author, person),
@@ -117,6 +118,7 @@ describe("getOtherBooksByAuthors", () => {
     const otherBook = await createBook(db, { title: "Other Book" });
     await createBookAuthor(db, { bookId: currentBook.id, authorId: author.id });
     await createBookAuthor(db, { bookId: otherBook.id, authorId: author.id });
+    await createMedia(db, { bookId: otherBook.id });
 
     const bookInfo = makeBookInfo(currentBook.id, [
       makeAuthorInfo(author, person),
@@ -168,6 +170,8 @@ describe("getOtherBooksByAuthors", () => {
       bookId: standaloneBook.id,
       authorId: author.id,
     });
+    await createMedia(db, { bookId: bookInSeries.id });
+    await createMedia(db, { bookId: standaloneBook.id });
 
     const bookInfo = makeBookInfo(
       currentBook.id,
@@ -213,6 +217,7 @@ describe("getOtherBooksByAuthors", () => {
       bookId: coauthoredBook.id,
       authorId: author2.id,
     });
+    await createMedia(db, { bookId: coauthoredBook.id });
 
     const bookInfo = makeBookInfo(currentBook.id, [
       makeAuthorInfo(author1, person1),
@@ -288,9 +293,11 @@ describe("getOtherBooksByAuthors", () => {
 
     const book1 = await createBook(db, { title: "Book by Author One" });
     await createBookAuthor(db, { bookId: book1.id, authorId: author1.id });
+    await createMedia(db, { bookId: book1.id });
 
     const book2 = await createBook(db, { title: "Book by Author Two" });
     await createBookAuthor(db, { bookId: book2.id, authorId: author2.id });
+    await createMedia(db, { bookId: book2.id });
 
     const bookInfo = makeBookInfo(currentBook.id, [
       makeAuthorInfo(author1, person1),
@@ -325,6 +332,7 @@ describe("getOtherBooksByAuthors", () => {
         published: new Date(2020, i, 1),
       });
       await createBookAuthor(db, { bookId: book.id, authorId: author.id });
+      await createMedia(db, { bookId: book.id });
     }
 
     const bookInfo = makeBookInfo(currentBook.id, [
@@ -337,6 +345,34 @@ describe("getOtherBooksByAuthors", () => {
     );
 
     expect(result[0]?.books).toHaveLength(3);
+  });
+
+  it("hides a book whose only media are unlisted", async () => {
+    const db = getDb();
+
+    const person = await createPerson(db, { name: "Author" });
+    const author = await createAuthor(db, {
+      personId: person.id,
+      name: "Author",
+    });
+
+    const currentBook = await createBook(db, { title: "Current Book" });
+    await createBookAuthor(db, { bookId: currentBook.id, authorId: author.id });
+
+    const hiddenBook = await createBook(db, { title: "Hidden" });
+    await createBookAuthor(db, { bookId: hiddenBook.id, authorId: author.id });
+    await createMedia(db, { bookId: hiddenBook.id, unlistedAt: new Date() });
+
+    const bookInfo = makeBookInfo(currentBook.id, [
+      makeAuthorInfo(author, person),
+    ]);
+    const result = await getOtherBooksByAuthors(
+      DEFAULT_TEST_SESSION,
+      bookInfo,
+      10,
+    );
+
+    expect(result[0]?.books).toEqual([]);
   });
 
   it("returns author with empty books array if no other books exist", async () => {
@@ -389,6 +425,10 @@ describe("getOtherBooksByAuthors", () => {
       url: "https://other-server.com",
       bookId: otherBook.id,
       authorId: author.id,
+    });
+    await createMedia(db, {
+      url: "https://other-server.com",
+      bookId: otherBook.id,
     });
 
     const bookInfo = makeBookInfo(currentBook.id, [

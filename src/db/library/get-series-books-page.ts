@@ -6,6 +6,7 @@ import { Session } from "@/types/session";
 import { flatMapGroups } from "@/utils/flat-map-groups";
 
 import {
+  bookHasBrowsableMedia,
   getAuthorsForBooks,
   getMediaForBooks,
   getNarratorsForMedia,
@@ -81,6 +82,7 @@ async function getSeriesBooks(
       and(
         eq(schema.seriesBooks.url, session.url),
         eq(schema.seriesBooks.seriesId, seriesId),
+        bookHasBrowsableMedia,
         bookNumberAfter !== undefined
           ? gt(
               sql`CAST(${schema.seriesBooks.bookNumber} AS FLOAT)`,

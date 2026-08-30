@@ -36,6 +36,8 @@ describe("getBooksByAuthors", () => {
     });
     await createBookAuthor(db, { bookId: book1.id, authorId: author.id });
     await createBookAuthor(db, { bookId: book2.id, authorId: author.id });
+    await createMedia(db, { bookId: book1.id });
+    await createMedia(db, { bookId: book2.id });
 
     const result = await getBooksByAuthors(
       DEFAULT_TEST_SESSION,
@@ -60,6 +62,8 @@ describe("getBooksByAuthors", () => {
     const book2 = await createBook(db, { title: "Book by Author Two" });
     await createBookAuthor(db, { bookId: book1.id, authorId: author1.id });
     await createBookAuthor(db, { bookId: book2.id, authorId: author2.id });
+    await createMedia(db, { bookId: book1.id });
+    await createMedia(db, { bookId: book2.id });
 
     const result = await getBooksByAuthors(
       DEFAULT_TEST_SESSION,
@@ -83,6 +87,7 @@ describe("getBooksByAuthors", () => {
     const book = await createBook(db, { title: "Good Omens" });
     await createBookAuthor(db, { bookId: book.id, authorId: author1.id });
     await createBookAuthor(db, { bookId: book.id, authorId: author2.id });
+    await createMedia(db, { bookId: book.id });
 
     const result = await getBooksByAuthors(
       DEFAULT_TEST_SESSION,
@@ -146,6 +151,7 @@ describe("getBooksByAuthors", () => {
         published: new Date(2020, i, 1),
       });
       await createBookAuthor(db, { bookId: book.id, authorId: author.id });
+      await createMedia(db, { bookId: book.id });
     }
 
     const result = await getBooksByAuthors(
@@ -155,6 +161,26 @@ describe("getBooksByAuthors", () => {
     );
 
     expect(result[0]?.books).toHaveLength(3);
+  });
+
+  it("hides a book whose only media are unlisted", async () => {
+    const db = getDb();
+
+    const author = await createAuthor(db);
+    const listedBook = await createBook(db, { title: "Listed" });
+    const hiddenBook = await createBook(db, { title: "Hidden" });
+    await createBookAuthor(db, { bookId: listedBook.id, authorId: author.id });
+    await createBookAuthor(db, { bookId: hiddenBook.id, authorId: author.id });
+    await createMedia(db, { bookId: listedBook.id });
+    await createMedia(db, { bookId: hiddenBook.id, unlistedAt: new Date() });
+
+    const result = await getBooksByAuthors(
+      DEFAULT_TEST_SESSION,
+      [{ id: author.id, name: author.name }],
+      10,
+    );
+
+    expect(result[0]?.books.map((book) => book.title)).toEqual(["Listed"]);
   });
 
   it("returns author with empty books array if author has no books", async () => {
@@ -183,6 +209,7 @@ describe("getBooksByAuthors", () => {
       bookId: book.id,
       authorId: author.id,
     });
+    await createMedia(db, { url: "https://other-server.com", bookId: book.id });
 
     const result = await getBooksByAuthors(
       DEFAULT_TEST_SESSION,

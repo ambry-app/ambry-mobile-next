@@ -44,6 +44,8 @@ describe("getBooksByAuthorPage", () => {
     });
     await createBookAuthor(db, { bookId: book1.id, authorId: author.id });
     await createBookAuthor(db, { bookId: book2.id, authorId: author.id });
+    await createMedia(db, { bookId: book1.id });
+    await createMedia(db, { bookId: book2.id });
 
     const result = await getBooksByAuthorPage(
       DEFAULT_TEST_SESSION,
@@ -65,6 +67,7 @@ describe("getBooksByAuthorPage", () => {
     const book = await createBook(db, { title: "Good Omens" });
     await createBookAuthor(db, { bookId: book.id, authorId: author1.id });
     await createBookAuthor(db, { bookId: book.id, authorId: author2.id });
+    await createMedia(db, { bookId: book.id });
 
     const result = await getBooksByAuthorPage(
       DEFAULT_TEST_SESSION,
@@ -109,6 +112,7 @@ describe("getBooksByAuthorPage", () => {
         published: new Date(2020, i, 1),
       });
       await createBookAuthor(db, { bookId: book.id, authorId: author.id });
+      await createMedia(db, { bookId: book.id });
     }
 
     const result = await getBooksByAuthorPage(
@@ -134,6 +138,7 @@ describe("getBooksByAuthorPage", () => {
     for (const date of dates) {
       const book = await createBook(db, { published: date });
       await createBookAuthor(db, { bookId: book.id, authorId: author.id });
+      await createMedia(db, { bookId: book.id });
     }
 
     // Get books published before 2022-01-01 (should get 2021 and 2020 books)
@@ -147,6 +152,26 @@ describe("getBooksByAuthorPage", () => {
     expect(result).toHaveLength(2);
     expect(result[0]?.published?.getFullYear()).toBe(2021);
     expect(result[1]?.published?.getFullYear()).toBe(2020);
+  });
+
+  it("hides a book whose only media are unlisted", async () => {
+    const db = getDb();
+
+    const author = await createAuthor(db);
+    const listedBook = await createBook(db, { title: "Listed" });
+    const hiddenBook = await createBook(db, { title: "Hidden" });
+    await createBookAuthor(db, { bookId: listedBook.id, authorId: author.id });
+    await createBookAuthor(db, { bookId: hiddenBook.id, authorId: author.id });
+    await createMedia(db, { bookId: listedBook.id });
+    await createMedia(db, { bookId: hiddenBook.id, unlistedAt: new Date() });
+
+    const result = await getBooksByAuthorPage(
+      DEFAULT_TEST_SESSION,
+      author.id,
+      10,
+    );
+
+    expect(result.map((book) => book.title)).toEqual(["Listed"]);
   });
 
   it("only returns books for the current session URL", async () => {

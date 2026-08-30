@@ -6,6 +6,7 @@ import { Session } from "@/types/session";
 import { flatMapGroups } from "@/utils/flat-map-groups";
 
 import {
+  bookHasBrowsableMedia,
   getAuthorsForBooks,
   getMediaForBooks,
   getNarratorsForMedia,
@@ -69,6 +70,7 @@ async function getBooks(
       and(
         eq(schema.bookAuthors.url, session.url),
         eq(schema.bookAuthors.authorId, authorId),
+        bookHasBrowsableMedia,
         publishedBefore
           ? lt(schema.books.published, publishedBefore)
           : undefined,

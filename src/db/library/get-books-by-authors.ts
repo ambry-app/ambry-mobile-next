@@ -6,6 +6,7 @@ import { Session } from "@/types/session";
 import { flatMapGroups } from "@/utils/flat-map-groups";
 
 import {
+  bookHasBrowsableMedia,
   getAuthorsForBooks,
   getMediaForBooks,
   getNarratorsForMedia,
@@ -101,6 +102,7 @@ async function getBooksForAuthor(
       and(
         eq(schema.bookAuthors.url, session.url),
         eq(schema.bookAuthors.authorId, authorId),
+        bookHasBrowsableMedia,
       ),
     )
     .orderBy(desc(schema.books.published))

@@ -28,6 +28,8 @@ import m0025 from './0025_fantastic_supreme_intelligence.sql';
 import m0026 from './0026_parched_alex_wilder.sql';
 import m0027 from './0027_sloppy_luminals.sql';
 import m0028 from './0028_refetch_sets_for_labels.sql';
+import m0029 from './0029_needy_omega_red.sql';
+import m0030 from './0030_refetch_for_unlisted.sql';
 
   export default {
     journal,
@@ -60,7 +62,9 @@ m0024,
 m0025,
 m0026,
 m0027,
-m0028
+m0028,
+m0029,
+m0030
     }
   }
   

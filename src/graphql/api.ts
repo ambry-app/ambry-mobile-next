@@ -137,6 +137,7 @@ const libraryChangesSinceQuery = graphql(`
       }
       partNumber
       status
+      unlistedAt
       description
       thumbnails {
         extraLarge

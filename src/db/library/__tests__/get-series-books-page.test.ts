@@ -47,6 +47,8 @@ describe("getSeriesBooksPage", () => {
       bookId: book2.id,
       bookNumber: "2",
     });
+    await createMedia(db, { bookId: book1.id });
+    await createMedia(db, { bookId: book2.id });
 
     const result = await getSeriesBooksPage(
       DEFAULT_TEST_SESSION,
@@ -84,6 +86,9 @@ describe("getSeriesBooksPage", () => {
       bookId: book2.id,
       bookNumber: "2",
     });
+    await createMedia(db, { bookId: book1.id });
+    await createMedia(db, { bookId: book2.id });
+    await createMedia(db, { bookId: book10.id });
 
     const result = await getSeriesBooksPage(
       DEFAULT_TEST_SESSION,
@@ -106,6 +111,7 @@ describe("getSeriesBooksPage", () => {
         bookId: book.id,
         bookNumber: String(i),
       });
+      await createMedia(db, { bookId: book.id });
     }
 
     const result = await getSeriesBooksPage(DEFAULT_TEST_SESSION, series.id, 3);
@@ -125,6 +131,7 @@ describe("getSeriesBooksPage", () => {
         bookId: book.id,
         bookNumber: String(i),
       });
+      await createMedia(db, { bookId: book.id });
     }
 
     const result = await getSeriesBooksPage(
@@ -153,6 +160,7 @@ describe("getSeriesBooksPage", () => {
       bookId: book.id,
       author: { name: "J.K. Rowling" },
     });
+    await createMedia(db, { bookId: book.id });
 
     const result = await getSeriesBooksPage(
       DEFAULT_TEST_SESSION,
@@ -190,6 +198,34 @@ describe("getSeriesBooksPage", () => {
     expect(result[0]?.book.media[0]?.id).toBe(media.id);
     expect(result[0]?.book.media[0]?.narrators).toHaveLength(1);
     expect(result[0]?.book.media[0]?.narrators[0]?.name).toBe("Stephen Fry");
+  });
+
+  it("hides a book whose only media are unlisted", async () => {
+    const db = getDb();
+
+    const series = await createSeries(db);
+    const listedBook = await createBook(db, { title: "Listed" });
+    const hiddenBook = await createBook(db, { title: "Hidden" });
+    await createSeriesBook(db, {
+      seriesId: series.id,
+      bookId: listedBook.id,
+      bookNumber: "1",
+    });
+    await createSeriesBook(db, {
+      seriesId: series.id,
+      bookId: hiddenBook.id,
+      bookNumber: "2",
+    });
+    await createMedia(db, { bookId: listedBook.id });
+    await createMedia(db, { bookId: hiddenBook.id, unlistedAt: new Date() });
+
+    const result = await getSeriesBooksPage(
+      DEFAULT_TEST_SESSION,
+      series.id,
+      10,
+    );
+
+    expect(result.map((sb) => sb.book.title)).toEqual(["Listed"]);
   });
 
   it("only returns books for the current session URL", async () => {

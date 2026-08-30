@@ -111,6 +111,18 @@ describe("getMediaPage", () => {
     expect(result).toHaveLength(1);
   });
 
+  it("hides unlisted media", async () => {
+    const db = getDb();
+
+    const book = await createBook(db);
+    const listed = await createMedia(db, { bookId: book.id });
+    await createMedia(db, { bookId: book.id, unlistedAt: new Date() });
+
+    const result = await getMediaPage(DEFAULT_TEST_SESSION, 10);
+
+    expect(result.map((e) => e.representative.id)).toEqual([listed.id]);
+  });
+
   it("returns media sorted by insertedAt descending", async () => {
     const db = getDb();
 
@@ -264,6 +276,29 @@ describe("getMediaPage", () => {
       expect(result[0]?.representative.id).toBe(readyPart.id);
     });
 
+    it("an unlisted part cannot represent its set", async () => {
+      const db = getDb();
+      const book = await createBook(db);
+      const set = await createRecordingGroup(db, { bookId: book.id });
+      await createMedia(db, {
+        bookId: book.id,
+        recordingGroupId: set.id,
+        partNumber: 1,
+        unlistedAt: new Date(),
+      });
+      const listedPart = await createMedia(db, {
+        bookId: book.id,
+        recordingGroupId: set.id,
+        partNumber: 2,
+      });
+
+      const result = await getMediaPage(DEFAULT_TEST_SESSION, 10);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]?.representative.id).toBe(listedPart.id);
+      expect(result[0]?.media.map((m) => m.id)).toEqual([listedPart.id]);
+    });
+
     it("presents a set with one ready part as a single recording", async () => {
       const db = getDb();
       const { parts } = await createSet(db, 3, { readyParts: 1 });
@@ -319,6 +354,20 @@ describe("getSearchedMedia", () => {
       10,
       "nonexistent",
     );
+
+    expect(result).toEqual([]);
+  });
+
+  it("hides unlisted media", async () => {
+    const db = getDb();
+
+    const book = await createBook(db, { title: "Pride and Prejudice" });
+    await createMedia(db, {
+      bookId: book.id,
+      unlistedAt: new Date(),
+    });
+
+    const result = await getSearchedMedia(DEFAULT_TEST_SESSION, 10, "Pride");
 
     expect(result).toEqual([]);
   });
