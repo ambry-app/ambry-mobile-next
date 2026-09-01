@@ -3,7 +3,6 @@ import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { PAUSE_REWIND_SECONDS } from "@/constants";
 import * as Player from "@/services/track-player-service";
 import { PlayPauseSource, useTrackPlayer } from "@/stores/track-player";
-import { State } from "@/types/track-player";
 import { useDebounce } from "@/utils/hooks";
 
 import { IconButton } from "./IconButton";
@@ -30,7 +29,6 @@ export function PlayButton(props: PlayButtonProps) {
   const { playing, bufferingDuringPlay } = useTrackPlayer(
     (state) => state.isPlaying,
   );
-  // const { playing, bufferingDuringPlay } = useIsPlaying();
   const icon = useStateIcon(playing, bufferingDuringPlay);
   const iconStyle = icon === "play" ? playIconStyle : undefined;
 
@@ -69,7 +67,7 @@ function useStateIcon(
   playing: boolean | undefined,
   bufferingDuringPlay: boolean | undefined,
 ) {
-  const { state } = useTrackPlayer((state) => state.playbackState);
+  const state = useTrackPlayer((s) => s.state);
   const debouncedState = useDebounce(state, 100);
 
   if (playing) return "pause";
@@ -77,20 +75,12 @@ function useStateIcon(
   if (bufferingDuringPlay) return "spinner";
 
   switch (debouncedState) {
-    case State.Paused:
-    case State.Stopped:
-    case State.Ready:
+    case "ready":
       return "play";
-    case State.Buffering:
-    case State.Loading:
-    case State.None:
+    case "buffering":
+    case "idle":
       return "spinner";
-    case State.Playing:
-      return "pause";
-    case State.Error:
-      return "triangle-exclamation";
-    case State.Ended:
+    case "ended":
       return "circle-check";
   }
-  return;
 }

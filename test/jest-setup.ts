@@ -1,6 +1,8 @@
 /**
  * Jest setup file - runs before each test file.
  */
+import { resetForTesting as resetTrackPlayerWrapper } from "@/services/track-player-wrapper";
+
 import type { TestDatabase } from "./db-test-utils";
 
 // =============================================================================
@@ -24,7 +26,7 @@ jest.mock("@/utils/crypto", () => ({
 //   mockGraphQL(mockFetch, graphqlSuccess({ ... }));
 
 // =============================================================================
-// React Native Track Player Fake (Native Module)
+// Audio Player Fake (Native Module)
 // =============================================================================
 // We use a "fake" instead of mocks - a working implementation that maintains
 // internal state. This is more robust than mocks because:
@@ -47,7 +49,6 @@ interface TrackPlayerFakeState {
   currentTrack: unknown | null;
   queue: unknown[];
   activeTrackIndex: number | undefined;
-  eventListeners: Map<string, ((event: unknown) => void)[]>;
 }
 
 const createInitialState = (): TrackPlayerFakeState => ({
@@ -64,7 +65,6 @@ const createInitialState = (): TrackPlayerFakeState => ({
   // book-position translation depends on.
   queue: [] as unknown[],
   activeTrackIndex: undefined as number | undefined,
-  eventListeners: new Map(),
 });
 
 let trackPlayerState = createInitialState();
@@ -72,10 +72,8 @@ let trackPlayerState = createInitialState();
 // Track pending async event emissions so we can cancel them on reset
 let pendingEventEmissions: NodeJS.Immediate[] = [];
 
-// Helper to emit events to listeners
-function emitTrackPlayerEvent(event: string, data: unknown) {
-  const listeners = trackPlayerState.eventListeners.get(event) || [];
-  listeners.forEach((handler) => handler(data));
+function emitSnapshotEvent() {
+  emitAudioPlayerEvent("onStateChange", nativeSnapshot());
 }
 
 // Helper to schedule async event emission (like real native module)
@@ -92,6 +90,9 @@ export function resetTrackPlayerFake() {
   pendingEventEmissions.forEach((handle) => clearImmediate(handle));
   pendingEventEmissions = [];
   trackPlayerState = createInitialState();
+  // The wrapper dedupes state emissions against what it last saw; a fresh
+  // fake needs that memory gone or a test's first emission can be swallowed.
+  resetTrackPlayerWrapper();
 }
 
 /**
@@ -101,23 +102,30 @@ export function resetTrackPlayerFake() {
  *   trackPlayerFake.setState({ duration: 300, position: 50 });
  */
 export const trackPlayerFake = {
-  setState(partial: Partial<Omit<TrackPlayerFakeState, "eventListeners">>) {
+  setState(partial: Partial<TrackPlayerFakeState>) {
     Object.assign(trackPlayerState, partial);
+    // The wrapper reads a mirror of the last emitted snapshot, so a state
+    // poke has to emit one or the code under test never sees it.
+    emitSnapshotEvent();
   },
 
   getState() {
     return { ...trackPlayerState };
   },
 
+  emitQueueEnded() {
+    emitAudioPlayerEvent("onQueueEnded", undefined);
+  },
+
   // Simulate external events (e.g., system interruption)
   emitPlaybackStateChange(state: string) {
     trackPlayerState.playbackState = state;
-    emitTrackPlayerEvent("playback-state", { state });
+    emitSnapshotEvent();
   },
 
   emitPlayWhenReadyChange(playWhenReady: boolean) {
     trackPlayerState.playWhenReady = playWhenReady;
-    emitTrackPlayerEvent("playback-play-when-ready-changed", { playWhenReady });
+    emitSnapshotEvent();
   },
 };
 
@@ -165,23 +173,13 @@ export const mockTrackPlayerPlay = jest.fn(async () => {
   // Emit events asynchronously like the real native module does.
   // Native events fire AFTER the JS call returns, not synchronously within it.
   // This is important for testing race conditions between event handlers.
-  scheduleEventEmission(() => {
-    emitTrackPlayerEvent("playback-play-when-ready-changed", {
-      playWhenReady: true,
-    });
-    emitTrackPlayerEvent("playback-state", { state: "playing" });
-  });
+  scheduleEventEmission(emitSnapshotEvent);
 });
 export const mockTrackPlayerPause = jest.fn(async () => {
   trackPlayerState.playWhenReady = false;
   trackPlayerState.playbackState = "paused";
   // Emit events asynchronously like the real native module does.
-  scheduleEventEmission(() => {
-    emitTrackPlayerEvent("playback-play-when-ready-changed", {
-      playWhenReady: false,
-    });
-    emitTrackPlayerEvent("playback-state", { state: "paused" });
-  });
+  scheduleEventEmission(emitSnapshotEvent);
 });
 export const mockTrackPlayerSetRate = jest.fn(async (rate: number) => {
   trackPlayerState.rate = rate;
@@ -216,124 +214,118 @@ export const mockTrackPlayerAdd = jest.fn(async (tracks: unknown) => {
   // listeners. In real native code, events fire during the await and are
   // processed before subsequent synchronous code runs.
   trackPlayerState.playbackState = "ready";
-  emitTrackPlayerEvent("playback-state", { state: "ready" });
+  emitSnapshotEvent();
 });
 export const mockTrackPlayerSetupPlayer = jest.fn();
-export const mockTrackPlayerUpdateOptions = jest.fn();
-export const mockTrackPlayerAddEventListener = jest.fn(
-  (event: string, handler: (event: unknown) => void) => {
-    const listeners = trackPlayerState.eventListeners.get(event) || [];
-    listeners.push(handler);
-    trackPlayerState.eventListeners.set(event, listeners);
+
+type MockAudioPlayerListener = (payload: any) => void;
+
+// Survives resetTrackPlayerFake() on purpose: the wrapper hooks native events
+// once per JS context, exactly as in production, so wiping registrations
+// between tests would deafen every test in a file after the first.
+const mockAudioPlayerListeners = new Map<string, MockAudioPlayerListener[]>();
+
+function emitAudioPlayerEvent(name: string, payload?: unknown) {
+  const listeners = mockAudioPlayerListeners.get(name) ?? [];
+  listeners.forEach((listener) => listener(payload));
+}
+
+/** The fake's RNTP-ish state string, as the native module's coarser state. */
+function nativeStateOf(playbackState: string): string {
+  switch (playbackState) {
+    case "buffering":
+    case "loading":
+      return "buffering";
+    case "ended":
+      return "ended";
+    case "playing":
+    case "paused":
+    case "ready":
+      return "ready";
+    default:
+      return "idle";
+  }
+}
+
+function nativeSnapshot() {
+  return {
+    state: nativeStateOf(trackPlayerState.playbackState),
+    playing: trackPlayerState.playbackState === "playing",
+    playWhenReady: trackPlayerState.playWhenReady,
+    index: trackPlayerState.activeTrackIndex ?? 0,
+    positionSeconds: trackPlayerState.position,
+    durationSeconds: trackPlayerState.duration,
+    bufferedSeconds: trackPlayerState.buffered,
+    rate: trackPlayerState.rate,
+  };
+}
+
+const mockAudioPlayerNative = {
+  addListener(name: string, listener: MockAudioPlayerListener) {
+    const listeners = mockAudioPlayerListeners.get(name) ?? [];
+    listeners.push(listener);
+    mockAudioPlayerListeners.set(name, listeners);
     return { remove: () => {} };
   },
-);
-export const mockTrackPlayerRegisterPlaybackService = jest.fn();
+  setup: async () => mockTrackPlayerSetupPlayer(),
+  setQueue: async (tracks: unknown[]) => mockTrackPlayerAdd(tracks),
+  play: async () => mockTrackPlayerPlay(),
+  pause: async () => mockTrackPlayerPause(),
+  // The native seek is atomic over (file, position); the legacy mocks split it
+  // the way RNTP did, and tests assert against that split.
+  seekTo: async (index: number, seconds: number) => {
+    if (index === (trackPlayerState.activeTrackIndex ?? 0)) {
+      await mockTrackPlayerSeekTo(seconds);
+    } else {
+      await mockTrackPlayerSkip(index, seconds);
+    }
+  },
+  setRate: async (rate: number) => {
+    await mockTrackPlayerSetRate(rate);
+  },
+  setVolume: async (volume: number) => {
+    await mockTrackPlayerSetVolume(volume);
+  },
+  reset: async () => mockTrackPlayerReset(),
+  // Composed from the getter mocks so a test's mockImplementation on any of
+  // them still shapes what the wrapper sees.
+  getState: async () => {
+    const progress = await mockTrackPlayerGetProgress();
+    const { state } = await mockTrackPlayerGetPlaybackState();
+    const playWhenReady = await mockTrackPlayerGetPlayWhenReady();
+    const rate = await mockTrackPlayerGetRate();
+    const index = (await mockTrackPlayerGetActiveTrackIndex()) ?? 0;
 
-// Mock the native module using the fake
-//
-// NOTE: We duplicate enum values here because jest.requireActual() doesn't work -
-// react-native-track-player requires native TurboModule which isn't available in Jest.
-// These values are stable (changing them would break all library users), and if new
-// values are added, tests will fail when we try to use them - alerting us to update.
-jest.mock("react-native-track-player", () => {
-  const Event = {
-    PlaybackProgressUpdated: "playback-progress-updated",
-    PlaybackQueueEnded: "playback-queue-ended",
-    PlaybackState: "playback-state",
-    PlaybackPlayWhenReadyChanged: "playback-play-when-ready-changed",
-    PlaybackActiveTrackChanged: "playback-active-track-changed",
-    RemoteDuck: "remote-duck",
-    RemoteJumpBackward: "remote-jump-backward",
-    RemoteJumpForward: "remote-jump-forward",
-    RemotePause: "remote-pause",
-    RemotePlay: "remote-play",
-    RemoteStop: "remote-stop",
-    RemoteSeek: "remote-seek",
-  };
+    return {
+      state: nativeStateOf(state),
+      playing: state === "playing",
+      playWhenReady,
+      index,
+      positionSeconds: progress.position,
+      durationSeconds: progress.duration,
+      bufferedSeconds: progress.buffered,
+      rate,
+    };
+  },
+};
 
-  const State = {
-    None: "none",
-    Ready: "ready",
-    Playing: "playing",
-    Paused: "paused",
-    Stopped: "stopped",
-    Buffering: "buffering",
-    Loading: "loading",
-    Error: "error",
-    Ended: "ended",
-  };
+jest.mock("audio-player", () => ({
+  getAudioPlayer: () => mockAudioPlayerNative,
+}));
 
-  const Capability = {
-    Play: "play",
-    Pause: "pause",
-    Stop: "stop",
-    SeekTo: "seek-to",
-    Skip: "skip",
-    SkipToNext: "skip-to-next",
-    SkipToPrevious: "skip-to-previous",
-    JumpForward: "jump-forward",
-    JumpBackward: "jump-backward",
-    SetRating: "set-rating",
-    Like: "like",
-    Dislike: "dislike",
-    Bookmark: "bookmark",
-  };
-
-  const AndroidAudioContentType = { Speech: 1, Music: 2 };
-  const IOSCategory = { Playback: "playback" };
-  const IOSCategoryMode = { SpokenAudio: "spokenAudio", Default: "default" };
-  const PitchAlgorithm = { Voice: 1, Music: 2 };
-  const TrackType = { Dash: "dash", HLS: "hls", Default: "default" };
-
-  return {
-    __esModule: true,
-    default: {
-      // Playback Control
-      play: () => mockTrackPlayerPlay(),
-      pause: () => mockTrackPlayerPause(),
-      seekTo: (pos: number) => mockTrackPlayerSeekTo(pos),
-      setRate: (rate: number) => mockTrackPlayerSetRate(rate),
-      setVolume: (volume: number) => mockTrackPlayerSetVolume(volume),
-      // Queue Management
-      reset: () => mockTrackPlayerReset(),
-      add: (tracks: unknown) => mockTrackPlayerAdd(tracks),
-      skip: (index: number, initialPosition?: number) =>
-        mockTrackPlayerSkip(index, initialPosition),
-      // State Queries
-      getProgress: () => mockTrackPlayerGetProgress(),
-      getActiveTrackIndex: () => mockTrackPlayerGetActiveTrackIndex(),
-      getPlaybackState: () => mockTrackPlayerGetPlaybackState(),
-      getPlayWhenReady: () => mockTrackPlayerGetPlayWhenReady(),
-      getRate: () => mockTrackPlayerGetRate(),
-      // Event Listeners
-      addEventListener: (event: string, handler: unknown) =>
-        mockTrackPlayerAddEventListener(event, handler as () => void),
-      // Setup
-      setupPlayer: (options: unknown) => mockTrackPlayerSetupPlayer(options),
-      updateOptions: (options: unknown) =>
-        mockTrackPlayerUpdateOptions(options),
-      registerPlaybackService: (factory: unknown) =>
-        mockTrackPlayerRegisterPlaybackService(factory),
-    },
-    // Named exports (enums)
-    Event,
-    State,
-    Capability,
-    AndroidAudioContentType,
-    IOSCategory,
-    IOSCategoryMode,
-    PitchAlgorithm,
-    TrackType,
-    // React hooks
-    useIsPlaying: jest.fn(() => ({
-      playing: false,
-      bufferingDuringPlay: false,
-    })),
-    usePlaybackState: jest.fn(() => ({ state: State.None })),
-    useProgress: jest.fn(() => ({ position: 0, duration: 0, buffered: 0 })),
-  };
-});
+/**
+ * Simulate the native side of the audio player.
+ */
+export const audioPlayerFake = {
+  /**
+   * A lock-screen, notification or media-key press, delivered the way the
+   * module delivers it: un-acted, as an event. Nothing has happened to the
+   * player when this fires - JS is the actor.
+   */
+  emitRemoteCommand(command: { command: string; [key: string]: unknown }) {
+    emitAudioPlayerEvent("onRemoteCommand", command);
+  },
+};
 
 // =============================================================================
 // Expo FileSystem Mock

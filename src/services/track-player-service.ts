@@ -7,6 +7,7 @@
  * database.
  */
 
+import { useEffect, useState } from "react";
 import { Platform } from "react-native";
 import * as BackgroundTimer from "background-timer";
 
@@ -15,6 +16,7 @@ import {
   getPlaythrough,
   type PlaythroughWithMedia,
 } from "@/db/playthroughs";
+import type { BookSnapshot } from "@/services/track-player-wrapper";
 import * as TrackPlayer from "@/services/track-player-wrapper";
 import { useDataVersion } from "@/stores/data-version";
 import {
@@ -30,17 +32,7 @@ import {
 } from "@/stores/track-player";
 import { Chapter } from "@/types/db-schema";
 import { type Session } from "@/types/session";
-import {
-  AddTrack,
-  AndroidAudioContentType,
-  Capability,
-  Event,
-  IOSCategory,
-  IOSCategoryMode,
-  PitchAlgorithm,
-  State,
-  TrackType,
-} from "@/types/track-player";
+import { AddTrack, Progress, TrackType } from "@/types/track-player";
 import { logBase } from "@/utils/logger";
 import { documentDirectoryFilePath } from "@/utils/paths";
 import { type TimelineTrack } from "@/utils/playback-timeline";
@@ -52,16 +44,8 @@ import { getSession } from "./session-service";
 
 const log = logBase.extend("track-player-service");
 
-const PROGRESS_UPDATE_INTERVAL = 1000;
-
 type PlayPauseDirection = "play" | "pause";
 
-/**
- * A background timer, not `setInterval`: playback carries on with the app off
- * screen, where JS timers do not tick, and everything downstream reads the
- * progress this writes. See `modules/background-timer`.
- */
-let progressCheckInterval: BackgroundTimer.BackgroundTimerHandle | null = null;
 let awaitingIsPlayingMatch: PlayPauseDirection | null = null;
 
 let unsubscribeFunctions: (() => void)[] = [];
@@ -101,7 +85,7 @@ export async function play(source: PlayPauseSourceType) {
     return;
   }
 
-  const { position } = await getAccurateProgress();
+  const { position } = getAccurateProgress();
   const timestamp = Date.now();
 
   awaitingIsPlayingMatch = "play";
@@ -136,7 +120,7 @@ export async function pause(
     return;
   }
 
-  const { position, duration } = await getAccurateProgress();
+  const { position, duration } = getAccurateProgress();
   const timestamp = Date.now();
 
   awaitingIsPlayingMatch = "pause";
@@ -200,7 +184,7 @@ export async function seekTo(position: number, source: SeekSourceType) {
   const beforeProgress = getProgress();
 
   await TrackPlayer.seekTo(position);
-  const progress = await waitForSeekToComplete(position);
+  const progress = getAccurateProgress();
 
   useTrackPlayer.setState({
     lastSeek: {
@@ -234,7 +218,7 @@ export async function setPlaybackRate(rate: number) {
   } = useTrackPlayer.getState();
 
   await TrackPlayer.setRate(rate);
-  const currentRate = await TrackPlayer.getRate();
+  const currentRate = TrackPlayer.getRate();
 
   const lastRateChange = playthrough
     ? {
@@ -273,13 +257,57 @@ export function getProgress() {
 }
 
 /**
- * Get progress directly from Track Player.
- *
- * This bypasses the store to ensure we get the most up-to-date progress.
+ * Progress straight from the player's mirror, bypassing the store. Falls back
+ * to the store's last-known progress when the player has lost its track (a
+ * zeroed duration): treating those zeros as truth is how a bad patch of
+ * connectivity used to turn into a recorded "seek to 0" that destroyed the
+ * listening position.
  */
-export async function getAccurateProgress() {
+export function getAccurateProgress(): ProgressWithPercent {
   log.silly("getAccurateProgress");
-  return getProgressWithPercent();
+  const progress = TrackPlayer.getProgress();
+  const trusted =
+    progress.duration > 0 ? progress : useTrackPlayer.getState().progress;
+  return withPercent(trusted);
+}
+
+/**
+ * Progress for display, re-rendering when the displayed second changes - at
+ * 2x that is twice a second, the same rate-scaled clock the lock screen
+ * shows. Paused, it follows the store.
+ */
+export function useDisplayProgress(): ProgressWithPercent {
+  const storeProgress = useTrackPlayer((s) => s.progress);
+  const playing = useTrackPlayer((s) => s.isPlaying.playing);
+  const playbackRate = useTrackPlayer((s) => s.playbackRate);
+  const [sampled, setSampled] = useState<ProgressWithPercent | null>(null);
+
+  useEffect(() => {
+    if (!playing) return;
+
+    // A plain interval on purpose: this drives mounted UI, which is
+    // foreground by definition. See the services timer rule in CLAUDE.md.
+    // eslint-disable-next-line no-restricted-globals
+    const interval = setInterval(
+      () => {
+        setSampled((previous) => {
+          const next = getAccurateProgress();
+          return previous &&
+            Math.floor(previous.position) === Math.floor(next.position)
+            ? previous
+            : next;
+        });
+      },
+      Math.max(1000 / playbackRate, 100),
+    );
+    return () => {
+      // eslint-disable-next-line no-restricted-globals
+      clearInterval(interval);
+      setSampled(null);
+    };
+  }, [playing, playbackRate]);
+
+  return sampled ?? storeProgress;
 }
 
 /**
@@ -371,10 +399,9 @@ export async function loadPlaythroughIntoPlayer(
   await TrackPlayer.add(tracks, timeline);
   await TrackPlayer.seekTo(position);
   await TrackPlayer.setRate(playbackRate);
-  await setPlayerOptions();
 
-  const progress = await waitForSeekToComplete(position);
-  const actualPlaybackRate = await TrackPlayer.getRate();
+  const progress = withPercent(await waitForValidProgress());
+  const actualPlaybackRate = TrackPlayer.getRate();
 
   // Only set fields we explicitly manage. playbackState, playWhenReady, and
   // isPlaying are managed by event listeners and must not be overwritten here.
@@ -415,7 +442,7 @@ export async function reloadCurrentPlaythrough(
 
   // Capture current state
   const { playing } = isPlaying();
-  const { position } = await getAccurateProgress();
+  const { position } = getAccurateProgress();
 
   // Reset native player only (clears queue/media)
   await TrackPlayer.reset();
@@ -427,7 +454,6 @@ export async function reloadCurrentPlaythrough(
   // Restore state
   await TrackPlayer.seekTo(position);
   await TrackPlayer.setRate(playthrough.playbackRate);
-  await setPlayerOptions();
 
   // Update store with new derivation (e.g. streaming status changed)
   const streaming = playthrough.media.download?.status !== "ready";
@@ -468,29 +494,30 @@ function isInitialized() {
 }
 
 /**
- * Set up Track Player event listeners to keep the store in sync.
+ * Every player snapshot - each discontinuity, plus once a second while
+ * playing - lands in the store in one write: state, isPlaying, and (when the
+ * player knows where it is) progress and chapters.
  */
 function setupTrackPlayerListeners() {
-  // playbackState
-  TrackPlayer.getPlaybackState().then((playbackState) => {
-    useTrackPlayer.setState({ playbackState });
-    updateIsPlaying();
-  });
+  TrackPlayer.onSnapshot(handleSnapshot);
+}
 
-  TrackPlayer.addEventListener(Event.PlaybackState, (state) => {
-    useTrackPlayer.setState({ playbackState: state });
-    updateIsPlaying();
-  });
+function handleSnapshot(snapshot: BookSnapshot) {
+  const previous = useTrackPlayer.getState().isPlaying;
+  const derived = deriveIsPlaying(snapshot);
+  const isPlaying =
+    previous.playing === derived.playing &&
+    previous.bufferingDuringPlay === derived.bufferingDuringPlay
+      ? previous
+      : derived;
 
-  // playWhenReady
-  TrackPlayer.getPlayWhenReady().then((playWhenReady) => {
-    useTrackPlayer.setState({ playWhenReady });
-    updateIsPlaying();
-  });
-
-  TrackPlayer.addEventListener(Event.PlaybackPlayWhenReadyChanged, (event) => {
-    useTrackPlayer.setState({ playWhenReady: event.playWhenReady });
-    updateIsPlaying();
+  useTrackPlayer.setState({
+    state: snapshot.state,
+    playWhenReady: snapshot.playWhenReady,
+    isPlaying,
+    ...(snapshot.progress.duration > 0
+      ? buildNewProgress(withPercent(snapshot.progress))
+      : {}),
   });
 }
 
@@ -523,16 +550,12 @@ function setupStoreSubscriptions() {
 }
 
 /**
- * Set up the Track Player with default options.
+ * Set up the player. The module configures itself natively (speech content
+ * type, spoken-audio session, interruption handling).
  */
 async function setupPlayer() {
   try {
-    await TrackPlayer.setupPlayer({
-      androidAudioContentType: AndroidAudioContentType.Speech,
-      iosCategory: IOSCategory.Playback,
-      iosCategoryMode: IOSCategoryMode.SpokenAudio,
-      autoHandleInterruptions: true,
-    });
+    await TrackPlayer.setupPlayer();
   } catch (error) {
     log.error("setupPlayer failed", error);
     return;
@@ -629,107 +652,59 @@ async function updatePlaythrough(session: Session, playthroughId: string) {
 }
 
 /**
- * Update isPlaying state based on playWhenReady and playbackState.
- *
- * Also starts/stops progress tracking as needed.
+ * `playing` means "intends to play and could" - it stays true through a
+ * buffering stall, which is what keeps a stall from being recorded as an
+ * external pause.
  */
-function updateIsPlaying() {
-  const { playWhenReady, playbackState } = useTrackPlayer.getState();
-  const isPlaying = determineIsPlaying(playWhenReady, playbackState.state);
-  useTrackPlayer.setState({ isPlaying });
-
-  if (isPlaying.playing) {
-    startTrackingProgress();
-  } else {
-    stopTrackingProgress();
-  }
-}
-
-/**
- * Determine isPlaying state from playWhenReady and playback state.
- *
- * copied from: node_modules/react-native-track-player/src/hooks/useIsPlaying.ts
- */
-function determineIsPlaying(playWhenReady: boolean, state: State) {
-  const isLoading = state === State.Loading || state === State.Buffering;
-  const isErrored = state === State.Error;
-  const isEnded = state === State.Ended;
-  const isNone = state === State.None;
-
+function deriveIsPlaying(snapshot: BookSnapshot) {
   return {
-    playing: playWhenReady && !(isErrored || isEnded || isNone),
-    bufferingDuringPlay: playWhenReady && isLoading,
+    playing:
+      snapshot.playWhenReady &&
+      snapshot.state !== "idle" &&
+      snapshot.state !== "ended",
+    bufferingDuringPlay:
+      snapshot.playWhenReady && snapshot.state === "buffering",
   };
 }
 
-/**
- * Get progress with percent complete.
- */
-async function getProgressWithPercent(): Promise<ProgressWithPercent> {
-  const progress = await getProgressWaitForDuration();
-  const progressPercent =
-    progress.duration > 0 ? (progress.position / progress.duration) * 100 : 0;
-
+function withPercent(progress: Progress): ProgressWithPercent {
   return {
     ...progress,
-    percent: progressPercent,
+    percent:
+      progress.duration > 0 ? (progress.position / progress.duration) * 100 : 0,
   };
 }
 
 /**
- * Get progress, waiting up to timeoutMs for a valid duration (> 0).
- *
- * If the player never reports a valid duration, it has lost its track — e.g.
- * it errored out or dropped its item after a streaming network failure — and
- * everything it reports is zeros. In that case fall back to the store's
- * last-known progress instead of trusting the player: treating those zeros as
- * truth is how a bad patch of connectivity used to turn into a recorded "seek
- * to 0" that destroyed the listening position.
+ * A freshly loaded single-file queue reports duration 0 until the player has
+ * buffered enough to know better; wait for the snapshot that knows. Falls
+ * back to the store's last-known progress if none arrives.
  */
-async function getProgressWaitForDuration(timeoutMs: number = 2000) {
-  const startTime = Date.now();
-  const pollIntervalMs = 50;
+async function waitForValidProgress(
+  timeoutMs: number = 2000,
+): Promise<Progress> {
+  const immediate = TrackPlayer.getProgress();
+  if (immediate.duration > 0) return immediate;
 
-  while (Date.now() - startTime < timeoutMs) {
-    const progress = await TrackPlayer.getProgress();
-
-    if (progress.duration > 0) {
-      return progress;
-    }
-
-    // Wait before next poll
-    await BackgroundTimer.delay(pollIntervalMs);
-  }
-
-  // Timeout reached without getting a valid duration: the player's progress
-  // is not trustworthy, so report the last-known progress instead.
-  const lastKnown = useTrackPlayer.getState().progress;
-  log.warn(
-    `getProgressWaitForDuration: no valid duration from player, falling back to last-known progress (${lastKnown.position.toFixed(1)})`,
-  );
-  return lastKnown;
-}
-
-/**
- * Start updating progress every second.
- */
-function startTrackingProgress() {
-  if (progressCheckInterval) return;
-
-  progressCheckInterval = BackgroundTimer.scheduleInterval(async () => {
-    const progress = await getAccurateProgress();
-    useTrackPlayer.setState(buildNewProgress(progress));
-  }, PROGRESS_UPDATE_INTERVAL);
-}
-
-/**
- * Stop updating progress.
- */
-function stopTrackingProgress() {
-  if (!progressCheckInterval) return;
-
-  BackgroundTimer.cancel(progressCheckInterval);
-  progressCheckInterval = null;
+  return new Promise((resolve) => {
+    let unsubscribe: (() => void) | null = null;
+    let timer: BackgroundTimer.BackgroundTimerHandle | null = null;
+    const finish = (progress: Progress) => {
+      unsubscribe?.();
+      BackgroundTimer.cancel(timer);
+      resolve(progress);
+    };
+    unsubscribe = TrackPlayer.onSnapshot((snapshot) => {
+      if (snapshot.progress.duration > 0) finish(snapshot.progress);
+    });
+    timer = BackgroundTimer.schedule(() => {
+      const lastKnown = useTrackPlayer.getState().progress;
+      log.warn(
+        `waitForValidProgress: no valid duration from player, falling back to last-known progress (${lastKnown.position.toFixed(1)})`,
+      );
+      finish(lastKnown);
+    }, timeoutMs);
+  });
 }
 
 /** A queue and the timeline that describes it. Never one without the other. */
@@ -759,7 +734,6 @@ function buildQueue(
   playthrough: PlaythroughWithMedia,
 ): Queue {
   const shared = {
-    pitchAlgorithm: PitchAlgorithm.Voice,
     title: recordingTitle(
       playthrough.media.title,
       playthrough.media.book.title,
@@ -767,9 +741,6 @@ function buildQueue(
     artist: playthrough.media.book.bookAuthors
       .map((bookAuthor) => bookAuthor.author.name)
       .join(", "),
-    // The playback service reads this back to know which playthrough a
-    // finished queue belonged to.
-    description: playthrough.id,
   };
 
   const tracks = playthrough.media.mediaTracks;
@@ -930,76 +901,6 @@ function legacySource(session: Session, playthrough: PlaythroughWithMedia) {
 }
 
 /**
- * Set player options.
- */
-async function setPlayerOptions() {
-  await TrackPlayer.updateOptions({
-    android: {
-      alwaysPauseOnInterruption: true,
-    },
-    capabilities: [
-      Capability.Play,
-      Capability.Pause,
-      Capability.JumpForward,
-      Capability.JumpBackward,
-    ],
-    notificationCapabilities: [
-      Capability.Play,
-      Capability.Pause,
-      Capability.JumpBackward,
-      Capability.JumpForward,
-    ],
-    forwardJumpInterval: 10,
-    backwardJumpInterval: 10,
-    progressUpdateEventInterval: 1,
-  });
-}
-
-/**
- * Wait for TrackPlayer to report a position close to the expected position.
- * This is needed because seekTo() can return before the seek actually completes,
- * especially for streaming content.
- *
- * The poll sleeps on a background timer. A plain `setTimeout` here would never
- * resolve with the app off screen, and this is awaited by every seek: a remote
- * ±10s would leave `seek-service` holding `isApplying`, silently swallowing
- * every further press until the app was reopened.
- *
- * @param expectedPosition - The position we seeked to
- * @param timeoutMs - Maximum time to wait (default 500ms)
- * @param toleranceSeconds - How close is "close enough" (default 1 second)
- * @returns The actual position reported by TrackPlayer
- */
-async function waitForSeekToComplete(
-  expectedPosition: number,
-  timeoutMs: number = 500,
-  toleranceSeconds: number = 1,
-) {
-  const startTime = Date.now();
-  const pollIntervalMs = 10;
-
-  while (Date.now() - startTime < timeoutMs) {
-    const progress = await getAccurateProgress();
-
-    // Check if position is close enough to expected
-    const diff = Math.abs(progress.position - expectedPosition);
-    if (diff <= toleranceSeconds) {
-      return progress;
-    }
-
-    // Wait before next poll
-    await BackgroundTimer.delay(pollIntervalMs);
-  }
-
-  // Timeout - return whatever position we have
-  const progress = await getAccurateProgress();
-  log.warn(
-    `waitForSeekToComplete timed out. Expected: ${expectedPosition.toFixed(2)} Got: ${progress.position.toFixed(2)}`,
-  );
-  return progress;
-}
-
-/**
  * Play/Pause Event Consolidation
  *
  * Produces canonical play/pause events by consolidating two signals: our
@@ -1104,10 +1005,6 @@ useTrackPlayer.subscribe((state) => {
  * This cleans up subscriptions and resets state to allow fresh initialization.
  */
 export function resetForTesting() {
-  // Clear intervals
-  BackgroundTimer.cancel(progressCheckInterval);
-  progressCheckInterval = null;
-
   // Reset module state
   awaitingIsPlayingMatch = null;
 

@@ -78,13 +78,6 @@ module.exports = defineConfig([
       "no-restricted-imports": [
         "error",
         {
-          paths: [
-            {
-              name: "react-native-track-player",
-              message:
-                "Import from @/services/track-player-wrapper instead of react-native-track-player directly.",
-            },
-          ],
           patterns: [
             {
               group: ["../*"],
@@ -124,27 +117,6 @@ module.exports = defineConfig([
 
             // Utils are leaf nodes - no imports from other layers
             { from: "utils", allow: ["utils"] },
-          ],
-        },
-      ],
-    },
-  },
-  // Allow the wrapper file to import from react-native-track-player
-  {
-    files: [
-      "src/services/track-player-wrapper.ts",
-      "src/types/track-player.ts",
-    ],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: ["../*"],
-              message:
-                "Use absolute imports (@/... or @test/...) instead of relative parent imports",
-            },
           ],
         },
       ],
@@ -203,5 +175,11 @@ module.exports = defineConfig([
       "react-hooks/refs": "off",
     },
   },
-  globalIgnores(["**/expo-env.d.ts", "src/graphql/client/*"]),
+  globalIgnores([
+    "**/expo-env.d.ts",
+    "src/graphql/client/*",
+    // Expo config plugins are build-time CommonJS run by the config loader,
+    // not app code; the base config's type-aware rules cannot apply to them.
+    "modules/*/plugin/*.js",
+  ]),
 ]);

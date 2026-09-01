@@ -7,6 +7,8 @@
  * The real track-player store, database code, and service logic runs.
  */
 
+import { act, renderHook } from "@testing-library/react-native";
+
 import { getPlaythroughWithMedia } from "@/db/playthroughs";
 import * as trackPlayerService from "@/services/track-player-service";
 import {
@@ -16,7 +18,6 @@ import {
   SeekSource,
   useTrackPlayer,
 } from "@/stores/track-player";
-import { State } from "@/types/track-player";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createDownload,
@@ -169,9 +170,10 @@ describe("track-player-service", () => {
 
       const state = useTrackPlayer.getState();
 
-      // The key assertion: playbackState should be Ready (from event listener),
-      // NOT None (which would indicate the race condition bug)
-      expect(state.playbackState.state).toBe(State.Ready);
+      // The key assertion: the state came from the snapshot the fake emitted
+      // during add() and is NOT idle (which would indicate the race
+      // condition bug).
+      expect(state.state).toBe("ready");
     });
 
     it("sets streaming to false when media is downloaded", async () => {
@@ -707,13 +709,42 @@ describe("track-player-service", () => {
     });
   });
 
+  describe("useDisplayProgress", () => {
+    it("advances the displayed position at the playback rate", async () => {
+      await trackPlayerService.initialize();
+      const playthrough = await createTestPlaythrough({
+        position: 100,
+        rate: 2,
+      });
+      await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
+
+      jest.useFakeTimers();
+      await trackPlayerService.play(PlayPauseSource.USER);
+      await jest.advanceTimersByTimeAsync(50);
+      expect(useTrackPlayer.getState().isPlaying.playing).toBe(true);
+
+      const { result, unmount } = renderHook(() =>
+        trackPlayerService.useDisplayProgress(),
+      );
+
+      // One wall-clock second at 2x moves the book position ~2 seconds
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(1000);
+      });
+      expect(result.current.position).toBeGreaterThanOrEqual(101.5);
+      expect(result.current.position).toBeLessThanOrEqual(102.5);
+
+      unmount();
+    });
+  });
+
   describe("playback state initialization", () => {
     it("initializes with correct defaults", async () => {
       await trackPlayerService.initialize();
 
       const state = useTrackPlayer.getState();
       expect(state.initialized).toBe(true);
-      expect(state.playbackState.state).toBe(State.None);
+      expect(state.state).toBe("idle");
       expect(state.playWhenReady).toBe(false);
       expect(state.isPlaying.playing).toBe(false);
       expect(state.playbackRate).toBe(1.0);

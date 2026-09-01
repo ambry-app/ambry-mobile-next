@@ -3,6 +3,7 @@ import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import * as Sentry from "@sentry/react-native";
+import * as Application from "expo-application";
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import { Stack, useNavigationContainerRef } from "expo-router";
 import { DefaultTheme, ThemeProvider } from "expo-router/react-navigation";
@@ -32,12 +33,26 @@ const navigationIntegration = Sentry.reactNavigationIntegration({
   enableTimeToInitialDisplay: true,
 });
 
+const sentryEnvironment =
+  Application.applicationId === "app.ambry.mobile"
+    ? "production"
+    : Application.applicationId === "app.ambry.mobile.preview"
+      ? "preview"
+      : "development";
+
 Sentry.init({
-  dsn: "https://c8e5cc7362c025baf903cd430a1e7951@o4508967734149120.ingest.us.sentry.io/4508967737950208",
+  // No DSN outside production/preview: it also silences the native layer,
+  // which captures service crashes and app hangs before JS runs - dev builds
+  // and CI's Release smoke binaries were reporting through it.
+  dsn:
+    sentryEnvironment === "development"
+      ? undefined
+      : "https://c8e5cc7362c025baf903cd430a1e7951@o4508967734149120.ingest.us.sentry.io/4508967737950208",
+  environment: sentryEnvironment,
   tracesSampleRate: __DEV__ ? 0.0 : 0.1,
   integrations: [navigationIntegration],
   enableNativeFramesTracking: true,
-  enabled: !__DEV__,
+  enabled: !__DEV__ && sentryEnvironment !== "development",
   enableLogs: !__DEV__,
 });
 

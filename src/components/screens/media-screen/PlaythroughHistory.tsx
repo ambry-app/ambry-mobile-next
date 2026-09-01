@@ -9,6 +9,7 @@ import {
   getAllPlaythroughsForMedia,
   PlaythroughForMedia,
 } from "@/services/playthrough-query-service";
+import { useDisplayProgress } from "@/services/track-player-service";
 import { useDataVersion } from "@/stores/data-version";
 import { useDebug } from "@/stores/debug";
 import { useTrackPlayer } from "@/stores/track-player";
@@ -141,7 +142,7 @@ function NowPlayingRow({ playthroughId }: { playthroughId: string }) {
  * Only mounted when the screen is visible (not hidden behind expanded player).
  */
 function NowPlayingTimeInfo() {
-  const progress = useTrackPlayer((state) => state.progress);
+  const progress = useDisplayProgress();
   const playbackRate = useTrackPlayer((state) => state.playbackRate);
 
   const remainingBookTime = progress.duration - progress.position;

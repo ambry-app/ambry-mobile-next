@@ -1,0 +1,7 @@
+# Boot smoke: the compiled binary launches and renders the sign-in screen.
+appId: app.ambry.mobile.dev
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Personal Audiobook Streaming"
+    timeout: 90000
