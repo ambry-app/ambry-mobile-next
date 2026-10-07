@@ -4,15 +4,15 @@ import { render, waitFor } from "@testing-library/react-native";
 import { Delay } from "@/components/Delay";
 
 describe("Delay", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.useFakeTimers();
   });
-  afterEach(() => {
+  afterEach(async () => {
     jest.useRealTimers();
   });
 
-  it("does not render children immediately", () => {
-    const { queryByText } = render(
+  it("does not render children immediately", async () => {
+    const { queryByText } = await render(
       <Delay delay={1000}>
         <Text>Delayed content</Text>
       </Delay>,
@@ -21,7 +21,7 @@ describe("Delay", () => {
   });
 
   it("renders children after delay", async () => {
-    const { queryByText } = render(
+    const { queryByText } = await render(
       <Delay delay={1000}>
         <Text>Delayed content</Text>
       </Delay>,

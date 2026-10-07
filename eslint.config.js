@@ -7,6 +7,11 @@ const js = require("@eslint/js");
 
 const { FlatCompat } = require("@eslint/eslintrc");
 
+const layer = (from, allow) => ({
+  from: { element: { type: from } },
+  allow: { to: { element: { types: { anyOf: allow } } } },
+});
+
 const compat = new FlatCompat({
   baseDirectory: __dirname,
   recommendedConfig: js.configs.recommended,
@@ -96,34 +101,28 @@ module.exports = defineConfig([
       ],
 
       ...boundaries.configs.recommended.rules,
-      "boundaries/element-types": [
+      "boundaries/dependencies": [
         2,
         {
           default: "disallow",
-          rules: [
+          policies: [
             // UI can import from services, stores, utils (not db directly)
-            {
-              from: "ui",
-              allow: ["ui", "stores", "services", "utils"],
-            },
+            layer("ui", ["ui", "stores", "services", "utils"]),
 
             // Stores are PURE STATE - can only import utils and other stores
-            { from: "stores", allow: ["stores", "utils"] },
+            layer("stores", ["stores", "utils"]),
 
             // Services can import db, graphql, utils, stores, other services (not UI)
-            {
-              from: "services",
-              allow: ["services", "stores", "graphql", "db", "utils"],
-            },
+            layer("services", ["services", "stores", "graphql", "db", "utils"]),
 
             // GraphQL layer only imports utils (pure network calls)
-            { from: "graphql", allow: ["graphql", "utils"] },
+            layer("graphql", ["graphql", "utils"]),
 
             // DB layer only imports utils (and other db modules)
-            { from: "db", allow: ["db", "utils"] },
+            layer("db", ["db", "utils"]),
 
             // Utils are leaf nodes - no imports from other layers
-            { from: "utils", allow: ["utils"] },
+            layer("utils", ["utils"]),
           ],
         },
       ],

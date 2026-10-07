@@ -38,7 +38,7 @@ setupTestDatabase();
 describe("usePullToRefresh", () => {
   let mockFetch: ReturnType<typeof installFetchMock>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockFetch = installFetchMock();
 
     // Set up device store (needed for syncPlaythroughs)
@@ -58,8 +58,10 @@ describe("usePullToRefresh", () => {
     });
   });
 
-  it("refreshing is false initially", () => {
-    const { result } = renderHook(() => usePullToRefresh(DEFAULT_TEST_SESSION));
+  it("refreshing is false initially", async () => {
+    const { result } = await renderHook(() =>
+      usePullToRefresh(DEFAULT_TEST_SESSION),
+    );
     expect(result.current.refreshing).toBe(false);
   });
 
@@ -80,11 +82,13 @@ describe("usePullToRefresh", () => {
       .mockReturnValueOnce(libraryPromise)
       .mockReturnValueOnce(playthroughPromise);
 
-    const { result } = renderHook(() => usePullToRefresh(DEFAULT_TEST_SESSION));
+    const { result } = await renderHook(() =>
+      usePullToRefresh(DEFAULT_TEST_SESSION),
+    );
 
     // Start the refresh
     let refreshPromise!: Promise<void>;
-    act(() => {
+    await act(() => {
       refreshPromise = result.current.onRefresh();
     });
 
@@ -122,7 +126,9 @@ describe("usePullToRefresh", () => {
     mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges(serverTime)));
     mockGraphQL(mockFetch, graphqlSuccess(emptySyncEventsResult(serverTime)));
 
-    const { result } = renderHook(() => usePullToRefresh(DEFAULT_TEST_SESSION));
+    const { result } = await renderHook(() =>
+      usePullToRefresh(DEFAULT_TEST_SESSION),
+    );
 
     await act(async () => {
       await result.current.onRefresh();
@@ -136,7 +142,7 @@ describe("usePullToRefresh", () => {
 describe("useForegroundSync", () => {
   let mockFetch: ReturnType<typeof installFetchMock>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockFetch = installFetchMock();
     resetSessionStore();
     resetDataVersionStore();
@@ -158,7 +164,7 @@ describe("useForegroundSync", () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     resetSessionStore();
     resetDataVersionStore();
   });
@@ -169,7 +175,7 @@ describe("useForegroundSync", () => {
     mockGraphQL(mockFetch, graphqlSuccess(emptyLibraryChanges(serverTime)));
     mockGraphQL(mockFetch, graphqlSuccess(emptySyncEventsResult(serverTime)));
 
-    const { unmount } = renderHook(() => useForegroundSync("active"));
+    const { unmount } = await renderHook(() => useForegroundSync("active"));
 
     // The sync runs right away, not only after the 15-minute interval
     await waitFor(() => {
@@ -178,15 +184,15 @@ describe("useForegroundSync", () => {
       );
     });
 
-    unmount();
+    await unmount();
   });
 
   it("does not sync while the app is in the background", async () => {
-    const { unmount } = renderHook(() => useForegroundSync("background"));
+    const { unmount } = await renderHook(() => useForegroundSync("background"));
 
     await act(async () => {});
 
     expect(mockFetch).not.toHaveBeenCalled();
-    unmount();
+    await unmount();
   });
 });

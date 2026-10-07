@@ -68,7 +68,7 @@ function mockSuccessfulSync(
 describe("boot-service", () => {
   let mockFetch: ReturnType<typeof installFetchMock>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockFetch = installFetchMock();
 
     resetSessionStore();
@@ -92,7 +92,7 @@ describe("boot-service", () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     resetTrackPlayerService();
     resetSleepTimerService();
   });
@@ -101,7 +101,7 @@ describe("boot-service", () => {
     const serverTime = "2024-01-15T10:00:00.000Z";
     mockSuccessfulSync(mockFetch, serverTime);
 
-    const { result } = renderHook(() => useAppBoot());
+    const { result } = await renderHook(() => useAppBoot());
 
     await waitFor(() => expect(result.current.isReady).toBe(true));
     expect(result.current.initialSyncComplete).toBe(true);
@@ -112,7 +112,7 @@ describe("boot-service", () => {
     mockNetworkError(mockFetch);
     mockNetworkError(mockFetch);
 
-    const { result } = renderHook(() => useAppBoot());
+    const { result } = await renderHook(() => useAppBoot());
 
     await waitFor(() => expect(result.current.bootError).not.toBeNull());
     expect(result.current.bootError?.kind).toBe(BootErrorKind.NETWORK);
@@ -128,7 +128,7 @@ describe("boot-service", () => {
     mockNetworkError(mockFetch);
     mockNetworkError(mockFetch);
 
-    const { result } = renderHook(() => useAppBoot());
+    const { result } = await renderHook(() => useAppBoot());
     await waitFor(() => expect(result.current.bootError).not.toBeNull());
 
     // The library never synced, so nothing was stored
@@ -138,7 +138,7 @@ describe("boot-service", () => {
       peopleChangedSince: [createLibraryPerson({ id: "person-1" })],
     });
 
-    act(() => result.current.retryBoot());
+    await act(() => result.current.retryBoot());
 
     await waitFor(() => expect(result.current.initialSyncComplete).toBe(true));
     expect(result.current.bootError).toBeNull();
@@ -151,7 +151,7 @@ describe("boot-service", () => {
     mockGraphQL(mockFetch, graphqlUnauthorized());
     mockGraphQL(mockFetch, graphqlUnauthorized());
 
-    const { result } = renderHook(() => useAppBoot());
+    const { result } = await renderHook(() => useAppBoot());
 
     await waitFor(() => expect(result.current.isReady).toBe(true));
     // The cleared session sends the user back to sign-in on its own

@@ -20,7 +20,7 @@ setupTestDatabase();
 type Row = { id: string; insertedAt: Date };
 
 describe("usePaginatedLibraryData", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     resetDataVersionStore();
   });
 
@@ -30,7 +30,7 @@ describe("usePaginatedLibraryData", () => {
       rows.slice(0, pageSize);
     const getCursor = (item: Row) => item.insertedAt;
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       usePaginatedLibraryData(25, getPage, getCursor),
     );
 
@@ -44,7 +44,7 @@ describe("usePaginatedLibraryData", () => {
       { id: "media-1", insertedAt: new Date("2024-01-15T10:00:00.000Z") },
       { id: "media-2", insertedAt: new Date("2024-01-15T11:00:00.000Z") },
     ];
-    act(() => {
+    await act(() => {
       setLibraryDataVersion(new Date("2024-01-15T12:00:00.000Z"));
     });
 
@@ -62,7 +62,7 @@ describe("usePaginatedLibraryData", () => {
       rows.slice(0, pageSize);
     const getCursor = (item: Row) => item.insertedAt;
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       usePaginatedLibraryData(25, getPage, getCursor),
     );
 
@@ -74,7 +74,7 @@ describe("usePaginatedLibraryData", () => {
       { id: "media-1", insertedAt: new Date("2024-01-15T10:00:00.000Z") },
       { id: "media-2", insertedAt: new Date("2024-01-15T11:00:00.000Z") },
     ];
-    act(() => {
+    await act(() => {
       setLibraryDataVersion(new Date("2024-01-15T12:00:00.000Z"));
     });
 
