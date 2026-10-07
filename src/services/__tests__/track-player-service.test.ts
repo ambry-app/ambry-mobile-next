@@ -7,7 +7,12 @@
  * The real track-player store, database code, and service logic runs.
  */
 
-import { getPlaythroughWithMedia } from "@/db/playthroughs";
+import { act, renderHook } from "@testing-library/react-native";
+
+import {
+  getPlaythroughWithMedia,
+  type PlaythroughWithMedia,
+} from "@/db/playthroughs";
 import * as trackPlayerService from "@/services/track-player-service";
 import {
   PlayPauseSource,
@@ -16,7 +21,6 @@ import {
   SeekSource,
   useTrackPlayer,
 } from "@/stores/track-player";
-import { State } from "@/types/track-player";
 import { setupTestDatabase } from "@test/db-test-utils";
 import {
   createDownload,
@@ -54,7 +58,7 @@ async function createTestPlaythrough(
       endTime: number | null;
     }[];
     downloaded?: boolean;
-    duration?: string;
+    duration?: string | null;
   } = {},
 ) {
   const db = getDb();
@@ -66,7 +70,7 @@ async function createTestPlaythrough(
   ];
 
   const media = await createMedia(db, {
-    duration: overrides.duration ?? "300.0",
+    duration: overrides.duration === undefined ? "300.0" : overrides.duration,
     chapters,
     hlsPath: "/audio/test/hls.m3u8",
     mpdPath: "/audio/test/manifest.mpd",
@@ -169,9 +173,10 @@ describe("track-player-service", () => {
 
       const state = useTrackPlayer.getState();
 
-      // The key assertion: playbackState should be Ready (from event listener),
-      // NOT None (which would indicate the race condition bug)
-      expect(state.playbackState.state).toBe(State.Ready);
+      // The key assertion: the state came from the snapshot the fake emitted
+      // during add() and is NOT idle (which would indicate the race
+      // condition bug).
+      expect(state.state).toBe("ready");
     });
 
     it("sets streaming to false when media is downloaded", async () => {
@@ -524,6 +529,63 @@ describe("track-player-service", () => {
     });
   });
 
+  describe("loading a stream the player has not measured yet", () => {
+    beforeEach(() => {
+      trackPlayerFake.setState({ reportsDuration: false });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    async function loadUnmeasured(playthrough: PlaythroughWithMedia) {
+      jest.useFakeTimers();
+      const loading = trackPlayerService.loadPlaythroughIntoPlayer(
+        session,
+        playthrough,
+      );
+      await jest.advanceTimersByTimeAsync(5_000);
+      await loading;
+    }
+
+    it("keeps the saved position and the recording's duration", async () => {
+      await loadUnmeasured(await createTestPlaythrough({ position: 250 }));
+
+      const { progress, currentChapter } = useTrackPlayer.getState();
+      expect(progress.position).toBe(250);
+      expect(progress.duration).toBe(300);
+      expect(currentChapter?.id).toBe("ch-3");
+    });
+
+    it("records play and pause at the saved position", async () => {
+      await loadUnmeasured(await createTestPlaythrough({ position: 150 }));
+
+      await trackPlayerService.play(PlayPauseSource.USER);
+      expect(useTrackPlayer.getState().lastPlayPause?.position).toBe(150);
+
+      await trackPlayerService.pause(PlayPauseSource.USER, 1);
+      expect(useTrackPlayer.getState().lastPlayPause?.position).toBe(150);
+    });
+
+    it("rewinds on pause from the saved position, not to 0", async () => {
+      await loadUnmeasured(
+        await createTestPlaythrough({ position: 150, duration: null }),
+      );
+
+      await trackPlayerService.pause(PlayPauseSource.USER, 1);
+
+      expect(trackPlayerFake.getState().position).toBe(149);
+    });
+
+    it("records rate changes at the saved position", async () => {
+      await loadUnmeasured(await createTestPlaythrough({ position: 150 }));
+
+      await trackPlayerService.setPlaybackRate(1.5);
+
+      expect(useTrackPlayer.getState().lastRateChange?.position).toBe(150);
+    });
+  });
+
   describe("setPlaybackRate", () => {
     it("updates rate and emits lastRateChange", async () => {
       const playthrough = await createTestPlaythrough({ position: 50 });
@@ -707,13 +769,42 @@ describe("track-player-service", () => {
     });
   });
 
+  describe("useDisplayProgress", () => {
+    it("advances the displayed position at the playback rate", async () => {
+      await trackPlayerService.initialize();
+      const playthrough = await createTestPlaythrough({
+        position: 100,
+        rate: 2,
+      });
+      await trackPlayerService.loadPlaythroughIntoPlayer(session, playthrough);
+
+      jest.useFakeTimers();
+      await trackPlayerService.play(PlayPauseSource.USER);
+      await jest.advanceTimersByTimeAsync(50);
+      expect(useTrackPlayer.getState().isPlaying.playing).toBe(true);
+
+      const { result, unmount } = await renderHook(() =>
+        trackPlayerService.useDisplayProgress(),
+      );
+
+      // One wall-clock second at 2x moves the book position ~2 seconds
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(1000);
+      });
+      expect(result.current.position).toBeGreaterThanOrEqual(101.5);
+      expect(result.current.position).toBeLessThanOrEqual(102.5);
+
+      await unmount();
+    });
+  });
+
   describe("playback state initialization", () => {
     it("initializes with correct defaults", async () => {
       await trackPlayerService.initialize();
 
       const state = useTrackPlayer.getState();
       expect(state.initialized).toBe(true);
-      expect(state.playbackState.state).toBe(State.None);
+      expect(state.state).toBe("idle");
       expect(state.playWhenReady).toBe(false);
       expect(state.isPlaying.playing).toBe(false);
       expect(state.playbackRate).toBe(1.0);

@@ -9,6 +9,11 @@ on:
 env:
   MIX_ENV: test
 
+# The compile jobs are heavy; a superseded push doesn't deserve to finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   checks:
     strategy:
@@ -21,6 +26,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Set up tools
+        uses: jdx/mise-action@v2
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
       - name: Install dependencies
         run: npm ci
       - name: Check dependencies
@@ -37,3 +50,211 @@ jobs:
         run: npm test
       - name: Run prebuild
         run: npm run prebuild
+
+  compile-ios:
+    name: Compile & smoke iOS
+    runs-on: macos-latest
+    timeout-minutes: 90
+
+    env:
+      SENTRY_DISABLE_AUTO_UPLOAD: "true"
+      USE_CCACHE: "1"
+      CCACHE_DIR: /Users/runner/.ccache
+      CCACHE_MAXSIZE: 3G
+      # RN's compiler wrapper reads $CCACHE_BINARY; the build setting of the
+      # same name doesn't reach compiler subprocesses
+      CCACHE_BINARY: /usr/local/bin/ccache
+      # reactnative.dev/docs/build-speed: content beats the default compiler
+      # mtime check on CI, where fresh checkouts break timestamp assumptions
+      CCACHE_COMPILERCHECK: content
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up tools
+        uses: jdx/mise-action@v2
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
+      - name: Cache CocoaPods downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/CocoaPods
+          key: pods-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: pods-${{ runner.os }}-
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ runner.os }}-${{ github.sha }}
+          restore-keys: ccache-${{ runner.os }}-
+      - name: Install ccache
+        # RN's compiler wrappers silently fall back to plain clang when ccache
+        # is not on Xcode's restricted PATH; the symlink makes it visible.
+        run: |
+          brew install ccache
+          sudo ln -sf "$(command -v ccache)" /usr/local/bin/ccache
+          ccache -z
+      - name: Install dependencies
+        run: npm ci
+      - name: Run prebuild
+        run: npm run prebuild
+      - name: Boot simulator
+        run: |
+          UDID=$(xcrun simctl list devices available --json \
+            | jq -r '[.devices[] | .[] | select(.name | test("^iPhone"))][0].udid')
+          echo "SIMULATOR_UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID"
+      - name: Compile
+        run: |
+          echo "CCACHE_BINARY in Pods project: $(grep -c CCACHE_BINARY ios/Pods/Pods.xcodeproj/project.pbxproj || echo 0)"
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -n 1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath ios/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            build > xcodebuild.log 2>&1 || {
+              echo "--- errors ---"
+              grep -E "error:" xcodebuild.log | head -n 50
+              echo "--- tail ---"
+              tail -n 30 xcodebuild.log
+              exit 1
+            }
+          grep -E "\*\* BUILD" xcodebuild.log
+          echo "CompileC: $(grep -c '^CompileC ' xcodebuild.log || true)"
+          echo "ccache wrapper invocations: $(grep -c 'ccache-clang' xcodebuild.log || true)"
+          ccache -s
+      - name: Install Maestro
+        run: |
+          curl -fsSL https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Boot smoke
+        timeout-minutes: 20
+        env:
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: "240000"
+          MAESTRO_CLI_NO_ANALYTICS: "1"
+        run: |
+          UDID="$SIMULATOR_UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          APP=$(find ios/DerivedData/Build/Products/Release-iphonesimulator -maxdepth 1 -name '*.app' | head -n 1)
+          xcrun simctl install "$UDID" "$APP"
+          ok=0
+          for attempt in 1 2 3; do
+            if maestro --udid "$UDID" test .maestro/boot-smoke.yaml; then
+              ok=1
+              break
+            fi
+            echo "maestro attempt $attempt failed"
+          done
+          if [ "$ok" != "1" ]; then
+            xcrun simctl spawn "$UDID" log show --last 10m > simulator-log.txt 2>&1 || true
+            exit 1
+          fi
+      - name: Upload smoke debug artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-smoke-debug
+          path: |
+            ~/.maestro/tests/
+            simulator-log.txt
+          if-no-files-found: ignore
+
+  compile-android:
+    name: Compile & smoke Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      SENTRY_DISABLE_AUTO_UPLOAD: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up tools
+        uses: jdx/mise-action@v2
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          # the default is read-only off the default branch: nothing would
+          # ever seed the cache from a feature branch
+          cache-read-only: false
+      - name: Install dependencies
+        run: npm ci
+      - name: Run prebuild
+        run: |
+          npm run prebuild
+          # the generated 2048m heap OOMs on release/R8 builds; leading \n
+          # because the generated file has no trailing newline
+          # x86_64 only: the emulator smoke needs one ABI, not all four
+          printf '\norg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m\norg.gradle.caching=true\nreactNativeArchitectures=x86_64\n' >> android/gradle.properties
+      - name: Compile
+        run: cd android && ./gradlew :app:assembleRelease
+      - name: Install Maestro
+        run: |
+          curl -fsSL https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Cache AVD
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-34-pixel6
+      - name: Create AVD snapshot
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "Generated AVD snapshot for caching"
+      - name: Boot smoke
+        timeout-minutes: 15
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            adb shell settings put global hide_error_dialogs 1
+            adb install android/app/build/outputs/apk/release/app-release.apk
+            maestro test .maestro/boot-smoke.yaml || { adb logcat -d > logcat.txt; exit 1; }
+      - name: Upload smoke debug artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-smoke-debug
+          path: |
+            ~/.maestro/tests/
+            logcat.txt
+          if-no-files-found: ignore

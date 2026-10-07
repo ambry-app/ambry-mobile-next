@@ -602,9 +602,13 @@ describe("sleep-timer-service", () => {
     it("rewinds by configured amount on sleep timer pause", async () => {
       await jest.advanceTimersByTimeAsync(61000);
 
-      // Should have rewound by SLEEP_TIMER_PAUSE_REWIND_SECONDS (10s * 1.0 rate)
-      const expectedPosition = 100 - SLEEP_TIMER_PAUSE_REWIND_SECONDS;
-      expect(trackPlayerFake.getState().position).toBe(expectedPosition);
+      // Position advances while playing (the mirror extrapolates), so assert
+      // the rewind relative to where the pause landed.
+      const pausedAt = useTrackPlayer.getState().lastPlayPause!.position;
+      expect(trackPlayerFake.getState().position).toBeCloseTo(
+        pausedAt - SLEEP_TIMER_PAUSE_REWIND_SECONDS,
+        5,
+      );
     });
 
     it("fades volume in last 30 seconds", async () => {

@@ -1,176 +1,62 @@
 import { PAUSE_REWIND_SECONDS } from "@/constants";
 import * as Operations from "@/services/playthrough-operations";
-import { seekRelative } from "@/services/seek-service";
+import { seekRelative, seekTo } from "@/services/seek-service";
 import * as Player from "@/services/track-player-service";
 import * as TrackPlayer from "@/services/track-player-wrapper";
 import { PlayPauseSource, SeekSource } from "@/stores/track-player";
-import { Event } from "@/types/track-player";
 import { logBase } from "@/utils/logger";
 
 const log = logBase.extend("playback-service");
 
-export const PlaybackService = async function () {
+let unsubscribes: (() => void)[] = [];
+
+/**
+ * Routes the player's remote transport and queue-end into the services.
+ * Remote commands arrive un-acted - JS is the actor - so a remote pause runs
+ * pause-rewind before the event log sees the pause, and remote seeks go
+ * through the same rate-scaled path as in-app presses. A headset's toggle
+ * arrives as the play or pause it meant; the native session resolves it.
+ *
+ * Re-running replaces the registrations, so a repeated boot never
+ * double-handles a command.
+ */
+export function initPlaybackService() {
   log.info("Initializing");
 
-  // TrackPlayer Events
+  unsubscribes.forEach((unsubscribe) => unsubscribe());
+  unsubscribes = [];
 
-  // TrackPlayer.addEventListener(Event.AndroidConnectorConnected, (args) => {
-  //   log.debug("AndroidConnectorConnected", args);
-  // });
+  unsubscribes.push(
+    TrackPlayer.onQueueEnded(async () => {
+      log.debug("queue ended");
 
-  // TrackPlayer.addEventListener(Event.AndroidConnectorDisconnected, (args) => {
-  //   log.debug("AndroidConnectorDisconnected", args);
-  // });
+      const loadedPlaythrough = Player.getLoadedPlaythrough();
+      if (!loadedPlaythrough) {
+        log.warn("No loaded playthrough when handling queue end");
+        return;
+      }
 
-  // TrackPlayer.addEventListener(Event.MetadataChapterReceived, (args) => {
-  //   log.debug("MetadataChapterReceived", args);
-  // });
+      log.info("Playback ended, auto-finishing playthrough");
+      await Operations.finishPlaythrough(null, loadedPlaythrough.id);
+    }),
+  );
 
-  // TrackPlayer.addEventListener(Event.MetadataCommonReceived, (args) => {
-  //   log.debug("MetadataCommonReceived", args);
-  // });
+  unsubscribes.push(
+    TrackPlayer.onRemoteCommand(async (command) => {
+      log.debug(`remote ${command.command}`);
 
-  // TrackPlayer.addEventListener(Event.MetadataTimedReceived, (args) => {
-  //   log.debug("MetadataTimedReceived", args);
-  // });
-
-  // TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (args) => {
-  //   log.debug("PlaybackActiveTrackChanged", args);
-  // });
-
-  // TrackPlayer.addEventListener(Event.PlaybackError, (args) => {
-  //   log.debug("PlaybackError", args);
-  // });
-
-  // TrackPlayer.addEventListener(Event.PlaybackPlayWhenReadyChanged, (args) => {
-  //   log.debug("PlaybackPlayWhenReadyChanged", args);
-  // });
-
-  // TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (args) => {
-  //   log.debug("PlaybackProgressUpdated", args);
-  // });
-
-  TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async () => {
-    log.debug("PlaybackQueueEnded");
-
-    const loadedPlaythrough = Player.getLoadedPlaythrough();
-
-    if (!loadedPlaythrough) {
-      log.warn("No loaded playthrough when handling queue end");
-      return;
-    }
-
-    // Auto-finish the playthrough
-    log.info("Playback ended, auto-finishing playthrough");
-    await Operations.finishPlaythrough(null, loadedPlaythrough.id);
-  });
-
-  // TrackPlayer.addEventListener(Event.PlaybackResume, (args) => {
-  //   log.debug("PlaybackResume", args);
-  // });
-
-  // TrackPlayer.addEventListener(Event.PlaybackState, (args) => {
-  //   log.debug("PlaybackState", args);
-  // });
-
-  // TrackPlayer.addEventListener(Event.PlayerError, (args) => {
-  //   log.debug("PlayerError", args);
-  // });
-
-  // TrackPlayer.addEventListener(Event.RemoteBookmark, () => {
-  //   log.debug("RemoteBookmark");
-  // });
-
-  // TrackPlayer.addEventListener(Event.RemoteDislike, () => {
-  //   log.debug("RemoteDislike");
-  // });
-
-  // FIXME: this event doesn't seem to work on Android
-  TrackPlayer.addEventListener(Event.RemoteDuck, (args) => {
-    log.debug("RemoteDuck", args);
-  });
-
-  TrackPlayer.addEventListener(Event.RemoteJumpBackward, async (args) => {
-    log.debug("RemoteJumpBackward", args);
-    const { interval } = args;
-
-    seekRelative(-interval, SeekSource.REMOTE);
-  });
-
-  TrackPlayer.addEventListener(Event.RemoteJumpForward, async (args) => {
-    log.debug("RemoteJumpForward", args);
-    const { interval } = args;
-
-    seekRelative(interval, SeekSource.REMOTE);
-  });
-
-  // TrackPlayer.addEventListener(Event.RemoteLike, () => {
-  //   log.debug("RemoteLike");
-  // });
-
-  // TrackPlayer.addEventListener(Event.RemoteNext, () => {
-  //   log.debug("RemoteNext");
-  // });
-
-  TrackPlayer.addEventListener(Event.RemotePause, async () => {
-    log.debug("RemotePause");
-
-    await Player.pause(PlayPauseSource.REMOTE, PAUSE_REWIND_SECONDS);
-  });
-
-  TrackPlayer.addEventListener(Event.RemotePlay, async () => {
-    log.debug("RemotePlay");
-
-    await Player.play(PlayPauseSource.REMOTE);
-  });
-
-  // TrackPlayer.addEventListener(Event.RemotePlayId, (args) => {
-  //   log.debug("RemotePlayId", args);
-  // });
-
-  // A headset's play/pause key arrives here, and only here. RNTP maps
-  // KEYCODE_MEDIA_PLAY_PAUSE straight to this event and reports the key
-  // handled (`MusicService.onMediaKeyEvent`), so media3 never gets to resolve
-  // the toggle against playback state into a play or a pause of its own.
-  // Without this listener the key does nothing at all - and does it silently,
-  // because the notification's button takes the other route, through the
-  // media session, and arrives as RemotePlay/RemotePause.
-  //
-  // The toggle is resolved here instead, against the same isPlaying the
-  // notification's own button is drawn from.
-  TrackPlayer.addEventListener(Event.RemotePlayPause, async () => {
-    log.debug("RemotePlayPause");
-
-    const { playing } = Player.isPlaying();
-
-    if (playing) {
-      await Player.pause(PlayPauseSource.REMOTE, PAUSE_REWIND_SECONDS);
-    } else {
-      await Player.play(PlayPauseSource.REMOTE);
-    }
-  });
-
-  // TrackPlayer.addEventListener(Event.RemotePlaySearch, (args) => {
-  //   log.debug("RemotePlaySearch", args);
-  // });
-
-  // TrackPlayer.addEventListener(Event.RemotePrevious, () => {
-  //   log.debug("RemotePrevious");
-  // });
-
-  // TrackPlayer.addEventListener(Event.RemoteSeek, (args) => {
-  //   log.debug("RemoteSeek", args);
-  // });
-
-  // TrackPlayer.addEventListener(Event.RemoteSetRating, (args) => {
-  //   log.debug("RemoteSetRating", args);
-  // });
-
-  // TrackPlayer.addEventListener(Event.RemoteSkip, (args) => {
-  //   log.debug("RemoteSkip", args);
-  // });
-
-  // TrackPlayer.addEventListener(Event.RemoteStop, () => {
-  //   log.debug("RemoteStop");
-  // });
-};
+      switch (command.command) {
+        case "play":
+          return Player.play(PlayPauseSource.REMOTE);
+        case "pause":
+          return Player.pause(PlayPauseSource.REMOTE, PAUSE_REWIND_SECONDS);
+        case "seekBack":
+          return seekRelative(-command.intervalSeconds, SeekSource.REMOTE);
+        case "seekForward":
+          return seekRelative(command.intervalSeconds, SeekSource.REMOTE);
+        case "seekTo":
+          return seekTo(command.positionSeconds, SeekSource.REMOTE);
+      }
+    }),
+  );
+}

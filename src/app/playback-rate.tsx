@@ -32,7 +32,7 @@ export default function PlaybackRateRoute() {
   );
   const currentRate = isSettingsMode ? preferredRate : playerRate;
 
-  const progress = useTrackPlayer((state) => state.progress);
+  const progress = Player.useDisplayProgress();
 
   const [displayPlaybackRate, setDisplayPlaybackRate] =
     useSyncedState(currentRate);

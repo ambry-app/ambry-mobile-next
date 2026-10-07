@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
+import { useDisplayProgress } from "@/services/track-player-service";
 import { useSeekUIState } from "@/stores/seek-ui-state";
 import { useTrackPlayer } from "@/stores/track-player";
 import { Colors } from "@/styles/colors";
@@ -10,7 +11,7 @@ import { ProgressBar } from "./ProgressBar";
 
 export const PlayerProgressBar = memo(function PlayerProgressBar() {
   const seekPosition = useSeekUIState((state) => state.seekPosition);
-  const progress = useTrackPlayer((state) => state.progress);
+  const progress = useDisplayProgress();
   const playbackRate = useTrackPlayer((state) => state.playbackRate);
 
   // Use seekPosition if available (during seek accumulation), otherwise use position

@@ -11,7 +11,7 @@
 import { create } from "zustand";
 
 import { Chapter } from "@/types/db-schema";
-import { PlaybackState, Progress, State } from "@/types/track-player";
+import { PlayerState, Progress } from "@/types/track-player";
 
 export type LoadedPlaythrough = {
   id: string;
@@ -77,7 +77,7 @@ export type RateChange = {
 
 export interface TrackPlayerState {
   initialized: boolean;
-  playbackState: PlaybackState;
+  state: PlayerState;
   playWhenReady: boolean;
   isPlaying: {
     playing: boolean;
@@ -96,7 +96,7 @@ export interface TrackPlayerState {
 }
 
 export const initialState = {
-  playbackState: { state: State.None } as PlaybackState,
+  state: "idle" as PlayerState,
   playWhenReady: false,
   isPlaying: {
     playing: false,

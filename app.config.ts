@@ -74,7 +74,11 @@ export default {
         },
       ],
       "react-native-edge-to-edge",
-      "expo-build-properties",
+      [
+        "expo-build-properties",
+        // ccache only where CI installs it; local and EAS builds don't have it
+        { ios: { ccacheEnabled: process.env.USE_CCACHE === "1" } },
+      ],
       "expo-sqlite",
       "expo-background-task",
       "expo-font",

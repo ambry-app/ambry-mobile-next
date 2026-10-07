@@ -14,6 +14,7 @@ import { useDatabaseMigrations } from "@/services/db-service";
 import { initializeDownloads } from "@/services/download-service";
 import { initialize as initializeEventRecording } from "@/services/event-recording";
 import { initializePlayer } from "@/services/playback-controls";
+import { initPlaybackService } from "@/services/playback-service";
 import { initialize as initializeHeartbeat } from "@/services/position-heartbeat";
 import { initialize as initializePreferredPlaybackRate } from "@/services/preferred-playback-rate-service";
 import { initialize as initializeSleepTimer } from "@/services/sleep-timer-service";
@@ -145,6 +146,7 @@ export function useAppBoot() {
       setInitialSyncComplete(true);
 
       await initializeDownloads(session);
+      initPlaybackService();
       await initializeTrackPlayer();
       await initializePlayer(session);
       await initializeSleepTimer();
