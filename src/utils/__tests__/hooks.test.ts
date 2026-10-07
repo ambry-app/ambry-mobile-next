@@ -43,34 +43,34 @@ jest.mock("react-native", () => ({
 }));
 
 describe("useAppState", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     listeners.length = 0;
     (AppState as any).currentState = "active";
   });
 
-  it("returns the initial app state", () => {
+  it("returns the initial app state", async () => {
     (AppState as any).currentState = "background";
-    const { result } = renderHook(() => useAppState());
+    const { result } = await renderHook(() => useAppState());
     expect(result.current).toBe("background");
   });
 
-  it("updates state when AppState changes", () => {
-    const { result } = renderHook(() => useAppState());
+  it("updates state when AppState changes", async () => {
+    const { result } = await renderHook(() => useAppState());
     expect(result.current).toBe("active");
-    act(() => {
+    await act(() => {
       listeners.forEach((cb) => cb("background"));
     });
     expect(result.current).toBe("background");
-    act(() => {
+    await act(() => {
       listeners.forEach((cb) => cb("inactive"));
     });
     expect(result.current).toBe("inactive");
   });
 
-  it("cleans up the event listener on unmount", () => {
-    const { unmount } = renderHook(() => useAppState());
+  it("cleans up the event listener on unmount", async () => {
+    const { unmount } = await renderHook(() => useAppState());
     expect(listeners.length).toBe(1);
-    unmount();
+    await unmount();
     expect(listeners.length).toBe(0);
   });
 });
@@ -80,81 +80,81 @@ describe("useAppState", () => {
 // =============================================================================
 
 describe("useDebounce", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.useFakeTimers();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     jest.useRealTimers();
   });
 
-  it("returns the initial value immediately", () => {
-    const { result } = renderHook(() => useDebounce("foo", 500));
+  it("returns the initial value immediately", async () => {
+    const { result } = await renderHook(() => useDebounce("foo", 500));
     expect(result.current).toBe("foo");
   });
 
-  it("updates value after delay", () => {
-    const { result, rerender } = renderHook<
+  it("updates value after delay", async () => {
+    const { result, rerender } = await renderHook<
       string,
       { value: string; delay: number }
     >(({ value, delay }) => useDebounce(value, delay), {
       initialProps: { value: "foo", delay: 500 },
     });
-    rerender({ value: "bar", delay: 500 });
+    await rerender({ value: "bar", delay: 500 });
     expect(result.current).toBe("foo");
-    act(() => {
+    await act(() => {
       jest.advanceTimersByTime(500);
     });
     expect(result.current).toBe("bar");
   });
 
-  it("updates debounce timing when delay changes", () => {
-    const { result, rerender } = renderHook<
+  it("updates debounce timing when delay changes", async () => {
+    const { result, rerender } = await renderHook<
       string,
       { value: string; delay: number }
     >(({ value, delay }) => useDebounce(value, delay), {
       initialProps: { value: "foo", delay: 500 },
     });
-    rerender({ value: "bar", delay: 1000 });
-    act(() => {
+    await rerender({ value: "bar", delay: 1000 });
+    await act(() => {
       jest.advanceTimersByTime(500);
     });
     expect(result.current).toBe("foo");
-    act(() => {
+    await act(() => {
       jest.advanceTimersByTime(500);
     });
     expect(result.current).toBe("bar");
   });
 
-  it("cleans up timers on unmount", () => {
-    const { unmount, rerender } = renderHook<
+  it("cleans up timers on unmount", async () => {
+    const { unmount, rerender } = await renderHook<
       string,
       { value: string; delay: number }
     >(({ value, delay }) => useDebounce(value, delay), {
       initialProps: { value: "foo", delay: 500 },
     });
-    rerender({ value: "bar", delay: 500 });
-    unmount();
+    await rerender({ value: "bar", delay: 500 });
+    await unmount();
     // No error should be thrown, timer should be cleared
   });
 
-  it("handles rapid value changes (debounces to last value)", () => {
-    const { result, rerender } = renderHook<
+  it("handles rapid value changes (debounces to last value)", async () => {
+    const { result, rerender } = await renderHook<
       string,
       { value: string; delay: number }
     >(({ value, delay }) => useDebounce(value, delay), {
       initialProps: { value: "foo", delay: 500 },
     });
-    rerender({ value: "b", delay: 300 });
-    act(() => {
+    await rerender({ value: "b", delay: 300 });
+    await act(() => {
       jest.advanceTimersByTime(100);
     });
-    rerender({ value: "c", delay: 300 });
-    act(() => {
+    await rerender({ value: "c", delay: 300 });
+    await act(() => {
       jest.advanceTimersByTime(200);
     });
     expect(result.current).toBe("foo"); // still initial value
-    act(() => {
+    await act(() => {
       jest.advanceTimersByTime(100);
     });
     expect(result.current).toBe("c"); // debounced to last value
@@ -166,7 +166,7 @@ describe("useDebounce", () => {
 // =============================================================================
 
 describe("useThrottle", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     // NOTE: We use legacy fake timers here because the useThrottle hook relies on Date.now() to determine elapsed time.
     // Modern Jest fake timers (the default) do NOT mock Date.now()—they only mock timer functions like setTimeout/setInterval.
     // As a result, advancing timers with modern fake timers does NOT advance the value returned by Date.now(),
@@ -175,90 +175,90 @@ describe("useThrottle", () => {
     jest.useFakeTimers({ legacyFakeTimers: true });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     jest.useRealTimers();
   });
 
-  it("returns the initial value immediately", () => {
-    const { result } = renderHook(() => useThrottle("foo", 500));
+  it("returns the initial value immediately", async () => {
+    const { result } = await renderHook(() => useThrottle("foo", 500));
     expect(result.current).toBe("foo");
   });
 
-  it("updates value after delay", () => {
-    const { result, rerender } = renderHook<
+  it("updates value after delay", async () => {
+    const { result, rerender } = await renderHook<
       string,
       { value: string; delay: number }
     >(({ value, delay }) => useThrottle(value, delay), {
       initialProps: { value: "foo", delay: 500 },
     });
-    rerender({ value: "bar", delay: 500 });
+    await rerender({ value: "bar", delay: 500 });
     expect(result.current).toBe("foo");
-    act(() => {
+    await act(() => {
       jest.advanceTimersByTime(500);
     });
     expect(result.current).toBe("bar");
   });
 
-  it("does not update value if called again within delay", () => {
-    const { result, rerender } = renderHook<
+  it("does not update value if called again within delay", async () => {
+    const { result, rerender } = await renderHook<
       string,
       { value: string; delay: number }
     >(({ value, delay }) => useThrottle(value, delay), {
       initialProps: { value: "foo", delay: 500 },
     });
-    rerender({ value: "bar", delay: 500 });
-    act(() => {
+    await rerender({ value: "bar", delay: 500 });
+    await act(() => {
       jest.advanceTimersByTime(200);
     });
-    rerender({ value: "baz", delay: 500 });
-    act(() => {
+    await rerender({ value: "baz", delay: 500 });
+    await act(() => {
       jest.advanceTimersByTime(200);
     });
     // Still should be "foo" (not enough time elapsed)
     expect(result.current).toBe("foo");
-    act(() => {
+    await act(() => {
       jest.advanceTimersByTime(100);
     });
-    act(() => {
+    await act(() => {
       jest.runOnlyPendingTimers();
     });
     // Now enough time has passed for the first update
     expect(result.current).toBe("baz");
   });
 
-  it("updates to the latest value after delay if value changes rapidly", () => {
-    const { result, rerender } = renderHook<
+  it("updates to the latest value after delay if value changes rapidly", async () => {
+    const { result, rerender } = await renderHook<
       string,
       { value: string; delay: number }
     >(({ value, delay }) => useThrottle(value, delay), {
       initialProps: { value: "foo", delay: 500 },
     });
-    rerender({ value: "b", delay: 300 });
-    act(() => {
+    await rerender({ value: "b", delay: 300 });
+    await act(() => {
       jest.advanceTimersByTime(100);
     });
-    rerender({ value: "c", delay: 300 });
-    act(() => {
+    await rerender({ value: "c", delay: 300 });
+    await act(() => {
       jest.advanceTimersByTime(200);
     });
     // Should still be "a" (throttle window not finished)
     expect(result.current).toBe("foo");
-    act(() => {
+    await act(() => {
       jest.advanceTimersByTime(100);
     });
     // Now should be "c" (latest value after throttle window)
     expect(result.current).toBe("c");
   });
 
-  it("cleans up timers on unmount", () => {
-    const { unmount, rerender } = renderHook<
+  it("cleans up timers on unmount", async () => {
+    const { unmount, rerender } = await renderHook<
       string,
       { value: string; delay: number }
     >(({ value, delay }) => useThrottle(value, delay), {
       initialProps: { value: "foo", delay: 500 },
     });
-    rerender({ value: "bar", delay: 500 });
-    unmount();
+    await rerender({ value: "bar", delay: 500 });
+    await unmount();
     // No error should be thrown, timer should be cleared
   });
 });

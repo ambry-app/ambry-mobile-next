@@ -4,8 +4,8 @@ import { render } from "@testing-library/react-native";
 import { ScreenCentered } from "@/components/ScreenCentered";
 
 describe("ScreenCentered", () => {
-  it("renders children inside a centered View", () => {
-    const { getByText } = render(
+  it("renders children inside a centered View", async () => {
+    const { getByText } = await render(
       <ScreenCentered>
         <Text>Centered content</Text>
       </ScreenCentered>,

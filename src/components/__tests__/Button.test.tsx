@@ -4,8 +4,8 @@ import { fireEvent, render } from "@testing-library/react-native";
 import { Button } from "@/components/Button";
 
 describe("Button", () => {
-  it("renders children", () => {
-    const { getByText } = render(
+  it("renders children", async () => {
+    const { getByText } = await render(
       <Button size={24} onPress={() => {}}>
         <Text>Click me</Text>
       </Button>,
@@ -13,20 +13,20 @@ describe("Button", () => {
     expect(getByText("Click me")).toBeTruthy();
   });
 
-  it("calls onPress when pressed", () => {
+  it("calls onPress when pressed", async () => {
     const onPressMock = jest.fn();
-    const { getByRole } = render(
+    const { getByRole } = await render(
       <Button size={24} onPress={onPressMock}>
         <Text>Press</Text>
       </Button>,
     );
-    fireEvent.press(getByRole("button"));
+    await fireEvent.press(getByRole("button"));
     expect(onPressMock).toHaveBeenCalled();
   });
 
-  it("applies custom style", () => {
+  it("applies custom style", async () => {
     const customStyle = { backgroundColor: "red" };
-    const { getByRole } = render(
+    const { getByRole } = await render(
       <Button size={24} onPress={() => {}} style={customStyle}>
         <Text>Styled</Text>
       </Button>,
