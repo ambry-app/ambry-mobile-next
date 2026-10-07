@@ -35,7 +35,7 @@ import { type Session } from "@/types/session";
 import { AddTrack, Progress, TrackType } from "@/types/track-player";
 import { logBase } from "@/utils/logger";
 import { documentDirectoryFilePath } from "@/utils/paths";
-import { type TimelineTrack } from "@/utils/playback-timeline";
+import { bookDuration, type TimelineTrack } from "@/utils/playback-timeline";
 import { subscribeToChange } from "@/utils/subscribe";
 import { recordingTitle } from "@/utils/titles";
 import { serverUrl } from "@/utils/urls";
@@ -138,10 +138,8 @@ export async function pause(
 
   if (rewindSeconds) {
     const rewindAmount = rewindSeconds * playbackRate;
-    const newPosition = Math.max(
-      0,
-      Math.min(position - rewindAmount, duration),
-    );
+    const rewound = Math.max(0, position - rewindAmount);
+    const newPosition = duration > 0 ? Math.min(rewound, duration) : rewound;
     log.debug(
       `Rewinding from ${position.toFixed(1)} to ${newPosition.toFixed(1)}`,
     );
@@ -258,10 +256,9 @@ export function getProgress() {
 
 /**
  * Progress straight from the player's mirror, bypassing the store. Falls back
- * to the store's last-known progress when the player has lost its track (a
- * zeroed duration): treating those zeros as truth is how a bad patch of
- * connectivity used to turn into a recorded "seek to 0" that destroyed the
- * listening position.
+ * to the store when the player reports no duration - a stream not prepared
+ * yet, or one that lost its track - because those zeros, taken as truth, get
+ * recorded as a listening position of 0.
  */
 export function getAccurateProgress(): ProgressWithPercent {
   log.silly("getAccurateProgress");
@@ -381,20 +378,23 @@ export async function loadPlaythroughIntoPlayer(
 
   await TrackPlayer.reset();
 
-  // Reset store state immediately after reset, before loading new track. This
-  // syncs the store with TrackPlayer's None state. As we load the track,
-  // TrackPlayer will fire PlaybackState events that update the store via event
-  // listeners. We must NOT overwrite playbackState/playWhenReady/isPlaying at
-  // the end, or we'll create a race condition where the store ends up in None
-  // state even though TrackPlayer is Ready.
-  //
-  // The playthrough is the exception, and goes in here rather than at the end:
-  // it is what the UI mounts the player on, so clearing it unmounts the player
-  // for as long as the load takes. The loading screen would vanish, the screen
-  // behind it would reappear, and the player would pop back in once the load
-  // finished. Everything else is zeroed as before, and the `loadingNewMedia`
-  // scrim hides the player's contents until the real values land below.
-  useTrackPlayer.setState({ ...initialState, playthrough: loaded });
+  // Player state arrives through the snapshot listener, so it is reset here
+  // and never written below. The playthrough goes in now because the UI mounts
+  // the player on it. Progress is seeded with where the load is going: an
+  // unprepared stream reports no duration, and until it does every reader
+  // falls back to the store.
+  const seeded = withPercent({
+    position,
+    duration: knownDuration(playthrough, timeline),
+    buffered: 0,
+  });
+  useTrackPlayer.setState({
+    ...initialState,
+    playthrough: loaded,
+    playbackRate,
+    progress: seeded,
+    ...buildInitialChapterState(playthrough.media.chapters, seeded),
+  });
 
   await TrackPlayer.add(tracks, timeline);
   await TrackPlayer.seekTo(position);
@@ -676,9 +676,9 @@ function withPercent(progress: Progress): ProgressWithPercent {
 }
 
 /**
- * A freshly loaded single-file queue reports duration 0 until the player has
- * buffered enough to know better; wait for the snapshot that knows. Falls
- * back to the store's last-known progress if none arrives.
+ * A freshly loaded queue reports duration 0 until the player has buffered
+ * enough to know better; wait for the snapshot that knows. Falls back to the
+ * progress the load seeded if none arrives.
  */
 async function waitForValidProgress(
   timeoutMs: number = 2000,
@@ -705,6 +705,16 @@ async function waitForValidProgress(
       finish(lastKnown);
     }, timeoutMs);
   });
+}
+
+function knownDuration(
+  playthrough: PlaythroughWithMedia,
+  timeline: TimelineTrack[],
+) {
+  if (timeline.length > 0) return bookDuration(timeline);
+  return playthrough.media.duration
+    ? parseFloat(playthrough.media.duration)
+    : 0;
 }
 
 /** A queue and the timeline that describes it. Never one without the other. */

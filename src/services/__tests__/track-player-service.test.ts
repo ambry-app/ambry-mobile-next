@@ -9,7 +9,10 @@
 
 import { act, renderHook } from "@testing-library/react-native";
 
-import { getPlaythroughWithMedia } from "@/db/playthroughs";
+import {
+  getPlaythroughWithMedia,
+  type PlaythroughWithMedia,
+} from "@/db/playthroughs";
 import * as trackPlayerService from "@/services/track-player-service";
 import {
   PlayPauseSource,
@@ -55,7 +58,7 @@ async function createTestPlaythrough(
       endTime: number | null;
     }[];
     downloaded?: boolean;
-    duration?: string;
+    duration?: string | null;
   } = {},
 ) {
   const db = getDb();
@@ -67,7 +70,7 @@ async function createTestPlaythrough(
   ];
 
   const media = await createMedia(db, {
-    duration: overrides.duration ?? "300.0",
+    duration: overrides.duration === undefined ? "300.0" : overrides.duration,
     chapters,
     hlsPath: "/audio/test/hls.m3u8",
     mpdPath: "/audio/test/manifest.mpd",
@@ -523,6 +526,63 @@ describe("track-player-service", () => {
       // The store's progress is not poisoned by the dead player's zeros
       expect(progress.position).toBe(150);
       expect(progress.duration).toBe(300);
+    });
+  });
+
+  describe("loading a stream the player has not measured yet", () => {
+    beforeEach(() => {
+      trackPlayerFake.setState({ reportsDuration: false });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    async function loadUnmeasured(playthrough: PlaythroughWithMedia) {
+      jest.useFakeTimers();
+      const loading = trackPlayerService.loadPlaythroughIntoPlayer(
+        session,
+        playthrough,
+      );
+      await jest.advanceTimersByTimeAsync(5_000);
+      await loading;
+    }
+
+    it("keeps the saved position and the recording's duration", async () => {
+      await loadUnmeasured(await createTestPlaythrough({ position: 250 }));
+
+      const { progress, currentChapter } = useTrackPlayer.getState();
+      expect(progress.position).toBe(250);
+      expect(progress.duration).toBe(300);
+      expect(currentChapter?.id).toBe("ch-3");
+    });
+
+    it("records play and pause at the saved position", async () => {
+      await loadUnmeasured(await createTestPlaythrough({ position: 150 }));
+
+      await trackPlayerService.play(PlayPauseSource.USER);
+      expect(useTrackPlayer.getState().lastPlayPause?.position).toBe(150);
+
+      await trackPlayerService.pause(PlayPauseSource.USER, 1);
+      expect(useTrackPlayer.getState().lastPlayPause?.position).toBe(150);
+    });
+
+    it("rewinds on pause from the saved position, not to 0", async () => {
+      await loadUnmeasured(
+        await createTestPlaythrough({ position: 150, duration: null }),
+      );
+
+      await trackPlayerService.pause(PlayPauseSource.USER, 1);
+
+      expect(trackPlayerFake.getState().position).toBe(149);
+    });
+
+    it("records rate changes at the saved position", async () => {
+      await loadUnmeasured(await createTestPlaythrough({ position: 150 }));
+
+      await trackPlayerService.setPlaybackRate(1.5);
+
+      expect(useTrackPlayer.getState().lastRateChange?.position).toBe(150);
     });
   });
 

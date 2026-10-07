@@ -49,6 +49,8 @@ interface TrackPlayerFakeState {
   currentTrack: unknown | null;
   queue: unknown[];
   activeTrackIndex: number | undefined;
+  // false: a stream media3 has not prepared yet, which reports duration 0
+  reportsDuration: boolean;
 }
 
 const createInitialState = (): TrackPlayerFakeState => ({
@@ -65,6 +67,7 @@ const createInitialState = (): TrackPlayerFakeState => ({
   // book-position translation depends on.
   queue: [] as unknown[],
   activeTrackIndex: undefined as number | undefined,
+  reportsDuration: true,
 });
 
 let trackPlayerState = createInitialState();
@@ -131,9 +134,13 @@ export const trackPlayerFake = {
 
 // Legacy mock exports for backward compatibility with existing tests
 // These delegate to the fake but allow tests to override with mockImplementation
+function reportedDuration() {
+  return trackPlayerState.reportsDuration ? trackPlayerState.duration : 0;
+}
+
 export const mockTrackPlayerGetProgress = jest.fn(async () => ({
   position: trackPlayerState.position,
-  duration: trackPlayerState.duration,
+  duration: reportedDuration(),
   buffered: trackPlayerState.buffered,
 }));
 export const mockTrackPlayerGetPlaybackState = jest.fn(async () => ({
@@ -254,7 +261,7 @@ function nativeSnapshot() {
     playWhenReady: trackPlayerState.playWhenReady,
     index: trackPlayerState.activeTrackIndex ?? 0,
     positionSeconds: trackPlayerState.position,
-    durationSeconds: trackPlayerState.duration,
+    durationSeconds: reportedDuration(),
     bufferedSeconds: trackPlayerState.buffered,
     rate: trackPlayerState.rate,
   };
