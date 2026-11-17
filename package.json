@@ -48,6 +48,13 @@
           "immer"
         ]
       }
+    },
+    "autolinking": {
+      "android": {
+        "buildFromSource": [
+          "expo-sqlite"
+        ]
+      }
     }
   },
   "jest": {
