@@ -27,7 +27,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Set up tools
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@v5
       - name: Cache npm
         uses: actions/cache@v4
         with:
@@ -72,7 +72,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Set up tools
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@v5
       - name: Cache npm
         uses: actions/cache@v4
         with:
@@ -180,7 +180,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Set up tools
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@v5
       - name: Cache npm
         uses: actions/cache@v4
         with:
