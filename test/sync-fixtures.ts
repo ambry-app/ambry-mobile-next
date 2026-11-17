@@ -86,7 +86,6 @@ export function createLibraryPerson(
   const now = new Date().toISOString();
 
   return {
-    __typename: "Person",
     id,
     name: `Person ${id}`,
     description: null,
@@ -108,7 +107,6 @@ export function createLibraryAuthor(
   const now = new Date().toISOString();
 
   return {
-    __typename: "Author",
     id,
     name: `Author ${id}`,
     insertedAt: now,
@@ -133,10 +131,9 @@ export function createLibraryAuthorPerson(
   const now = new Date().toISOString();
 
   return {
-    __typename: "AuthorPerson",
     id,
-    author: { __typename: "Author", id: authorId },
-    person: { __typename: "Person", id: personId },
+    author: { id: authorId },
+    person: { id: personId },
     insertedAt: now,
     updatedAt: now,
     ...overrides,
@@ -155,10 +152,9 @@ export function createLibraryNarrator(
   const now = new Date().toISOString();
 
   return {
-    __typename: "Narrator",
     id,
     name: `Narrator ${id}`,
-    person: { __typename: "Person", id: personId },
+    person: { id: personId },
     insertedAt: now,
     updatedAt: now,
     ...overrides,
@@ -176,7 +172,6 @@ export function createLibraryBook(
   const now = new Date().toISOString();
 
   return {
-    __typename: "Book",
     id,
     title: `Book ${id}`,
     published: now,
@@ -203,10 +198,9 @@ export function createLibraryBookAuthor(
   const now = new Date().toISOString();
 
   return {
-    __typename: "BookAuthor",
     id,
-    book: { __typename: "Book", id: bookId },
-    author: { __typename: "Author", id: authorId },
+    book: { id: bookId },
+    author: { id: authorId },
     position: 0,
     insertedAt: now,
     updatedAt: now,
@@ -225,7 +219,6 @@ export function createLibrarySeries(
   const now = new Date().toISOString();
 
   return {
-    __typename: "Series",
     id,
     name: `Series ${id}`,
     insertedAt: now,
@@ -250,10 +243,9 @@ export function createLibrarySeriesBook(
   const now = new Date().toISOString();
 
   return {
-    __typename: "SeriesBook",
     id,
-    book: { __typename: "Book", id: bookId },
-    series: { __typename: "Series", id: seriesId },
+    book: { id: bookId },
+    series: { id: seriesId },
     position: 0,
     bookNumber: "1",
     insertedAt: now,
@@ -274,9 +266,8 @@ export function createLibraryMedia(
   const now = new Date().toISOString();
 
   return {
-    __typename: "Media",
     id,
-    book: { __typename: "Book", id: bookId },
+    book: { id: bookId },
     status: MediaProcessingStatus.Ready,
     description: null,
     thumbnails: null,
@@ -313,9 +304,8 @@ export function createLibraryMediaTrack(
   const now = new Date().toISOString();
 
   return {
-    __typename: "MediaTrack",
     id,
-    media: { __typename: "Media", id: mediaId },
+    media: { id: mediaId },
     index: 0,
     path: `/library/${mediaId}/track.m4b`,
     size: 1024,
@@ -343,9 +333,8 @@ export function createLibraryRecordingGroup(
   const now = new Date().toISOString();
 
   return {
-    __typename: "RecordingGroup",
     id,
-    book: { __typename: "Book", id: bookId },
+    book: { id: bookId },
     name: "Recording Group",
     showLabel: false,
     partsTotal: null,
@@ -368,7 +357,6 @@ export function createLibraryUniverse(
   const now = new Date().toISOString();
 
   return {
-    __typename: "Universe",
     id,
     name: `Universe ${id}`,
     insertedAt: now,
@@ -393,10 +381,9 @@ export function createLibraryBookUniverse(
   const now = new Date().toISOString();
 
   return {
-    __typename: "BookUniverse",
     id,
-    book: { __typename: "Book", id: bookId },
-    universe: { __typename: "Universe", id: universeId },
+    book: { id: bookId },
+    universe: { id: universeId },
     insertedAt: now,
     updatedAt: now,
     ...overrides,
@@ -419,10 +406,9 @@ export function createLibraryMediaNarrator(
   const now = new Date().toISOString();
 
   return {
-    __typename: "MediaNarrator",
     id,
-    media: { __typename: "Media", id: mediaId },
-    narrator: { __typename: "Narrator", id: narratorId },
+    media: { id: mediaId },
+    narrator: { id: narratorId },
     position: 0,
     insertedAt: now,
     updatedAt: now,
@@ -439,7 +425,6 @@ export function createLibraryDeletion(
   recordId: string,
 ): DeletionChange {
   return {
-    __typename: "Deletion",
     type,
     recordId,
   };

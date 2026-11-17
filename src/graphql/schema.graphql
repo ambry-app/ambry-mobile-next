@@ -194,7 +194,7 @@ enum MediaProcessingStatus {
 """One audio file of a recording, played directly by the client"""
 type MediaTrack implements Node {
   """
-  Audio codec as probed, e.g. "aac". Clients decide playability from this and `mime` — nothing here is assumed playable
+  Audio codec as probed, e.g. "aac". Clients decide playability from this and `mime`; nothing here is assumed playable
   """
   codec: String
   duration: Float!

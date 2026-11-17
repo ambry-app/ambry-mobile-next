@@ -412,7 +412,7 @@ describe("sync", () => {
                 id: "media-1",
                 bookId: "book-1",
                 partNumber: 2,
-                recordingGroup: { __typename: "RecordingGroup", id: "set-1" },
+                recordingGroup: { id: "set-1" },
               }),
             ],
           }),
