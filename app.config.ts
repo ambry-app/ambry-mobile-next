@@ -73,7 +73,6 @@ export default {
           backgroundColor: "#18181b",
         },
       ],
-      "react-native-edge-to-edge",
       [
         "expo-build-properties",
         // ccache only where CI installs it; local and EAS builds don't have it

@@ -45,8 +45,7 @@
           "core-js",
           "drizzle-orm",
           "expo-sqlite-devtools",
-          "immer",
-          "react-native-edge-to-edge"
+          "immer"
         ]
       }
     }
@@ -115,7 +114,6 @@
     "react-dom": "19.2.3",
     "react-freeze": "^1.0.4",
     "react-native": "0.86.3",
-    "react-native-edge-to-edge": "1.6.0",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-keyboard-controller": "1.21.9",
     "react-native-logs": "^5.6.0",
