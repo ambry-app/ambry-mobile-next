@@ -1,107 +1,12 @@
 /* eslint-disable */
-import { DocumentTypeDecoration } from '@graphql-typed-document-node/core';
-export type Maybe<T> = T | null;
-export type InputMaybe<T> = T | null | undefined;
-export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
-export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: Maybe<T[SubKey]> };
-export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
-export type MakeEmpty<T extends { [key: string]: unknown }, K extends keyof T> = { [_ in K]?: never };
+/** Internal type. DO NOT USE DIRECTLY. */
+type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
+/** Internal type. DO NOT USE DIRECTLY. */
 export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
-/** All built-in and custom scalars, mapped to their actual values */
-export type Scalars = {
-  ID: { input: string; output: string; }
-  String: { input: string; output: string; }
-  Boolean: { input: boolean; output: boolean; }
-  Int: { input: number; output: number; }
-  Float: { input: number; output: number; }
-  /**
-   * The `Date` scalar type represents a date. The Date appears in a JSON
-   * response as an ISO8601 formatted string, without a time component.
-   */
-  Date: { input: any; output: any; }
-  /**
-   * The `DateTime` scalar type represents a date and time in the UTC
-   * timezone. The DateTime appears in a JSON response as an ISO8601 formatted
-   * string, including UTC timezone ("Z"). The parsed date and time string will
-   * be converted to UTC if there is an offset.
-   */
-  DateTime: { input: any; output: any; }
-  /**
-   * The `Decimal` scalar type represents signed double-precision fractional
-   * values parsed by the `Decimal` library. The Decimal appears in a JSON
-   * response as a string to preserve precision.
-   */
-  Decimal: { input: any; output: any; }
-};
-
-export type Author = Node & {
-  __typename?: 'Author';
-  /** The ID of an object */
-  id: Scalars['ID']['output'];
-  insertedAt: Scalars['DateTime']['output'];
-  name: Scalars['String']['output'];
-  updatedAt: Scalars['DateTime']['output'];
-};
-
-export type AuthorPerson = Node & {
-  __typename?: 'AuthorPerson';
-  author: Author;
-  /** The ID of an object */
-  id: Scalars['ID']['output'];
-  insertedAt: Scalars['DateTime']['output'];
-  person: Person;
-  updatedAt: Scalars['DateTime']['output'];
-};
-
-export type Book = Node & {
-  __typename?: 'Book';
-  /** The ID of an object */
-  id: Scalars['ID']['output'];
-  insertedAt: Scalars['DateTime']['output'];
-  published: Scalars['Date']['output'];
-  publishedFormat: DateFormat;
-  title: Scalars['String']['output'];
-  updatedAt: Scalars['DateTime']['output'];
-};
-
-export type BookAuthor = Node & {
-  __typename?: 'BookAuthor';
-  author: Author;
-  book: Book;
-  /** The ID of an object */
-  id: Scalars['ID']['output'];
-  insertedAt: Scalars['DateTime']['output'];
-  position: Scalars['Int']['output'];
-  updatedAt: Scalars['DateTime']['output'];
-};
-
-export type BookUniverse = Node & {
-  __typename?: 'BookUniverse';
-  book: Book;
-  /** The ID of an object */
-  id: Scalars['ID']['output'];
-  insertedAt: Scalars['DateTime']['output'];
-  universe: Universe;
-  updatedAt: Scalars['DateTime']['output'];
-};
-
-export type Chapter = {
-  __typename?: 'Chapter';
-  endTime?: Maybe<Scalars['Float']['output']>;
-  id: Scalars['ID']['output'];
-  startTime: Scalars['Float']['output'];
-  title?: Maybe<Scalars['String']['output']>;
-};
-
+import { DocumentTypeDecoration } from '@graphql-typed-document-node/core';
 export type CreateSessionInput = {
-  email: Scalars['String']['input'];
-  password: Scalars['String']['input'];
-};
-
-export type CreateSessionPayload = {
-  __typename?: 'CreateSessionPayload';
-  token: Scalars['String']['output'];
-  user: User;
+  email: string;
+  password: string;
 };
 
 export enum DateFormat {
@@ -109,20 +14,6 @@ export enum DateFormat {
   Year = 'YEAR',
   YearMonth = 'YEAR_MONTH'
 }
-
-export type DeleteSessionPayload = {
-  __typename?: 'DeleteSessionPayload';
-  deleted: Scalars['Boolean']['output'];
-};
-
-export type Deletion = Node & {
-  __typename?: 'Deletion';
-  deletedAt: Scalars['DateTime']['output'];
-  /** The ID of an object */
-  id: Scalars['ID']['output'];
-  recordId: Scalars['ID']['output'];
-  type: DeletionType;
-};
 
 export enum DeletionType {
   Author = 'AUTHOR',
@@ -142,16 +33,16 @@ export enum DeletionType {
 }
 
 export type DeviceInput = {
-  appBuild?: InputMaybe<Scalars['String']['input']>;
-  appId?: InputMaybe<Scalars['String']['input']>;
-  appVersion?: InputMaybe<Scalars['String']['input']>;
-  brand?: InputMaybe<Scalars['String']['input']>;
-  browser?: InputMaybe<Scalars['String']['input']>;
-  browserVersion?: InputMaybe<Scalars['String']['input']>;
-  id: Scalars['ID']['input'];
-  modelName?: InputMaybe<Scalars['String']['input']>;
-  osName?: InputMaybe<Scalars['String']['input']>;
-  osVersion?: InputMaybe<Scalars['String']['input']>;
+  appBuild?: string | null | undefined;
+  appId?: string | null | undefined;
+  appVersion?: string | null | undefined;
+  brand?: string | null | undefined;
+  browser?: string | null | undefined;
+  browserVersion?: string | null | undefined;
+  id: string | number;
+  modelName?: string | null | undefined;
+  osName?: string | null | undefined;
+  osVersion?: string | null | undefined;
   type: DeviceTypeInput;
 };
 
@@ -160,48 +51,6 @@ export enum DeviceTypeInput {
   Ios = 'IOS'
 }
 
-export type Media = Node & {
-  __typename?: 'Media';
-  abridged: Scalars['Boolean']['output'];
-  book: Book;
-  chapters: Array<Chapter>;
-  description?: Maybe<Scalars['String']['output']>;
-  duration?: Maybe<Scalars['Float']['output']>;
-  fullCast: Scalars['Boolean']['output'];
-  hlsPath?: Maybe<Scalars['String']['output']>;
-  /** The ID of an object */
-  id: Scalars['ID']['output'];
-  /** @deprecated use `thumbnails` instead */
-  imagePath?: Maybe<Scalars['String']['output']>;
-  insertedAt: Scalars['DateTime']['output'];
-  mp4Path?: Maybe<Scalars['String']['output']>;
-  mpdPath?: Maybe<Scalars['String']['output']>;
-  notes?: Maybe<Scalars['String']['output']>;
-  /** For multi-part recordings: this recording's position in its part set; the set's total lives on the recording group */
-  partNumber?: Maybe<Scalars['Int']['output']>;
-  published?: Maybe<Scalars['Date']['output']>;
-  publishedFormat: DateFormat;
-  publisher?: Maybe<Scalars['String']['output']>;
-  recordingGroup?: Maybe<RecordingGroup>;
-  status: MediaProcessingStatus;
-  supplementalFiles: Array<SupplementalFile>;
-  thumbnails?: Maybe<Thumbnails>;
-  /** Display-title override for this recording (translated/regional/retail title); null means the book's title applies */
-  title?: Maybe<Scalars['String']['output']>;
-  updatedAt: Scalars['DateTime']['output'];
-};
-
-export type MediaNarrator = Node & {
-  __typename?: 'MediaNarrator';
-  /** The ID of an object */
-  id: Scalars['ID']['output'];
-  insertedAt: Scalars['DateTime']['output'];
-  media: Media;
-  narrator: Narrator;
-  position: Scalars['Int']['output'];
-  updatedAt: Scalars['DateTime']['output'];
-};
-
 export enum MediaProcessingStatus {
   Error = 'ERROR',
   Pending = 'PENDING',
@@ -209,85 +58,16 @@ export enum MediaProcessingStatus {
   Ready = 'READY'
 }
 
-/** One audio file of a recording, played directly by the client */
-export type MediaTrack = Node & {
-  __typename?: 'MediaTrack';
-  /** Audio codec as probed, e.g. "aac". Clients decide playability from this and `mime` — nothing here is assumed playable */
-  codec?: Maybe<Scalars['String']['output']>;
-  duration: Scalars['Float']['output'];
-  /** Container as probed, e.g. "mov,mp4,m4a,3gp,3g2,mj2" */
-  format?: Maybe<Scalars['String']['output']>;
-  /** The ID of an object */
-  id: Scalars['ID']['output'];
-  /** Position in the recording's ordered track list, 0-based */
-  index: Scalars['Int']['output'];
-  insertedAt: Scalars['DateTime']['output'];
-  media: Media;
-  /** Media type of the file, e.g. "audio/mp4" */
-  mime?: Maybe<Scalars['String']['output']>;
-  /** Where to fetch the file; requires the same authentication as any other media URL */
-  path: Scalars['String']['output'];
-  seekAccuracy: SeekAccuracy;
-  /** Size in bytes. A float because audiobook files routinely exceed what GraphQL's 32-bit Int can hold */
-  size: Scalars['Float']['output'];
-  /** Where this track starts on the book's continuous timeline, in seconds. Playback positions are always absolute book-seconds */
-  startOffset: Scalars['Float']['output'];
-  updatedAt: Scalars['DateTime']['output'];
-};
-
-export type Narrator = Node & {
-  __typename?: 'Narrator';
-  /** The ID of an object */
-  id: Scalars['ID']['output'];
-  insertedAt: Scalars['DateTime']['output'];
-  name: Scalars['String']['output'];
-  person: Person;
-  updatedAt: Scalars['DateTime']['output'];
-};
-
-export type Node = {
-  /** The ID of the object. */
-  id: Scalars['ID']['output'];
-};
-
-export type Person = Node & {
-  __typename?: 'Person';
-  description?: Maybe<Scalars['String']['output']>;
-  /** The ID of an object */
-  id: Scalars['ID']['output'];
-  /** @deprecated use `thumbnails` instead */
-  imagePath?: Maybe<Scalars['String']['output']>;
-  insertedAt: Scalars['DateTime']['output'];
-  name: Scalars['String']['output'];
-  thumbnails?: Maybe<Thumbnails>;
-  updatedAt: Scalars['DateTime']['output'];
-};
-
-export type PlaybackEvent = {
-  __typename?: 'PlaybackEvent';
-  deviceId?: Maybe<Scalars['ID']['output']>;
-  fromPosition?: Maybe<Scalars['Float']['output']>;
-  id: Scalars['ID']['output'];
-  mediaId?: Maybe<Scalars['ID']['output']>;
-  playbackRate?: Maybe<Scalars['Float']['output']>;
-  playthroughId: Scalars['ID']['output'];
-  position?: Maybe<Scalars['Float']['output']>;
-  previousRate?: Maybe<Scalars['Float']['output']>;
-  timestamp: Scalars['DateTime']['output'];
-  toPosition?: Maybe<Scalars['Float']['output']>;
-  type: PlaybackEventType;
-};
-
 export type PlaybackEventInput = {
-  fromPosition?: InputMaybe<Scalars['Float']['input']>;
-  id: Scalars['ID']['input'];
-  mediaId?: InputMaybe<Scalars['ID']['input']>;
-  playbackRate?: InputMaybe<Scalars['Float']['input']>;
-  playthroughId: Scalars['ID']['input'];
-  position?: InputMaybe<Scalars['Float']['input']>;
-  previousRate?: InputMaybe<Scalars['Float']['input']>;
-  timestamp: Scalars['DateTime']['input'];
-  toPosition?: InputMaybe<Scalars['Float']['input']>;
+  fromPosition?: number | null | undefined;
+  id: string | number;
+  mediaId?: string | number | null | undefined;
+  playbackRate?: number | null | undefined;
+  playthroughId: string | number;
+  position?: number | null | undefined;
+  previousRate?: number | null | undefined;
+  timestamp: Date | string;
+  toPosition?: number | null | undefined;
   type: PlaybackEventType;
 };
 
@@ -303,140 +83,6 @@ export enum PlaybackEventType {
   Start = 'START'
 }
 
-export type RecordingGroup = Node & {
-  __typename?: 'RecordingGroup';
-  /** The work this set covers, same as its members' */
-  book: Book;
-  /** The ID of an object */
-  id: Scalars['ID']['output'];
-  insertedAt: Scalars['DateTime']['output'];
-  /** This set's name, shown to readers only when `show_label` says so */
-  name: Scalars['String']['output'];
-  /** Wording for one release in this set; null means "part" */
-  partWord?: Maybe<Scalars['String']['output']>;
-  /** Wording for several releases; null means "parts" */
-  partWordPlural?: Maybe<Scalars['String']['output']>;
-  /** How many releases the set has, when known ("Part 2 of 3") */
-  partsTotal?: Maybe<Scalars['Int']['output']>;
-  /** Whether to show `name` on this set's tile; an operator choice, never inferred */
-  showLabel: Scalars['Boolean']['output'];
-  updatedAt: Scalars['DateTime']['output'];
-};
-
-export type RootMutationType = {
-  __typename?: 'RootMutationType';
-  createSession?: Maybe<CreateSessionPayload>;
-  deleteSession?: Maybe<DeleteSessionPayload>;
-  /** V2 sync: events only, no playthroughs. All state is derived from events. */
-  syncEvents?: Maybe<SyncEventsPayload>;
-};
-
-
-export type RootMutationTypeCreateSessionArgs = {
-  input: CreateSessionInput;
-};
-
-
-export type RootMutationTypeSyncEventsArgs = {
-  input: SyncEventsInput;
-};
-
-export type RootQueryType = {
-  __typename?: 'RootQueryType';
-  authorPeopleChangedSince: Array<AuthorPerson>;
-  authorsChangedSince: Array<Author>;
-  bookAuthorsChangedSince: Array<BookAuthor>;
-  bookUniversesChangedSince: Array<BookUniverse>;
-  booksChangedSince: Array<Book>;
-  deletionsSince: Array<Deletion>;
-  me?: Maybe<User>;
-  mediaChangedSince: Array<Media>;
-  mediaNarratorsChangedSince: Array<MediaNarrator>;
-  mediaTracksChangedSince: Array<MediaTrack>;
-  narratorsChangedSince: Array<Narrator>;
-  peopleChangedSince: Array<Person>;
-  recordingGroupsChangedSince: Array<RecordingGroup>;
-  seriesBooksChangedSince: Array<SeriesBook>;
-  seriesChangedSince: Array<Series>;
-  serverTime: Scalars['DateTime']['output'];
-  universesChangedSince: Array<Universe>;
-};
-
-
-export type RootQueryTypeAuthorPeopleChangedSinceArgs = {
-  since?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
-
-export type RootQueryTypeAuthorsChangedSinceArgs = {
-  since?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
-
-export type RootQueryTypeBookAuthorsChangedSinceArgs = {
-  since?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
-
-export type RootQueryTypeBookUniversesChangedSinceArgs = {
-  since?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
-
-export type RootQueryTypeBooksChangedSinceArgs = {
-  since?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
-
-export type RootQueryTypeDeletionsSinceArgs = {
-  since?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
-
-export type RootQueryTypeMediaChangedSinceArgs = {
-  since?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
-
-export type RootQueryTypeMediaNarratorsChangedSinceArgs = {
-  since?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
-
-export type RootQueryTypeMediaTracksChangedSinceArgs = {
-  since?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
-
-export type RootQueryTypeNarratorsChangedSinceArgs = {
-  since?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
-
-export type RootQueryTypePeopleChangedSinceArgs = {
-  since?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
-
-export type RootQueryTypeRecordingGroupsChangedSinceArgs = {
-  since?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
-
-export type RootQueryTypeSeriesBooksChangedSinceArgs = {
-  since?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
-
-export type RootQueryTypeSeriesChangedSinceArgs = {
-  since?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
-
-export type RootQueryTypeUniversesChangedSinceArgs = {
-  since?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
 /** How accurately a player can seek within a track */
 export enum SeekAccuracy {
   /** The file carries no seek index (e.g. VBR mp3 with no Xing header); positions may drift */
@@ -445,102 +91,38 @@ export enum SeekAccuracy {
   Exact = 'EXACT'
 }
 
-export type Series = Node & {
-  __typename?: 'Series';
-  /** The ID of an object */
-  id: Scalars['ID']['output'];
-  insertedAt: Scalars['DateTime']['output'];
-  name: Scalars['String']['output'];
-  updatedAt: Scalars['DateTime']['output'];
-};
-
-export type SeriesBook = Node & {
-  __typename?: 'SeriesBook';
-  book: Book;
-  bookNumber: Scalars['Decimal']['output'];
-  /** The ID of an object */
-  id: Scalars['ID']['output'];
-  insertedAt: Scalars['DateTime']['output'];
-  position: Scalars['Int']['output'];
-  series: Series;
-  updatedAt: Scalars['DateTime']['output'];
-};
-
-export type SupplementalFile = {
-  __typename?: 'SupplementalFile';
-  filename: Scalars['String']['output'];
-  label?: Maybe<Scalars['String']['output']>;
-  mime: Scalars['String']['output'];
-  path: Scalars['String']['output'];
-};
-
 export type SyncEventsInput = {
   device: DeviceInput;
   events: Array<PlaybackEventInput>;
-  lastSyncTime?: InputMaybe<Scalars['DateTime']['input']>;
-};
-
-export type SyncEventsPayload = {
-  __typename?: 'SyncEventsPayload';
-  events: Array<PlaybackEvent>;
-  serverTime: Scalars['DateTime']['output'];
-};
-
-export type Thumbnails = {
-  __typename?: 'Thumbnails';
-  blurhash?: Maybe<Scalars['String']['output']>;
-  extraLarge: Scalars['String']['output'];
-  extraSmall: Scalars['String']['output'];
-  large: Scalars['String']['output'];
-  medium: Scalars['String']['output'];
-  small: Scalars['String']['output'];
-  thumbhash: Scalars['String']['output'];
-};
-
-export type Universe = Node & {
-  __typename?: 'Universe';
-  /** The ID of an object */
-  id: Scalars['ID']['output'];
-  insertedAt: Scalars['DateTime']['output'];
-  name: Scalars['String']['output'];
-  updatedAt: Scalars['DateTime']['output'];
-};
-
-export type User = {
-  __typename?: 'User';
-  admin: Scalars['Boolean']['output'];
-  confirmedAt?: Maybe<Scalars['DateTime']['output']>;
-  email: Scalars['String']['output'];
-  insertedAt: Scalars['DateTime']['output'];
-  updatedAt: Scalars['DateTime']['output'];
+  lastSyncTime?: Date | string | null | undefined;
 };
 
 export type LibraryChangesSinceQueryVariables = Exact<{
-  since?: InputMaybe<Scalars['DateTime']['input']>;
-  deletedSince?: InputMaybe<Scalars['DateTime']['input']>;
+  since?: Date | string | null | undefined;
+  deletedSince?: Date | string | null | undefined;
 }>;
 
 
-export type LibraryChangesSinceQuery = { __typename?: 'RootQueryType', serverTime: any, peopleChangedSince: Array<{ __typename?: 'Person', id: string, name: string, description?: string | null, insertedAt: any, updatedAt: any, thumbnails?: { __typename?: 'Thumbnails', extraLarge: string, large: string, medium: string, small: string, extraSmall: string, thumbhash: string } | null }>, authorsChangedSince: Array<{ __typename?: 'Author', id: string, name: string, insertedAt: any, updatedAt: any }>, authorPeopleChangedSince: Array<{ __typename?: 'AuthorPerson', id: string, insertedAt: any, updatedAt: any, author: { __typename?: 'Author', id: string }, person: { __typename?: 'Person', id: string } }>, narratorsChangedSince: Array<{ __typename?: 'Narrator', id: string, name: string, insertedAt: any, updatedAt: any, person: { __typename?: 'Person', id: string } }>, booksChangedSince: Array<{ __typename?: 'Book', id: string, title: string, published: any, publishedFormat: DateFormat, insertedAt: any, updatedAt: any }>, bookAuthorsChangedSince: Array<{ __typename?: 'BookAuthor', id: string, position: number, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, author: { __typename?: 'Author', id: string } }>, universesChangedSince: Array<{ __typename?: 'Universe', id: string, name: string, insertedAt: any, updatedAt: any }>, bookUniversesChangedSince: Array<{ __typename?: 'BookUniverse', id: string, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, universe: { __typename?: 'Universe', id: string } }>, seriesChangedSince: Array<{ __typename?: 'Series', id: string, name: string, insertedAt: any, updatedAt: any }>, seriesBooksChangedSince: Array<{ __typename?: 'SeriesBook', id: string, bookNumber: any, position: number, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, series: { __typename?: 'Series', id: string } }>, recordingGroupsChangedSince: Array<{ __typename?: 'RecordingGroup', id: string, name: string, showLabel: boolean, partsTotal?: number | null, partWord?: string | null, partWordPlural?: string | null, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string } }>, mediaChangedSince: Array<{ __typename?: 'Media', id: string, title?: string | null, partNumber?: number | null, status: MediaProcessingStatus, description?: string | null, published?: any | null, publishedFormat: DateFormat, publisher?: string | null, notes?: string | null, abridged: boolean, fullCast: boolean, mp4Path?: string | null, mpdPath?: string | null, hlsPath?: string | null, duration?: number | null, insertedAt: any, updatedAt: any, book: { __typename?: 'Book', id: string }, recordingGroup?: { __typename?: 'RecordingGroup', id: string } | null, thumbnails?: { __typename?: 'Thumbnails', extraLarge: string, large: string, medium: string, small: string, extraSmall: string, thumbhash: string } | null, chapters: Array<{ __typename?: 'Chapter', id: string, title?: string | null, startTime: number, endTime?: number | null }>, supplementalFiles: Array<{ __typename?: 'SupplementalFile', filename: string, label?: string | null, mime: string, path: string }> }>, mediaNarratorsChangedSince: Array<{ __typename?: 'MediaNarrator', id: string, position: number, insertedAt: any, updatedAt: any, media: { __typename?: 'Media', id: string }, narrator: { __typename?: 'Narrator', id: string } }>, mediaTracksChangedSince: Array<{ __typename?: 'MediaTrack', id: string, index: number, path: string, size: number, mime?: string | null, format?: string | null, codec?: string | null, duration: number, startOffset: number, seekAccuracy: SeekAccuracy, insertedAt: any, updatedAt: any, media: { __typename?: 'Media', id: string } }>, deletionsSince: Array<{ __typename?: 'Deletion', type: DeletionType, recordId: string }> };
+export type LibraryChangesSinceQuery = { serverTime: string, peopleChangedSince: Array<{ id: string, name: string, description: string | null, insertedAt: string, updatedAt: string, thumbnails: { extraLarge: string, large: string, medium: string, small: string, extraSmall: string, thumbhash: string } | null }>, authorsChangedSince: Array<{ id: string, name: string, insertedAt: string, updatedAt: string }>, authorPeopleChangedSince: Array<{ id: string, insertedAt: string, updatedAt: string, author: { id: string }, person: { id: string } }>, narratorsChangedSince: Array<{ id: string, name: string, insertedAt: string, updatedAt: string, person: { id: string } }>, booksChangedSince: Array<{ id: string, title: string, published: string, publishedFormat: DateFormat, insertedAt: string, updatedAt: string }>, bookAuthorsChangedSince: Array<{ id: string, position: number, insertedAt: string, updatedAt: string, book: { id: string }, author: { id: string } }>, universesChangedSince: Array<{ id: string, name: string, insertedAt: string, updatedAt: string }>, bookUniversesChangedSince: Array<{ id: string, insertedAt: string, updatedAt: string, book: { id: string }, universe: { id: string } }>, seriesChangedSince: Array<{ id: string, name: string, insertedAt: string, updatedAt: string }>, seriesBooksChangedSince: Array<{ id: string, bookNumber: string, position: number, insertedAt: string, updatedAt: string, book: { id: string }, series: { id: string } }>, recordingGroupsChangedSince: Array<{ id: string, name: string, showLabel: boolean, partsTotal: number | null, partWord: string | null, partWordPlural: string | null, insertedAt: string, updatedAt: string, book: { id: string } }>, mediaChangedSince: Array<{ id: string, title: string | null, partNumber: number | null, status: MediaProcessingStatus, description: string | null, published: string | null, publishedFormat: DateFormat, publisher: string | null, notes: string | null, abridged: boolean, fullCast: boolean, mp4Path: string | null, mpdPath: string | null, hlsPath: string | null, duration: number | null, insertedAt: string, updatedAt: string, book: { id: string }, recordingGroup: { id: string } | null, thumbnails: { extraLarge: string, large: string, medium: string, small: string, extraSmall: string, thumbhash: string } | null, chapters: Array<{ id: string, title: string | null, startTime: number, endTime: number | null }>, supplementalFiles: Array<{ filename: string, label: string | null, mime: string, path: string }> }>, mediaNarratorsChangedSince: Array<{ id: string, position: number, insertedAt: string, updatedAt: string, media: { id: string }, narrator: { id: string } }>, mediaTracksChangedSince: Array<{ id: string, index: number, path: string, size: number, mime: string | null, format: string | null, codec: string | null, duration: number, startOffset: number, seekAccuracy: SeekAccuracy, insertedAt: string, updatedAt: string, media: { id: string } }>, deletionsSince: Array<{ type: DeletionType, recordId: string }> };
 
 export type CreateSessionMutationVariables = Exact<{
   input: CreateSessionInput;
 }>;
 
 
-export type CreateSessionMutation = { __typename?: 'RootMutationType', createSession?: { __typename?: 'CreateSessionPayload', token: string } | null };
+export type CreateSessionMutation = { createSession: { token: string } | null };
 
 export type DeleteSessionMutationVariables = Exact<{ [key: string]: never; }>;
 
 
-export type DeleteSessionMutation = { __typename?: 'RootMutationType', deleteSession?: { __typename?: 'DeleteSessionPayload', deleted: boolean } | null };
+export type DeleteSessionMutation = { deleteSession: { deleted: boolean } | null };
 
 export type SyncEventsMutationVariables = Exact<{
   input: SyncEventsInput;
 }>;
 
 
-export type SyncEventsMutation = { __typename?: 'RootMutationType', syncEvents?: { __typename?: 'SyncEventsPayload', serverTime: any, events: Array<{ __typename?: 'PlaybackEvent', id: string, playthroughId: string, deviceId?: string | null, mediaId?: string | null, type: PlaybackEventType, timestamp: any, position?: number | null, playbackRate?: number | null, fromPosition?: number | null, toPosition?: number | null, previousRate?: number | null }> } | null };
+export type SyncEventsMutation = { syncEvents: { serverTime: string, events: Array<{ id: string, playthroughId: string, deviceId: string | null, mediaId: string | null, type: PlaybackEventType, timestamp: string, position: number | null, playbackRate: number | null, fromPosition: number | null, toPosition: number | null, previousRate: number | null }> } | null };
 
 export class TypedDocumentString<TResult, TVariables>
   extends String
