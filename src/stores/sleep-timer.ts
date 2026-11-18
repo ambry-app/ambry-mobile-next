@@ -55,7 +55,7 @@ export function selectIsMotionPausingTimer(state: SleepTimerState): boolean {
  *
  * NOTE: Trigger time is NOT persisted to DB. It's transient runtime state
  * that survives app "kills" because the JS context persists (TrackPlayer's
- * foreground service keeps it alive). See CLAUDE.md for details.
+ * foreground service keeps it alive). See AGENTS.md for details.
  */
 export function setTriggerTime(triggerTime: number | null) {
   useSleepTimer.setState({ sleepTimerTriggerTime: triggerTime });

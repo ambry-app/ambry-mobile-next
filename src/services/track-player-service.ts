@@ -283,7 +283,7 @@ export function useDisplayProgress(): ProgressWithPercent {
     if (!playing) return;
 
     // A plain interval on purpose: this drives mounted UI, which is
-    // foreground by definition. See the services timer rule in CLAUDE.md.
+    // foreground by definition. See the services timer rule in AGENTS.md.
     // eslint-disable-next-line no-restricted-globals
     const interval = setInterval(
       () => {

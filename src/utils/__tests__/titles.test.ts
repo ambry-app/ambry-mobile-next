@@ -93,7 +93,7 @@ describe("setLabel", () => {
   });
 
   it("withholds the name when they did not", () => {
-    // most set names are filing labels -- "batch 2", "from mam" -- so the
+    // most set names are filing labels -- "batch 2", "box 3" -- so the
     // flag is the only thing that may decide this, never the name itself
     expect(setLabel({ name: "GraphicAudio", showLabel: false })).toBeNull();
   });
