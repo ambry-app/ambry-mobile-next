@@ -82,7 +82,7 @@ object PlayerCore {
   fun ensure(context: Context): ExoPlayer {
     player?.let { return it }
 
-    val exo = ExoPlayer.Builder(context)
+    val exo = ExoPlayer.Builder(context, AmbryRenderersFactory(context))
       .setAudioAttributes(
         AudioAttributes.Builder()
           .setUsage(C.USAGE_MEDIA)

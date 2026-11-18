@@ -67,6 +67,7 @@ dependencies {
   // finishes converting to direct-play.
   implementation "androidx.media3:media3-exoplayer-dash:${media3Version}"
   implementation "androidx.media3:media3-exoplayer-hls:${media3Version}"
+  implementation files("libs/media3-decoder-ffmpeg-${media3Version}.aar")
 }
 
 def safeExtGet(prop, fallback) {
