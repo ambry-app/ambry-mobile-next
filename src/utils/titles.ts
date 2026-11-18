@@ -39,7 +39,7 @@ export function partLabel(
  * A set's name, when readers are meant to see it.
  *
  * Every set has a name, but most of them are filing labels that mean something
- * to the operator and nothing to a reader ("batch 2", "from mam"). The server
+ * to the operator and nothing to a reader ("batch 2", "box 3"). The server
  * carries an explicit per-set choice, and this is the only thing that should
  * decide whether the name reaches a screen — never the name itself.
  */
