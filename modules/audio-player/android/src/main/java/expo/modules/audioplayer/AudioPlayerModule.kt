@@ -1,6 +1,5 @@
 package expo.modules.audioplayer
 
-import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import expo.modules.kotlin.Promise
@@ -53,7 +52,10 @@ class AudioPlayerModule : Module() {
 
     OnDestroy {
       PlayerCore.emit = null
-      mainHandler.post { PlayerCore.release() }
+      mainHandler.post {
+        PlaybackService.release()
+        PlayerCore.release()
+      }
     }
 
     AsyncFunction("setup") { promise: Promise ->
@@ -85,26 +87,20 @@ class AudioPlayerModule : Module() {
           },
         )
 
-        // The session (and with it the notification and media keys) lives in
-        // the service, so it has to be running whenever a queue is loaded.
-        // media3 promotes it to a mediaPlayback FGS when playback starts and
-        // demotes it when playback stops; this start is the plain, non-FGS
-        // kind, which is only legal from the foreground - and a queue is only
-        // ever loaded from the foreground (boot or a user tapping a book) or
-        // while playback already holds the service up.
-        try {
-          context.startService(Intent(context, PlaybackService::class.java))
-        } catch (e: IllegalStateException) {
-          // Backgrounded app, no service yet: leave it. Nothing can be
-          // playing (there was no queue), so the next foreground load
-          // starts it.
-        }
+        PlaybackService.hold(context)
         null
       }
     }
 
     AsyncFunction("play") { promise: Promise ->
-      onMain(promise) { PlayerCore.player?.play(); null }
+      onMain(promise) {
+        PlayerCore.player?.let { player ->
+          // Re-held here because task removal releases the hold while paused.
+          appContext.reactContext?.applicationContext?.let { PlaybackService.hold(it) }
+          player.play()
+        }
+        null
+      }
     }
 
     AsyncFunction("pause") { promise: Promise ->

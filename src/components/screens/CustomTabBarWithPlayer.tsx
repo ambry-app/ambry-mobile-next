@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Extrapolation,
@@ -8,6 +8,7 @@ import Animated, {
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
+  withDelay,
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -339,18 +340,27 @@ export function CustomTabBarWithPlayer(props: CustomTabBarWithPlayerProps) {
   });
 
   // Consolidated animated values - compute all interpolations in one place
-  const playerOpacity = useSharedValue(0.0);
+  // Starts at rest, like `expansion`, and snaps to rest on resume: the player
+  // must never wait on an animation finishing in the background to be visible.
+  const playerOpacity = useSharedValue(loadingNewMedia ? 0.0 : 1.0);
 
   useEffect(() => {
     if (loadingNewMedia) {
       // Immediately hide old content to show loading spinner
       playerOpacity.value = 0;
-    } else {
-      setTimeout(() => {
-        playerOpacity.value = withTiming(1.0, { duration: 200 });
-      }, 200);
+    } else if (playerOpacity.value < 1.0) {
+      playerOpacity.value = withDelay(200, withTiming(1.0, { duration: 200 }));
     }
   }, [loadingNewMedia, playerOpacity]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active" && !usePlayerUIState.getState().loadingNewMedia) {
+        playerOpacity.value = 1.0;
+      }
+    });
+    return () => subscription.remove();
+  }, [playerOpacity]);
 
   // Geometry. The player no longer animates any layout: the collapsed strip and
   // the expanded screen are each laid out statically and cross-faded, and the

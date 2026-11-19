@@ -1,8 +1,14 @@
 package expo.modules.audioplayer
 
 import android.app.PendingIntent
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
+import android.os.Binder
 import android.os.Bundle
+import android.os.IBinder
+import android.util.Log
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -23,6 +29,9 @@ import com.google.common.util.concurrent.ListenableFuture
  *   Android must not restart it. A restarted service would build a headless
  *   JS context with listeners but no boot, no player and no playthrough - the
  *   split-context dead end (and Session-ID crash) the old player carried.
+ * - The module holds a binding ([hold]) from the first queue on: the session
+ *   must live as long as the player can play, and a started-only service does
+ *   not. Binding, unlike starting, also works from the background.
  * - Task removal stops the service unless something is actually playing. The
  *   operator's call: the app dying more often is fine, dying mid-listen is
  *   not.
@@ -37,9 +46,40 @@ import com.google.common.util.concurrent.ListenableFuture
  */
 class PlaybackService : MediaSessionService() {
   companion object {
+    private const val TAG = "AmbryPlaybackService"
     private const val ACTION_SEEK_BACK = "app.ambry.seek_back"
     private const val ACTION_SEEK_FORWARD = "app.ambry.seek_forward"
+    private const val ACTION_HOLD = "app.ambry.hold"
     private const val SEEK_BUTTON_SECONDS = 10.0
+
+    private var holdConnection: ServiceConnection? = null
+    private var holdContext: Context? = null
+
+    /** Idempotent. Call only once [PlayerCore.ensure] has run: see [onCreate]. */
+    fun hold(context: Context) {
+      if (holdConnection != null) return
+
+      val connection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) = Unit
+
+        override fun onServiceDisconnected(name: ComponentName?) = Unit
+      }
+      val intent = Intent(context, PlaybackService::class.java).setAction(ACTION_HOLD)
+
+      if (context.bindService(intent, connection, Context.BIND_AUTO_CREATE)) {
+        holdConnection = connection
+        holdContext = context
+      } else {
+        Log.e(TAG, "bindService refused; playback will have no media session")
+        context.unbindService(connection)
+      }
+    }
+
+    fun release() {
+      holdConnection?.let { holdContext?.unbindService(it) }
+      holdConnection = null
+      holdContext = null
+    }
   }
 
   private var mediaSession: MediaSession? = null
@@ -136,6 +176,11 @@ class PlaybackService : MediaSessionService() {
     addSession(session)
   }
 
+  override fun onBind(intent: Intent?): IBinder? {
+    val binder = super.onBind(intent)
+    return if (intent?.action == ACTION_HOLD) Binder() else binder
+  }
+
   override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
     mediaSession
 
@@ -151,6 +196,7 @@ class PlaybackService : MediaSessionService() {
     val player = PlayerCore.player
     if (player == null || !player.playWhenReady) {
       player?.pause()
+      release()
       stopSelf()
     }
   }

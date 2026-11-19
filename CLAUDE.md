@@ -182,8 +182,10 @@ Services contain business logic and are decoupled via store subscriptions (using
   next/previous and timeline dragging are disabled on purpose.
 - The Android lifecycle is deliberately narrow: `START_NOT_STICKY`, and task
   removal stops the service unless something is playing. There is no revival
-  path and no headless JS context, by construction. iOS has no service at
-  all; JS keeps running under `UIBackgroundModes: ["audio"]`.
+  path and no headless JS context, by construction. The module also holds a
+  binding on the service from the first queue on, because the media session
+  must live as long as the player and a started-only service does not. iOS has
+  no service at all; JS keeps running under `UIBackgroundModes: ["audio"]`.
 
 **JS Context Architecture**:
 
@@ -199,8 +201,8 @@ Services contain business logic and are decoupled via store subscriptions (using
 ticks while you are away. React Native drives `setTimeout`/`setInterval` from a
 choreographer frame callback that `JavaTimerManager.onHostPause` unhooks whenever the
 Activity pauses — Home press, screen off, or swipe — unless a headless JS task is
-active, and this app never runs one. So **every JS timer freezes until
-`onHostResume`, then all overdue ones fire at once**.
+active, which here is only the few seconds of a background sync. So **every JS timer
+freezes until `onHostResume`, then all overdue ones fire at once**.
 
 Measured on device 2026-08-15 (Pixel 9 Pro XL, dev build): playback backgrounded at
 23:22:51 produced zero JS output for eight minutes; a 5-minute sleep timer due at
