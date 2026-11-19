@@ -216,6 +216,21 @@ describe("playback-controls", () => {
       const activeId = await getActivePlaythroughIdForDevice(session);
       expect(activeId).toBe(playthrough.id);
     });
+
+    it("clears the loading spinner when the load fails", async () => {
+      setupSessionAndDevice();
+
+      const operationPromise = playbackControls.continueExistingPlaythrough(
+        session,
+        "no-such-playthrough",
+      );
+      const settled = operationPromise.catch(() => undefined);
+      await jest.runAllTimersAsync();
+      await settled;
+
+      await expect(operationPromise).rejects.toBeDefined();
+      expect(usePlayerUIState.getState().loadingNewMedia).toBe(false);
+    });
   });
 
   describe("startFreshPlaythrough", () => {

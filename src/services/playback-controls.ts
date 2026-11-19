@@ -60,11 +60,9 @@ export async function continueExistingPlaythrough(
   log.info("Continuing existing playthrough:", playthroughId);
 
   await pauseIfPlaying();
-  setLoadingNewMedia(true);
-  await expandPlayerAndWait();
-
-  await Operations.continuePlaythrough(session, playthroughId);
-  setLoadingNewMedia(false);
+  await whileLoadingNewMedia(() =>
+    Operations.continuePlaythrough(session, playthroughId),
+  );
   bumpPlaythroughDataVersion();
   await play();
 }
@@ -76,11 +74,9 @@ export async function startFreshPlaythrough(session: Session, mediaId: string) {
   log.info("Starting fresh playthrough for media:", mediaId);
 
   await pauseIfPlaying();
-  setLoadingNewMedia(true);
-  await expandPlayerAndWait();
-
-  await Operations.startNewPlaythrough(session, mediaId);
-  setLoadingNewMedia(false);
+  await whileLoadingNewMedia(() =>
+    Operations.startNewPlaythrough(session, mediaId),
+  );
   bumpPlaythroughDataVersion();
   await play();
 }
@@ -128,12 +124,9 @@ export async function resumeAndLoadPlaythrough(
   log.info("Resuming playthrough:", playthroughId);
 
   await pauseIfPlaying();
-  setLoadingNewMedia(true);
-  await expandPlayerAndWait();
-
-  await Operations.resumePlaythrough(session, playthroughId);
-
-  setLoadingNewMedia(false);
+  await whileLoadingNewMedia(() =>
+    Operations.resumePlaythrough(session, playthroughId),
+  );
   bumpPlaythroughDataVersion();
 
   await play();
@@ -283,6 +276,17 @@ export function expandPlayerAndWait(): Promise<void> {
 // =============================================================================
 // Internal Playback Helpers
 // =============================================================================
+
+/** A load that throws must not leave the player hidden under its spinner. */
+async function whileLoadingNewMedia(load: () => Promise<unknown>) {
+  setLoadingNewMedia(true);
+  try {
+    await expandPlayerAndWait();
+    await load();
+  } finally {
+    setLoadingNewMedia(false);
+  }
+}
 
 async function play() {
   await Player.play(PlayPauseSource.USER);
