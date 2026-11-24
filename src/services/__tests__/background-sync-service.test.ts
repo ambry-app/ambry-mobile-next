@@ -25,11 +25,13 @@ import { setupTestDatabase } from "@test/db-test-utils";
 import { DEFAULT_TEST_SESSION } from "@test/factories";
 import { installFetchMock, mockNetworkError } from "@test/fetch-mock";
 import {
+  clearSecureStore,
   getDefinedTaskCallback,
   mockExpoDbExecSync,
   mockIsTaskRegisteredAsync,
   mockRegisterTaskAsync,
   mockUnregisterTaskAsync,
+  setSecureStoreLocked,
 } from "@test/jest-setup";
 import {
   emptyLibraryChanges,
@@ -145,6 +147,22 @@ describe("background-sync-service", () => {
       expect(result).toBe("success");
       // Sync should not have been called (no fetch)
       expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("skips the sync when the keychain is locked", async () => {
+      useSession.setState({ session });
+      resetDeviceStore();
+      setSecureStoreLocked(true);
+
+      try {
+        const taskCallback = getDefinedTaskCallback();
+        const result = await taskCallback!();
+
+        expect(result).toBe("success");
+        expect(mockFetch).not.toHaveBeenCalled();
+      } finally {
+        clearSecureStore();
+      }
     });
 
     it("runs full sync cycle and returns success when session exists", async () => {

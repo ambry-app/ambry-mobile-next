@@ -511,24 +511,38 @@ export function clearDefinedTaskCallback() {
 
 // In-memory storage for SecureStore
 const mockSecureStoreData: Record<string, string> = {};
+let mockSecureStoreLocked = false;
+
+function mockSecureStoreAccess(): void {
+  if (mockSecureStoreLocked) {
+    throw new Error(
+      "Calling the 'getValueWithKeyAsync' function has failed\n→ Caused by: User interaction is not allowed.",
+    );
+  }
+}
 
 jest.mock("expo-secure-store", () => ({
   // Sync versions (used by zustand persist)
-  getItem: jest.fn((key: string) => mockSecureStoreData[key] ?? null),
+  getItem: jest.fn((key: string) => {
+    mockSecureStoreAccess();
+    return mockSecureStoreData[key] ?? null;
+  }),
   setItem: jest.fn((key: string, value: string) => {
+    mockSecureStoreAccess();
     mockSecureStoreData[key] = value;
   }),
   // Async versions
-  getItemAsync: jest.fn((key: string) =>
-    Promise.resolve(mockSecureStoreData[key] ?? null),
-  ),
-  setItemAsync: jest.fn((key: string, value: string) => {
-    mockSecureStoreData[key] = value;
-    return Promise.resolve();
+  getItemAsync: jest.fn(async (key: string) => {
+    mockSecureStoreAccess();
+    return mockSecureStoreData[key] ?? null;
   }),
-  deleteItemAsync: jest.fn((key: string) => {
+  setItemAsync: jest.fn(async (key: string, value: string) => {
+    mockSecureStoreAccess();
+    mockSecureStoreData[key] = value;
+  }),
+  deleteItemAsync: jest.fn(async (key: string) => {
+    mockSecureStoreAccess();
     delete mockSecureStoreData[key];
-    return Promise.resolve();
   }),
 }));
 
@@ -536,9 +550,17 @@ jest.mock("expo-secure-store", () => ({
  * Clear all SecureStore data. Call this in beforeEach to reset state.
  */
 export function clearSecureStore(): void {
+  mockSecureStoreLocked = false;
   for (const key of Object.keys(mockSecureStoreData)) {
     delete mockSecureStoreData[key];
   }
+}
+
+/**
+ * Make SecureStore fail the way iOS does while the device is locked.
+ */
+export function setSecureStoreLocked(locked: boolean): void {
+  mockSecureStoreLocked = locked;
 }
 
 /**

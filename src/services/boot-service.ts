@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { AppState } from "react-native";
 import * as Sentry from "@sentry/react-native";
 
 import { registerBackgroundSyncTask } from "@/services/background-sync-service";
@@ -26,7 +27,12 @@ import {
 } from "@/services/sync-service";
 import { initialize as initializeTrackPlayer } from "@/services/track-player-service";
 import { initializeDevice } from "@/stores/device";
-import { useSession } from "@/stores/session";
+import {
+  reloadSession,
+  sessionKeychainError,
+  useSession,
+} from "@/stores/session";
+import { isKeychainLocked } from "@/utils/keychain";
 import { logBase } from "@/utils/logger";
 
 const log = logBase.extend("boot-service");
@@ -86,6 +92,9 @@ function bootErrorFromSync(error: SyncError): BootError | null {
  * failures are surfaced as `bootError` and the whole sequence can be retried
  * via `retryBoot` rather than leaving the user on a spinner forever.
  *
+ * A locked keychain during a background launch is not a failure: boot waits
+ * and starts over the next time the app comes to the foreground.
+ *
  * @returns isReady - true when boot is complete
  * @returns migrationError - Error if migrations failed
  * @returns initialSyncComplete - true when initial sync has finished
@@ -97,6 +106,7 @@ export function useAppBoot() {
   const [initialSyncComplete, setInitialSyncComplete] = useState(false);
   const [bootError, setBootError] = useState<BootError | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [keychainLocked, setKeychainLocked] = useState(false);
   const { success: migrationSuccess, error: migrationError } =
     useDatabaseMigrations();
   const session = useSession((state) => state.session);
@@ -107,9 +117,31 @@ export function useAppBoot() {
     setAttempt((current) => current + 1);
   }, []);
 
+  useEffect(() => {
+    if (!keychainLocked) return;
+
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active") return;
+
+      log.info("Retrying boot in the foreground");
+      setKeychainLocked(false);
+      setAttempt((current) => current + 1);
+    });
+
+    return () => subscription.remove();
+  }, [keychainLocked]);
+
   // Boot (after migrations complete, session-dependent initialization)
   useEffect(() => {
     async function boot() {
+      if (sessionKeychainError()) {
+        reloadSession();
+        // A session that loads re-runs boot on its own
+        if (useSession.getState().session !== session) return;
+        const error = sessionKeychainError();
+        if (error) throw error;
+      }
+
       if (!session) {
         log.debug("No session");
         setIsReady(true);
@@ -163,6 +195,12 @@ export function useAppBoot() {
 
     if (migrationSuccess) {
       boot().catch((error) => {
+        if (isKeychainLocked(error) && AppState.currentState !== "active") {
+          log.info("Keychain locked, waiting for the foreground");
+          setKeychainLocked(true);
+          return;
+        }
+
         log.error("Boot sequence failed:", error);
         Sentry.captureException(error);
         setBootError({ kind: BootErrorKind.UNEXPECTED, cause: error });

@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist, StateStorage } from "zustand/middleware";
 
 import { Session } from "@/types/session";
+import { isKeychainLocked } from "@/utils/keychain";
 import { logBase } from "@/utils/logger";
 
 const log = logBase.extend("session");
@@ -32,6 +33,8 @@ const secureStorage: StateStorage = {
 
 const storage = createJSONStorage(() => secureStorage);
 
+let keychainError: unknown = null;
+
 export const useSession = create<SessionState>()(
   persist(
     (): SessionState => ({
@@ -43,6 +46,9 @@ export const useSession = create<SessionState>()(
       partialize: (state) => ({
         session: state.session,
       }),
+      onRehydrateStorage: () => (_state, error) => {
+        keychainError = isKeychainLocked(error) ? error : null;
+      },
     },
   ),
 );
@@ -58,8 +64,22 @@ export function clearSession() {
 }
 
 /**
+ * Why the stored session could not be read, if the keychain was locked. A null
+ * session does not mean signed out while this is set.
+ */
+export function sessionKeychainError() {
+  return keychainError;
+}
+
+/** Storage is synchronous, so the session is loaded when this returns. */
+export function reloadSession() {
+  useSession.persist.rehydrate();
+}
+
+/**
  * Reset store to initial state for testing.
  */
 export function resetForTesting() {
+  keychainError = null;
   useSession.setState(initialSessionState, true);
 }

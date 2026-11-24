@@ -2,7 +2,9 @@ import * as BackgroundTask from "expo-background-task";
 import * as TaskManager from "expo-task-manager";
 
 import { getExpoDb } from "@/db/db";
+import { getDeviceInfo } from "@/stores/device";
 import { useSession } from "@/stores/session";
+import { isKeychainLocked } from "@/utils/keychain";
 import { logBase } from "@/utils/logger";
 
 import { firstSyncError, sync } from "./sync-service";
@@ -21,6 +23,8 @@ TaskManager.defineTask(BACKGROUND_SYNC_TASK_NAME, async () => {
   }
 
   try {
+    // Sync swallows the error if this read fails, so check the keychain first
+    await getDeviceInfo();
     const error = firstSyncError(await sync(session));
 
     if (error) {
@@ -35,6 +39,11 @@ TaskManager.defineTask(BACKGROUND_SYNC_TASK_NAME, async () => {
     log.info("completed successfully");
     return BackgroundTask.BackgroundTaskResult.Success;
   } catch (error) {
+    if (isKeychainLocked(error)) {
+      log.info("Keychain locked, skipping sync");
+      return BackgroundTask.BackgroundTaskResult.Success;
+    }
+
     log.error("failed:", error);
     return BackgroundTask.BackgroundTaskResult.Failed;
   }
