@@ -7,6 +7,7 @@
  * expo-sqlite migrator against a native database the test db does not have.
  */
 
+import { AppState, AppStateStatus } from "react-native";
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 
 import { BootErrorKind, useAppBoot } from "@/services/boot-service";
@@ -29,6 +30,11 @@ import {
   mockGraphQL,
   mockNetworkError,
 } from "@test/fetch-mock";
+import {
+  clearSecureStore,
+  setSecureStoreItem,
+  setSecureStoreLocked,
+} from "@test/jest-setup";
 import {
   createLibraryPerson,
   emptyLibraryChanges,
@@ -157,5 +163,127 @@ describe("boot-service", () => {
     // The cleared session sends the user back to sign-in on its own
     expect(useSession.getState().session).toBeNull();
     expect(result.current.bootError).toBeNull();
+  });
+
+  describe("while the keychain is locked", () => {
+    let appStateListeners: ((state: AppStateStatus) => void)[];
+    const realCurrentState = Object.getOwnPropertyDescriptor(
+      AppState,
+      "currentState",
+    )!;
+
+    function setAppState(state: AppStateStatus) {
+      Object.defineProperty(AppState, "currentState", {
+        value: state,
+        configurable: true,
+      });
+    }
+
+    beforeEach(() => {
+      appStateListeners = [];
+      setAppState("background");
+      jest
+        .spyOn(AppState, "addEventListener")
+        .mockImplementation((_type, listener) => {
+          appStateListeners.push(listener);
+          return { remove: () => {} };
+        });
+    });
+
+    afterEach(() => {
+      Object.defineProperty(AppState, "currentState", realCurrentState);
+      clearSecureStore();
+      jest.restoreAllMocks();
+    });
+
+    async function foreground() {
+      setAppState("active");
+      await act(async () =>
+        appStateListeners.forEach((listener) => listener("active")),
+      );
+    }
+
+    it("waits for the foreground instead of failing when the device ID is unreadable", async () => {
+      resetDeviceStore();
+      setSecureStoreLocked(true);
+      mockSuccessfulSync(mockFetch, "2024-01-15T10:00:00.000Z");
+
+      const { result } = await renderHook(() => useAppBoot());
+
+      await waitFor(() => expect(appStateListeners).not.toHaveLength(0));
+      expect(result.current.isReady).toBe(false);
+      expect(result.current.bootError).toBeNull();
+      expect(mockFetch).not.toHaveBeenCalled();
+
+      setSecureStoreLocked(false);
+      await foreground();
+
+      await waitFor(() => expect(result.current.isReady).toBe(true));
+      expect(result.current.bootError).toBeNull();
+      expect(result.current.initialSyncComplete).toBe(true);
+    });
+
+    it("does not treat an unreadable session as signed out", async () => {
+      resetSessionStore();
+      setSecureStoreItem(
+        "Ambry_userSessionV2",
+        JSON.stringify({ state: { session }, version: 0 }),
+      );
+      setSecureStoreLocked(true);
+      await useSession.persist.rehydrate();
+      mockSuccessfulSync(mockFetch, "2024-01-15T10:00:00.000Z");
+
+      const { result } = await renderHook(() => useAppBoot());
+
+      await waitFor(() => expect(appStateListeners).not.toHaveLength(0));
+      expect(result.current.isReady).toBe(false);
+
+      setSecureStoreLocked(false);
+      await foreground();
+
+      await waitFor(() => expect(result.current.isReady).toBe(true));
+      expect(useSession.getState().session).toEqual(session);
+      expect(result.current.initialSyncComplete).toBe(true);
+    });
+
+    it("shows the error if the keychain is still locked in the foreground", async () => {
+      resetDeviceStore();
+      setSecureStoreLocked(true);
+
+      const { result } = await renderHook(() => useAppBoot());
+      await waitFor(() => expect(appStateListeners).not.toHaveLength(0));
+
+      await foreground();
+
+      await waitFor(() => expect(result.current.isReady).toBe(true));
+      expect(result.current.bootError?.kind).toBe(BootErrorKind.UNEXPECTED);
+    });
+
+    it("loads an unreadable session when retried in the foreground", async () => {
+      setAppState("active");
+      resetSessionStore();
+      setSecureStoreItem(
+        "Ambry_userSessionV2",
+        JSON.stringify({ state: { session }, version: 0 }),
+      );
+      setSecureStoreLocked(true);
+      await useSession.persist.rehydrate();
+      mockSuccessfulSync(mockFetch, "2024-01-15T10:00:00.000Z");
+
+      const { result } = await renderHook(() => useAppBoot());
+
+      // Not signed out: the user gets the error, not the sign-in screen
+      await waitFor(() => expect(result.current.bootError).not.toBeNull());
+      expect(useSession.getState().session).toBeNull();
+
+      setSecureStoreLocked(false);
+      await act(() => result.current.retryBoot());
+
+      await waitFor(() =>
+        expect(result.current.initialSyncComplete).toBe(true),
+      );
+      expect(useSession.getState().session).toEqual(session);
+      expect(result.current.bootError).toBeNull();
+    });
   });
 });
